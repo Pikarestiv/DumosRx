@@ -1,5 +1,6 @@
 import { query, execute, getDatabase } from "../core";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
+import { hasCountedAuditRow } from "@/components/stock-batch/audit-derivations";
 
 export interface StockAuditDraftRow {
   store_id: string;
@@ -61,11 +62,7 @@ export async function hasAnyLocalStockAuditCount(): Promise<boolean> {
     const rows = await query<Pick<StockAuditDraftRow, "items_json">>(
       "SELECT items_json FROM stock_audit_drafts",
     );
-    return rows.some((row) =>
-      (JSON.parse(row.items_json) as AuditItem[]).some(
-        (item) => item.counted === true || item.countedQty != null,
-      ),
-    );
+    return rows.some((row) => hasCountedAuditRow(JSON.parse(row.items_json) as AuditItem[]));
   } catch (err) {
     console.error("[DB] Failed to check for unfinished stock audit drafts:", err);
     return false;

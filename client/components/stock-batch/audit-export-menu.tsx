@@ -12,7 +12,7 @@ interface AuditExportMenuProps {
   onPrint: () => void;
   onDownloadPdf: () => void;
   onExport: (format: "csv" | "xlsx") => void;
-  onStartOver: () => void;
+  onStartOver?: () => void;
 }
 
 export function AuditExportMenu({
@@ -54,9 +54,11 @@ export function AuditExportMenu({
         <DropdownMenuItem disabled={exportDisabled} onClick={() => onExport("xlsx")}>
           Export Excel
         </DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={onStartOver}>
-          Start over
-        </DropdownMenuItem>
+        {onStartOver && (
+          <DropdownMenuItem variant="destructive" onClick={onStartOver}>
+            Start over
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

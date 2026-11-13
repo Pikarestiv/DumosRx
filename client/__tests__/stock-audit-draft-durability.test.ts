@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
 import initSqlJs, { type Database } from "sql.js";
+import { set as idbSet } from "idb-keyval";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 
 vi.mock("idb-keyval", () => ({
@@ -142,6 +143,49 @@ describe("cycle count draft durability", () => {
     expect(sqliteDraft("store-main")?.map((i) => i.countedQty)).toEqual([undefined, 6]);
   });
 
+  function legacyBlob(storeId: string, items: AuditItem[]): string {
+    return JSON.stringify({ state: { drafts: { [storeId]: items } }, version: 2 });
+  }
+
+  it("keeps the legacy key when the database copy could not be saved to IndexedDB", async () => {
+    const blob = legacyBlob("store-a", [row({ countedQty: 4, counted: true })]);
+    localStorage.setItem(LEGACY_KEY, blob);
+    vi.mocked(idbSet).mockRejectedValue(new Error("QuotaExceededError"));
+    try {
+      await open("store-a");
+    } finally {
+      vi.mocked(idbSet).mockResolvedValue(undefined);
+    }
+    expect(localStorage.getItem(LEGACY_KEY)).toBe(blob);
+
+    drafts.useStockAuditDraftStore.setState({ drafts: {}, items: [], activeStoreId: null, loadedStoreId: null });
+    await open("store-a");
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+    expect(sqliteDraft("store-a")?.[0].countedQty).toBe(4);
+  });
+
+  it.each([
+    ["an uncounted sheet", [row(), row({ id: "p2" })]],
+    ["an empty sheet", []],
+  ])("imports a counted legacy draft over %s already in SQLite", async (_label, existing) => {
+    seedSqlite("store-a", existing);
+    localStorage.setItem(LEGACY_KEY, legacyBlob("store-a", [row({ countedQty: 4, counted: true })]));
+
+    await open("store-a");
+
+    expect(drafts.useStockAuditDraftStore.getState().items[0].countedQty).toBe(4);
+    expect(sqliteDraft("store-a")?.[0].countedQty).toBe(4);
+  });
+
+  it("does not replace an uncounted SQLite sheet with an uncounted legacy one", async () => {
+    seedSqlite("store-a", [row({ id: "p9" })]);
+    localStorage.setItem(LEGACY_KEY, legacyBlob("store-a", [row()]));
+
+    await open("store-a");
+
+    expect(sqliteDraft("store-a")?.map((i) => i.id)).toEqual(["p9"]);
+  });
+
   it("does not migrate a legacy draft until the database is available", async () => {
     const blob = JSON.stringify({
       state: { drafts: { "store-a": [row({ countedQty: 4, counted: true })] } },
@@ -181,6 +225,17 @@ describe("cycle count draft durability", () => {
 
     expect(drafts.useStockAuditDraftStore.getState().items[0].countedQty).toBe(2);
     await waitFor(() => expect(sqliteDraft("store-a")?.[0].countedQty).toBe(2));
+  });
+
+  it("does not let a sheet built before the store resolved overwrite that store's counted draft", async () => {
+    seedSqlite("store-x", [row({ countedQty: 4, counted: true }), row({ id: "p2" })]);
+    drafts.useStockAuditDraftStore.getState().setItems([row(), row({ id: "p2" })]);
+
+    await open("store-x");
+    await drafts.flushStockAuditDraftSaves();
+
+    expect(drafts.useStockAuditDraftStore.getState().items[0].countedQty).toBe(4);
+    expect(sqliteDraft("store-x")?.[0].countedQty).toBe(4);
   });
 
   it("adopts an orphaned 'default' SQLite draft into the real store", async () => {

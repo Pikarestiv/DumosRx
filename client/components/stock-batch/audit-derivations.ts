@@ -43,6 +43,10 @@ function differsFromSystem(item: AuditItem): boolean {
 
 // Whether someone has actually been to the shelf for this row.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-audit-derivations-ts-L47
+export function hasCountedAuditRow(items: AuditItem[]): boolean {
+  return items.some((item) => item.counted === true || item.countedQty != null);
+}
+
 export function isAuditItemCounted(item: AuditItem): boolean {
   return (
     item.countedQty !== undefined ||

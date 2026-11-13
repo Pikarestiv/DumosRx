@@ -282,15 +282,14 @@ export function saveDatabase(): Promise<void> {
     const pending = queuedExport;
     queuedExport = null;
     if (!pending) return;
-    await persistDatabaseExport(pending.data);
-    savedWriteEpoch = pending.epoch;
+    if (await persistDatabaseExport(pending.data)) savedWriteEpoch = pending.epoch;
   });
 
   return saveChain;
 }
 
-async function persistDatabaseExport(data: Uint8Array): Promise<void> {
-  await set(`${APP_NAME.toLowerCase()}_db`, data).catch(err => {
+async function persistDatabaseExport(data: Uint8Array): Promise<boolean> {
+  return set(`${APP_NAME.toLowerCase()}_db`, data).then(() => true, err => {
     // Surfaced as an app event, not console-only — see client/AGENTS.md,
     // "One connection, one writer" (persistence).
     console.error("Failed to save DB to IndexedDB", err);
@@ -301,6 +300,7 @@ async function persistDatabaseExport(data: Uint8Array): Promise<void> {
         emitAppEvent(APP_EVENTS.dbSaveFailed, { error: err });
       }
     }
+    return false;
   });
 }
 

@@ -2196,17 +2196,29 @@ cycle count, and stock adjustment.
    No server migration, not synced.
 2. **The cycle count draft has one durable copy, SQLite** (A-375, 2026-11-13).
    `useStockAuditDraftStore` no longer uses zustand `persist`; nothing of the sheet is
-   in localStorage. Writes are debounced 400ms and flushed at once by
-   `flushStockAuditDraftSaves()` on `pagehide`, `visibilitychange` (hidden), store switch,
-   logout and user switch. `loadStoreDraft()` waits for `initDatabase()` (on a cold start
+   in localStorage. Writes are debounced 400ms; `flushStockAuditDraftSaves()` starts them
+   early on `pagehide`, `visibilitychange` (hidden), store switch, logout and user switch.
+   That is best effort: it only queues an async sql.js write and IndexedDB persist, so a
+   count made in the last moments before the browser is killed may not reach IndexedDB. `loadStoreDraft()` waits for `initDatabase()` (on a cold start
    the store id resolves before the DB opens; without the wait the sheet rebuilt empty and
    overwrote the draft), and `useAuditSheetSource` builds no sheet until
    `loadedStoreId === activeStoreId`. A count made while no store id resolves stays in
-   memory and is filed under the store once one is set; nothing is written under
-   `"default"` any more.
+   memory and is filed under the store once one is set, but only if it holds a counted row
+   and the store's in-memory draft does not; `loadStoreDraft()` likewise keeps the
+   in-memory sheet over SQLite only when it has a counted row (`hasCountedAuditRow()`), so
+   an uncounted sheet built early never overwrites a counted draft (A-379). Nothing is
+   written under `"default"` any more.
+   **Read-only second tab:** `assertWritable()` refuses its writes, so `StockAudits`
+   treats `useDatabase().isReadOnlyTab` like the cloud lease's `isReadOnly` (no counting,
+   no submit, no cloud push) and hides Start over. When the tab is promoted to writer the
+   draft store drops its pending saves and in-memory drafts and reloads from SQLite, which
+   the promotion has just rehydrated from IndexedDB.
    **Compat shim:** `importLegacyStockAuditDrafts()` (`lib/hooks/stock-audit-draft-legacy.ts`)
    moves a pre-2026-11 `stock-audit-draft` localStorage blob into SQLite once, never over an
-   existing SQLite draft, removing the key only after every write succeeded;
+   SQLite draft that has a counted row (it does replace an uncounted or empty one when the
+   blob has counts), removing the key only after every write succeeded and, on the web
+   build, `saveDatabase()` has persisted to IndexedDB (`hasUnpersistedWrites()` is false;
+   a failed `set()` no longer marks the export saved);
    `adoptUnscopedStockAuditDraft()` adopts an old `"default"` SQLite row. Retire both once
    no active device reports a build older than 2026-11-13.
    The stock adjustment draft still has its localStorage `persist` copy; not changed here.
@@ -2240,8 +2252,8 @@ The local SQLite draft covers offline counting; while online the count is also h
 2. **Read-Only Inspection Mode:** If another till holds the editing lease, the screen enters Inspection Mode (`isReadOnly = true`). Inputs and checkboxes are disabled, showing the active counter's till name and live counted count (`x of y items counted`).
 3. **Explicit Takeover:** Staff can take over an active count from any device (e.g. if the counter's till runs out of battery). Takeover issues `POST /app/audit-sessions/{id}/takeover`, invalidating previous leases via an incremented fencing version (`lease_version`). Logout and user switch never abandon the session, so a till can take over a count whose counter signed out.
 4. **Fencing & Offline Recovery:** Stale writes from a superseded device fail with HTTP 409 (`AuditSessionConflictError`). The older device immediately drops into read-only mode, but its local SQLite counts are preserved intact for review and never silently discarded.
-5. **Merge is newest-wins:** rows carry `countedAt` (stamped by `useAuditCounting`, sent as `counted_at`). `mergeCloudItemsIntoLocal()` takes a cloud row only when the local row is uncounted, or both carry timestamps and the cloud one is newer; a local count with no timestamp (a pre-2026-11-13 draft) wins. A merged row has no `baselineQty` (A-378).
-6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. 409 and 403/404/410/422 settle an entry; network errors and 401 keep it. `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
+5. **Merge is newest-wins:** rows carry `countedAt` (stamped by `useAuditCounting`, sent as `counted_at`). `mergeCloudItemsIntoLocal()` takes a cloud row only when the local row is uncounted, or the cloud row carries a timestamp and the local one is older or has none; a missing time counts as oldest, and when neither side has one the local row stays. `toCloudItem()` sends `counted_at: null` for a row with no `countedAt` (a pre-2026-11-13 draft), never the push time, so every till converges on the stamped figure (A-379). A merged row has no `baselineQty` (A-378).
+6. **Completion and abandon go through an outbox** (A-376): `complete()` (after submit) and `abandon()` (Start over, only when this till holds the session) write to `lib/hooks/cloud-audit-pending-ops.ts` (localStorage `dumos_audit_session_pending_ops`) before sending, and every Cycle Count open and `online` event flushes it. Each entry stores its session's `storeId` and is sent with that `X-Store-Id`, so a multi-store owner's switch cannot misroute it; abandon also sends `till_id` and `lease_version`, and the server's 409 for a till that has been taken over drops the entry without a toast. 409 and 404/410/422 settle an entry; network errors, 401 and 403 keep it. An entry from an older build has no `storeId` and is sent under the active store, so a 403 keeps it until a flush from its own store (A-379). `initSession()` never adopts or merges a session that is not `in_progress`, names `submitted_stock_audit_id`, or is still in the outbox.
 7. **Completion Lifecycle:** `POST /complete` records `submitted_stock_audit_id` and moves the session to `completion_pending_sync`; when the sync engine pushes that `stock_audits` row the session becomes `completed`. Only `auditIds[0]` is sent; any one of a submit's rows arriving is enough because they are pushed together.
 
 ### An expense is dated by the store's own day (2026-10-13)
@@ -7580,7 +7592,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 The product detail panel's Batches tab (`product-batch-history.tsx`) lets a user with **both** `view_cost_fields` and `edit_product_cost` correct one batch's `cost_price` through `BatchCostEditDialog` (input, then a confirm step). Without `view_cost_fields` the tab shows no batch cost, total value or edit control; before this it showed cost to everyone.
 
 - **What it writes:** one `update("stock_batches", id, { cost_price })`, rounded to 2 dp, so it syncs as a cost-only UPDATE. A cost-only push is *not* quantity-only, so the server applies its normal strict `_version` check (`SyncEndpointTest::test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells`); no server change was needed. The server does not validate the value, so the client range check (`isValidBatchCostPrice`: finite, 0 to 1,000,000,000) is the only one. An unchanged cost writes nothing.
-- **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`.
+- **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`. Without `view_cost_fields` the History tab prints the row without either cost (`describeAuditDetails(..., canViewCost)`; the permission is part of the query key). The Activity Log detail panel does not gate them yet (A-380).
 - **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), the cost of future sales via that average, and the cost a later return restocks at (A-374). **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
 - Expired, sold-out and inactive batches are editable on purpose: a zero-quantity batch still feeds Last Bought Price and return valuation.
 

@@ -1,5 +1,6 @@
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
-import { getDatabase } from "@/lib/db/core";
+import { hasCountedAuditRow } from "@/components/stock-batch/audit-derivations";
+import { getDatabase, hasUnpersistedWrites, isTauri, saveDatabase } from "@/lib/db/core";
 import {
   deleteLocalStockAuditDraft,
   getLocalStockAuditDraft,
@@ -48,6 +49,11 @@ function legacyDraftsByStore(raw: string, fallbackStoreId: string): Map<string, 
   return byStore;
 }
 
+async function sqliteDraftYieldsTo(storeId: string, legacyItems: AuditItem[]): Promise<boolean> {
+  const existing = await getLocalStockAuditDraft(storeId);
+  return !existing || (!hasCountedAuditRow(existing) && hasCountedAuditRow(legacyItems));
+}
+
 // Compat shim (AGENTS.md §11): moves a pre-2026-11 localStorage draft into SQLite once.
 // Retire once no active device reports a build older than this change.
 export async function importLegacyStockAuditDrafts(fallbackStoreId: string): Promise<void> {
@@ -69,8 +75,12 @@ export async function importLegacyStockAuditDrafts(fallbackStoreId: string): Pro
   }
 
   for (const [storeId, items] of byStore) {
-    if (items.length === 0 || (await getLocalStockAuditDraft(storeId))) continue;
+    if (items.length === 0 || !(await sqliteDraftYieldsTo(storeId, items))) continue;
     if (!(await saveLocalStockAuditDraft(storeId, items))) return;
+  }
+  if (!isTauri()) {
+    await saveDatabase();
+    if (hasUnpersistedWrites()) return;
   }
   try {
     localStorage.removeItem(LEGACY_STOCK_AUDIT_DRAFT_KEY);

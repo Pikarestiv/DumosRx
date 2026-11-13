@@ -10,14 +10,22 @@ interface Props {
 }
 
 const PILL =
-  "inline-flex items-center gap-1 whitespace-nowrap shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer";
+  "inline-flex items-center gap-1 whitespace-nowrap shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer";
 const ICON = "w-3 h-3 shrink-0";
 
-function shortfallLabel(item: CartItem): string | null {
+type ShelfStatus = { label: string; tone: "warning" | "neutral" };
+
+function shelfStatus(item: CartItem): ShelfStatus | null {
   const stock = item.stock ?? 0;
-  if (stock <= 0) return "Out of stock";
-  return item.quantity > stock ? `${item.quantity - stock} short` : null;
+  if (stock <= 0) return { label: "Out of stock", tone: "warning" };
+  if (item.quantity > stock) return { label: `${item.quantity - stock} short`, tone: "warning" };
+  return item.quantity === stock ? { label: "All shelf stock used", tone: "neutral" } : null;
 }
+
+const STATUS_TONE = {
+  warning: "text-amber-700 dark:text-amber-400",
+  neutral: "text-muted-foreground",
+} as const;
 
 export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureSpotSourcing }: Props) {
   if (item.is_spot_sourced) {
@@ -41,22 +49,8 @@ export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureS
 
   if (!onConfigureSpotSourcing || isLocked || item.item_type === "service") return null;
 
-  const shortfall = shortfallLabel(item);
-  if (!shortfall) {
-    return (
-      <div>
-        <button
-          type="button"
-          onClick={() => onConfigureSpotSourcing(item)}
-          className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] text-muted-foreground hover:text-amber-700 dark:hover:text-amber-400 transition-colors cursor-pointer rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          title="Source this item on the spot from an external store (e.g. if shelf stock is damaged)"
-        >
-          <Share2 className={ICON} />
-          Source outside
-        </button>
-      </div>
-    );
-  }
+  const status = shelfStatus(item);
+  if (!status) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -69,7 +63,7 @@ export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureS
         <Share2 className={ICON} />
         Source outside
       </button>
-      <span className="whitespace-nowrap text-[10px] font-medium text-amber-700 dark:text-amber-400">{shortfall}</span>
+      <span className={`whitespace-nowrap text-[10px] font-medium ${STATUS_TONE[status.tone]}`}>{status.label}</span>
     </div>
   );
 }

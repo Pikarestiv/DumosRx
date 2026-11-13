@@ -71,11 +71,11 @@ The desktop application is built for speed, reliability, and ease of use. It con
 **Sell at Zero Stock (Overselling / Delayed Paperwork):** When physical delivery has arrived on the shop floor but staff hasn't had the time or capacity to enter the purchase order paperwork yet, the store can toggle on "Allow Sales Without Stock" in Settings → Store. Cashiers can continue selling incoming items immediately. Shortfalls are recorded as owed backorders. When the delivery is subsequently entered through a Purchase Order or Immediate Purchase, backorders are cleared and historical sales lines are automatically re-costed from the delivery cost.
 
 **POS Spot Sourcing (On-the-Spot External Sourcing in Cart):** When a customer needs an out-of-stock item and staff can immediately get it from a neighboring pharmacy or partner shop:
-- Cashiers can click "Source outside" directly on the cart item, or tap an out-of-stock product tile to open the Spot Source dialog.
+- Cashiers can tap an out-of-stock product tile, or click "Source outside" on a cart line, to open the Spot Source dialog. The cart line offers it only when the product is out of stock, short, or the cart already holds all the shelf stock (never for services).
 - Staff enters the agreed purchase cost (what was paid to the neighbor) and whether it was paid from the **Cash Drawer** or on **Owner Credit / Paid Externally**.
 - **Net shelf stock is zero:** It does not deduct existing batches or create phantom negative stock or backorders.
 - **Instant profit accuracy:** The true cost price is saved on the sale line, giving you 100% accurate profit reports instantly.
-- **Automatic register cash balance:** If paid from the Cash Drawer, the system automatically writes a cash expense ("Stock Sourcing") behind the scenes. At Daily Close, Net Cash Expected automatically accounts for the cash paid out, so physical cash reconciles without manual notes or shortages!
+- **Automatic register cash balance:** If paid from the Cash Drawer, Daily Close subtracts the payout from Net Cash Expected (from the sale's spot-sourcing record, not an expense row), so physical cash reconciles without manual notes and profit is not counted twice.
 
 **External Stock Sourcing (Unlinked Stores & Partner Sourcing via Procurement):** For larger batches collected from an unlinked sister branch or partner store before sales:
 - The sale is booked under the selling store (customer receipt issued for full price).

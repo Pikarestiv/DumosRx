@@ -40,15 +40,34 @@ describe("POS cart item spot-sourcing controls", () => {
     expect(pill.parentElement?.className).toContain("flex-wrap");
   });
 
-  it("keeps the in-stock 'Source outside' link visible without hover and at full-strength muted contrast", () => {
-    renderItem({ stock: 10, quantity: 1 });
+  it.each([
+    [{ stock: 10, quantity: 1 }],
+    [{ stock: 10, quantity: 9 }],
+  ])("offers no 'Source outside' control while the cart holds less than the shelf stock (%j)", (overrides) => {
+    renderItem(overrides);
 
-    const link = screen.getByRole("button", { name: "Source outside" });
-    expect(link.className).not.toMatch(/(^|\s)opacity-0(\s|$)/);
-    expect(link.className).not.toContain("text-muted-foreground/");
-    expect(link.className).toContain("text-muted-foreground");
-    expect(link.className).toContain("whitespace-nowrap");
+    expect(screen.queryByRole("button", { name: "Source outside" })).toBeNull();
     expect(screen.queryByText("Out of stock")).toBeNull();
+  });
+
+  it("offers 'Source outside' with a neutral status once the cart holds all the shelf stock", () => {
+    renderItem({ stock: 3, quantity: 3 });
+
+    const pill = screen.getByRole("button", { name: "Source outside" });
+    expectOneLine(pill);
+    const status = screen.getByText("All shelf stock used");
+    expect(pill.contains(status)).toBe(false);
+    expect(status.className).toContain("text-muted-foreground");
+  });
+
+  it.each([
+    [{ stock: 0, quantity: 1 }],
+    [{ stock: 2, quantity: 5 }],
+    [{ stock: undefined, quantity: 1 }],
+  ])("never offers 'Source outside' on a service line (%j)", (overrides) => {
+    renderItem({ item_type: "service", ...overrides } as Partial<CartItem>);
+
+    expect(screen.queryByRole("button", { name: "Source outside" })).toBeNull();
   });
 
   it("shows the spot-sourcing cost as its own unwrapped text beside the 'Spot Sourced' pill, not inside it", () => {

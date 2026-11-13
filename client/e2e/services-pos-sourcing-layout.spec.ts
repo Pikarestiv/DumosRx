@@ -55,7 +55,7 @@ test.describe('POS cart sourcing controls at phone width', () => {
   test.setTimeout(120000);
 
   for (const theme of THEMES) {
-    test(`${theme}: spot-sourced and in-stock lines keep their sourcing labels on one visible line`, async ({
+    test(`${theme}: a spot-sourced line keeps its labels on one line, and an in-stock line offers Source outside only once the cart holds all its stock`, async ({
       page,
       browser,
       baseURL,
@@ -79,10 +79,7 @@ test.describe('POS cart sourcing controls at phone width', () => {
       expect(clearCart.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
 
       const sourceOutside = cartLine(page, IN_STOCK).getByRole('button', { name: 'Source outside' });
-      await expect(sourceOutside).toBeVisible();
-      const inStock = await expectOneLineClearOfStepper(page, IN_STOCK, sourceOutside);
-      expect(inStock.effectiveOpacity).toBe(1);
-      expect(inStock.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+      await expect(sourceOutside).toHaveCount(0);
 
       const spotSourced = cartLine(page, OUT_OF_STOCK).getByRole('button', { name: /Spot Sourced/ });
       await expect(spotSourced).toBeVisible();
@@ -106,6 +103,16 @@ test.describe('POS cart sourcing controls at phone width', () => {
       ] as const) {
         test.info().annotations.push({ type: `metrics: ${what}`, description: JSON.stringify(await measureLabel(locator)) });
       }
+
+      await line.getByRole('spinbutton').fill('10');
+      await line.getByRole('spinbutton').press('Enter');
+      const allUsed = line.getByText('All shelf stock used', { exact: true });
+      await expect(allUsed).toBeVisible();
+      const inStock = await expectOneLineClearOfStepper(page, IN_STOCK, sourceOutside);
+      expect(inStock.effectiveOpacity).toBe(1);
+      expect(inStock.clipped).toBe(false);
+      expect(inStock.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+      expect((await measureLabel(allUsed)).contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
     });
 
     test(`${theme}: a backordered out-of-stock line keeps the "Source outside" pill on one line`, async ({

@@ -2484,12 +2484,17 @@ There are two distinct workflows for selling goods sourced outside the store:
    is off-site and cannot raise purchase orders or reconcile backorders at EOD.
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
-   - **Trigger & UI:** When an item has `stock <= 0` or `quantity > stock`, the cart
-     shows an amber `"Source outside"` pill with the status (`"Out of stock"` or `"N short"`)
-     as separate text beside it. For well-stocked items (`stock >= quantity`) a quieter
-     `text-muted-foreground` "Source outside" link is always visible (for damaged or reserved
-     shelf units); it used to be `opacity-0` until hover, which hid it on touch tills.
-     Clicking either opens `SpotSourceDialog`. A spot-sourced line shows a "Spot Sourced"
+   - **Trigger & UI:** A product cart line shows the amber `"Source outside"` pill only when
+     `quantity >= stock` (which includes `stock <= 0`), with the status as separate text beside
+     it: `"Out of stock"`, `"N short"`, or a muted `"All shelf stock used"` when the cart holds
+     exactly the shelf stock. Service lines never show it. Below the shelf level there is no
+     control at all (owner decision, 2026-11-13: the always-visible link under every line cost
+     a row of height each), so sourcing outside because the shelf units are damaged or
+     reserved is no longer offered from the cart line: write the damaged units off as a stock
+     adjustment first, or raise the quantity to the shelf level, and the pill appears.
+     Clicking it opens `SpotSourceDialog`, whose "Source all externally" toggle still covers
+     unusable shelf units at that point. The pill text is `text-amber-800 dark:text-amber-400`
+     (amber-700 measured 4.15:1 on its own tint). A spot-sourced line shows a "Spot Sourced"
      pill with the per-unit "Cost ₦…" as separate text beside it. The controls live in
      `components/pos/pos-cart-item-sourcing.tsx` and sit on their own full-width row under
      the cart line (`basis-full`, indented past the category icon), not in the name column:
@@ -5885,7 +5890,10 @@ same tab session still gets its own fresh one-time retry.
     service repricing notices; and the cart's "Source outside"/"Spot Sourced"
     labels at 390×844 in light and dark: one line, unclipped, the spot cost
     visible, at least 6px clear of the quantity stepper on either axis, and
-    the delete backdrop transparent at rest (set `E2E_SCREENSHOT_DIR` to keep the
+    the delete backdrop transparent at rest; "Source outside" absent on an
+    in-stock line until its quantity reaches the shelf stock; the two-line
+    name; and "Clear cart" at >= 4.5:1. `e2e/layout-metrics.ts` composites
+    translucent backgrounds when it measures contrast (set `E2E_SCREENSHOT_DIR` to keep the
     screenshots; dark is applied by swapping the `<html>` class, which is all
     `ThemeProvider` does). `theme-persistence.spec.ts` pins that a Pro store's
     stored dark theme survives a reload (A-367): `ThemeRestrictor`

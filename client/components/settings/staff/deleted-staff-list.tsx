@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import type { StaffListItem } from "@/lib/types/user";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { staffRoleLabel } from "./staff-list-parts";
 
 interface DeletedStaffListProps {
   users: StaffListItem[];
@@ -117,8 +118,8 @@ export function DeletedStaffList({
                           {cleanUsername(user.username)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {user.role?.replace("_", " ") || "Staff"}
+                          <Badge variant="outline" className={user.permission_group_name ? undefined : "capitalize"}>
+                            {staffRoleLabel(user)}
                           </Badge>
                         </TableCell>
                         <TableCell>

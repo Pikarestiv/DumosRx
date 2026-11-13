@@ -3660,6 +3660,16 @@ AuthContext — the identity check at the call site is the fail-safe half
 (A-55 in `docs/FIXED_BUGS.md`). A group with no `userId` (the assistant's
 tool context builds one) is still honoured as-is.
 
+**The staff list's Role column shows the permission group, not the base
+role.** `getUsers()`/`getDeletedUsers()` select `permission_group_name` with a
+correlated subquery on `permission_groups` (live rows only), so the list is
+still one query; `staffRoleLabel()` (`components/settings/staff/staff-list-parts.tsx`)
+falls back to the formatted `role` when a member has no group or the group
+was deleted or has not synced yet. The Admin shield and badge variant stay
+keyed on `role`. `queryKeys.staff.users`/`deleted` are tagged with
+`permission_groups` as well as `users`, so a group rename, either locally or
+from a sync pull, refreshes the list.
+
 `ENFORCED_PERMISSION_KEYS` (`lib/constants/permissions.ts`) lists the keys
 with a real `useHasPermission()` / `hasPermission()` call site; the Roles &
 Permissions matrix reads it to mark the rest as not-yet-wired. **It is a

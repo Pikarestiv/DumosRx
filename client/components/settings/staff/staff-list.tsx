@@ -24,7 +24,7 @@ import { checkIsAdmin, useAuth } from "@/lib/context/auth-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { StaffListItem } from "@/lib/types/user";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { NoStaffFoundRow, PinBadge, StaffListMobileCard } from "./staff-list-parts";
+import { NoStaffFoundRow, PinBadge, StaffListMobileCard, staffRoleLabel } from "./staff-list-parts";
 
 interface StaffListProps {
   users: StaffListItem[];
@@ -165,9 +165,9 @@ export function StaffList({
                             variant={
                               checkIsAdmin(user.role) ? "default" : "secondary"
                             }
-                            className="capitalize"
+                            className={user.permission_group_name ? undefined : "capitalize"}
                           >
-                            {user.role?.replace("_", " ") || "Staff"}
+                            {staffRoleLabel(user)}
                           </Badge>
                         </div>
                       </TableCell>

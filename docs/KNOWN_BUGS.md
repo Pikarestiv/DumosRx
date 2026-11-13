@@ -449,6 +449,11 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-372. `client/` + `web/` — a store owner's customer-referral link never credits the referrer
+- **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
+- **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
+- **Fix:** point the link at the `web/` register page via a constant (§4, no hardcoded URL) and forward `ref` from `use-register-form.ts` beside `agent_ref`.
+
 #### A-371. `laravel-server/` — `PUT /admin/stores/{id}/storefront` answers 500, not 404, for a store id that does not exist
 - **Found:** 2026-11-13, adding the storefront theme endpoint beside it.
 - **What's wrong:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail()`, and `AdminBaseController::withErrorResponse()` catches every `\Exception` except a validation one, so the `ModelNotFoundException` is logged as an error and returned as a generic 500 "Failed to update the storefront". The new theme endpoint catches it and answers 404.

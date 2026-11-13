@@ -1,3 +1,9 @@
+### A-360 — the toast countdown bar always ran 4 seconds, whatever the toast's own duration
+- **Fixed:** 2026-11-13, client only, TDD.
+- **Was:** `client/app/globals.css` animates the bar over `--toast-timer-duration`, set once to 4000ms on `[data-sonner-toaster]` to match `sonner.tsx`'s default. A toast passing its own `duration` (`DatabaseProvider.tsx`'s writer-tab and save-failure toasts, `use-post-restore-cloud-link-notice.ts` 20000, `staff-form-dialog.tsx` 8000) emptied its bar long before it closed.
+- **Now:** a toast with a non-default duration passes `toastTiming(ms)` (`client/lib/utils/toast-timing.ts`) instead of `{ duration }`. It returns the duration plus a per-toast `style` that sets `--toast-timer-duration`, which Sonner merges onto the toast element and which overrides the toaster's 4000ms. For a duration that is not finite (`Infinity`) it makes the bar and its track transparent instead. A toast on the default duration needs nothing. New code giving a toast its own duration uses `toastTiming()`, never a bare `duration`.
+- **Coverage:** `client/__tests__/toast-timing.test.tsx` (a real Sonner `Toaster`: 8000 sets `8000ms`, `Infinity` hides the bar); `client/e2e/toast-timer-bar.spec.ts` now also pins the default toast's computed `animation-duration` at `4s`.
+
 ### A-370 — no toast showed its depleting timer bar
 - **Fixed:** 2026-11-13, client only.
 - **Was:** the `[data-sonner-toast]` timer-bar rules in `client/app/globals.css` sat inside `@layer utilities`. Tailwind v4 only emits rules in that layer that match a used class, so these attribute-selector rules were dropped from the built CSS and every toast (the backorder warning, "added to cart", all of them) had `::before`/`::after` `content: none`.

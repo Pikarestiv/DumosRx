@@ -4,6 +4,7 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toastTiming } from "@/lib/utils/toast-timing";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
 import { useStore } from "@/lib/context/store-context";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
@@ -141,7 +142,7 @@ export function StaffFormDialog({
             ? {
                 description:
                   "PIN changed. Restart the app (or refresh the tab, if using it in a browser) on that person's device to apply it right away.",
-                duration: 8000,
+                ...toastTiming(8000),
               }
             : undefined,
         );

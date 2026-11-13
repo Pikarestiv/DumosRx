@@ -3065,6 +3065,17 @@ unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
 same for any other card-shaped shortcut rather than re-adding a bare
 `onClick` div.
 
+## A toast with its own duration uses `toastTiming()` (2026-11-13, A-360)
+
+Every toast carries a countdown bar (`app/globals.css`) that runs over
+`--toast-timer-duration`, 4000ms by default to match `components/ui/sonner.tsx`.
+A toast that is not on the default passes `toastTiming(ms)`
+(`lib/utils/toast-timing.ts`) instead of `{ duration: ms }`: it sets that
+variable on the toast's own `style` so the bar empties when the toast closes,
+and hides the bar for `Infinity`. Spread it (`...toastTiming(8000)`) when the
+options carry anything else. A bare `duration` brings back A-360's bar that
+empties early.
+
 ## Render a product name with `<ProductName>`, never bare (2026-10-13)
 
 Two defects with one cause. Product names are stored **lowercase**

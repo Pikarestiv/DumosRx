@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { devLog } from "@/lib/utils/dev-log";
 import { toast } from "sonner";
+import { toastTiming } from "@/lib/utils/toast-timing";
 import { APP_EVENTS, onAppEvent } from "@/lib/events";
 
 interface DatabaseContextType {
@@ -103,7 +104,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       console.error("[DB] Failed to discard the local database during reset", err);
       toast.error(
         "Could not clear the local database, so nothing was reset. Close any other DumosRx tabs and try again.",
-        { duration: 10000 },
+        toastTiming(10000),
       );
       return;
     }
@@ -126,7 +127,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       setHandoffState("offer-force");
       toast.error(
         "Couldn't take over as the writer tab. Try closing the other window manually.",
-        { duration: 8000 },
+        toastTiming(8000),
       );
     }
     // On success, onWriterTabChange below flips isReadOnlyTab and the
@@ -172,7 +173,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       setIsReadOnlyTab(!isWriter);
       if (isWriter) {
         setHandoffState("idle");
-        toast.success("This tab can now save changes.", { duration: 5000 });
+        toast.success("This tab can now save changes.", toastTiming(5000));
       }
     });
   }, []);
@@ -186,7 +187,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       setHandoffState("offer-force");
       toast.error(
         "Couldn't reconnect this tab to the local database. Please reload the page.",
-        { duration: 15000 },
+        toastTiming(15000),
       );
     });
   }, []);
@@ -202,7 +203,7 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
       lastShownAt = now;
       toast.error(
         "This tab is read-only because DumosRx is already open in another tab or window.",
-        { duration: 8000 },
+        toastTiming(8000),
       );
     };
     return onAppEvent(APP_EVENTS.dbReadOnlyWriteBlocked, handleBlocked);
@@ -213,9 +214,10 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handleSaveFailed = () => {
-      toast.error("Unable to save local data - your device may be low on storage.", {
-        duration: 10000,
-      });
+      toast.error(
+        "Unable to save local data - your device may be low on storage.",
+        toastTiming(10000),
+      );
     };
     return onAppEvent(APP_EVENTS.dbSaveFailed, handleSaveFailed);
   }, []);

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { toastTiming } from "@/lib/utils/toast-timing";
 import { consumePostRestoreCloudLinkNotice } from "@/lib/utils/post-restore-notice";
 import { getAuthToken } from "@/lib/storage-keys";
 
@@ -35,7 +36,7 @@ export function usePostRestoreCloudLinkNotice({
       {
         description:
           "Local restore doesn't carry your cloud login along with it. Re-link your cloud account to resume automatic backups and sync.",
-        duration: 20000,
+        ...toastTiming(20000),
         action: {
           label: "Link DumosRx Cloud",
           onClick: onLinkCloud,

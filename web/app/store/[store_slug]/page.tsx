@@ -13,6 +13,7 @@ import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { getStorefrontData } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
+import { hasContactDetails, viewAllProductsLabel } from "@/lib/storefront-display";
 import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
 
 const FEATURED_PRODUCT_COUNT = 8;
@@ -50,10 +51,11 @@ export default async function StorefrontPage({
     notFound();
   }
 
-  const { store, products, storefront, branches } = data;
+  const { store, products, storefront, branches, product_count } = data;
   const businessName = storefront?.name || store.name;
   const catalogHref = `/store/${store_slug}/catalog`;
   const featured = products.slice(0, FEATURED_PRODUCT_COUNT);
+  const showContact = hasContactDetails(store);
 
   return (
     <div className="min-h-screen bg-muted/40 flex flex-col">
@@ -82,9 +84,11 @@ export default async function StorefrontPage({
               <Link href={catalogHref} className={PRIMARY_BUTTON}>
                 Shop now <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link href={`/store/${store_slug}#contact`} className={OUTLINE_BUTTON}>
-                Contact us
-              </Link>
+              {showContact && (
+                <Link href={`/store/${store_slug}#contact`} className={OUTLINE_BUTTON}>
+                  Contact us
+                </Link>
+              )}
             </div>
           </div>
         </section>
@@ -106,7 +110,7 @@ export default async function StorefrontPage({
               </div>
               <div className="flex justify-center">
                 <Link href={catalogHref} className={OUTLINE_BUTTON}>
-                  View all {products.length} products <ArrowRight className="h-4 w-4" />
+                  {viewAllProductsLabel(products.length, product_count)} <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             </>
@@ -133,10 +137,12 @@ export default async function StorefrontPage({
 
         <StoreFaqSection />
 
-        <section id="contact" aria-label="Contact" className="scroll-mt-24 space-y-6">
-          <StoreSectionHeading title="Contact Us" subtitle={`Questions about an order or a product? Reach ${businessName} directly.`} />
-          <StoreContactBlock store={store} />
-        </section>
+        {showContact && (
+          <section id="contact" aria-label="Contact" className="scroll-mt-24 space-y-6">
+            <StoreSectionHeading title="Contact Us" subtitle={`Questions about an order or a product? Reach ${businessName} directly.`} />
+            <StoreContactBlock store={store} />
+          </section>
+        )}
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

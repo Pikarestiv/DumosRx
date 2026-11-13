@@ -51,7 +51,8 @@ class StorefrontController extends Controller
                 new OA\Property(property: 'branches', type: 'array', items: new OA\Items(type: 'object')),
                 new OA\Property(property: 'selected_branch', type: 'object'),
                 new OA\Property(property: 'store', type: 'object'),
-                new OA\Property(property: 'products', type: 'array', items: new OA\Items(ref: '#/components/schemas/StorefrontProduct')),
+                new OA\Property(property: 'products', type: 'array', description: 'First MAX_STOREFRONT_PRODUCTS (50) listed products, in-stock first', items: new OA\Items(ref: '#/components/schemas/StorefrontProduct')),
+                new OA\Property(property: 'product_count', type: 'integer', description: 'Total online-visible products on this branch, uncapped'),
                 new OA\Property(property: 'online_payment_available', type: 'boolean'),
             ])),
             new OA\Response(response: 403, description: 'Store is suspended'),
@@ -121,6 +122,7 @@ class StorefrontController extends Controller
             'selected_branch' => $branchData,
             'store' => $branchData,
             'products' => StorefrontProductResource::collection($products),
+            'product_count' => $this->catalogService->storeProducts($branch)->count(),
             'online_payment_available' => (bool) $branch->paystack_subaccount_code,
         ]);
     }

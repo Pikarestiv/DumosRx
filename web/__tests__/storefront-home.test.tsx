@@ -57,6 +57,19 @@ describe("storefront home page", () => {
     expect(screen.getByRole("link", { name: /view all 3 products/i })).toBeTruthy();
   });
 
+  it("counts every listed product, not just the capped landing list", async () => {
+    await renderHome(storefrontData({ products: productList(50), product_count: 128 }));
+
+    expect(screen.getByRole("link", { name: /view all 128 products/i })).toBeTruthy();
+  });
+
+  it("drops the number when an older API omits the count and the list hit the cap", async () => {
+    await renderHome(storefrontData({ products: productList(50) }));
+
+    const link = screen.getByRole("link", { name: /view all/i });
+    expect(link.textContent?.trim()).toBe("View all products");
+  });
+
   it("drops the product grid and its shop button when nothing is listed", async () => {
     await renderHome(storefrontData({ products: [] }));
 
@@ -72,6 +85,25 @@ describe("storefront home page", () => {
       expect(container.querySelector(`section#${id}`)).not.toBeNull();
     }
     expect(within(container.querySelector("section#contact") as HTMLElement).getByText("0801")).toBeTruthy();
+  });
+
+  it("drops the Contact section, nav link and hero button for a store with no contact details", async () => {
+    await renderHome(storefrontData({ store: { id: "s1", name: "Grace Pharmacy", currency: "NGN" } }));
+
+    expect(screen.queryByRole("region", { name: "Contact" })).toBeNull();
+    const nav = screen.getByRole("navigation", { name: "Store" });
+    expect(within(nav).queryByRole("link", { name: "Contact" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /contact us/i })).toBeNull();
+    const footer = screen.getByRole("contentinfo");
+    expect(within(footer).queryByText("Contact")).toBeNull();
+  });
+
+  it("keeps the Contact section and nav link once the store has a phone", async () => {
+    await renderHome(storefrontData({ store: { id: "s1", name: "Grace Pharmacy", phone: "0801", currency: "NGN" } }));
+
+    expect(within(screen.getByRole("region", { name: "Contact" })).getByText("0801")).toBeTruthy();
+    const nav = screen.getByRole("navigation", { name: "Store" });
+    expect(within(nav).getByRole("link", { name: "Contact" }).getAttribute("href")).toBe("/store/grace#contact");
   });
 
   it("omits Locations for a single branch with no address, and shows it once there is one", async () => {

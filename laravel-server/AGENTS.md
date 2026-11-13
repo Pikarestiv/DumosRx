@@ -1614,7 +1614,7 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
   substances (narcotics/regulated meds) cannot be listed or ordered.
 - **In-stock inventory ranks first:** `Product::scopeInStockFirstAt($store->id)`
   sorts products having `SUM(stock_batches.quantity) > 0` before zero-stock rows,
-  so the 300-item storefront response prioritizes available items over sold-out ones.
+  so the 50-item storefront response prioritizes available items over sold-out ones.
   Coverage: `tests/Feature/StorefrontListingTest.php`.
 
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
@@ -3540,7 +3540,10 @@ specialized storefront services:
 Public endpoints:
 - `GET /storefront-slugs`: lists all published slugs for static site generation.
 - `GET /storefront/{store_slug}`: returns landing page storefront data (brand profile,
-  branches list, selected branch data, featured products capped at 300, payment availability).
+  branches list, selected branch data, featured products capped at
+  `MAX_STOREFRONT_PRODUCTS` (50), `product_count` (the uncapped total of the branch's
+  online-visible products, same `storeProducts()` filter, added 2026-11-13 so the home
+  page's "View all N products" is real), payment availability).
   Supports `?branch=<id>` query parameter.
 - `GET /storefront/{store_slug}/products`: paginated catalog endpoint supporting
   search (`?q=`), category filtering (`?category=`), branch scoping (`?branch=`),

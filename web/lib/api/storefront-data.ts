@@ -39,6 +39,7 @@ export interface StorefrontData {
   branches?: StorefrontBranch[];
   selected_branch?: StorefrontStore;
   products: StorefrontProduct[];
+  product_count?: number;
   online_payment_available?: boolean;
 }
 

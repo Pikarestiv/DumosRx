@@ -28,7 +28,7 @@ function TransactionItemInner({
   const time = sale.created_at
     ? format(parseISO(sale.created_at), "h:mm a")
     : "";
-  const itemCount = sale.item_count || 1;
+  const itemCount = sale.item_count ?? 0;
   const amount = Number(sale.total_amount) || Number(sale.total) || 0;
 
   const getPaymentIcon = (method?: string) => {

@@ -198,7 +198,7 @@ export function POSCartItem({ item, currencyCode, isLast, updateQuantity, remove
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
-        <div className="basis-full pl-[52px] empty:hidden">
+        <div className="basis-full empty:hidden">
           <POSCartItemSourcing
             item={item}
             currencyCode={currencyCode}

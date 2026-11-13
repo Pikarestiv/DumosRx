@@ -1,3 +1,9 @@
+### A-370 — no toast showed its depleting timer bar
+- **Fixed:** 2026-11-13, client only.
+- **Was:** the `[data-sonner-toast]` timer-bar rules in `client/app/globals.css` sat inside `@layer utilities`. Tailwind v4 only emits rules in that layer that match a used class, so these attribute-selector rules were dropped from the built CSS and every toast (the backorder warning, "added to cart", all of them) had `::before`/`::after` `content: none`.
+- **Now:** the toast block is outside the layer. Keep rules that have no class selector out of `@layer utilities`.
+- **Coverage:** `client/e2e/toast-timer-bar.spec.ts` reads the warning toast's computed `::after` (5px, `sonner-deplete`).
+
 ### A-369 — on a phone, "Source outside" in the cart drawer opened the dialog but confirming it did nothing
 - **Fixed:** 2026-11-13, client only, TDD.
 - **Was:** `POSCartPanels` spread `updateSpotSourcing` into `POSMobileCartWrapper`, but neither the wrapper nor `POSMobileCartDrawer` forwarded it, so the drawer's `POSCart` got `undefined` and both the dialog's confirm and "revert to shelf" silently did nothing.

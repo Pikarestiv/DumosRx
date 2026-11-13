@@ -1,3 +1,9 @@
+### A-368 (part) — at phone width the cart cut product and service names to about ten characters
+- **Fixed:** 2026-11-13, client only, TDD. The dark "Clear cart" contrast is a separate entry.
+- **Was:** `pos-cart-item.tsx`'s name was `truncate` in a ~95px column at a 390px cart, so "E2E Amoxicillin 500mg Capsules" read "E2E AMOXIC…" and two strengths of one product looked identical.
+- **Now:** the name is `line-clamp-2 break-words`, so it wraps to two lines, and it is the trigger of the house `HintTooltip` (Radix, 1000ms delay) with `tabIndex={0}`, so hover or keyboard focus shows the full name. The text is clamped by CSS only, so a screen reader still gets the whole name; the remove button's aria-label carries it too. The stepper and line total keep their widths. Service lines use the same row.
+- **Coverage:** `client/__tests__/pos-cart-item-name-wrap.test.tsx`; `client/e2e/services-pos-sourcing-layout.spec.ts` (two-line name at 390px).
+
 ### A-365 — transaction history and recent sales showed a services-only sale as "1 item" with no names
 - **Fixed:** 2026-11-13, client only, TDD. Display only; no stored figure was wrong.
 - **Was:** `client/lib/db/queries/sales.ts`'s `item_count` (`SUM(quantity) FROM sale_items`) and `item_names` (`GROUP_CONCAT` over `sale_items JOIN products`) subqueries in `getRecentSales()`, `getSaleById()`, `getSaleByTransactionNumber()` and `getResellerCommissionSales()` ignored `sale_services`. A services-only sale counted `NULL`, which `transaction-item.tsx` rendered as "1 item" through its `|| 1` fallback, and a mixed sale under-counted and left the service names out.

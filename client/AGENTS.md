@@ -2497,6 +2497,8 @@ There are two distinct workflows for selling goods sourced outside the store:
      pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
      and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
      (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
+     The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating, and
+     is a focusable `HintTooltip` trigger so hover or focus reveals the full name (A-368).
      The swipe-to-delete `bg-destructive` backdrop in `pos-cart-item.tsx` takes its opacity
      from the row's drag offset, so it is fully transparent at rest and cannot bleed a red
      hairline through the rounded clip.

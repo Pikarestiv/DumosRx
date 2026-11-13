@@ -91,6 +91,9 @@ test.describe('POS cart sourcing controls at phone width', () => {
       await expectDeleteBackdropHiddenAtRest(page, OUT_OF_STOCK);
       await expectDeleteBackdropHiddenAtRest(page, IN_STOCK);
       const line = cartLine(page, IN_STOCK);
+      const nameMetrics = await measureLabel(line.getByText(nameMatcher(IN_STOCK)));
+      expect(nameMetrics.height).toBeGreaterThan(nameMetrics.lineHeight * 1.5);
+      expect(nameMetrics.height).toBeLessThanOrEqual(nameMetrics.lineHeight * 2 + 1);
       for (const [what, locator] of [
         ['name', line.getByText(nameMatcher(IN_STOCK))],
         ['line total', line.getByText('₦1,200', { exact: true })],

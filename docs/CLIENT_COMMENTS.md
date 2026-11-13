@@ -10252,18 +10252,26 @@ been started over.
 
 ## block-components-stock-batch-barcode-label-sheet-ts-L10
 
-`client/components/stock-batch/barcode-label-sheet.ts:10`
+`client/components/stock-batch/barcode-label-sheet.ts` (`buildLabelSheetHtml`)
 
 Builds the print sheet by repeating ONE rendered label's markup.
 
 Every copy is byte-identical (same product, same barcode value), so the
 dialog renders a single <ReactBarcode> and repeats its output, instead of
 live-mounting `quantity` React components off-screen and re-rendering all of
-them on every increment.
+them on every increment. That one label is mounted off-screen with
+`position: fixed; left/top: -9999`, not `display: none`: the print job clones
+its markup, and `display: none` would carry over into the clone and hide the
+printed labels too.
+
+On a label roll the copies are simply concatenated and each `.label` breaks
+the page. On an A4 sheet they are chunked into `.sheet` pages of
+`labelsPerPage` cells, with `startPosition - 1` empty `.blank` cells first so
+a partly used sticker sheet is not wasted.
 
 ## block-components-stock-batch-barcode-print-dialog-tsx-L24
 
-`client/components/stock-batch/barcode-print-dialog.tsx:24`
+`client/components/stock-batch/barcode-print-dialog.tsx` (`BarcodeLabelProduct`)
 
 Only the four fields a label actually carries, so any product shape can
 be printed — POSProduct satisfies it structurally, and the catalog's
@@ -10271,11 +10279,16 @@ camelCase ProductViewModel maps onto it at the call site.
 
 ## line-components-stock-batch-barcode-print-dialog-tsx-L34
 
-`client/components/stock-batch/barcode-print-dialog.tsx:34`
+`client/components/stock-batch/barcode-label-sheet.ts` (`getLabelPageStyle`; the anchor keeps its old name so existing links resolve)
 
 printNode() ships this as a page <style> in the popped-out print window, so
-it's a plain string, not a Tailwind class — the uppercase-display toggle
-has to be baked into the CSS text itself rather than a React className.
+it's a plain string, not a Tailwind class. The display-caps choice is
+passed in as a boolean from `useUppercaseDisplay()`, the same hook the
+dialog's on-screen name reads through `useUppercaseDisplayClass()`, so the
+setting has one source and is not re-derived from `storeProfile` here.
+The A4 `.sheet` is 296mm tall rather than 297mm, with its margins as
+padding and `@page { margin: 0 }`, so sub-pixel rounding can never push a
+sheet onto a second, blank page.
 
 ## block-components-stock-batch-import-export-toolbar-tsx-L34
 

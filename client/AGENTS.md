@@ -3914,6 +3914,32 @@ manager, specialist) are exactly `canManageStockBatch`'s population, which is
 who could open that menu before, and the item it sits beside is new — nobody
 loses anything they had.
 
+**Barcode label dialog layout and paper (2026-11-13).** The dialog is a
+flex column: `DialogContent` is `overflow-hidden`, the body between header
+and footer is the only scroller (`flex-1 min-h-0 overflow-y-auto
+overflow-x-hidden`, marked `data-label-dialog-body`), and the Cancel/Print
+footer sits outside it, so it is always on screen. The old grid layout let a
+wide barcode SVG (a product with no barcode prints its 36-char UUID, about
+114 mm of bars at 1px per module) widen the grid track and scroll the dialog
+sideways, and at 1280×600 the footer scrolled out of view. Barcodes on
+screen and on paper carry `max-width: 100%; height: auto` (the jsbarcode SVG
+has a `viewBox`, so it scales instead of clipping). `barcodeFit()` in
+`barcode-label-sheet.ts` encodes the value with jsbarcode, counts modules at
+1 CSS px (0.2646 mm) each and compares against the label's inner width; when
+it does not fit, the dialog says the code will be squeezed and may not scan,
+rather than silently printing an unscannable label. Paper layouts live in
+`LABEL_LAYOUTS` (roll 50×25 mm, one per page; A4 3×8 of 63.5×33.9 mm with
+Avery L7159-style margins), the chosen layout is a per-device
+`localStorage` convenience (`STORAGE_KEYS.labelPrintLayout`, read and
+written in try/catch by `use-label-layout.ts`, untouched by store switches),
+and the product name obeys display caps through `useUppercaseDisplay()` for
+both the on-screen name and the printed `text-transform`. Selecting several
+catalog products and printing all their labels in one job is not built: the
+catalog has no multi-select, so it would need row selection state in
+`catalog-list.tsx`, a dialog that takes `BarcodeLabelProduct[]` with a
+per-product quantity, and `buildLabelSheetHtml` taking a list of label
+templates instead of one.
+
 `delete_products` and `delete_suppliers` joined the enforced list on
 2026-09-29 as well, and they are the **third** reversal of that morning's
 removal pass — but a different kind. `run_daily_close` and

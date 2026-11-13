@@ -17,8 +17,12 @@ function renderItem(overrides: Partial<CartItem> = {}) {
     id: "p1", product_id: "p1", name: LONG_NAME, quantity: 1, unit_price: 1200,
     original_unit_price: 1200, subtotal: 1200, stock: 10, ...overrides,
   } as unknown as CartItem;
-  render(<POSCartItem item={item} isLast updateQuantity={vi.fn()} removeFromCart={vi.fn()} />);
+  const removeFromCart = vi.fn();
+  render(<POSCartItem item={item} isLast updateQuantity={vi.fn()} removeFromCart={removeFromCart} />);
+  return { removeFromCart };
 }
+
+const nameButton = () => screen.getByRole("button", { name: LONG_NAME });
 
 describe("POS cart line name at phone width (A-368)", () => {
   it.each([
@@ -39,12 +43,28 @@ describe("POS cart line name at phone width (A-368)", () => {
   ] as const)("reveals the full %s name in a tooltip when the name is focused", async (_kind, overrides) => {
     renderItem(overrides as Partial<CartItem>);
 
-    const name = screen.getByText(LONG_NAME);
-    expect(name.tabIndex).toBe(0);
-    fireEvent.focus(name);
+    fireEvent.focus(nameButton());
 
     const tooltip = await screen.findByRole("tooltip");
     expect(within(tooltip).getByText(LONG_NAME)).toBeTruthy();
+  });
+
+  it("is a button named by the full product name that a tap expands and a second tap clamps again", () => {
+    const { removeFromCart } = renderItem();
+
+    const name = nameButton();
+    expect(name.tagName).toBe("BUTTON");
+    expect(name.getAttribute("type")).toBe("button");
+    expect(name.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(name);
+    expect(name.getAttribute("aria-expanded")).toBe("true");
+    expect(name.className).not.toContain("line-clamp-2");
+
+    fireEvent.click(name);
+    expect(name.getAttribute("aria-expanded")).toBe("false");
+    expect(name.className).toContain("line-clamp-2");
+    expect(removeFromCart).not.toHaveBeenCalled();
   });
 
   it("keeps the quantity stepper and the line total at their full size", () => {

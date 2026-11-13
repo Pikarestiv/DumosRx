@@ -104,6 +104,14 @@ test.describe('POS cart sourcing controls at phone width', () => {
         test.info().annotations.push({ type: `metrics: ${what}`, description: JSON.stringify(await measureLabel(locator)) });
       }
 
+      const nameButton = line.getByRole('button', { name: new RegExp(`^${nameMatcher(IN_STOCK).source}$`, 'i') });
+      await nameButton.click();
+      await expect(nameButton).toHaveAttribute('aria-expanded', 'true');
+      await expect(line).toBeVisible();
+      await expectDeleteBackdropHiddenAtRest(page, IN_STOCK);
+      await nameButton.click();
+      await expect(nameButton).toHaveAttribute('aria-expanded', 'false');
+
       await line.getByRole('spinbutton').fill('10');
       await line.getByRole('spinbutton').press('Enter');
       const allUsed = line.getByText('All shelf stock used', { exact: true });

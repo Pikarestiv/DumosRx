@@ -2502,8 +2502,12 @@ There are two distinct workflows for selling goods sourced outside the store:
      pushed it within 2px of the quantity stepper (A-368). Each label is `whitespace-nowrap`
      and the row is `flex-wrap`, so wrapping happens between whole chips, never mid-label
      (`pos-cart-item-spot-sourcing-layout.test.tsx`, `e2e/services-pos-sourcing-layout.spec.ts`).
-     The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating, and
-     is a focusable `HintTooltip` trigger so hover or focus reveals the full name (A-368).
+     The line's name wraps to two lines (`line-clamp-2 break-words`) rather than truncating
+     (A-368). It is a `type="button"` with `aria-expanded` that drops the clamp on tap, click,
+     Enter or Space and restores it on the next, because the `HintTooltip` around it (kept for
+     hover) never opens on touch, and phone width is where the clamp cuts. Its accessible name
+     is the full product name. A tap does not swipe the row: framer-motion only starts a drag
+     after 3px of movement and removes the line past -70px or -500px/s.
      **Cart panel space (2026-11-13).** The cart list is the only scrolling region and Charge
      is always on screen; everything around the list is kept to one slim row each so a
      six-line cart fits whole at 390×844 and in the 420px desktop column

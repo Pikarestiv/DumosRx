@@ -4,7 +4,7 @@ import { Fragment, useState, useEffect, type ComponentProps } from "react";
 import { useAuth, type User } from "@/lib/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useAccountActions } from "@/lib/hooks/use-account-actions";
-import { UnsyncedLogoutDialog } from "./unsynced-logout-dialog";
+import { AccountExitDialog } from "./unsynced-logout-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -137,10 +137,7 @@ export function UserNav({
 
   const {
     navActions,
-    pendingCount,
-    showLogoutConfirm,
-    setShowLogoutConfirm,
-    confirmFullLogout,
+    exitDialog,
   } = useAccountActions({
     onClose: () => setOpen(false),
     onOpenFeedback,
@@ -311,12 +308,7 @@ export function UserNav({
     <>
       {!isTouchDevice ? renderDesktopMenu() : renderMobileDrawer()}
 
-      <UnsyncedLogoutDialog
-        open={showLogoutConfirm}
-        onOpenChange={setShowLogoutConfirm}
-        pendingCount={pendingCount}
-        onConfirm={confirmFullLogout}
-      />
+      <AccountExitDialog {...exitDialog} />
     </>
   );
 }

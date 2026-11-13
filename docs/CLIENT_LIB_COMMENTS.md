@@ -5110,8 +5110,9 @@ store transitions. Stock audit and adjustment drafts are store-scoped in memory
 and persisted to local SQLite (`stock_audit_drafts`, `stock_adjustment_drafts`),
 so store switching passes `{ preserveStoreAudit: true, preserveStoreAdjustment: true }`
 to keep in-progress counts and adjustments safe when leaving and returning to a store.
-Full context teardowns (different user login, logout, new store link, factory reset)
-clear all drafts unconditionally.
+Logout and a different user's login pass `{ preserveStoreAudit: true }` too
+(A-375): they clear the cart and the adjustment draft but keep the cycle count,
+flushing its pending write. Linking a new store and factory reset clear everything.
 
 ### utils-count-freshness-ts-L1
 
@@ -8930,8 +8931,10 @@ implementation here means that specific drift can't happen again.
 
 Not destructive: the local session/data stays intact, this just shows
 the same lock screen used for idle re-auth, forced to account-selection
-mode instead of defaulting to the current user's PIN entry. No
-logout/unsynced-changes warning needed since nothing is being cleared.
+mode instead of defaulting to the current user's PIN entry. Nothing is
+cleared, but signing in as a different user still clears the POS cart and
+the stock adjustment draft (not the cycle count), so when a cycle count is
+in progress it first shows `AccountExitDialog` saying the count is kept.
 
 ### line-hooks-use-auto-lock-ts-L12
 

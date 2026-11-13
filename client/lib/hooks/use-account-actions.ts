@@ -12,6 +12,8 @@ import { clearRecentUsers } from "@/lib/storage-keys";
 import { useAssistantPanel } from "@/lib/store/use-assistant-panel";
 import { ASSISTANT_FEATURE_KEY, ASSISTANT_NAME } from "@/components/assistant/assistant-brand";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { hasActiveStockAuditCount } from "@/lib/hooks/use-stock-audit-draft";
+import type { AccountExitAction } from "@/components/dashboard/unsynced-logout-dialog";
 
 export interface NavAction {
   key: string;
@@ -35,7 +37,7 @@ export function useAccountActions({
   const { logout } = useAuth();
   const router = useRouter();
   const { canUseAiAssistant, withRestriction } = useFeatureGate();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [exitAction, setExitAction] = useState<AccountExitAction | null>(null);
 
   const { data: pendingCountData } = useQuery({
     ...queryKeys.sync.queueCount(),
@@ -51,18 +53,18 @@ export function useAccountActions({
 
   // Not destructive: the local session/data stays intact, this just shows the same lock screen used for idle re-auth, forced to account-selectio…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-account-actions-ts-L57
+  const performSwitch = () => useAutoLockStore.getState().lockForSwitch();
+
   const handleSwitchAccount = () => {
     onClose();
-    useAutoLockStore.getState().lockForSwitch();
+    if (hasActiveStockAuditCount()) setExitAction("switch");
+    else performSwitch();
   };
 
   const handleFullLogout = () => {
     onClose();
-    if (pendingCount > 0) {
-      setShowLogoutConfirm(true);
-    } else {
-      performFullLogout();
-    }
+    if (pendingCount > 0 || hasActiveStockAuditCount()) setExitAction("logout");
+    else performFullLogout();
   };
 
   const navActions: NavAction[] = [
@@ -108,12 +110,20 @@ export function useAccountActions({
 
   return {
     navActions,
-    pendingCount,
-    showLogoutConfirm,
-    setShowLogoutConfirm,
-    confirmFullLogout: () => {
-      onClose();
-      performFullLogout();
+    exitDialog: {
+      action: exitAction,
+      pendingCount,
+      countInProgress: exitAction !== null && hasActiveStockAuditCount(),
+      onOpenChange: (open: boolean) => {
+        if (!open) setExitAction(null);
+      },
+      onConfirm: () => {
+        const action = exitAction;
+        setExitAction(null);
+        onClose();
+        if (action === "switch") performSwitch();
+        else performFullLogout();
+      },
     },
   };
 }

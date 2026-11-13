@@ -3,7 +3,7 @@ import { Mail, MapPin, Phone } from "lucide-react";
 
 import { APP_NAME, WEB_APP_URL } from "@/lib/constants";
 import type { StorefrontProfile, StorefrontStore } from "@/lib/api/storefront-data";
-import { storeAddressLine } from "@/lib/storefront-display";
+import { hasContactDetails, storeAddressLine } from "@/lib/storefront-display";
 import { storefrontNavLinks } from "@/lib/storefront-nav";
 
 interface StorefrontFooterProps {
@@ -36,7 +36,7 @@ export function StorefrontFooter({ storeSlug, store, storefront }: StorefrontFoo
         <nav aria-label="Footer" className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-widest">Quick links</p>
           <ul className="space-y-2 text-sm">
-            {storefrontNavLinks(storeSlug).map((link) => (
+            {storefrontNavLinks(storeSlug, store).map((link) => (
               <li key={link.label}>
                 <Link href={link.href} className="hover:underline underline-offset-4">
                   {link.label}
@@ -46,22 +46,24 @@ export function StorefrontFooter({ storeSlug, store, storefront }: StorefrontFoo
           </ul>
         </nav>
 
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest">Contact</p>
-          <ul className="space-y-2 text-sm">
-            {store?.phone && (
-              <FooterContact icon={<Phone className="h-4 w-4" />}>
-                <a href={`tel:${store.phone}`} className="hover:underline underline-offset-4">{store.phone}</a>
-              </FooterContact>
-            )}
-            {store?.email && (
-              <FooterContact icon={<Mail className="h-4 w-4" />}>
-                <a href={`mailto:${store.email}`} className="hover:underline underline-offset-4 break-all">{store.email}</a>
-              </FooterContact>
-            )}
-            {address && <FooterContact icon={<MapPin className="h-4 w-4" />}>{address}</FooterContact>}
-          </ul>
-        </div>
+        {store && hasContactDetails(store) && (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-widest">Contact</p>
+            <ul className="space-y-2 text-sm">
+              {store?.phone && (
+                <FooterContact icon={<Phone className="h-4 w-4" />}>
+                  <a href={`tel:${store.phone}`} className="hover:underline underline-offset-4">{store.phone}</a>
+                </FooterContact>
+              )}
+              {store?.email && (
+                <FooterContact icon={<Mail className="h-4 w-4" />}>
+                  <a href={`mailto:${store.email}`} className="hover:underline underline-offset-4 break-all">{store.email}</a>
+                </FooterContact>
+              )}
+              {address && <FooterContact icon={<MapPin className="h-4 w-4" />}>{address}</FooterContact>}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div className="border-t border-primary-foreground/20">

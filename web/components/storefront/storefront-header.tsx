@@ -64,7 +64,7 @@ export function StorefrontHeader({
 
         <div className="flex items-center gap-3 sm:gap-6">
           <nav aria-label="Store" className="flex items-center gap-3 sm:gap-5 text-sm font-medium">
-            {storefrontNavLinks(storeSlug).map((link) => (
+            {storefrontNavLinks(storeSlug, store).map((link) => (
               <Link
                 key={link.label}
                 href={link.href}

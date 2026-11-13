@@ -42,6 +42,7 @@ export const DEMO_STOREFRONT_DATA: StorefrontData = {
     theme: process.env.STOREFRONT_DEMO_THEME,
   },
   products: DEMO_PRODUCTS,
+  product_count: DEMO_PRODUCTS.length,
 };
 
 export const DEMO_PAGINATED_PRODUCTS: PaginatedStorefrontProducts = {

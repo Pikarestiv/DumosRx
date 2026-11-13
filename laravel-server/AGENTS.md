@@ -1437,6 +1437,15 @@ first; that is the mitigation for the second case.
 `0.0.41`: delete the class, its call in `normalizePushPayload()` and
 `tests/Feature/SaleWithoutStockVersionGateTest.php`.
 
+The feature needs no other server code. Owed and settled units are ordinary
+`adjustment` rows with `reference_type` `backorder` / `backorder_settlement`,
+and re-costing is an ordinary `sale_items` UPDATE.
+`tests/Feature/SellAtZeroStockServerParityTest.php` pins that a sale and its
+backorder pushed together land the Stage-0 batch on 0 like the client, that a
+chunk split gives the bounded A-217 shape (the server reads N), and that the
+re-cost UPDATE is accepted. The client keeps an owed row in the same push as its
+sale where it can (`chunkPushQueue()`); the residual cases are A-342.
+
 ## `LegacyServicesReturnGate`: prevents legacy terminals from marking mixed sales fully refunded
 
 When a store with multiple terminals operates on mixed client versions (e.g., Terminal 1 on v0.0.42 creating mixed product + service tickets, and Terminal 2 on legacy v0.0.41), the legacy terminal only syncs `sales` and `sale_items` without knowing about `sale_services`. If the legacy terminal attempts to process a return for the physical products, its local logic checks only physical items and attempts to mark `sales.payment_status = 'refunded'`.
@@ -1446,15 +1455,6 @@ When a store with multiple terminals operates on mixed client versions (e.g., Te
 This ensures physical items are safely restocked and refunded without falsely writing off unrefunded service revenue.
 
 **Retire it** once no active device reports an `X-App-Version` below `0.0.42`: delete `LegacyServicesReturnGate`, its invocation in `normalizePushPayload()`, and `tests/Feature/LegacyServicesReturnGateTest.php`.
-
-The feature needs no other server code. Owed and settled units are ordinary
-`adjustment` rows with `reference_type` `backorder` / `backorder_settlement`,
-and re-costing is an ordinary `sale_items` UPDATE.
-`tests/Feature/SellAtZeroStockServerParityTest.php` pins that a sale and its
-backorder pushed together land the Stage-0 batch on 0 like the client, that a
-chunk split gives the bounded A-217 shape (the server reads N), and that the
-re-cost UPDATE is accepted. The client keeps an owed row in the same push as its
-sale where it can (`chunkPushQueue()`); the residual cases are A-342.
 
 ## Known gotcha: MySQL timezone vs. Laravel's UTC clock
 

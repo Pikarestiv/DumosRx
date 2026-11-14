@@ -38,6 +38,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
   const [deliveryAvailable, setDeliveryAvailable] = useState(Boolean(storefront.delivery_available));
   const [deliveryNote, setDeliveryNote] = useState(storefront.delivery_note ?? "");
   const [payOnDelivery, setPayOnDelivery] = useState(Boolean(storefront.pay_on_delivery));
+  const [showServices, setShowServices] = useState(Boolean(storefront.show_services));
   const [ownerStyle, setOwnerStyle] = useState(Boolean(storefront.owner_style_enabled));
   const [allowSwitch, setAllowSwitch] = useState(resolveEnabledLocales(resolveLocale(storefront.locale), storefront.enabled_locales).length > 1);
 
@@ -60,6 +61,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
           opening_hours: anyOpenDay ? hours : null,
           locale,
           owner_style_enabled: ownerStyle,
+          show_services: showServices,
           payment_instructions: paymentInstructions.trim() || null,
           delivery_available: deliveryAvailable,
           delivery_note: deliveryAvailable ? deliveryNote.trim() || null : null,
@@ -211,6 +213,19 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             onChange={(event) => setAllowSwitch(event.target.checked)}
           />
           Let visitors switch language
+        </label>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">Services</legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={showServices} disabled={!editable} onChange={(event) => setShowServices(event.target.checked)} />
+          <span>
+            Show this store's services on the storefront
+            <span className="block text-xs text-muted-foreground">
+              Lists every active service with its price and an Enquire on WhatsApp button. Services cannot be ordered online yet.
+            </span>
+          </span>
         </label>
       </fieldset>
 

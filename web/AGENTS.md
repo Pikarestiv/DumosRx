@@ -316,6 +316,9 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   hydration). Product names, categories and the owner's tagline are never
   translated. To add a language: a messages file, `STOREFRONT_LOCALES`,
   `LOCALE_NAMES`, the PHP list, and a plural rule if it is not one/other.
+- **Services (2026-11-16).** When `storefront.show_services` is set (baked at build),
+  `StorefrontServices` fetches `/storefront/{slug}/services` in the browser and renders
+  nothing if the list is empty. Each card links to WhatsApp to enquire; there is no cart.
 - **Checkout (2026-11-15).** `CheckoutForm` takes the store's
   `payment_instructions`, `delivery_available`, `delivery_note` and
   `pay_on_delivery`. `CheckoutContactFields` collects name, phone and an optional

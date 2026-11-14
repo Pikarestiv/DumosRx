@@ -61,6 +61,11 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "stock.low": "Plus que {count}",
   "stock.out": "Rupture de stock",
 
+  "services.heading": "Services",
+  "services.subtitle": "Écrivez à la boutique pour réserver ou vous renseigner.",
+  "services.enquire": "Se renseigner sur WhatsApp",
+  "services.enquireMessage": "Bonjour, je souhaite me renseigner sur {name}.",
+
   "steps.heading": "Comment commander",
   "steps.choose.title": "Choisissez",
   "steps.choose.body.pharmacy": "Ajoutez vos produits au panier. Les médicaments sur ordonnance exigent une ordonnance valide au retrait.",

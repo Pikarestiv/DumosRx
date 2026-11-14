@@ -250,6 +250,14 @@ without updating that.
   callback that finds no recorded request time clears nothing (one extra rebuild
   beats a lost change). Flipping `owner_style_enabled` alone does not stamp
   `style_dirty_at`, since nothing visible changed.
+  **Services (2026-11-16).** `storefronts.show_services` (default false, super admin
+  only) makes `GET /storefront/{slug}/services` return the branch's active `services`
+  rows (name, description, category, price); off returns an empty list. It is
+  display-only: the cart, checkout and `online_order_items` are keyed to products, so a
+  service cannot be ordered online. `services` has no `show_online` column, so every
+  active service shows once the switch is on. The admin rebuild answers 422, not 5xx,
+  when GitHub is not configured or refuses, because the admin client replaces every 5xx
+  message with a generic one.
   **Checkout details (2026-11-15).** `storefronts.payment_instructions` (text, how to
   pay by transfer or mobile money), `delivery_available`, `delivery_note` and
   `pay_on_delivery` are set by a super admin and returned by the public `show`

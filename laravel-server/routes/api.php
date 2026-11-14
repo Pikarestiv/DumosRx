@@ -105,6 +105,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:storefront-read')->group(function () {
         Route::get('/storefront-slugs', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'slugs']);
         Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+        Route::get('/storefront/{store_slug}/services', [\App\Http\Controllers\Api\Public\StorefrontServicesController::class, 'index']);
         Route::get('/storefront/{store_slug}/products', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'products']);
         Route::get('/storefront/{store_slug}/orders/{identifier}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'trackOrder']);
     });

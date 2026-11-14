@@ -105,6 +105,7 @@ class AdminStoreDetailService
                 'delivery_available' => (bool) $storefront?->delivery_available,
                 'delivery_note' => $storefront?->delivery_note,
                 'pay_on_delivery' => (bool) $storefront?->pay_on_delivery,
+                'show_services' => (bool) $storefront?->show_services,
                 'opening_hours' => $storefront?->opening_hours,
                 'logo_url' => $storefront->logo_url ?? $store->logo_url,
             ],

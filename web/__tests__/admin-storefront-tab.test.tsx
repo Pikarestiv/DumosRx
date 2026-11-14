@@ -125,6 +125,7 @@ describe("StoreStorefrontTab", () => {
           delivery_available: false,
           delivery_note: null,
           pay_on_delivery: false,
+          show_services: false,
           enabled_locales: ["en"],
         },
       },
@@ -142,7 +143,7 @@ describe("StoreStorefrontTab", () => {
 
     await waitFor(() => expect(settingsCall()).toBeTruthy());
     expect(settingsCall()?.[1].body).toEqual({
-      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", owner_style_enabled: false, payment_instructions: null, delivery_available: false, delivery_note: null, pay_on_delivery: false, enabled_locales: ["en"],
+      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", owner_style_enabled: false, payment_instructions: null, delivery_available: false, delivery_note: null, pay_on_delivery: false, show_services: false, enabled_locales: ["en"],
     });
   });
 

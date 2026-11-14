@@ -238,6 +238,13 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 3 — sync reliability, observability, latent hazards
 
+#### A-390. `client/` — editing a purchase order soft-deletes and re-inserts every line, so each save churns the whole PO through sync
+- **Found:** 2026-11-14, reading a read-only production query on the Nest Amawbia store (31 POs): 2,358 `purchase_order_items` rows, only 967 live. Deleted lines clustered on edit days (122, 136, 274, 37, 727, 95); one 142-line PO carried 410 deleted rows (about three saves) and another 50 live / 122 deleted. Only 2 deleted lines had no live replacement for the same product on that PO, so no lines were lost; the ratio is the edit pattern, not data loss.
+- **Where:** `client/lib/db/procurement.ts` `updatePurchaseOrder` (~lines 254-322): it selects every live line of the PO, `softDelete`s each, then `insert`s the edited set with new ids.
+- **What's wrong:** a save of an N-line PO writes N tombstones and N inserts to `_sync_queue` even when one quantity changed, which inflates `purchase_order_items` (here about 59% soft-deleted), multiplies push and pull volume, and widens the window where a PO's lines can reach the cloud out of step with its header (the suspected shape of A-296). It also changes every line's id, so anything that referenced a line id (activity log rows, receive progress) points at a tombstone.
+- **Fix:** diff the edited lines against the live ones by product (or a stable line key): update changed lines in place, insert only new ones, soft-delete only removed ones, and keep line ids stable. Test with real sql.js: a one-line quantity change queues one update and no inserts or deletes; adding and removing a line queues one insert and one delete.
+- **Not an emergency:** no loss was observed. Logged only; deliberately not fixed here.
+
 #### A-332. `client/` — ten Playwright e2e specs fail on `dev` and on the base commit, so the e2e suite is not a regression gate
 
 - **Found:** 2026-10-24, by the overall vet of the lint and refactor change set. All ten fail identically at `2f626dac`, before any of that work.

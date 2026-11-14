@@ -85,7 +85,7 @@ return [
         'rebuild_token' => env('STOREFRONT_REBUILD_TOKEN'),
         'rebuild_confirmation_timeout' => (int) env('STOREFRONT_REBUILD_TIMEOUT_MINUTES', 45),
         'unpaid_hold_minutes' => [
-            'transfer' => (int) env('STOREFRONT_TRANSFER_HOLD_MINUTES', 30),
+            'transfer' => (int) env('STOREFRONT_TRANSFER_HOLD_MINUTES', 1440),
             'in_store' => (int) env('STOREFRONT_PICKUP_HOLD_MINUTES', 1440),
         ],
     ],

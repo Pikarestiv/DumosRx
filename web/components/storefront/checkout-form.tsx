@@ -98,8 +98,8 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
 
   const pendingStorageKey = `dumos_pending_checkout_${storeSlug}`;
 
-  const goToConfirmation = (orderId: string) => {
-    saveCheckoutDetails(formData);
+  const goToConfirmation = (orderId: string, submitted: PendingCheckout["formData"] = formData) => {
+    saveCheckoutDetails(submitted);
     router.push(`/store/${storeSlug}/order/?id=${encodeURIComponent(orderId)}`);
   };
 
@@ -126,7 +126,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
       setFailedReference(null);
       toast.success(t("checkout.placed"));
       cart.clearCart();
-      goToConfirmation(data.order.id);
+      goToConfirmation(data.order.id, pending.formData);
     } catch (error) {
       setFailedReference(reference);
       setFailedWasRefunded(wasRefunded(error));
@@ -234,7 +234,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
 
       toast.success(t("checkout.placed"));
       cart.clearCart();
-      goToConfirmation(data.order.id);
+      goToConfirmation(data.order.id, submitted);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("checkout.error.generic"));
     } finally {

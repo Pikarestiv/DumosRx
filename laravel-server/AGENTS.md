@@ -268,8 +268,10 @@ without updating that.
   first 8 characters of the id, upper case) is the order number customers see;
   the public order lookup returns it with the fulfilment method, the payment
   instructions (transfer orders only), the store phone and WhatsApp.
-  **Order lifecycle (2026-11-15).** An unpaid `transfer` order is held 30 minutes
-  and an unpaid `in_store` (pay at pickup or on delivery) order 24 hours
+  **Order lifecycle (2026-11-15).** An unpaid `transfer` or `in_store` (pay at pickup or on
+  delivery) order is held 24 hours by default (a transfer cannot be confirmed
+  by the system before handover, so a short hold would cancel orders customers
+  have already paid)
   (`dumos.storefront.unpaid_hold_minutes`, env `STOREFRONT_TRANSFER_HOLD_MINUTES`
   and `STOREFRONT_PICKUP_HOLD_MINUTES`, `0` switches that method's expiry off).
   `storefront:expire-unpaid-orders` (every 5 minutes, scheduled) cancels what

@@ -122,8 +122,12 @@ class OnlineOrderController extends Controller
             return response()->json(['message' => "This order is already {$order->order_status}.", 'order' => $order], 409);
         }
 
-        $newlyReady = OnlineOrder::where('id', $order->id)->whereNull('ready_at')->update(['ready_at' => now()]) === 1;
+        $newlyReady = OnlineOrder::where('id', $order->id)->where('order_status', 'pending')->whereNull('ready_at')->update(['ready_at' => now()]) === 1;
         $order->refresh();
+
+        if (! $newlyReady && $order->ready_at === null) {
+            return response()->json(['message' => "This order is already {$order->order_status}.", 'order' => $order], 409);
+        }
 
         return response()->json([
             'message' => 'Order marked ready',

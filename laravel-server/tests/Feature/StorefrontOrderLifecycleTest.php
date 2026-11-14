@@ -267,4 +267,35 @@ class StorefrontOrderLifecycleTest extends TestCase
         $this->getJson("/api/v1/storefront/divamax/orders/{$ready->id}")->assertJsonPath('order.ready', true)->assertJsonPath('order.cancel_reason', null);
         $this->getJson("/api/v1/storefront/divamax/orders/{$expired->id}")->assertJsonPath('order.cancel_reason', 'expired')->assertJsonPath('order.ready', false);
     }
+
+    public function test_the_shipped_default_holds_a_transfer_order_for_a_day_because_a_transfer_cannot_be_confirmed(): void
+    {
+        $shipped = (require config_path('dumos.php'))['storefront']['unpaid_hold_minutes'];
+
+        $this->assertSame(1440, $shipped['transfer']);
+        $this->assertSame(1440, $shipped['in_store']);
+    }
+
+    public function test_the_cancellation_email_tells_a_transfer_customer_who_already_paid_to_contact_the_store(): void
+    {
+        Mail::fake();
+        $order = $this->order();
+
+        $this->actingAs($this->owner)->postJson("/api/v1/app/online-orders/{$order->id}/fulfill", ['status' => 'cancelled'])->assertOk();
+
+        Mail::assertSent(OnlineOrderCancelledMail::class, fn ($m) => str_contains($m->render(), 'already paid by transfer') && str_contains($m->render(), $order->code()));
+    }
+
+    public function test_an_order_the_expiry_job_cancelled_cannot_then_be_marked_ready_or_emailed(): void
+    {
+        Mail::fake();
+        $order = $this->order([], 40);
+        $this->artisan('storefront:expire-unpaid-orders');
+        Mail::assertSent(OnlineOrderCancelledMail::class, 1);
+
+        $this->actingAs($this->owner)->postJson("/api/v1/app/online-orders/{$order->id}/ready")->assertStatus(409);
+
+        $this->assertNull($order->refresh()->ready_at);
+        Mail::assertNotSent(OnlineOrderReadyMail::class);
+    }
 }

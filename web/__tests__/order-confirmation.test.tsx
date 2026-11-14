@@ -117,6 +117,14 @@ describe("order confirmation", () => {
     expect(screen.getByText(/699000000/)).toBeTruthy();
   });
 
+  it("does not load forever on a link with no query string at all", async () => {
+    open("");
+    render(<OrderConfirmation storeSlug="divamax" />);
+
+    expect(await screen.findByText(/couldn't find that order/i)).toBeTruthy();
+    expect(getMock).not.toHaveBeenCalled();
+  });
+
   it("says the order was not found for an unknown order, and for a link with no order in it", async () => {
     getMock.mockRejectedValue(new Error("404"));
     const unknown = render(<OrderConfirmation storeSlug="divamax" />);

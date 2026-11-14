@@ -776,6 +776,7 @@ These describe the current state of known architectural tradeoffs and performanc
 
 ### Files over 350 lines touched by a fix
 Logged per the 2026-10-25 rule: each file a fix edits that was already over the 350-line limit, or that it pushes over, with its size after the change. None of these were split inside a bug fix.
+- `laravel-server/routes/api.php` (a routes file, 381 lines), `laravel-server/tests/Feature/Admin/AdminStorefrontSettingsAndRebuildTest.php` (about 380) and `web/__tests__/storefront-home.test.tsx` (about 400): pushed over by the storefront redesign (2026-11-15), not split inside the feature. The two test files should be split by concern (settings vs rebuild; home vs live stock vs French) next time they are touched.
 - `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal, A-217 added the up-front batch lock and push-inbound map). What is left in it is listed under Architecture below.
 - `laravel-server/app/Services/Web/DashboardService.php`: 707 lines, already over (the recent-transaction line query moved out to `RecentTransactionLines`, so it shrank).
 - `client/lib/db/local-database.ts`: 500 lines, already over (`forceSyncAllData()` gained the three services tables on one line).

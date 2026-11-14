@@ -12,6 +12,8 @@
 
     @if ($order->payment_status === 'paid' || $order->payment_status === 'refunded')
         <p>You paid online, so the store will refund you. If you do not see it within a few days, contact them with your order code.</p>
+    @elseif ($order->payment_method === 'transfer')
+        <p>If you already paid by transfer or mobile money, please contact the store with your order code {{ $order->code() }} so they can sort it out.</p>
     @endif
 
     @if ($store->phone || $storefront?->whatsapp)

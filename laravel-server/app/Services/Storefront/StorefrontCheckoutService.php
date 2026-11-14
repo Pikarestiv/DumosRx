@@ -226,7 +226,7 @@ class StorefrontCheckoutService
             'type' => 'online_order',
         ]);
 
-        $this->notifier->send($order, $store);
+        dispatch(fn () => $this->notifier->send($order, $store))->afterResponse();
 
         return response()->json([
             'message' => 'Order placed successfully',

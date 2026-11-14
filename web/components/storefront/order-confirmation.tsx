@@ -44,6 +44,7 @@ type LoadState = { status: "loading" } | { status: "missing" } | { status: "read
 export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
   const { t, money } = useStorefrontI18n();
   const search = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
+  const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
   const orderId = new URLSearchParams(search).get("id");
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
@@ -59,7 +60,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
     };
   }, [storeSlug, orderId]);
 
-  const noOrderInLink = search !== "" && !orderId;
+  const noOrderInLink = hydrated && !orderId;
 
   if (state.status === "loading" && !noOrderInLink) return <p className="py-12 text-center opacity-75">{t("order.loading")}</p>;
 

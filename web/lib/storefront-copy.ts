@@ -136,3 +136,5 @@ export function storeTypeLabel(store?: Pick<StorefrontStore, "store_type"> | nul
   if (!type) return null;
   return STORE_TYPE_LABELS.get(type) ?? type.charAt(0).toUpperCase() + type.slice(1);
 }
+
+export const defaultTagline = (storeType?: string | null): string => storefrontCopy({ store_type: storeType }).heroTagline;

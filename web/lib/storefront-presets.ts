@@ -81,34 +81,55 @@ export const getStorefrontPreset = (id: string): StorefrontPreset | undefined =>
 
 const buttonRadius = (shape: StorefrontButtonShape) => (shape === "square" ? "8px" : "9999px");
 
-const HERO_TOKENS: Record<StorefrontHeroVariant, (preset: StorefrontPreset) => string> = {
-  band: ({ ink, page }) => `--sf-hero-bg:${ink};--sf-hero-fg:${page};`,
-  tint: ({ ink }) => `--sf-hero-bg:color-mix(in oklab,var(--primary) 10%,white);--sf-hero-fg:${ink};`,
-  centered: ({ ink }) => `--sf-hero-bg:transparent;--sf-hero-fg:${ink};`,
+type Tokens = Record<string, string>;
+
+const HERO_TOKENS: Record<StorefrontHeroVariant, (preset: StorefrontPreset) => Tokens> = {
+  band: ({ ink, page }) => ({ "--sf-hero-bg": ink, "--sf-hero-fg": page }),
+  tint: ({ ink }) => ({
+    "--sf-hero-bg": "color-mix(in oklab,var(--primary) 10%,white)",
+    "--sf-hero-fg": ink,
+  }),
+  centered: ({ ink }) => ({ "--sf-hero-bg": "transparent", "--sf-hero-fg": ink }),
 };
 
-const buttonTokens = ({ button, ink }: StorefrontPreset) =>
+const buttonTokens = ({ button, ink }: StorefrontPreset): Tokens =>
   button === "pill-outline"
-    ? `--sf-button-bg:transparent;--sf-button-fg:${ink};--sf-button-border:${ink};`
-    : "--sf-button-bg:var(--primary);--sf-button-fg:var(--primary-foreground);--sf-button-border:transparent;";
+    ? { "--sf-button-bg": "transparent", "--sf-button-fg": ink, "--sf-button-border": ink }
+    : {
+        "--sf-button-bg": "var(--primary)",
+        "--sf-button-fg": "var(--primary-foreground)",
+        "--sf-button-border": "transparent",
+      };
 
-const addButtonTokens = ({ addButton, ink }: StorefrontPreset) => {
-  if (addButton === "ink") return `--sf-add-bg:${ink};--sf-add-fg:var(--primary);--sf-add-border:${ink};`;
-  if (addButton === "outline") return `--sf-add-bg:transparent;--sf-add-fg:${ink};--sf-add-border:${ink};`;
-  return "--sf-add-bg:var(--primary);--sf-add-fg:var(--primary-foreground);--sf-add-border:transparent;";
+const addButtonTokens = ({ addButton, ink }: StorefrontPreset): Tokens => {
+  if (addButton === "ink") return { "--sf-add-bg": ink, "--sf-add-fg": "var(--primary)", "--sf-add-border": ink };
+  if (addButton === "outline") return { "--sf-add-bg": "transparent", "--sf-add-fg": ink, "--sf-add-border": ink };
+  return { "--sf-add-bg": "var(--primary)", "--sf-add-fg": "var(--primary-foreground)", "--sf-add-border": "transparent" };
 };
+
+export function storefrontPresetVars(preset: StorefrontPreset): Tokens {
+  return {
+    "--sf-page": preset.page,
+    "--sf-ink": preset.ink,
+    "--sf-card-radius": preset.cardRadius,
+    "--sf-button-radius": buttonRadius(preset.button),
+    "--sf-font-display": preset.displayFont,
+    "--sf-display-weight": String(preset.displayWeight),
+    "--sf-font-body": preset.bodyFont,
+    "--sf-font-price": preset.priceFont,
+    "--sf-price-weight": String(preset.priceWeight),
+    ...HERO_TOKENS[preset.hero](preset),
+    ...buttonTokens(preset),
+    ...addButtonTokens(preset),
+  };
+}
 
 export function storefrontPresetCss(): string {
   return STOREFRONT_PRESETS.map((preset) => {
     const marker = `[data-storefront-preset="${preset.id}"]`;
-    const declarations =
-      `--sf-page:${preset.page};--sf-ink:${preset.ink};--sf-card-radius:${preset.cardRadius};` +
-      `--sf-button-radius:${buttonRadius(preset.button)};--sf-font-display:${preset.displayFont};` +
-      `--sf-display-weight:${preset.displayWeight};--sf-font-body:${preset.bodyFont};` +
-      `--sf-font-price:${preset.priceFont};--sf-price-weight:${preset.priceWeight};` +
-      HERO_TOKENS[preset.hero](preset) +
-      buttonTokens(preset) +
-      addButtonTokens(preset);
-    return `${marker},:root:has(${marker}){${declarations}}[data-storefront-preset="${preset.id}"]{font-family:var(--sf-font-body);}`;
+    const declarations = Object.entries(storefrontPresetVars(preset))
+      .map(([name, value]) => `${name}:${value};`)
+      .join("");
+    return `${marker},:root:has(${marker}){${declarations}}${marker}{font-family:var(--sf-font-body);}`;
   }).join("");
 }

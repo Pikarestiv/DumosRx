@@ -113,8 +113,15 @@ export function storefrontThemeCss(): string {
     .join("");
 }
 
+export function storefrontAccentVars(accent: string, preset: StorefrontPreset): Record<string, string> {
+  const { primary, primaryForeground, ring } = accentPalette(accent, preset.ink);
+  return { "--primary": primary, "--primary-foreground": primaryForeground, "--ring": ring };
+}
+
 export function storefrontAccentCss(accent?: string | null, preset: StorefrontPreset = STOREFRONT_PRESETS[0]): string {
   if (!isHexColour(accent)) return "";
-  const { primary, primaryForeground, ring } = accentPalette(accent, preset.ink);
-  return `:root:has([data-storefront-theme]){${declarations({ primary, primaryForeground, ring })}}`;
+  const vars = Object.entries(storefrontAccentVars(accent, preset))
+    .map(([name, value]) => `${name}:${value};`)
+    .join("");
+  return `:root:has([data-storefront-theme]){${vars}}`;
 }

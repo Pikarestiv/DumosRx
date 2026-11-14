@@ -35,6 +35,7 @@ class Storefront extends Model
         'banner_url',
         'social_links',
         'is_active',
+        'style_dirty_at',
     ];
 
     protected $casts = [
@@ -42,6 +43,7 @@ class Storefront extends Model
         'opening_hours' => 'array',
         'pickup_minutes' => 'integer',
         'is_active' => 'boolean',
+        'style_dirty_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -83,5 +85,12 @@ class Storefront extends Model
     {
         return $this->stores()->where('online_store_enabled', true);
     }
-}
 
+    public static function clearStyleDirty(?\DateTimeInterface $cutoff = null): int
+    {
+        return static::query()
+            ->whereNotNull('style_dirty_at')
+            ->when($cutoff, fn ($q) => $q->where('style_dirty_at', '<=', $cutoff))
+            ->update(['style_dirty_at' => null]);
+    }
+}

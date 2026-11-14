@@ -324,15 +324,26 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   declarations with `preload: false`, so a store only downloads the faces its
   preset's CSS uses. Presets define a light palette only; storefront dark mode
   reuses the same accent and has not been designed per preset.
-- **Only a super admin chooses a theme**, through
-  `PUT /admin/stores/{id}/storefront/theme` (`role:super_admin`) from
-  `StorefrontThemePicker` in the admin store detail's Online Storefront card;
-  everyone else sees the theme name read-only. The store detail payload
-  carries `storefront.theme` and `storefront.available_themes`, and the
-  picker shows only registry themes the server lists. A change marks the
-  owner's published stores dirty, so it ships with the next scheduled
-  rebuild. Store owners deliberately have no theme control in `client/` or
-  the owner dashboard yet.
+- **Only a super admin changes a store's look, and it ships by hand**
+  (storefront redesign phase 4, 2026-11-14). The admin store detail has a
+  **Storefront** tab (`store-storefront-tab.tsx`, `?tab=storefront`) holding the
+  publish/slug card (moved out of Overview), then "Look and details":
+  `StorefrontPresetPicker` (a card per preset with a `StorefrontPresetPreview`
+  that applies the preset's tokens and the draft accent as inline custom
+  properties, never the global `storefrontThemeCss()`, whose `:root:has()`
+  rules would recolour the whole admin), the legacy `StorefrontThemePicker`
+  (now "Classic accent themes", non-preset themes only), and
+  `StorefrontSettingsForm` (accent swatches + hex with a contrast warning from
+  `readableForeground`, tagline, WhatsApp, pickup minutes, opening hours by
+  day). Everything is `PUT /admin/stores/{id}/storefront/theme` or
+  `.../settings` (`role:super_admin`); other roles see it read-only. None of it
+  queues a rebuild: the card shows "Pending Rebuild" and a super admin clicks
+  **Rebuild storefronts now** (`StorefrontRebuildButton`, behind a
+  `ConfirmDialog`, `POST /admin/storefront/rebuild`), which redeploys every
+  storefront. The preview shows sample products, since the detail payload
+  carries none. Store owners deliberately have no style control in `client/`
+  or the owner dashboard yet; when they do, it becomes an "Online Storefront"
+  card directly under Business Information in the till's settings.
 - **Storefront Header Branch Selector:** `StoreBranchSelector`, wrapped in
   `<Suspense fallback={null}>`. When multiple branches exist under the owner,
   users can switch branches (`?branch=<id>`), with a confirmation modal
@@ -1825,11 +1836,11 @@ the oldest unsynced edit's age and the delivered-age histogram. Both fields are
 without the migration still renders, and absent reads as nothing rather than as
 "delivered instantly".
 
-## Store details is three tabs, and the Sync tab carries a verdict badge (2026-10-19)
+## Store details is four tabs, and the Sync tab carries a verdict badge (2026-10-19; Storefront tab added 2026-11-14)
 
 `app/admin/stores/details/page.tsx` keeps the header, the status badges and the
-stat tiles — fixed chrome — and renders `StoreDetailTabs`. The body is three
-tabs, one grid each, in `components/admin/stores/details/`:
+stat tiles — fixed chrome — and renders `StoreDetailTabs`. The body is four
+tabs (Overview, Storefront, Sync, Activity), one grid each, in `components/admin/stores/details/`:
 
 - **`overview`** (`store-overview-tab.tsx`) — business and operational metrics,
   profile, the owner/subscription stack, staff, account manager, storefront,
@@ -1860,7 +1871,7 @@ convention, and the path is built from `adminStoreDetailPath()` so the
 `trailingSlash: true` export stays consistent. Changing tab calls
 `router.replace(…, { scroll: false })` — **`replace`, not `push`**, because a
 tab is a view preference and Back must return to the fleet list rather than
-walk three tabs; `scroll: false` so switching on a phone does not jump. `Tabs`
+walk the tabs; `scroll: false` so switching on a phone does not jump. `Tabs`
 is **controlled** (`value={activeTab}`), so a deep link and the strip can never
 disagree.
 

@@ -4,7 +4,6 @@ namespace App\Services\Admin;
 
 use App\Exceptions\StoreActionBlockedException;
 use App\Models\ActivityLog;
-use App\Models\Product;
 use App\Models\Store;
 use App\Models\Storefront;
 use App\Services\Storefront\StorefrontCatalogService;
@@ -50,13 +49,47 @@ class AdminStoreStorefrontService
                 return $storefront;
             }
 
-            $storefront->update(['theme' => $theme]);
-            Product::markStorefrontsDirty([], [$store->user_id]);
+            $storefront->update(['theme' => $theme, 'style_dirty_at' => now()]);
 
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => 'STOREFRONT_THEME_CHANGED',
                 'description' => "Changed the storefront theme for store: {$store->name} ({$store->id}) from '{$previous}' to '{$theme}'",
+            ]);
+
+            return $storefront->refresh();
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings  accent, tagline, whatsapp, pickup_minutes, opening_hours (any subset)
+     */
+    public function updateSettings(string $id, array $settings): Storefront
+    {
+        return DB::transaction(function () use ($id, $settings) {
+            $store = Store::findOrFail($id);
+
+            if (blank($store->store_slug) && ! Storefront::where('user_id', $store->user_id)->exists()) {
+                throw new StoreActionBlockedException(
+                    'This store has no storefront address yet, so there are no storefront settings to save. Set the address first.',
+                );
+            }
+
+            $storefront = $this->catalogService->storefrontForStore($store);
+            $storefront->fill($settings);
+
+            if (! $storefront->isDirty()) {
+                return $storefront;
+            }
+
+            $changed = array_keys($storefront->getDirty());
+            $storefront->style_dirty_at = now();
+            $storefront->save();
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'STOREFRONT_SETTINGS_CHANGED',
+                'description' => "Changed storefront settings (".implode(', ', $changed).") for store: {$store->name} ({$store->id})",
             ]);
 
             return $storefront->refresh();

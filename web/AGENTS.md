@@ -287,6 +287,34 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   {WEB_APP_HOST}" (the host of `WEB_APP_URL` without `www.`) linking
   `WEB_APP_URL`. No links to storefront routes, no about text, no social links
   (`storefronts.social_links` is not exposed by `GET /storefront/{slug}`).
+- **Languages (English and French, 2026-11-14).** Everything the storefront
+  itself says comes from `lib/storefront-messages-en.ts` and
+  `-fr.ts` (French is typed `Record<MessageKey, string>`, and
+  `__tests__/storefront-i18n.test.ts` fails if any key is missing, untranslated
+  or has different `{placeholders}`). `lib/storefront-i18n.ts` holds
+  `translate`, `translatePlural` (French treats 0 as singular), the locale list
+  (pinned equal to `laravel-server/app/Support/StorefrontLocales.php`) and
+  `formatStorefrontMoney` (`Intl`, so `1 500 FCFA` in French and `₦1,500` in
+  English; `formatMoney` in `lib/utils/currency.ts` now delegates to it and
+  prints a space after a bare currency code, e.g. `KES 1,000`). The layout wraps
+  every storefront route in `StorefrontI18nProvider` with the store's
+  `storefront.locale` as the default and `enabled_locales` as the choices; the
+  visitor's pick is kept in `localStorage` (`dumosrx-storefront-locale`) and
+  only honoured if the store offers it. Because the pages are static, the HTML
+  is built in the store's default language and switches after hydration, via
+  `useSyncExternalStore` (server snapshot = default) so there is no mismatch.
+  `LanguageSwitch` sits in the utility bar and renders only with two or more
+  languages. Components read text through `useStorefrontI18n()` (`t`, `tp`,
+  `money`); a component rendered outside a provider falls back to English, which
+  is why component tests need no wrapper. Opening hours and times are locale
+  aware (`18h00`, `lun – sam` in French). Page `<title>` and Open Graph text use
+  the store's default language. **Not translated:** the `/about`, `/faq`,
+  `/locations`, `/track` and `/prescription` pages (unlinked, reachable only by
+  old URLs), error text that comes back from the API, and `<html lang>` in the
+  initial HTML (the root layout fixes it to `en`; the provider corrects it after
+  hydration). Product names, categories and the owner's tagline are never
+  translated. To add a language: a messages file, `STOREFRONT_LOCALES`,
+  `LOCALE_NAMES`, the PHP list, and a plural rule if it is not one/other.
 - **Storefront states and accessibility (phase 5, 2026-11-14).** The home and
   shop show `StoreClosedNotice` under the header while the store is closed by
   its hours (browser clock, nothing when no hours are set); a store with no
@@ -363,9 +391,10 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   **Rebuild storefronts now** (`StorefrontRebuildButton`, behind a
   `ConfirmDialog`, `POST /admin/storefront/rebuild`), which redeploys every
   storefront. The preview shows sample products, since the detail payload
-  carries none. Store owners deliberately have no style control in `client/`
-  or the owner dashboard yet; when they do, it becomes an "Online Storefront"
-  card directly under Business Information in the till's settings.
+  carries none. Store owners now also have style controls in the till (Settings > Business
+  Info > Online Storefront card, `PUT /app/storefront-settings`; see
+  `client/AGENTS.md`). An owner's change queues the debounced automatic rebuild,
+  a super admin's waits for the manual button.
 - **Storefront Header Branch Selector:** `StoreBranchSelector`, wrapped in
   `<Suspense fallback={null}>`. When multiple branches exist under the owner,
   users can switch branches (`?branch=<id>`), with a confirmation modal

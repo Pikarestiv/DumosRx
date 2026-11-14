@@ -225,6 +225,18 @@ without updating that.
   the request and leaves the flags until the workflow's
   `/internal/storefront/rebuild-complete` callback, which now also clears
   `style_dirty_at` up to the dispatch time; without one it clears them at once.
+  **Owner control (2026-11-14): `GET/PUT /app/storefront-settings`**
+  (`Api\App\StorefrontSettingsController`, inside the `subscription` group; the
+  PUT also needs `subscription:custom_branding`). Owner only: a user with a
+  `store_id` (staff) gets 403. It serves the owner's first slugged store, accepts
+  `theme` only from `StorefrontThemes::OWNER_IDS` (the three presets) plus every
+  field above and `locale` / `enabled_locales` (`StorefrontLocales::IDS`, pinned
+  by the web), and, unlike the admin endpoints, **does** queue the debounced
+  automatic rebuild (`Product::markStorefrontsDirty`) because an owner has no
+  rebuild button. Validation lives once in `StorefrontSettingsRules` and writes
+  go through `StorefrontStyleService::apply()`, shared with the admin endpoint.
+  `storefronts.locale` (default `en`) and `enabled_locales` are returned by the
+  public `show` payload and the admin detail.
   `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,
   `pickup_minutes` and `opening_hours` (JSON), all nullable and returned by
   `GET /storefront/{slug}`; nothing writes them yet (the admin settings tab,

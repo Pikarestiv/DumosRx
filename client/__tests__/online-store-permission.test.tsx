@@ -29,6 +29,9 @@ vi.mock("@/lib/hooks/use-feature-gate", () => ({
 vi.mock("@/lib/constants", () => ({
   STOREFRONT_BASE_URL: "https://shop.example",
 }));
+vi.mock("@/components/settings/store/storefront-appearance", () => ({
+  StorefrontAppearance: () => <div>storefront-appearance</div>,
+}));
 vi.mock("@/components/settings/store/payment-settings-card", () => ({
   PaymentSettingsCard: () => <div>payment-settings-card</div>,
 }));

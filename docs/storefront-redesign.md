@@ -15,7 +15,14 @@
 - **Rebuilds are manual.** Saving a theme marks the store "Pending rebuild" but
   does not dispatch; a super-admin "Rebuild storefronts now" button fires the
   existing `storefront-changed` dispatch via Laravel.
-- **i18n is deferred** (§7, Divamax only, later). Keep copy in one place.
+- **i18n (§7) is built** (2026-11-14): English and French for the home, shop, cart,
+  header, footer and checkout, per-store default and enabled languages, a switch
+  in the utility bar, `Intl` money and locale-aware hours. Not translated: the
+  unlinked about/faq/locations/track/prescription pages, API error text, and
+  `<html lang>` in the initial HTML.
+- **Owner controls are built** (2026-11-14): a store owner picks style, accent,
+  details and languages in the till's Online Storefront card. Owner changes queue
+  the automatic rebuild; super-admin changes still wait for the manual button.
 - **The admin "Online Storefront" card moves to its own tab** in store detail,
   holding the preset picker with a live preview and the storefront settings.
 - **Logo:** `storefront.logo_url` falls back to the store's own `logo_url`.
@@ -23,8 +30,7 @@
   has a separate "Online Storefront" card
   (`client/components/settings/store/online-storefront-card.tsx`) directly under
   Business Information, holding the slug and the online-store switch. When owners
-  get to choose their own theme, the controls join it there. Theme controls are
-  not built for owners yet.
+  get to choose their own theme, the controls join it there. Owner theme controls are now in that card.
 - **Local preview:** the till's slug field prefix comes from
   `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/store`), so set it in
   `client/.env.local` (e.g. `localhost:3000/store`) to see a local link.

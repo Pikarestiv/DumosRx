@@ -300,6 +300,10 @@ export const queryKeys = {
     stats: () => resource(["fleetStats"] as const, []),
     widgetSnapshot: () => resource(["widgetSnapshot"] as const, []),
   },
+  storefrontSettings: {
+    // Remote API data, not a local table.
+    show: () => resource(["storefrontSettings"] as const, []),
+  },
   accountManager: {
     // Remote API data, not a local table.
     show: () => resource(["accountManager"] as const, []),

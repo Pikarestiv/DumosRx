@@ -4693,6 +4693,25 @@ behaviour without it, so no caller had to change at once.
   always said, but it *is* a visible change for an existing store on upgrade,
   and it is the only tab a manager outright loses. One tick restores it, and
   that tick previously did nothing.
+- **Storefront look and details (owner controls, 2026-11-14).** The Online
+  Storefront card also embeds `StorefrontAppearance`
+  (`components/settings/store/storefront-appearance.tsx`), shown once the store
+  has a slug: a style (Workshop, Clinic or Studio, defaulting to Clinic for a
+  pharmacy and Workshop otherwise while the store is still on a classic theme),
+  an accent colour with a contrast warning, tagline, WhatsApp number, pickup
+  minutes, opening hours by day, and the default language plus a "let customers
+  switch language" box. It is **online-only**, not synced: `GET/PUT
+  /app/storefront-settings` through `StorefrontApiClient`
+  (`lib/api/client-storefront.ts`) and `useStorefrontSettings`, with an
+  offline message and retry when the load fails. The plan gate is
+  `useFeatureGate().canCustomizeTheme` (`custom_branding`), enforced again by
+  the server's `subscription:custom_branding` on the PUT; a locked plan sees the
+  upgrade message and disabled fields. The server accepts only the store owner
+  (a staff login gets 403 with an explanation) and only the three presets.
+  `lib/utils/storefront-accent.ts` mirrors `web/lib/storefront-accent.ts` (the
+  two apps share no code). It has its own Save, separate from the card's slug
+  and switch save; a change reaches customers after the next automatic
+  storefront rebuild, about 15 minutes.
 - `manage_online_store` — the storefront slice, and the one key here that
   **cuts across tabs rather than owning one**: the Online Storefront card on
   the Business Info tab, directly under Business Information

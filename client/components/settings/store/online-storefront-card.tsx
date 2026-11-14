@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { HelpTooltip } from "./help-tooltip";
+import { StorefrontAppearance } from "./storefront-appearance";
 
 interface OnlineStorefrontCardProps {
   localStoreSlug?: string;
@@ -233,6 +234,11 @@ export function OnlineStorefrontCard({
             </p>
           )}
         </div>
+        {localStoreSlug ? (
+          <div className="border-t pt-4">
+            <StorefrontAppearance />
+          </div>
+        ) : null}
       </CardContent>
       {isEditing && (
         <CardFooter className="border-t px-6 py-4">

@@ -1,4 +1,4 @@
-import { BaseApiClient } from "./base-client";
+import { StorefrontApiClient } from "./client-storefront";
 import type { StoreOption, FleetStore, FleetStorePayload, FleetStats, WidgetSnapshotResponse } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
 import type {
@@ -12,7 +12,7 @@ import type {
 
 // Fleet (multi-store management), subscription/billing, notifications, online orders, and account-deletion endpoints — split out from ApiClien…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#api-client-fleet-billing-ts-L13
-export class FleetBillingApiClient extends BaseApiClient {
+export class FleetBillingApiClient extends StorefrontApiClient {
   // Stores
   async getStores() {
     return this.request<StoreOption[]>("/stores");

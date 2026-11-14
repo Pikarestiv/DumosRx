@@ -1617,6 +1617,71 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
   sorts products having `SUM(stock_batches.quantity) > 0` before zero-stock rows,
   so the 50-item storefront response prioritizes available items over sold-out ones.
   Coverage: `tests/Feature/StorefrontListingTest.php`.
+- **The landing list is ranked by best sellers (2026-11-14); the paginated
+  catalog is not.** `StorefrontCatalogService::getLandingProducts()` (the
+  show endpoint's `products`, whose first 8 the web home page renders as
+  "Featured Products") orders by in-stock first, then
+  `BEST_SELLER_UNITS_WEIGHT * units/maxUnits + BEST_SELLER_REVENUE_WEIGHT *
+  revenue/maxRevenue` (both 0.5) descending, then `products.name`.
+  `paginateProducts()` (Shop/catalog) stays in-stock-then-name. Details:
+  - **One SQL statement, no window functions.** `bestSellerTotals()` is a
+    grouped `sale_items ⋈ sales` subquery, left-joined to `storeProducts()`
+    and cross-joined to a `MAX()` over itself for the per-store peaks, so it
+    needs neither window functions nor MySQL 8 and also runs on the SQLite
+    test DB (only SQLite is exercised by the suite). `NULLIF`/`COALESCE`
+    guard the divide-by-zero, and `* 1.0` stops SQLite's integer division.
+    Candidates and the peaks are restricted to `storeProducts()`, so a hidden
+    or controlled best seller neither appears nor squashes everyone else's
+    score.
+  - **What counts as sold:** the last `BEST_SELLER_WINDOW_DAYS` (90) by
+    `sales.transaction_date`, cutoff computed in PHP as `now()->utc()` (root
+    §7: no MySQL `NOW()`); `sales.store_id` = the branch, or NULL for legacy
+    rows (the same rule as `inStockFirstAt`); `deleted_at` null on both rows;
+    `payment_status` not in `NOT_SOLD_PAYMENT_STATUSES` (`failed`,
+    `refunded`). `pending`/`partial` credit sales count (goods left the shelf;
+    the same convention as every revenue figure in `AdminStoreService`), and
+    `partially_refunded` sales count **gross**: returns are not netted out,
+    because `return_items` would need a second grouped join for a ranking
+    signal that only moves a product a place or two. Revisit if owners see a
+    much-returned product featured.
+  - **Online orders are already in `sales`.** Fulfilling one at the till
+    (`client/lib/hooks/use-fulfill-online-order-mutation.ts`) inserts a local
+    `sales` row (`transaction_number` `ONL-<order id>`, `payment_status`
+    `completed`) and its `sale_items`, which sync up like any till sale;
+    `OnlineOrderController::markFulfilled()` only flips `order_status`. So the
+    ranking reads `sales` alone and must never add `online_order_items`
+    (that would double-count every fulfilled order).
+  - **No sales ⇒ exactly the old order** (every score is 0). Nothing is
+    cached: the ranking is computed live on each show request, which in
+    practice means at static-build time.
+- **`storefront:refresh-featured` (`App\Console\Commands\RefreshStorefrontFeatured`,
+  daily 23:00 Africa/Lagos, `withoutOverlapping()`)** keeps the static pages'
+  featured row from going stale without paying for a nightly deploy. For each
+  published store (`online_store_enabled`, a slug, not suspended,
+  `storefrontEnabled()`) it hashes the ordered ids from
+  `featuredProductIds()` (top `FEATURED_PRODUCT_COUNT` = 8), compares them
+  with the map stored in `SystemConfig` under `storefront_featured_snapshot`,
+  and calls `Product::markStorefrontsDirty()` only for stores whose hash
+  changed; then it overwrites the map (unpublished stores drop out of it).
+  The existing 15-minute `storefront:rebuild-if-dirty` does the rest, so a
+  night with any number of changed stores still costs at most **one** deploy
+  run, and a quiet night costs none. Design notes:
+  - **Why `SystemConfig`, not a column:** `stores` is mirrored by `client/`
+    and an extra column means a client schema change (root §5); `storefronts`
+    is per owner, not per branch. `storefront_rebuild_requested_at` lives
+    there for the same reason.
+  - **It never dispatches and never clears flags**, so the "rebuild pending"
+    guard is untouched: a store it marks while a rebuild is unconfirmed
+    carries a stamp later than the dispatch, survives the confirmation
+    callback, and goes out with the next dispatch.
+  - **Known slack, accepted:** the snapshot is updated only by this command.
+    A daytime rebuild triggered by something else already ships the current
+    ranking, and the night run can then mark the same change again: at most
+    one redundant run that night. The first run after this shipped had no
+    snapshot and marked every published store once, which was correct (pages
+    built before were name-ordered).
+  - Coverage: `tests/Feature/StorefrontBestSellerRankingTest.php` and
+    `tests/Feature/StorefrontRefreshFeaturedCommandTest.php`.
 
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
 

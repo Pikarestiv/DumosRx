@@ -196,8 +196,9 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 - **Storefront routes (refreshed 2026-11-13):**
   - Home (`app/store/[store_slug]/page.tsx`), top to bottom: hero (store
     name, "Shop now", and "Contact us" when the store has contact details), **Featured Products** (the first 8 of
-    the show endpoint's `products`, which the API already orders in-stock
-    first, plus "View all N products" → `/catalog`), a headline band
+    the show endpoint's `products`, which the API orders as best sellers,
+    in stock first; see `laravel-server/AGENTS.md`, "Which products a
+    storefront lists". The web just slices, so ranking needs no web change), plus "View all N products" → `/catalog`), a headline band
     (`storefront.headline` with fixed supporting copy and "Browse the shop"),
     then `StoreAboutSection` (`#about`), `StoreLocationsSection`
     (`#locations`, only when `hasLocationsToShow()`: more than one branch, or

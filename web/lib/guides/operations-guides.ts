@@ -71,7 +71,7 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
       "Products in your catalog automatically list online unless 'Show Online' is turned off.",
       "Share your branded storefront URL (e.g. dumosrx.com/store/your-pharmacy) with customers on WhatsApp and social media.",
       "Customers can switch between branches, search available medicines, and complete purchases via Paystack.",
-      "Your home page shows eight featured products, your headline, About, Locations, FAQ and Contact sections, and a footer with your phone, email and address, so keep those details current in the app.",
+      "Your home page shows your eight best sellers from the last 90 days (refreshed nightly, in-stock items first), your headline, About, Locations, FAQ and Contact sections, and a footer with your phone, email and address, so keep those details current in the app.",
       "Want a different colour scheme? Ask DumosRx support: storefront themes are currently set by the DumosRx team.",
     ],
     proTip:

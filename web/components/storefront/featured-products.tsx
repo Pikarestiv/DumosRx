@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ProductCard } from "@/components/storefront/product-card";
 import { correctCategoryName } from "@/lib/storefront-categories";
 import { toDisplayTitle, viewAllProductsLabel } from "@/lib/storefront-display";
-import { DISPLAY_FONT, SECONDARY_BUTTON } from "@/lib/storefront-styles";
+import { DISPLAY_FONT, FOCUS_RING, SECONDARY_BUTTON } from "@/lib/storefront-styles";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +38,7 @@ export function FeaturedProducts({ products, productCount, storeSlug, currency, 
   const chip = (selected: boolean) =>
     cn(
       "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors",
+      FOCUS_RING,
       selected
         ? "border-[color:var(--sf-ink)] bg-[color:var(--sf-ink)] text-[color:var(--sf-page)]"
         : "border-black/15 bg-white hover:border-[color:var(--sf-ink)]",

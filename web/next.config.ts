@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   },
   // Ensure trailing slashes for direct FTP hosting compatibility
   trailingSlash: true,
+  experimental: { inlineCss: true },
 };
 
 export default nextConfig;

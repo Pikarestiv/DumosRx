@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Loader2, Search, X } from "lucide-react";
 
 import { CatalogCategoryChips, CatalogCategorySidebar } from "@/components/storefront/catalog-category-filter";
 import { ProductCard } from "@/components/storefront/product-card";
 import type { PaginatedStorefrontProducts } from "@/lib/api/storefront-data";
-import { SECONDARY_BUTTON } from "@/lib/storefront-styles";
+import { ProductGridSkeleton } from "@/components/storefront/product-grid-skeleton";
+import { FOCUS_RING, SECONDARY_BUTTON } from "@/lib/storefront-styles";
 import { useStorefrontCatalog } from "@/lib/use-storefront-catalog";
 
 interface StorefrontCatalogViewProps {
@@ -19,13 +19,19 @@ interface StorefrontCatalogViewProps {
 
 const SCROLL_PRELOAD_MARGIN = "600px";
 
+const subscribeToLocation = (notify: () => void) => {
+  window.addEventListener("popstate", notify);
+  return () => window.removeEventListener("popstate", notify);
+};
+
 export function StorefrontCatalogView({ storeSlug, currency, whatsapp, initialData }: StorefrontCatalogViewProps) {
-  const searchParams = useSearchParams();
+  const urlSearch = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
+  const params = new URLSearchParams(urlSearch);
   const catalog = useStorefrontCatalog({
     storeSlug,
     initialData,
-    initialQuery: searchParams?.get("q") ?? "",
-    branch: searchParams?.get("branch") || undefined,
+    initialQuery: params.get("q") ?? "",
+    branch: params.get("branch") || undefined,
   });
   const { items, status, hasMore, loadMore } = catalog;
   const sentinel = useRef<HTMLDivElement>(null);
@@ -42,15 +48,18 @@ export function StorefrontCatalogView({ storeSlug, currency, whatsapp, initialDa
 
   const filtered = Boolean(catalog.search.trim() || catalog.category);
   const refreshing = status === "loading";
+  const hasCategories = catalog.categories.length > 0;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <CatalogCategorySidebar
-        categories={catalog.categories}
-        selected={catalog.category}
-        onSelect={catalog.setCategory}
-        total={catalog.allTotal}
-      />
+    <div className={hasCategories ? "grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]" : "grid gap-8"}>
+      {hasCategories && (
+        <CatalogCategorySidebar
+          categories={catalog.categories}
+          selected={catalog.category}
+          onSelect={catalog.setCategory}
+          total={catalog.allTotal}
+        />
+      )}
 
       <div className="min-w-0 space-y-5">
         <div role="search" className="relative">
@@ -61,7 +70,7 @@ export function StorefrontCatalogView({ storeSlug, currency, whatsapp, initialDa
             placeholder="Search by name or brand…"
             value={catalog.search}
             onChange={(event) => catalog.setSearch(event.target.value)}
-            className="h-12 w-full rounded-[var(--sf-button-radius)] border border-black/10 bg-white pl-10 pr-10 text-sm [&::-webkit-search-cancel-button]:hidden"
+            className={`h-12 w-full rounded-[var(--sf-button-radius)] border border-black/10 bg-white pl-10 pr-10 text-sm [&::-webkit-search-cancel-button]:hidden ${FOCUS_RING}`}
           />
           {catalog.search && (
             <button
@@ -91,7 +100,9 @@ export function StorefrontCatalogView({ storeSlug, currency, whatsapp, initialDa
           </div>
         )}
 
-        {items.length === 0 && status !== "loading" && status !== "error" ? (
+        {items.length === 0 && refreshing ? (
+          <ProductGridSkeleton />
+        ) : items.length === 0 && status !== "error" ? (
           <div className="rounded-[var(--sf-card-radius)] border border-black/10 bg-white py-16 text-center">
             <p className="text-lg font-semibold">No products found</p>
             <p className="mb-4 text-sm opacity-75">Try a different search or category.</p>

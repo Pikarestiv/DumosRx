@@ -24,9 +24,6 @@ const { nav, sync } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("next/font/local", () => ({
-  default: ({ variable }: { variable: string }) => ({ variable }),
-}));
 
 vi.mock("@/lib/store/use-admin-auth-store", () => ({
   useAdminAuthStore: () => ({ user: { role: "super_admin" } }),

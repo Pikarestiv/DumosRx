@@ -1,5 +1,4 @@
 import { StoreLogo } from "@/components/storefront/store-logo";
-import { STOREFRONT_FONT_CLASSES } from "@/lib/storefront-fonts";
 import { storefrontPresetVars, type StorefrontPreset } from "@/lib/storefront-presets";
 import { DISPLAY_FONT, PRIMARY_BUTTON } from "@/lib/storefront-styles";
 import { storefrontAccentVars } from "@/lib/storefront-themes";
@@ -22,7 +21,7 @@ export function StorefrontPresetPreview({ preset, accent, storeName, logo, tagli
   return (
     <div
       aria-hidden="true"
-      className={cn("overflow-hidden rounded-lg border border-black/10 text-left", STOREFRONT_FONT_CLASSES)}
+      className="overflow-hidden rounded-lg border border-black/10 text-left"
       style={{ ...vars, background: "var(--sf-page)", color: "var(--sf-ink)", fontFamily: "var(--sf-font-body)" }}
     >
       <div className="flex items-center gap-2 bg-white px-3 py-2">

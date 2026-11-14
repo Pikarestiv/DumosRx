@@ -60,7 +60,7 @@ export function ContactSpecialistCard() {
             </div>
           </div>
         ) : (
-        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border p-4">
           <div className="flex items-center gap-3 min-w-0">
             <Avatar className="h-10 w-10 shrink-0">
               <AvatarFallback className="bg-primary/10 text-primary font-medium">
@@ -70,6 +70,9 @@ export function ContactSpecialistCard() {
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">{manager?.name}</p>
               <p className="text-xs text-muted-foreground truncate">{manager?.email}</p>
+              {manager?.phone && (
+                <p className="text-sm font-medium tabular-nums select-all">{manager.phone}</p>
+              )}
             </div>
           </div>
           {manager?.phone ? (

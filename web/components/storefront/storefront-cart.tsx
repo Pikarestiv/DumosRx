@@ -13,6 +13,7 @@ import { useCart, type CartItem, type ScopedCart } from "@/lib/store/use-cart-st
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/utils/currency";
+import { FOCUS_RING } from "@/lib/storefront-styles";
 import { toDisplayTitle } from "@/lib/storefront-display";
 
 export const OPEN_CART_EVENT = "storefront:open-cart";
@@ -52,11 +53,10 @@ export function StorefrontCart({ storeSlug, currency }: StorefrontCartProps) {
       <SheetTrigger asChild>
         <button
           type="button"
-          aria-label="Open cart"
-          className="inline-flex min-h-11 items-center gap-2 rounded-[var(--sf-button-radius)] border border-[color:var(--sf-ink)] bg-white px-3 text-sm font-semibold sm:px-4"
+          className={`inline-flex min-h-11 items-center gap-2 rounded-[var(--sf-button-radius)] border border-[color:var(--sf-ink)] bg-white px-3 text-sm font-semibold sm:px-4 ${FOCUS_RING}`}
         >
           <ShoppingCart aria-hidden="true" className="h-5 w-5" />
-          <span className="hidden sm:inline">Cart</span>
+          <span className="sr-only sm:not-sr-only">Cart</span>
           <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-bold [background:var(--primary)] [color:var(--primary-foreground)]">
             {cart.getItemCount()}
           </span>

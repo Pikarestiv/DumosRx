@@ -10,9 +10,6 @@ const { nav, auth, sync } = vi.hoisted(() => ({
   sync: { agreementEnabled: [] as boolean[], divergenceEnabled: [] as boolean[] },
 }));
 
-vi.mock("next/font/local", () => ({
-  default: ({ variable }: { variable: string }) => ({ variable }),
-}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: nav.replace, push: nav.push }),

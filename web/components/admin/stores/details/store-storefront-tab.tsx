@@ -10,6 +10,8 @@ import { StorefrontRebuildButton } from "./storefront-rebuild-button";
 import { StorefrontSettingsForm } from "./storefront-settings-form";
 import { StorefrontThemePicker } from "./storefront-theme-picker";
 import { buttonVariants } from "@/components/ui/button";
+import { storefrontFontFaceCss } from "@/lib/storefront-fonts";
+import { STOREFRONT_PRESETS } from "@/lib/storefront-presets";
 import { WEB_APP_URL } from "@/lib/constants";
 import { checkIsSuperAdmin, useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 import type { AdminStoreDetail } from "@/lib/types/admin-store-detail";
@@ -23,6 +25,7 @@ export function StoreStorefrontTab({ store }: { store: AdminStoreDetail }) {
 
   return (
     <div className="space-y-6">
+      <style>{storefrontFontFaceCss(STOREFRONT_PRESETS.map((preset) => preset.id))}</style>
       <StoreStorefrontCard store={store} />
 
       <DetailCard title="Look and details" icon={<Palette className="h-4 w-4" />}>

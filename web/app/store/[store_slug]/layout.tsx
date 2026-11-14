@@ -1,6 +1,8 @@
 import { MobileCartBar } from "@/components/storefront/mobile-cart-bar";
 import { getStorefrontData } from "@/lib/api/storefront-data";
-import { STOREFRONT_FONT_CLASSES } from "@/lib/storefront-fonts";
+import { preload } from "react-dom";
+
+import { storefrontDisplayFontUrl, storefrontFontFaceCss } from "@/lib/storefront-fonts";
 import { storefrontPresetCss } from "@/lib/storefront-presets";
 import {
   resolveStorefrontPreset,
@@ -20,13 +22,15 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
   const theme = resolveStorefrontTheme(data?.storefront?.theme);
   const preset = resolveStorefrontPreset(data?.storefront?.theme, data?.store?.store_type);
 
+  preload(storefrontDisplayFontUrl(preset.id), { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+
   return (
     <div
       data-storefront-theme={theme.id}
       data-storefront-preset={preset.id}
-      className={`contents ${STOREFRONT_FONT_CLASSES}`}
+      className="contents"
     >
-      <style>{storefrontThemeCss() + storefrontPresetCss() + storefrontAccentCss(data?.storefront?.accent, preset)}</style>
+      <style>{storefrontFontFaceCss([preset.id]) + storefrontThemeCss() + storefrontPresetCss() + storefrontAccentCss(data?.storefront?.accent, preset)}</style>
       {children}
       <MobileCartBar storeSlug={store_slug} currency={data?.store?.currency} />
     </div>

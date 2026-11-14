@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { ChevronRight } from "lucide-react";
 
+import { StoreClosedNotice } from "@/components/storefront/store-closed-notice";
 import { StorefrontCatalogView } from "@/components/storefront/storefront-catalog-view";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
@@ -61,9 +61,11 @@ export default async function StorefrontCatalogPage({
         selectedBranchId={selectedBranchId}
       />
 
-      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Link href={`/store/${store_slug}`} className="hover:text-foreground transition-colors">
+      <StoreClosedNotice hours={storefront?.opening_hours} />
+
+      <main id="main-content" tabIndex={-1} className="flex-1 outline-none py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs opacity-80">
+          <Link href={`/store/${store_slug}`} className="underline-offset-4 hover:underline">
             {storefront?.name || store.name}
           </Link>
           <ChevronRight className="h-3 w-3" />
@@ -76,14 +78,12 @@ export default async function StorefrontCatalogPage({
           </h1>
         </div>
 
-        <Suspense fallback={<div className="py-12 text-center text-muted-foreground">Loading products…</div>}>
-          <StorefrontCatalogView
-            storeSlug={store_slug}
-            currency={store.currency}
-            whatsapp={storefront?.whatsapp}
-            initialData={initialCatalog}
-          />
-        </Suspense>
+        <StorefrontCatalogView
+          storeSlug={store_slug}
+          currency={store.currency}
+          whatsapp={storefront?.whatsapp}
+          initialData={initialCatalog}
+        />
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

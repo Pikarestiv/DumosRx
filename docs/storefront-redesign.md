@@ -29,7 +29,7 @@
   `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/store`), so set it in
   `client/.env.local` (e.g. `localhost:3000/store`) to see a local link.
 
-Phases 1 (foundation), 2 (home page and product card), 3 (catalog) and 4 (admin tab) are built; 5 follow the order in §10, minus the dropped items. Phase 2 also moved the header to logo + search + cart (no nav links) and added `stock_quantity`/`in_stock` to the product payload.
+Phases 1 (foundation), 2 (home page and product card), 3 (catalog), 4 (admin tab) and 5 (polish) are built; the mobile performance target is not yet met (see `docs/KNOWN_BUGS.md`). Phase 2 also moved the header to logo + search + cart (no nav links) and added `stock_quantity`/`in_stock` to the product payload.
 
 ---
 

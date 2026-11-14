@@ -10,7 +10,7 @@ import { StorefrontUtilityBar } from "@/components/storefront/storefront-utility
 import type { StorefrontBranch, StorefrontProfile, StorefrontStore } from "@/lib/api/storefront-data";
 import { storeTypeLabel } from "@/lib/storefront-copy";
 import { storeNameTextClass } from "@/lib/storefront-display";
-import { DISPLAY_FONT } from "@/lib/storefront-styles";
+import { DISPLAY_FONT, FOCUS_RING } from "@/lib/storefront-styles";
 
 interface StorefrontHeaderProps {
   storeSlug: string;
@@ -34,10 +34,16 @@ export function StorefrontHeader({ storeSlug, store, storefront, branches, selec
 
   return (
     <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-sm"
+      >
+        Skip to content
+      </a>
       <StorefrontUtilityBar />
       <header className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur-sm">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-3 px-4 py-2 sm:gap-6 sm:px-6 lg:px-8">
-          <Link href={home} title={brandName} className="flex min-w-0 items-center gap-3">
+          <Link href={home} title={brandName} className={`flex min-w-0 items-center gap-3 ${FOCUS_RING}`}>
             <StoreLogo name={brandName} logo={logo} />
             <span className="min-w-0">
               <span className={`${DISPLAY_FONT} block leading-tight line-clamp-2 break-words ${storeNameTextClass(brandName)}`}>
@@ -55,12 +61,12 @@ export function StorefrontHeader({ storeSlug, store, storefront, branches, selec
               name="q"
               aria-label="Search products"
               placeholder="Search products…"
-              className="h-11 w-full rounded-[var(--sf-button-radius)] border border-black/10 bg-[color:var(--sf-page)] pl-10 pr-4 text-sm"
+              className={`h-11 w-full rounded-[var(--sf-button-radius)] border border-black/10 bg-[color:var(--sf-page)] pl-10 pr-4 text-sm ${FOCUS_RING}`}
             />
           </form>
 
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
-            <Link href={`${home}/catalog`} aria-label="Search products" className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--sf-button-radius)] border border-black/10 sm:hidden">
+            <Link href={`${home}/catalog`} aria-label="Search products" className={`inline-flex h-11 w-11 items-center justify-center rounded-[var(--sf-button-radius)] border border-black/10 sm:hidden ${FOCUS_RING}`}>
               <Search aria-hidden="true" className="h-5 w-5" />
             </Link>
             {hasBranches && <div className="hidden sm:block">{branchSelector}</div>}

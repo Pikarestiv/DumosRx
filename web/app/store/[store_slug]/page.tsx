@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FeaturedProducts } from "@/components/storefront/featured-products";
+import { StoreClosedNotice } from "@/components/storefront/store-closed-notice";
 import { OrderingSteps } from "@/components/storefront/ordering-steps";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
@@ -58,6 +59,8 @@ export default async function StorefrontPage({
         selectedBranchId={store.id}
       />
 
+      <StoreClosedNotice hours={storefront?.opening_hours} />
+
       <StorefrontHero
         variant={preset.hero}
         tagline={tagline}
@@ -67,9 +70,12 @@ export default async function StorefrontPage({
         whatsappHref={whatsappLink(whatsapp)}
       />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-16 px-4 py-10 sm:px-6 lg:px-8">
+      <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 space-y-16 px-4 py-10 outline-none sm:px-6 lg:px-8">
         {products.length === 0 ? (
-          <p className="py-12 text-center opacity-70">No products are currently available online. Please check back later.</p>
+          <div className="rounded-[var(--sf-card-radius)] border border-black/10 bg-white px-6 py-14 text-center">
+            <p className="text-lg font-semibold">No products are available online yet</p>
+            <p className="mt-1 text-sm opacity-75">Please check back soon.</p>
+          </div>
         ) : (
           <FeaturedProducts
             products={products}

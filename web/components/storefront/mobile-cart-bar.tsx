@@ -27,7 +27,7 @@ export function MobileCartBar({ storeSlug, currency }: MobileCartBarProps) {
       <button
         type="button"
         onClick={() => window.dispatchEvent(new Event(OPEN_CART_EVENT))}
-        className="pointer-events-auto flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-[color:var(--sf-ink)] px-4 text-[color:var(--sf-page)] shadow-lg"
+        className={`pointer-events-auto flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-[color:var(--sf-ink)] px-4 text-[color:var(--sf-page)] shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--primary)]`}
       >
         <span className="flex items-center gap-3 font-medium">
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold [background:var(--primary)] [color:var(--primary-foreground)]">

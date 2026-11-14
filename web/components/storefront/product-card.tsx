@@ -7,7 +7,7 @@ import { CategoryTile } from "@/components/storefront/category-tile";
 import { useCart } from "@/lib/store/use-cart-store";
 import { toDisplayTitle } from "@/lib/storefront-display";
 import { isPriceOnRequest, stockHint, whatsappLink, type StockHint } from "@/lib/storefront-product";
-import { ADD_BUTTON, CARD_SURFACE, PRICE_FONT } from "@/lib/storefront-styles";
+import { ADD_BUTTON, CARD_SURFACE, FOCUS_RING, PRICE_FONT } from "@/lib/storefront-styles";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/utils/currency";
@@ -73,7 +73,7 @@ export function ProductCard({ product, storeSlug, currency, whatsapp, className 
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`Ask about the price of ${displayName}`}
-                className="inline-flex min-h-11 items-center rounded-[var(--sf-button-radius)] border border-current px-4 text-sm font-medium"
+                className={cn("inline-flex min-h-11 items-center rounded-[var(--sf-button-radius)] border border-current px-4 text-sm font-medium", FOCUS_RING)}
               >
                 Ask
               </a>

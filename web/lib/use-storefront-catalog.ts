@@ -55,6 +55,10 @@ export function useStorefrontCatalog({ storeSlug, initialData, initialQuery, bra
   const [category, setCategory] = useState<string | null>(null);
   const [state, setState] = useState<CatalogState>(() => stateFrom(initialData));
   const latestRequest = useRef(0);
+
+  useEffect(() => {
+    if (initialQuery) setSearch(initialQuery);
+  }, [initialQuery]);
   const query = useDebounced(search.trim(), SEARCH_DEBOUNCE_MS);
 
   const load = useCallback(

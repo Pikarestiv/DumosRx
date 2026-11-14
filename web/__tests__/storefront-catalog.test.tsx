@@ -5,11 +5,6 @@ import { StorefrontCatalogView } from "@/components/storefront/storefront-catalo
 import type { PaginatedStorefrontProducts } from "@/lib/api/storefront-data";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
-let searchParams = new URLSearchParams();
-vi.mock("next/navigation", () => ({
-  useSearchParams: () => searchParams,
-  useRouter: () => ({ push: vi.fn() }),
-}));
 
 const product = (id: string, name: string, category: string, price = 250): StorefrontProduct => ({
   id,
@@ -54,7 +49,7 @@ async function settle() {
 describe("StorefrontCatalogView", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    searchParams = new URLSearchParams();
+    window.history.replaceState({}, "", "/store/grace/catalog/");
     localStorage.clear();
     respond = () => initial;
     fetchMock = vi.fn((url: string) => {
@@ -117,7 +112,7 @@ describe("StorefrontCatalogView", () => {
   });
 
   it("opens with the term from the header search box already applied", async () => {
-    searchParams = new URLSearchParams("q=amox");
+    window.history.replaceState({}, "", "/store/grace/catalog/?q=amox");
     respond = (params) => (params.get("q") === "amox" ? page([AMOXIL], 1, 1, 1) : initial);
     renderCatalog();
     await settle();
@@ -191,5 +186,25 @@ describe("StorefrontCatalogView", () => {
 
     expect(screen.getByText("Price on request")).toBeTruthy();
     expect(screen.getByRole("link", { name: /ask about the price of face cream/i }).getAttribute("href")).toContain("wa.me/2348000000000");
+  });
+
+  it("shows placeholders instead of an empty state while the first load is under way", async () => {
+    renderCatalog(null);
+
+    expect(screen.getByRole("status", { name: "Loading products" })).toBeTruthy();
+    expect(screen.queryByText("No products found")).toBeNull();
+    await settle();
+    expect(screen.queryByRole("status", { name: "Loading products" })).toBeNull();
+    expect(screen.getByText("Paracetamol 500MG")).toBeTruthy();
+  });
+
+  it("leaves out the category sidebar and chips when the store has no categories", async () => {
+    respond = () => ({ ...initial, categories: [] });
+    renderCatalog({ ...initial, categories: [] });
+    await settle();
+
+    expect(screen.queryByRole("navigation", { name: "Categories" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Categories" })).toBeNull();
+    expect(screen.getByText("Paracetamol 500MG")).toBeTruthy();
   });
 });

@@ -11,7 +11,6 @@ import type { AdminStoreDetail } from "@/lib/types/admin-store-detail";
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 
 vi.mock("@/lib/api/client", () => ({ webApiClient: { request } }));
-vi.mock("next/font/local", () => ({ default: ({ variable }: { variable: string }) => ({ variable }) }));
 
 const ALL_THEMES = ["emerald", "forest", "navy", "rose", "amber", "slate", "violet", "workshop", "clinic", "studio"];
 

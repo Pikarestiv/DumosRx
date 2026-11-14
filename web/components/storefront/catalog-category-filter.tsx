@@ -1,6 +1,7 @@
 "use client";
 
 import { correctCategoryName } from "@/lib/storefront-categories";
+import { FOCUS_RING } from "@/lib/storefront-styles";
 import { toDisplayTitle } from "@/lib/storefront-display";
 import type { StorefrontCategory } from "@/lib/api/storefront-data";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ export function CatalogCategorySidebar({ categories, selected, onSelect, total }
   const row = (active: boolean) =>
     cn(
       "flex min-h-11 w-full items-center justify-between gap-3 rounded-[var(--sf-button-radius)] px-3 text-left text-sm transition-colors",
+      FOCUS_RING,
       active ? "bg-[color:var(--sf-ink)] text-[color:var(--sf-page)]" : "hover:bg-black/5",
     );
 
@@ -48,6 +50,7 @@ export function CatalogCategoryChips({ categories, selected, onSelect }: Omit<Ca
   const chip = (active: boolean) =>
     cn(
       "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors",
+      FOCUS_RING,
       active ? "border-[color:var(--sf-ink)] bg-[color:var(--sf-ink)] text-[color:var(--sf-page)]" : "border-black/15 bg-white",
     );
 

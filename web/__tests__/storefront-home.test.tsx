@@ -5,9 +5,6 @@ import StorefrontLayout from "@/app/store/[store_slug]/layout";
 import StorefrontPage from "@/app/store/[store_slug]/page";
 import type { StorefrontData } from "@/lib/api/storefront-data";
 
-vi.mock("next/font/local", () => ({
-  default: ({ variable }: { variable: string }) => ({ variable }),
-}));
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -131,7 +128,7 @@ describe("storefront home page", () => {
   it("drops the product grid and its shop button when nothing is listed", async () => {
     await renderHome(storefrontData({ products: [] }));
 
-    expect(screen.getByText(/no products are currently available online/i)).toBeTruthy();
+    expect(screen.getByText(/no products are available online yet/i)).toBeTruthy();
     expect(screen.queryByRole("link", { name: /view all/i })).toBeNull();
   });
 
@@ -252,6 +249,9 @@ describe("storefront layout theme", () => {
     const { container } = render(await StorefrontLayout({ params, children: <p>page</p> }));
 
     expect(container.querySelector("[data-storefront-preset]")?.getAttribute("data-storefront-preset")).toBe("clinic");
+    const css = container.querySelector("style")?.textContent ?? "";
+    expect(css).toContain('font-family:"Figtree"');
+    expect(css).not.toContain("@font-face{font-family:\"Archivo\"");
   });
 
   it("applies the store's own accent colour over the preset's", async () => {

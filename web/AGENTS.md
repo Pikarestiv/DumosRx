@@ -287,6 +287,21 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   {WEB_APP_HOST}" (the host of `WEB_APP_URL` without `www.`) linking
   `WEB_APP_URL`. No links to storefront routes, no about text, no social links
   (`storefronts.social_links` is not exposed by `GET /storefront/{slug}`).
+- **Storefront states and accessibility (phase 5, 2026-11-14).** The home and
+  shop show `StoreClosedNotice` under the header while the store is closed by
+  its hours (browser clock, nothing when no hours are set); a store with no
+  products gets a card, not bare text; the shop hides the category sidebar and
+  chips when the store has no categories; `ProductGridSkeleton` stands in while
+  the first load is under way. Every storefront button, chip, link and input
+  takes the shared `FOCUS_RING` (`lib/storefront-styles.ts`), the header opens
+  with a "Skip to content" link to each page's `#main-content`, and the cart
+  button's accessible name is its visible text plus the count ("Cart 2") so it
+  passes Lighthouse's label-in-name audit. The shop reads `?q=`/`?branch=`
+  from `window.location` through `useSyncExternalStore`, **not**
+  `useSearchParams`, which would force the whole shop out of the static HTML
+  into client-side rendering. Measured mobile Lighthouse (local, gzip,
+  2026-11-14): accessibility 100 home and 98 shop, performance 86 on both;
+  see `docs/KNOWN_BUGS.md`, Engineering notes.
 - **Storefront themes** (`lib/storefront-themes.ts`). Each theme sets
   `--primary`, `--primary-foreground` and `--ring` for light and dark mode.
   `app/store/[store_slug]/layout.tsx` is the one place a theme is applied
@@ -320,9 +335,16 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   neither passes. Adding a look is one `STOREFRONT_PRESETS` entry plus the
   PHP id. Nothing reads the `--sf-*` variables yet: phase 2 (home page and
   product card) is the first consumer, so existing stores look unchanged.
-  Fonts (`lib/storefront-fonts.ts`) are self-hosted `next/font/local`
-  declarations with `preload: false`, so a store only downloads the faces its
-  preset's CSS uses. Presets define a light palette only; storefront dark mode
+  Preset fonts are self-hosted from `public/store-fonts/` and **not** loaded
+  through `next/font` (changed 2026-11-14): `lib/storefront-fonts.ts` emits
+  `@font-face` rules for only the active preset's faces
+  (`storefrontFontFaceCss([id])`, rendered in the layout's `<style>`) and the
+  layout calls `react-dom`'s `preload()` for that preset's display font alone,
+  so a store downloads and preloads nothing from the other presets. The admin
+  Storefront tab declares all faces once for its previews. A new preset's fonts
+  go in `public/store-fonts/` and `FONTS`/`PRESET_FONTS`; the test checks every
+  referenced file exists. The family names in `STOREFRONT_PRESETS` are the same
+  strings as the `@font-face` families. Presets define a light palette only; storefront dark mode
   reuses the same accent and has not been designed per preset.
 - **Only a super admin changes a store's look, and it ships by hand**
   (storefront redesign phase 4, 2026-11-14). The admin store detail has a
@@ -354,7 +376,8 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   12 sample products, so the home page and shop render something to look at) and
   static export prerendering (`/store/demo`, `/about`, `/locations`, `/faq`,
   `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds without a mock
-  server. `next.config.ts` republishes the flag to the browser as
+  server. `next.config.ts` (which also sets `experimental.inlineCss`, so the CSS ships
+  inside each page's HTML instead of as render-blocking stylesheets) republishes the flag to the browser as
   `NEXT_PUBLIC_STOREFRONT_SANDBOX`, because the shop refetches its products at
   runtime and would otherwise call a real API; `demoCatalog()` answers search and
   category filters from the demo products. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and

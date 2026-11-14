@@ -36,6 +36,13 @@ describe("StorefrontHeader store name", () => {
     expect(screen.getByText("Grace Pharmacy").className).toContain("sm:text-xl");
   });
 
+  it("offers a skip link to the main content before anything else", () => {
+    render(<StorefrontHeader storeSlug="grace" store={{ id: "s1", name: "Grace" }} />);
+
+    expect(screen.getAllByRole("link")[0].getAttribute("href")).toBe("#main-content");
+    expect(screen.getAllByRole("link")[0].textContent).toBe("Skip to content");
+  });
+
   it("searches the shop through a plain form, so it works without scripts", () => {
     render(<StorefrontHeader storeSlug="grace" store={{ id: "s1", name: "Grace" }} />);
 

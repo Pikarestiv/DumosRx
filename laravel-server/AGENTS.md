@@ -204,10 +204,37 @@ without updating that.
   (mirrored and pinned by `web/__tests__/storefront-themes.test.ts`), writes
   `storefronts.theme` on the owner's row (created lazily through
   `StorefrontCatalogService::storefrontForStore()`, refused with a 422 when
-  the store has no slug and no storefront yet), and dirties the owner's
-  published stores via `Product::markStorefrontsDirty()`. Re-sending the
-  current theme is a no-op. The store detail payload carries
-  `storefront.theme` and `storefront.available_themes`.
+  the store has no slug and no storefront yet), and stamps
+  `storefronts.style_dirty_at`. It deliberately does **not** dirty the owner's
+  stores (changed 2026-11-14): `storefront_dirty_at` is what the 15-minute
+  `storefront:rebuild-if-dirty` schedule fires on, and the owner wants style
+  changes shipped by hand. Re-sending the current theme is a no-op. The store detail payload carries
+  `storefront.theme` and `storefront.available_themes`, plus the settings below
+  and `pending_rebuild`, true when either the store's `storefront_dirty_at` or
+  the storefront's `style_dirty_at` is set.
+  **`PUT /admin/stores/{id}/storefront/settings`** (`updateSettings`,
+  `role:super_admin`) writes any subset of `accent` (`#RRGGBB`, upper-cased),
+  `tagline` (140), `whatsapp`, `pickup_minutes` (1-1440) and `opening_hours`
+  (`mon..sun`, each null or `{open, close}` as `HH:MM`, open before close), null
+  clears one, and stamps `style_dirty_at` only when something changed.
+  **`POST /admin/storefront/rebuild`** (`rebuild`, `role:super_admin`) sends the
+  `storefront-changed` dispatch through `StorefrontRebuildDispatcher`, the one
+  class that talks to GitHub (`GITHUB_TOKEN`/`GITHUB_REPO`; the scheduled
+  command uses it too): 202 on acceptance, 502 when GitHub refuses, 503 when
+  the server has no credentials. With `STOREFRONT_REBUILD_TOKEN` set it records
+  the request and leaves the flags until the workflow's
+  `/internal/storefront/rebuild-complete` callback, which now also clears
+  `style_dirty_at` up to the dispatch time; without one it clears them at once.
+  `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,
+  `pickup_minutes` and `opening_hours` (JSON), all nullable and returned by
+  `GET /storefront/{slug}`; nothing writes them yet (the admin settings tab,
+  storefront redesign phase 4, will). `storefronts` is not synced to the
+  client, so there is no SQLite counterpart.
+  Each storefront product also carries `stock_quantity` (units on hand at the
+  selected branch, `Product::scopeWithStockAt`, before pending online orders)
+  and `in_stock` (`stock_quantity > 0`), added 2026-11-14 for the card's stock
+  hint. Both are additive, so older web bundles ignore them; the resource is
+  only used by `show` and `products`, which both apply the scope.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has

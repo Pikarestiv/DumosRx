@@ -124,4 +124,22 @@ class Product extends Model
                 ->where(fn ($q) => $q->where('stock_batches.store_id', $storeId)->orWhereNull('stock_batches.store_id'))
         );
     }
+
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeWithStockAt(Builder $query, string $storeId): Builder
+    {
+        if (empty($query->getQuery()->columns)) {
+            $query->select('products.*');
+        }
+
+        return $query->addSelect([
+            'stock_quantity' => DB::table('stock_batches')
+                ->selectRaw('COALESCE(SUM(quantity), 0)')
+                ->whereColumn('stock_batches.product_id', 'products.id')
+                ->where(fn ($q) => $q->where('stock_batches.store_id', $storeId)->orWhereNull('stock_batches.store_id')),
+        ]);
+    }
 }

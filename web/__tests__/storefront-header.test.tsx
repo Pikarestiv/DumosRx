@@ -35,4 +35,29 @@ describe("StorefrontHeader store name", () => {
     expect(screen.getByRole("link", { name: "Grace Pharmacy" })).toBeTruthy();
     expect(screen.getByText("Grace Pharmacy").className).toContain("sm:text-xl");
   });
+
+  it("offers a skip link to the main content before anything else", () => {
+    render(<StorefrontHeader storeSlug="grace" store={{ id: "s1", name: "Grace" }} />);
+
+    expect(screen.getAllByRole("link")[0].getAttribute("href")).toBe("#main-content");
+    expect(screen.getAllByRole("link")[0].textContent).toBe("Skip to content");
+  });
+
+  it("searches the shop through a plain form, so it works without scripts", () => {
+    render(<StorefrontHeader storeSlug="grace" store={{ id: "s1", name: "Grace" }} />);
+
+    const form = screen.getByRole("search");
+    expect(form.getAttribute("action")).toBe("/store/grace/catalog");
+    expect(form.getAttribute("method")).toBe("get");
+    expect(screen.getAllByRole("searchbox", { name: "Search products" })[0].getAttribute("name")).toBe("q");
+  });
+
+  it("shows the store's initial in place of a missing logo, and the type and location beneath the name", () => {
+    render(
+      <StorefrontHeader storeSlug="grace" store={{ id: "s1", name: "Grace Hardware", store_type: "retail", location: "Ikeja" }} />,
+    );
+
+    expect(screen.getByText("G")).toBeTruthy();
+    expect(screen.getByText("Retail store · Ikeja")).toBeTruthy();
+  });
 });

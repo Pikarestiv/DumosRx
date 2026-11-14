@@ -14,3 +14,37 @@ export const useSetStoreStorefrontThemeMutation = () => {
     },
   });
 };
+
+export interface StorefrontSettingsInput {
+  accent?: string | null;
+  tagline?: string | null;
+  whatsapp?: string | null;
+  pickup_minutes?: number | null;
+  opening_hours?: Record<string, { open: string; close: string } | null> | null;
+  locale?: string | null;
+  enabled_locales?: string[] | null;
+}
+
+export const useUpdateStoreStorefrontSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, settings }: { id: string; settings: StorefrontSettingsInput }) =>
+      webApiClient.request<{ message: string }>(`admin/stores/${id}/storefront/settings`, {
+        method: "PUT",
+        body: settings,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-store-detail"] });
+    },
+  });
+};
+
+export const useRebuildStorefrontsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => webApiClient.request<{ message: string }>("admin/storefront/rebuild", { method: "POST" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-store-detail"] });
+    },
+  });
+};

@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Exceptions\StoreActionBlockedException;
+use App\Services\Admin\AdminStorefrontRebuildService;
 use App\Services\Admin\AdminStoreStorefrontService;
+use App\Services\Storefront\StorefrontRebuildDispatcher;
+use App\Support\StorefrontSettingsRules;
 use App\Support\StorefrontThemes;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -18,7 +21,10 @@ use OpenApi\Attributes as OA;
  */
 class AdminStoreStorefrontController extends AdminBaseController
 {
-    public function __construct(private AdminStoreStorefrontService $storefrontService) {}
+    public function __construct(
+        private AdminStoreStorefrontService $storefrontService,
+        private AdminStorefrontRebuildService $rebuildService,
+    ) {}
 
     #[OA\Put(
         path: '/admin/stores/{id}/storefront',
@@ -79,7 +85,7 @@ class AdminStoreStorefrontController extends AdminBaseController
     #[OA\Put(
         path: '/admin/stores/{id}/storefront/theme',
         summary: "Set the colour theme of the store owner's public storefront (super admin only)",
-        description: "Writes storefronts.theme for the store's owner, creating the storefront row from this store if none exists yet, and marks the owner's published stores dirty so the next scheduled rebuild ships it. `theme` must be one of App\\Support\\StorefrontThemes::IDS, which the store detail payload also returns as storefront.available_themes. Setting the current theme is a no-op that still returns 200.",
+        description: "Writes storefronts.theme for the store's owner, creating the storefront row from this store if none exists yet, and stamps storefronts.style_dirty_at so the store shows Pending rebuild. It does not queue an automatic rebuild: use POST /admin/storefront/rebuild. `theme` must be one of App\\Support\\StorefrontThemes::IDS, which the store detail payload also returns as storefront.available_themes. Setting the current theme is a no-op that still returns 200.",
         tags: ['Admin'],
         security: [['sanctum' => []]],
         parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
@@ -118,5 +124,73 @@ class AdminStoreStorefrontController extends AdminBaseController
                 'theme' => $storefront->theme,
             ]);
         });
+    }
+
+    #[OA\Put(
+        path: '/admin/stores/{id}/storefront/settings',
+        summary: "Set the accent colour and store details shown on the owner's public storefront (super admin only)",
+        description: "Writes any subset of storefronts.accent, tagline, whatsapp, pickup_minutes and opening_hours for the store's owner (null clears one). Opening hours are keyed mon..sun, each null (closed) or {open, close} as HH:MM with open before close. A change stamps storefronts.style_dirty_at, so the store shows Pending rebuild until the next rebuild ships, but it does not queue an automatic rebuild.",
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'accent', type: 'string', nullable: true, example: '#F2B705'),
+            new OA\Property(property: 'tagline', type: 'string', nullable: true),
+            new OA\Property(property: 'whatsapp', type: 'string', nullable: true),
+            new OA\Property(property: 'pickup_minutes', type: 'integer', nullable: true),
+            new OA\Property(property: 'opening_hours', type: 'object', nullable: true),
+            new OA\Property(property: 'locale', type: 'string', nullable: true, enum: ['en', 'fr']),
+            new OA\Property(property: 'enabled_locales', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Saved', content: new OA\JsonContent(properties: [new OA\Property(property: 'message', type: 'string')])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Not a super admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'A malformed value, or a store with no storefront address and no storefront yet'),
+            new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
+        ],
+    )]
+    public function updateSettings(Request $request, string $id)
+    {
+        $validated = StorefrontSettingsRules::normalise($request->validate(StorefrontSettingsRules::rules()));
+
+        return $this->withErrorResponse('Storefront Settings', 'Failed to update the storefront settings', function () use ($id, $validated) {
+            try {
+                $this->storefrontService->updateSettings($id, $validated);
+            } catch (ModelNotFoundException) {
+                return response()->json(['message' => 'Store not found'], 404);
+            } catch (StoreActionBlockedException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            return response()->json(['message' => 'Storefront settings updated']);
+        });
+    }
+
+    #[OA\Post(
+        path: '/admin/storefront/rebuild',
+        summary: 'Rebuild every storefront now (super admin only)',
+        description: 'Fires the same `storefront-changed` repository_dispatch the scheduled command sends, without waiting for a store to be dirty, so style changes can be shipped on demand. 202 means GitHub accepted the dispatch, not that the deploy has finished.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 202, description: 'Rebuild requested', content: new OA\JsonContent(properties: [new OA\Property(property: 'message', type: 'string')])),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Not a super admin'),
+            new OA\Response(response: 502, description: 'GitHub refused or could not be reached'),
+            new OA\Response(response: 503, description: 'GITHUB_TOKEN / GITHUB_REPO are not configured on this server'),
+        ],
+    )]
+    public function rebuild()
+    {
+        $failure = $this->rebuildService->rebuildNow();
+
+        if ($failure === StorefrontRebuildDispatcher::NOT_CONFIGURED) {
+            return response()->json(['message' => 'Rebuilds are not configured on this server (GITHUB_TOKEN and GITHUB_REPO).'], 503);
+        }
+
+        if ($failure !== null) {
+            return response()->json(['message' => "GitHub did not accept the rebuild request. {$failure}"], 502);
+        }
+
+        return response()->json(['message' => 'Rebuild requested. Storefronts update once the deploy finishes.'], 202);
     }
 }

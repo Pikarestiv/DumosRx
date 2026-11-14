@@ -2,10 +2,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { contrastRatio as hexContrastRatio } from "@/lib/storefront-accent";
+import { STOREFRONT_PRESETS } from "@/lib/storefront-presets";
 import {
   DEFAULT_STOREFRONT_THEME_ID,
   STOREFRONT_THEMES,
+  resolveStorefrontPreset,
   resolveStorefrontTheme,
+  storefrontAccentCss,
   storefrontThemeCss,
 } from "@/lib/storefront-themes";
 
@@ -33,6 +37,7 @@ function relativeLuminance(value: string): number {
 }
 
 function contrastRatio(x: string, y: string): number {
+  if (x.startsWith("#") && y.startsWith("#")) return hexContrastRatio(x, y);
   const [hi, lo] = [relativeLuminance(x), relativeLuminance(y)].sort((p, q) => q - p);
   return (hi + 0.05) / (lo + 0.05);
 }
@@ -88,4 +93,47 @@ describe("storefront theme registry", () => {
 
     expect(serverIds).toEqual(STOREFRONT_THEMES.map((theme) => theme.id));
   });
+
+  it.each(STOREFRONT_PRESETS.map((preset) => [preset.id, preset] as const))(
+    "%s keeps its ink readable on its page background",
+    (_id, preset) => {
+      expect(hexContrastRatio(preset.ink, preset.page)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+});
+
+describe("storefront preset resolution", () => {
+  it("maps a legacy accent theme to the preset that fits the store type", () => {
+    expect(resolveStorefrontPreset("emerald", "pharmacy").id).toBe("clinic");
+    expect(resolveStorefrontPreset("navy", "hardware").id).toBe("workshop");
+    expect(resolveStorefrontPreset("rose", null).id).toBe("workshop");
+  });
+
+  it("an explicitly assigned preset wins over the store type", () => {
+    expect(resolveStorefrontPreset("studio", "pharmacy").id).toBe("studio");
+    expect(resolveStorefrontPreset("workshop", "pharmacy").id).toBe("workshop");
+  });
+
+  it.each([undefined, null, "", "neon", "__proto__"])("falls back to workshop for an unknown theme %s", (id) => {
+    expect(resolveStorefrontPreset(id, "hardware").id).toBe("workshop");
+  });
+});
+
+describe("storefront accent override", () => {
+  const workshop = resolveStorefrontPreset("workshop");
+
+  it("overrides the primary colour with a readable foreground chosen automatically", () => {
+    const css = storefrontAccentCss("#F2B705", workshop);
+
+    expect(css).toContain("--primary:#F2B705;");
+    expect(css).toContain(`--primary-foreground:${workshop.ink};`);
+    expect(storefrontAccentCss("#0F6B58", workshop)).toContain("--primary-foreground:#ffffff;");
+  });
+
+  it.each([undefined, null, "", "red", "#fff", "#12345g", "#F2B705;}body{display:none"])(
+    "emits nothing for the unusable accent %s",
+    (accent) => {
+      expect(storefrontAccentCss(accent, workshop)).toBe("");
+    },
+  );
 });

@@ -112,6 +112,14 @@ export interface AdminStoreDetail {
     dirty_since: string | null;
     theme?: string;
     available_themes?: string[];
+    locale?: string | null;
+    enabled_locales?: string[] | null;
+    accent?: string | null;
+    tagline?: string | null;
+    whatsapp?: string | null;
+    pickup_minutes?: number | null;
+    opening_hours?: Record<string, { open: string; close: string } | null> | null;
+    logo_url?: string | null;
   };
   payments: {
     paystack_connected: boolean;

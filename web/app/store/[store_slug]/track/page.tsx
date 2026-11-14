@@ -46,7 +46,7 @@ export default async function StorefrontTrackPage({ params }: TrackPageProps) {
   const businessName = storefront?.name || store.name;
 
   return (
-    <div className="min-h-screen bg-muted/40 flex flex-col">
+    <div className="min-h-screen bg-[color:var(--sf-page)] text-[color:var(--sf-ink)] flex flex-col">
       <StorefrontHeader
         storeSlug={store_slug}
         store={store}

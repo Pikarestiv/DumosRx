@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 
 interface ReturnToStoreProps {
   reference: string;
@@ -10,24 +11,20 @@ interface ReturnToStoreProps {
 }
 
 export function OrphanReferencePanel({ reference, onReturnToStore }: ReturnToStoreProps) {
+  const { t } = useStorefrontI18n();
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>We couldn&apos;t match your payment to this cart</CardTitle>
+        <CardTitle>{t("checkout.orphan.title")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-muted-foreground">
-        <p>
-          Your payment may have gone through, but this browser has no record of the order it was
-          for (that happens if you came back in a new tab or window).
-        </p>
-        <p>
-          Please contact the store with your payment reference so they can find and confirm your
-          order:
-        </p>
+        <p>{t("checkout.orphan.body1")}</p>
+        <p>{t("checkout.orphan.body2")}</p>
         <p className="font-mono text-base font-semibold text-foreground">{reference}</p>
       </CardContent>
       <CardFooter className="flex justify-center">
-        <Button onClick={onReturnToStore}>Return to Store</Button>
+        <Button onClick={onReturnToStore}>{t("checkout.returnToStore")}</Button>
       </CardFooter>
     </Card>
   );
@@ -46,37 +43,29 @@ export function FailedConfirmationPanel({
   onRetry,
   onReturnToStore,
 }: FailedConfirmationPanelProps) {
+  const { t } = useStorefrontI18n();
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          {refunded ? "Your payment is being refunded" : "We couldn't confirm your payment yet"}
+          {refunded ? t("checkout.failed.refundedTitle") : t("checkout.failed.title")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-muted-foreground">
-        {refunded ? (
-          <p>
-            Your payment went through, but this order can no longer be fulfilled, so it has been
-            refunded. Do not pay again — the refund can take a few days to reach your account.
-          </p>
-        ) : (
-          <p>
-            Your payment may have gone through, but we could not finish placing the order. Do not
-            pay again — try confirming once more, or contact the store with the reference below.
-          </p>
-        )}
-        <p>Payment reference:</p>
+        <p>{refunded ? t("checkout.failed.refundedBody") : t("checkout.failed.body")}</p>
+        <p>{t("checkout.reference")}</p>
         <p className="font-mono text-base font-semibold text-foreground">{reference}</p>
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2 sm:flex-row sm:justify-center">
         {!refunded && (
           <Button onClick={onRetry} disabled={retrying}>
             {retrying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Retry confirmation
+            {t("checkout.retry")}
           </Button>
         )}
         <Button variant="outline" onClick={onReturnToStore}>
-          Return to Store
+          {t("checkout.returnToStore")}
         </Button>
       </CardFooter>
     </Card>

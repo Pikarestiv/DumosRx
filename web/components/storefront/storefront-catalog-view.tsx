@@ -1,219 +1,135 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useSearchParams } from "next/navigation";
-import { Search, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { Loader2, Search, X } from "lucide-react";
+
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
+import { CatalogCategoryChips, CatalogCategorySidebar } from "@/components/storefront/catalog-category-filter";
 import { ProductCard } from "@/components/storefront/product-card";
-import {
-  getStorefrontProducts,
-  type PaginatedStorefrontProducts,
-  type StorefrontCategory,
-} from "@/lib/api/storefront-data";
-import type { StorefrontProduct } from "@/lib/types/storefront";
+import type { PaginatedStorefrontProducts } from "@/lib/api/storefront-data";
+import { ProductGridSkeleton } from "@/components/storefront/product-grid-skeleton";
+import { FOCUS_RING, SECONDARY_BUTTON } from "@/lib/storefront-styles";
+import { useStorefrontCatalog } from "@/lib/use-storefront-catalog";
 
 interface StorefrontCatalogViewProps {
   storeSlug: string;
   currency?: string | null;
+  whatsapp?: string | null;
   initialData: PaginatedStorefrontProducts | null;
 }
 
-export function StorefrontCatalogView({
-  storeSlug,
-  currency,
-  initialData,
-}: StorefrontCatalogViewProps) {
-  const searchParams = useSearchParams();
-  const branch = searchParams?.get("branch") || undefined;
+const SCROLL_PRELOAD_MARGIN = "600px";
 
-  const [data, setData] = useState<PaginatedStorefrontProducts | null>(initialData);
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [isPending, startTransition] = useTransition();
+const subscribeToLocation = (notify: () => void) => {
+  window.addEventListener("popstate", notify);
+  return () => window.removeEventListener("popstate", notify);
+};
 
-  const categories: StorefrontCategory[] = data?.categories || initialData?.categories || [];
-  const products: StorefrontProduct[] = data?.data || [];
-  const meta = data?.meta;
-
-  const fetchCatalog = (newPage: number, newSearch: string, newCategory: string | null) => {
-    startTransition(async () => {
-      try {
-        const res = await getStorefrontProducts(storeSlug, {
-          page: newPage,
-          q: newSearch.trim() || undefined,
-          category: newCategory || undefined,
-          branch,
-        });
-        if (res) {
-          setData(res);
-          setPage(newPage);
-        }
-      } catch (err) {
-        console.error("Failed to load catalog page:", err);
-      }
-    });
-  };
+export function StorefrontCatalogView({ storeSlug, currency, whatsapp, initialData }: StorefrontCatalogViewProps) {
+  const { t, tp } = useStorefrontI18n();
+  const urlSearch = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
+  const params = new URLSearchParams(urlSearch);
+  const catalog = useStorefrontCatalog({
+    storeSlug,
+    initialData,
+    initialQuery: params.get("q") ?? "",
+    branch: params.get("branch") || undefined,
+  });
+  const { items, status, hasMore, loadMore } = catalog;
+  const sentinel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (branch) {
-      fetchCatalog(1, search, selectedCategory);
-    }
-  }, [branch]);
+    const node = sentinel.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => entries[0]?.isIntersecting && loadMore(), {
+      rootMargin: SCROLL_PRELOAD_MARGIN,
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchCatalog(1, search, selectedCategory);
-  };
-
-  const handleClearSearch = () => {
-    setSearch("");
-    fetchCatalog(1, "", selectedCategory);
-  };
-
-  const handleCategorySelect = (catId: string | null) => {
-    setSelectedCategory(catId);
-    fetchCatalog(1, search, catId);
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || (meta && newPage > meta.last_page)) return;
-    fetchCatalog(newPage, search, selectedCategory);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const filtered = Boolean(catalog.search.trim() || catalog.category);
+  const refreshing = status === "loading";
+  const hasCategories = catalog.categories.length > 0;
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 sm:p-6 space-y-4">
-        <form onSubmit={handleSearchSubmit} className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search products by name, generic name, or barcode…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-9 bg-background rounded-xl border-border"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={handleClearSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
+    <div className={hasCategories ? "grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]" : "grid gap-8"}>
+      {hasCategories && (
+        <CatalogCategorySidebar
+          categories={catalog.categories}
+          selected={catalog.category}
+          onSelect={catalog.setCategory}
+          total={catalog.allTotal}
+        />
+      )}
+
+      <div className="min-w-0 space-y-5">
+        <div role="search" className="relative">
+          <Search aria-hidden="true" className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
+          <input
+            type="search"
+            aria-label={t("shop.search.label")}
+            placeholder={t("shop.search.placeholder")}
+            value={catalog.search}
+            onChange={(event) => catalog.setSearch(event.target.value)}
+            className={`h-12 w-full rounded-[var(--sf-button-radius)] border border-black/10 bg-white pl-10 pr-10 text-sm [&::-webkit-search-cancel-button]:hidden ${FOCUS_RING}`}
+          />
+          {catalog.search && (
+            <button
+              type="button"
+              aria-label={t("shop.search.clear")}
+              onClick={() => catalog.setSearch("")}
+              className="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <CatalogCategoryChips categories={catalog.categories} selected={catalog.category} onSelect={catalog.setCategory} />
+
+        <p aria-live="polite" className="flex items-center gap-2 text-sm opacity-75">
+          {tp("shop.count", catalog.total)}
+          {refreshing && <Loader2 aria-label={t("shop.updating")} className="h-3.5 w-3.5 animate-spin" />}
+        </p>
+
+        {status === "error" && (
+          <div role="alert" className="flex flex-wrap items-center gap-3 rounded-[var(--sf-card-radius)] border border-destructive/40 bg-white p-4 text-sm">
+            <span>{t("shop.error")}</span>
+            <button type="button" onClick={() => void catalog.retry()} className={SECONDARY_BUTTON}>
+              {t("shop.retry")}
+            </button>
+          </div>
+        )}
+
+        {items.length === 0 && refreshing ? (
+          <ProductGridSkeleton />
+        ) : items.length === 0 && status !== "error" ? (
+          <div className="rounded-[var(--sf-card-radius)] border border-black/10 bg-white py-16 text-center">
+            <p className="text-lg font-semibold">{t("shop.empty.title")}</p>
+            <p className="mb-4 text-sm opacity-75">{t("shop.empty.body")}</p>
+            {filtered && (
+              <button type="button" onClick={catalog.resetFilters} className={SECONDARY_BUTTON}>
+                {t("shop.reset")}
               </button>
             )}
           </div>
-          <Button type="submit" disabled={isPending} className="rounded-xl px-5">
-            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
-          </Button>
-        </form>
-
-        {categories.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap pt-1">
-            <span className="text-xs font-semibold text-muted-foreground mr-1">Categories:</span>
-            <Badge
-              variant={selectedCategory === null ? "default" : "outline"}
-              onClick={() => handleCategorySelect(null)}
-              className="cursor-pointer text-xs py-1 px-3 rounded-full transition-colors"
-            >
-              All
-            </Badge>
-            {categories.map((cat) => (
-              <Badge
-                key={cat.id}
-                variant={selectedCategory === cat.id ? "default" : "outline"}
-                onClick={() => handleCategorySelect(cat.id)}
-                className="cursor-pointer text-xs py-1 px-3 rounded-full transition-colors"
-              >
-                {cat.name} ({cat.count})
-              </Badge>
+        ) : (
+          <div className={`grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4 ${refreshing ? "opacity-60" : ""}`}>
+            {items.map((product) => (
+              <ProductCard key={product.id} product={product} storeSlug={storeSlug} currency={currency} whatsapp={whatsapp} />
             ))}
           </div>
         )}
-      </div>
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
-        <span>
-          {meta
-            ? `Showing ${meta.from ?? 0}–${meta.to ?? 0} of ${meta.total} products`
-            : `${products.length} product(s)`}
-        </span>
-        {isPending && (
-          <span className="flex items-center gap-1.5 text-xs text-primary font-medium">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Updating results…
-          </span>
-        )}
-      </div>
-
-      {products.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <p className="text-lg font-semibold text-foreground mb-1">No products found</p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Try adjusting your search terms or selecting a different category.
-          </p>
-          {(search || selectedCategory) && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearch("");
-                setSelectedCategory(null);
-                fetchCatalog(1, "", null);
-              }}
-              className="rounded-xl"
-            >
-              Reset Filters
-            </Button>
+        <div ref={sentinel} className="flex justify-center py-4">
+          {hasMore && (
+            <button type="button" onClick={loadMore} disabled={status === "loadingMore"} className={SECONDARY_BUTTON}>
+              {status === "loadingMore" ? t("shop.loadingMore") : t("shop.loadMore")}
+            </button>
           )}
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              storeSlug={storeSlug}
-              currency={currency}
-            />
-          ))}
-        </div>
-      )}
-
-      {meta && meta.last_page > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-6 pb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page <= 1 || isPending}
-            className="rounded-xl flex items-center gap-1"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
-
-          <span className="text-sm font-medium px-3 text-muted-foreground">
-            Page {meta.current_page} of {meta.last_page}
-          </span>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page >= meta.last_page || isPending}
-            className="rounded-xl flex items-center gap-1"
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
-

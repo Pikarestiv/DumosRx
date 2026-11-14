@@ -11,7 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api/base-client";
-import { formatMoney } from "@/lib/utils/currency";
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { toDisplayTitle } from "@/lib/storefront-display";
 import {
   FailedConfirmationPanel,
@@ -41,6 +41,7 @@ const wasRefunded = (error: unknown): boolean => {
 };
 
 export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
+  const { t, money } = useStorefrontI18n();
   const cart = useCart(storeSlug);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -83,14 +84,14 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       });
       sessionStorage.removeItem(pendingStorageKey);
       setFailedReference(null);
-      toast.success("Order placed successfully!");
+      toast.success(t("checkout.placed"));
       cart.clearCart();
       router.push(`/store/${storeSlug}`);
     } catch (error) {
       setFailedReference(reference);
       setFailedWasRefunded(wasRefunded(error));
       const detail = error instanceof Error ? ` (${error.message})` : "";
-      toast.error(`Could not confirm your payment. Contact the store with reference ${reference}.${detail}`);
+      toast.error(t("checkout.error.confirm", { reference, detail }));
     } finally {
       setLoading(false);
     }
@@ -138,17 +139,17 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     e.preventDefault();
 
     if (cart.items.length === 0) {
-      toast.error("Your cart is empty");
+      toast.error(t("checkout.error.emptyCart"));
       return;
     }
 
     if (!formData.customer_name || !formData.customer_phone) {
-      toast.error("Please fill in required fields");
+      toast.error(t("checkout.error.required"));
       return;
     }
 
     if (formData.payment_method === 'paystack' && !formData.customer_email) {
-      toast.error("Email is required to pay online");
+      toast.error(t("checkout.error.email"));
       return;
     }
 
@@ -178,11 +179,11 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       const payload = { ...formData, items };
       await apiClient.post(`/storefront/${storeSlug}/checkout`, payload);
 
-      toast.success("Order placed successfully!");
+      toast.success(t("checkout.placed"));
       cart.clearCart();
       router.push(`/store/${storeSlug}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Checkout failed");
+      toast.error(error instanceof Error ? error.message : t("checkout.error.generic"));
     } finally {
       if (!redirectStarted) setLoading(false);
     }
@@ -210,10 +211,10 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     return (
       <Card>
         <CardContent className="py-12 text-center text-muted-foreground">
-          Your cart is empty. Return to the store to add items.
+          {t("checkout.empty")}
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button onClick={() => router.push(`/store/${storeSlug}`)}>Return to Store</Button>
+          <Button onClick={() => router.push(`/store/${storeSlug}`)}>{t("checkout.returnToStore")}</Button>
         </CardFooter>
       </Card>
     );
@@ -225,14 +226,14 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
         <Card>
           <form onSubmit={(e) => void handleSubmit(e)}>
             <CardHeader>
-              <CardTitle>Delivery & Payment</CardTitle>
+              <CardTitle>{t("checkout.delivery")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Contact Details</h3>
+                <h3 className="font-semibold text-lg">{t("checkout.contact")}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="customer_name">Full Name *</Label>
+                    <Label htmlFor="customer_name">{t("checkout.name")}</Label>
                     <Input 
                       id="customer_name" 
                       name="customer_name" 
@@ -242,7 +243,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="customer_phone">Phone Number *</Label>
+                    <Label htmlFor="customer_phone">{t("checkout.phone")}</Label>
                     <Input 
                       id="customer_phone" 
                       name="customer_phone" 
@@ -253,7 +254,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customer_address">Delivery Address (Optional for Pickup)</Label>
+                  <Label htmlFor="customer_address">{t("checkout.address")}</Label>
                   <Input 
                     id="customer_address" 
                     name="customer_address" 
@@ -282,16 +283,14 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 {redirecting
-                  ? "Redirecting to Paystack..."
+                  ? t("checkout.redirecting")
                   : pricesLoading
-                    ? "Confirming prices..."
-                    : `Place Order (${formatMoney(cart.getTotal(), currency)})`}
+                    ? t("checkout.confirmingPrices")
+                    : t("checkout.placeOrder", { total: money(cart.getTotal(), currency) })}
               </Button>
               {pricesStale && (
                 <p className="text-xs text-amber-600 text-center">
-                  We couldn&apos;t confirm current prices just now — the total
-                  shown is from when these items were added and may differ at
-                  checkout.
+                  {t("checkout.pricesStale")}
                 </p>
               )}
             </CardFooter>
@@ -302,18 +301,18 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       <div>
         <Card className="sticky top-24">
           <CardHeader>
-            <CardTitle>Order Summary</CardTitle>
+            <CardTitle>{t("checkout.summary")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {cart.items.map(item => (
               <div key={item.id} className="flex justify-between text-sm">
                 <span>{toDisplayTitle(item.name)} (x{item.quantity})</span>
-                <span className="font-medium">{formatMoney(item.price * item.quantity, currency)}</span>
+                <span className="font-medium">{money(item.price * item.quantity, currency)}</span>
               </div>
             ))}
             <div className="border-t pt-4 flex justify-between font-bold text-lg">
-              <span>Total</span>
-              <span className="text-primary">{formatMoney(cart.getTotal(), currency)}</span>
+              <span>{t("checkout.total")}</span>
+              <span className="text-primary">{money(cart.getTotal(), currency)}</span>
             </div>
           </CardContent>
         </Card>

@@ -53,12 +53,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `audit_session_items` stores `system_quantity` (the sheet's opening figure) but not the `baselineQty` the counting till read when the row was counted. `mergeCloudItemsIntoLocal()` fills the count without a baseline, so after a takeover `submitStockAudit()` measures that row against live stock at submit, and any sale between the count and the submit is added back.
 - **Fix:** add a `baseline_quantity` column and payload field beside `system_quantity` (additive; old clients send none and keep today's behaviour), send `item.baselineQty`, and set `baselineQty` from it in the merge.
 
-#### A-380. `client/` — the Activity Log detail panel prints every logged field, batch cost included, to anyone with `view_activity_log`
-
-- **Found:** 2026-11-13, reviewing the batch cost correction (PR #308); pre-existing.
-- **What's wrong:** `client/components/activity-log/activity-log-detail-panel.tsx` parses an entry's `details` and lists every key. A `BATCH_COST_CORRECTED` row carries `cost_price` and `previous_cost_price`, and a `stock_batches` insert or update carries `cost_price`, so a role with `view_activity_log` but without `view_cost_fields` reads batch costs there. The product History tab hides them since A-379; this panel does not.
-- **Fix:** read `view_cost_fields` in the panel and drop cost keys (`cost_price`, `previous_cost_price`, `counted_cost_price`, `unit_cost`, `total_cost`) from the listed fields when it is withheld.
-
 #### A-381. `client/` — the Cycle Count ledger shows cost and cost difference to anyone who can count stock
 
 - **Found:** 2026-11-13, in the release review of #312–#314; pre-existing.
@@ -765,6 +759,7 @@ These describe the current state of known architectural tradeoffs and performanc
 - **Whole-catalog in-memory search:** `getProductsWithDetails()` loads the entire catalog and `product-database.tsx` fuzzy-searches it in memory (debounced). Fine to ~10k products; beyond that the transform+filter+sort chain is O(catalog) on the main thread every filter change.
 - **`validateSync()`'s per-request chain** (`SubscriptionService`, `SystemConfig::getVal`, `PermissionGroupSeeder::ensureSeeded`, `enforceStaffLimits`) adds roughly 10 queries to every push/pull before any data is touched.
 - **`getStockMovements()` with no window** loads the whole table when searching/filtering — a large result set in React state at scale, independent of indexing, since nothing narrows the predicate.
+- **Storefront mobile Lighthouse performance sits at 86, short of the 90 target (2026-11-14):** measured on a local static build of the demo store served with gzip, mobile preset, three runs per page: home and shop both 86 with LCP 4.1 s (the hero heading and the first product title), accessibility 100 and 98. Fonts are preloaded for the active preset only, CSS is inlined (`experimental.inlineCss`), nothing is flagged render-blocking, TBT is 10-20 ms and CLS 0.004, so the remaining time is the simulated slow-4G cost of the page's JS and the root layout's unused Inter/Montserrat preloads. Individual runs of earlier builds scored 97-99, so the number is noisy and a local run is not production. Re-measure against the deployed site before spending more time; levers if it is still short: stop preloading Inter and Montserrat on `/store/*`, and trim the roughly 25 KiB of unused JS in the shared chunk.
 
 ### Offline / sync
 

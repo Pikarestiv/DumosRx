@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Public;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorefrontCheckoutRequest;
 use App\Http\Resources\StorefrontProductResource;
+use App\Support\StorefrontLocales;
 use App\Models\Store;
 use App\Services\Payment\PaymentService;
 use App\Services\Storefront\StorefrontCatalogService;
@@ -109,6 +110,13 @@ class StorefrontController extends Controller
                 'headline' => $storefront->headline,
                 'about' => $storefront->about,
                 'theme' => $storefront->theme ?? 'emerald',
+                'locale' => $storefront->locale ?? StorefrontLocales::DEFAULT,
+                'enabled_locales' => $storefront->enabled_locales ?? [$storefront->locale ?? StorefrontLocales::DEFAULT],
+                'accent' => $storefront->accent,
+                'tagline' => $storefront->tagline,
+                'whatsapp' => $storefront->whatsapp,
+                'pickup_minutes' => $storefront->pickup_minutes,
+                'opening_hours' => $storefront->opening_hours,
                 'logo_url' => $storefront->logo_url ?? $branch->logo_url,
                 'banner_url' => $storefront->banner_url,
             ],

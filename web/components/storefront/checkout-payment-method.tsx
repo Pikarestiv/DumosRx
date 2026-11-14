@@ -1,3 +1,6 @@
+"use client";
+
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -16,9 +19,11 @@ export function CheckoutPaymentMethod({
   onMethodChange,
   onInputChange,
 }: CheckoutPaymentMethodProps) {
+  const { t } = useStorefrontI18n();
+
   return (
     <div className="space-y-4 pt-4 border-t">
-      <h3 className="font-semibold text-lg">Payment Method</h3>
+      <h3 className="font-semibold text-lg">{t("checkout.method")}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Label
           htmlFor="in_store"
@@ -26,7 +31,7 @@ export function CheckoutPaymentMethod({
           onClick={() => onMethodChange('in_store')}
         >
           <input type="radio" id="in_store" name="payment_method" value="in_store" className="sr-only" checked={paymentMethod === 'in_store'} onChange={() => onMethodChange('in_store')} />
-          Pick up & Pay
+          {t("checkout.method.inStore")}
         </Label>
         <Label
           htmlFor="transfer"
@@ -34,7 +39,7 @@ export function CheckoutPaymentMethod({
           onClick={() => onMethodChange('transfer')}
         >
           <input type="radio" id="transfer" name="payment_method" value="transfer" className="sr-only" checked={paymentMethod === 'transfer'} onChange={() => onMethodChange('transfer')} />
-          Bank Transfer
+          {t("checkout.method.transfer")}
         </Label>
         {onlinePaymentAvailable && (
           <Label
@@ -43,13 +48,13 @@ export function CheckoutPaymentMethod({
             onClick={() => onMethodChange('paystack')}
           >
             <input type="radio" id="paystack" name="payment_method" value="paystack" className="sr-only" checked={paymentMethod === 'paystack'} onChange={() => onMethodChange('paystack')} />
-            Pay Online
+            {t("checkout.method.online")}
           </Label>
         )}
       </div>
       {paymentMethod === 'paystack' && (
         <div className="space-y-2">
-          <Label htmlFor="customer_email">Email *</Label>
+          <Label htmlFor="customer_email">{t("checkout.email")}</Label>
           <Input
             id="customer_email"
             name="customer_email"

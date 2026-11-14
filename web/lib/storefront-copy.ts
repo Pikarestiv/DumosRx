@@ -18,10 +18,10 @@ export interface StorefrontCopy {
   aboutClosing: string;
   promises: [StorefrontPromise, StorefrontPromise, StorefrontPromise];
   locationsSubtitle: string;
-  footerAbout: (name: string) => string;
   trackerProcessing: string;
   trackerItemsHeading: string;
 }
+
 
 const PAYMENTS_FAQ: StorefrontFaq = {
   q: "What payment methods are supported?",
@@ -68,8 +68,6 @@ const PHARMACY_COPY: StorefrontCopy = {
     { title: "Expert Consultation", body: "Experienced pharmacists available to guide dosage and regimen adherence." },
   ],
   locationsSubtitle: "Visit our pharmacy locations for physical pickup, prescriptions, and healthcare inquiries.",
-  footerAbout: (name) =>
-    `Order from ${name} online: browse genuine healthcare and wellness products, and we'll have them ready for pickup or delivery.`,
   trackerProcessing: "Processing at Pharmacy",
   trackerItemsHeading: "Prescription & Products Ordered",
 };
@@ -98,8 +96,6 @@ const RETAIL_COPY: StorefrontCopy = {
     { title: "Friendly Support", body: "Our team is on hand to answer questions about products and orders." },
   ],
   locationsSubtitle: "Visit our branches for pickup and in-store enquiries.",
-  footerAbout: (name) =>
-    `Shop ${name} online: browse the range, order, and we'll be in touch to arrange pickup or delivery.`,
   trackerProcessing: "Processing at Store",
   trackerItemsHeading: "Products Ordered",
 };

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { apiClient } from "@/lib/api/base-client";
 import { useCartStore } from "@/lib/store/use-cart-store";
 import type { StorefrontProduct } from "@/lib/types/storefront";
@@ -17,6 +18,11 @@ interface CatalogResponse {
  * surfaced rather than presented as confirmed pricing.
  */
 export function useCartRepricing(storeSlug: string) {
+  const i18n = useStorefrontI18n();
+  const latestI18n = useRef(i18n);
+  useEffect(() => {
+    latestI18n.current = i18n;
+  }, [i18n]);
   const [pricesLoading, setPricesLoading] = useState(true);
   const [pricesStale, setPricesStale] = useState(false);
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
@@ -51,17 +57,13 @@ export function useCartRepricing(storeSlug: string) {
         );
         reconcilePrices(storeSlug, prices);
 
+        const { t } = latestI18n.current;
         if (removed.length > 0) {
           const names = removed.map((item) => item.name).join(", ");
-          toast.error(
-            `${names} ${removed.length === 1 ? "is" : "are"} no longer available online and ${removed.length === 1 ? "was" : "were"} removed from your cart. Ask the store if you still want ${removed.length === 1 ? "it" : "them"}.`,
-            { duration: 10000 },
-          );
+          toast.error(t(removed.length === 1 ? "cart.removed.one" : "cart.removed.other", { names }), { duration: 10000 });
         }
         if (repriced.length > 0) {
-          toast.info(
-            `The price of ${repriced.map((item) => item.name).join(", ")} changed. Your order summary has been updated.`,
-          );
+          toast.info(t("cart.repriced", { names: repriced.map((item) => item.name).join(", ") }));
         }
       } catch {
         if (!cancelled) setPricesStale(true);

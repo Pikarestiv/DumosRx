@@ -18,6 +18,7 @@ export interface Product {
   show_online?: number;
   requires_prescription?: number;
   is_controlled?: number;
+  image_key?: string | null;
 }
 
 // Row shape returned by getProductsWithDetails():
@@ -54,6 +55,7 @@ export interface POSProduct {
   category_id?: string;
   category_name?: string;
   reorder_level?: number;
+  image_key?: string | null;
 }
 
 /** snake_case payload built by AddProductDialog's submit handler: the shape
@@ -105,4 +107,5 @@ export interface ProductViewModel {
   isControlled: boolean;
   lastAuditedAt?: string | null;
   lastBoughtPrice?: number | null;
+  imageKey?: string | null;
 }

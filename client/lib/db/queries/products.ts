@@ -135,6 +135,7 @@ export async function getProductsWithStock(): Promise<POSProduct[]> {
     batch_number: m.batch_number || "",
     category_id: m.category_id || "",
     category_name: m.category_name || "",
+    image_key: m.image_key ?? null,
   }));
 }
 

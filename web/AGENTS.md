@@ -389,7 +389,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `emerald`. To add a theme: add it to both lists, run that test.
 - **Style presets** (`lib/storefront-presets.ts`, storefront redesign phase 1,
   2026-11-14; plan and decisions in `docs/storefront-redesign.md`). A preset
-  (`workshop`, `clinic`, `studio`) is a bundle of tokens (fonts, page and ink
+  (`workshop`, `clinic`, `studio`, and the admin-only `market`, `boutique`, `grove`) is a bundle of tokens (fonts, page and ink
   colours, card radius, button shape, hero variant, default accent) and is
   also a theme id: the three ids sit in `STOREFRONT_THEMES` and in the PHP
   allow-list, so the existing admin picker assigns them. A legacy accent

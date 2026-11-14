@@ -47,7 +47,7 @@ export function StorefrontPresetPicker({ store, accent, editable }: StorefrontPr
           </p>
         )}
       </div>
-      <div role="group" aria-label="Storefront style preset" className="grid gap-4 md:grid-cols-3">
+      <div role="group" aria-label="Storefront style preset" className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
         {presets.map((preset) => {
           const selected = currentTheme.preset === preset.id;
           return (
@@ -59,8 +59,8 @@ export function StorefrontPresetPicker({ store, accent, editable }: StorefrontPr
               disabled={!editable || setTheme.isPending}
               onClick={() => !selected && choose(preset.id)}
               className={cn(
-                "space-y-2 rounded-xl p-2 text-left transition-colors disabled:cursor-default",
-                selected ? "ring-2 ring-foreground" : editable && "hover:bg-muted",
+                "w-64 shrink-0 snap-start space-y-2 rounded-xl p-2 text-left transition-colors disabled:cursor-default sm:w-72",
+                selected ? "ring-2 ring-foreground" : editable && "hover:bg-slate-100 dark:hover:bg-slate-800",
               )}
             >
               <StorefrontPresetPreview

@@ -97,7 +97,7 @@ export function StoreSyncHealthSection({ data, isLoading, isError }: StoreSyncHe
               {failures.map((failure) => (
                 <div
                   key={failure.id}
-                  className="p-3 bg-muted/50 rounded-2xl border border-border space-y-1"
+                  className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-bold text-foreground">

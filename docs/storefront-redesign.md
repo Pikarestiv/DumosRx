@@ -80,7 +80,7 @@ What we want: each store looks like its own business, the page works on a phone,
 
 A store's look is made of:
 
-- **Preset**: sets the structure and personality (fonts, corner radius, hero layout, card style, how dense things are). Ships with three: `workshop`, `clinic`, `studio`.
+- **Preset**: sets the structure and personality (fonts, corner radius, hero layout, card style, how dense things are). Ships with six: `workshop`, `clinic`, `studio`, plus the admin-only `market`, `boutique` and `grove`, which reuse the same self-hosted fonts.
 - **Accent colour**: one colour the owner picks. Keep the current swatches and add a custom hex input.
 - **Logo**: optional upload.
 - **Store details**: tagline, address, opening hours, phone, WhatsApp number, pickup time estimate.

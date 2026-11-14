@@ -12,7 +12,7 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 
 vi.mock("@/lib/api/client", () => ({ webApiClient: { request } }));
 
-const ALL_THEMES = ["emerald", "forest", "navy", "rose", "amber", "slate", "violet", "workshop", "clinic", "studio"];
+const ALL_THEMES = ["emerald", "forest", "navy", "rose", "amber", "slate", "violet", "workshop", "clinic", "studio", "market", "boutique", "grove"];
 
 const storeWith = (storefront: Partial<AdminStoreDetail["storefront"]> = {}) =>
   ({

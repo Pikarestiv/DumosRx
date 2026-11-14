@@ -19,13 +19,6 @@ Object.defineProperty(window, "matchMedia", {
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => hasPermission(key),
 }));
-vi.mock("@/lib/hooks/use-feature-gate", () => ({
-  useFeatureGate: () => ({
-    canUseEcommerce: true,
-    withRestriction: (fn: () => void) => fn,
-    getUpgradeMessage: (_f: string, fallback?: string) => fallback ?? "",
-  }),
-}));
 vi.mock("@/lib/constants", () => ({
   STOREFRONT_BASE_URL: "https://shop.example",
 }));
@@ -64,11 +57,7 @@ const sectionProps = {
 
 const storefrontProps = {
   localStoreSlug: "my-store",
-  setLocalStoreSlug: vi.fn(),
-  storeSlugChangedAt: null,
   onlineStoreEnabled: true,
-  setOnlineStoreEnabled: vi.fn(),
-  handleSaveProfile: vi.fn(),
 };
 
 const panelProps = {
@@ -86,17 +75,56 @@ describe("manage_online_store", () => {
     expect(hasPermission).toHaveBeenCalledWith("manage_online_store");
   });
 
-  it("shows the storefront URL and the Enable Online Store switch in their own card with the key", () => {
-    render(<OnlineStorefrontCard {...storefrontProps} />);
-    expect(screen.queryByText("Online Storefront")).not.toBeNull();
-    expect(screen.queryByText("Store URL Slug")).not.toBeNull();
-    expect(screen.queryByText("Enable Online Store")).not.toBeNull();
-  });
-
   it("hides the whole Online Storefront card without the key", () => {
     deny("manage_online_store");
     const { container } = render(<OnlineStorefrontCard {...storefrontProps} />);
     expect(container.textContent).toBe("");
+  });
+
+  it("tells the owner where their live online store is, with copy and open actions", () => {
+    render(<OnlineStorefrontCard {...storefrontProps} />);
+
+    expect(screen.getByText("Your online store is available at:")).toBeTruthy();
+    expect(screen.getByText("https://shop.example/my-store")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open your online store" }).getAttribute("href")).toBe("https://shop.example/my-store");
+    expect(screen.getByRole("button", { name: "Copy storefront link" })).toBeTruthy();
+  });
+
+  it("copies the full link", () => {
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<OnlineStorefrontCard {...storefrontProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy storefront link" }));
+
+    expect(writeText).toHaveBeenCalledWith("https://shop.example/my-store");
+  });
+
+  it("offers no way to edit the address or switch the store on and off", () => {
+    render(<OnlineStorefrontCard {...storefrontProps} />);
+
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /edit/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save Changes" })).toBeNull();
+  });
+
+  it("says the address exists but the store is not switched on yet, and to contact the account manager", () => {
+    render(<OnlineStorefrontCard {...storefrontProps} onlineStoreEnabled={false} />);
+
+    expect(screen.getByText(/isn't switched on yet/i)).toBeTruthy();
+    expect(screen.getByText("https://shop.example/my-store")).toBeTruthy();
+    expect(screen.getByText(/contact your account manager/i)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Open your online store" })).toBeNull();
+  });
+
+  it("says the store is not set up, and to contact the account manager, when there is no address", () => {
+    render(<OnlineStorefrontCard {...storefrontProps} localStoreSlug="  " />);
+
+    expect(screen.getByText(/isn't set up yet/i)).toBeTruthy();
+    expect(screen.getByText(/contact your account manager/i)).toBeTruthy();
+    expect(screen.queryByText("storefront-appearance")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copy storefront link" })).toBeNull();
   });
 
   it("embeds the look controls only for a store that has an address", () => {
@@ -106,30 +134,6 @@ describe("manage_online_store", () => {
 
     render(<OnlineStorefrontCard {...storefrontProps} localStoreSlug="" />);
     expect(screen.queryByText("storefront-appearance")).toBeNull();
-  });
-
-  it("has its own edit and save, so the storefront can be saved without opening Business Information", () => {
-    const handleSaveProfile = vi.fn();
-    render(<OnlineStorefrontCard {...storefrontProps} handleSaveProfile={handleSaveProfile} />);
-
-    expect(screen.queryByRole("button", { name: "Save Changes" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Edit online storefront" }));
-    fireEvent.click(screen.getByRole("switch"));
-    expect(storefrontProps.setOnlineStoreEnabled).toHaveBeenCalledWith(false);
-    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
-
-    expect(handleSaveProfile).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "Save Changes" })).toBeNull();
-  });
-
-  it("keeps the slug locked inside the 6-month change window", () => {
-    const recently = new Date().toISOString();
-    render(<OnlineStorefrontCard {...storefrontProps} storeSlugChangedAt={recently} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Edit online storefront" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit storefront URL" }));
-
-    expect(screen.queryByPlaceholderText("my-store")).toBeNull();
   });
 
   it("no longer carries the storefront controls in Store Profile, which keeps the loyalty toggle", () => {

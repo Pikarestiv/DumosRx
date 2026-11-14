@@ -12,12 +12,12 @@ const subscribe = (notify: () => void) => {
   return () => clearInterval(timer);
 };
 
-export function StoreClosedNotice({ hours }: { hours?: OpeningHours | null }) {
+export function StoreClosedNotice({ hours, timeZone }: { hours?: OpeningHours | null; timeZone?: string | null }) {
   const { locale, t } = useStorefrontI18n();
   const message = useSyncExternalStore(
     subscribe,
     () => {
-      const status = openStatus(hours, new Date());
+      const status = openStatus(hours, new Date(), timeZone);
       return status?.state === "closed" ? describeOpenStatus(status, locale) : null;
     },
     () => null,

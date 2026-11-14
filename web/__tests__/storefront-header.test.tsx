@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
+import { StorefrontI18nProvider } from "@/components/storefront/storefront-i18n-provider";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -59,5 +60,26 @@ describe("StorefrontHeader store name", () => {
 
     expect(screen.getByText("G")).toBeTruthy();
     expect(screen.getByText("Retail store · Ikeja")).toBeTruthy();
+  });
+
+  it.each([
+    ["supermarket", "Supermarket"],
+    ["grocery", "Grocery"],
+    ["general", "General store"],
+    ["pharmacy", "Pharmacy"],
+  ])("labels a %s store as %s", (type, label) => {
+    render(<StorefrontHeader storeSlug="g" store={{ id: "s1", name: "G", store_type: type, location: "Ikeja" }} />);
+
+    expect(screen.getByText(`${label} · Ikeja`)).toBeTruthy();
+  });
+
+  it("labels a supermarket in French on a French storefront", () => {
+    render(
+      <StorefrontI18nProvider defaultLocale="fr" enabledLocales={["fr"]}>
+        <StorefrontHeader storeSlug="g" store={{ id: "s1", name: "G", store_type: "supermarket" }} />
+      </StorefrontI18nProvider>,
+    );
+
+    expect(screen.getByText("Supermarché")).toBeTruthy();
   });
 });

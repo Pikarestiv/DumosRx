@@ -7,6 +7,11 @@ export const EN_MESSAGES = {
   "header.branch": "Branch:",
   "language.label": "Language",
   "type.pharmacy": "Pharmacy",
+  "type.supermarket": "Supermarket",
+  "type.grocery": "Grocery",
+  "type.general": "General store",
+  "header.fallbackName": "Store",
+  "footer.fallbackName": "This store",
   "type.retail": "Retail store",
 
   "hero.browse": "Browse products",

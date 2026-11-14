@@ -14,8 +14,8 @@ const { toastError, postMock, getMock } = vi.hoisted(() => ({
   postMock: vi.fn(() => Promise.resolve({ data: { order: { id: "order-confirmed-1" } } })),
   getMock: vi.fn(() => Promise.resolve({
     data: {
-      products: [{ id: "p1", selling_price: 2500 }],
-      online_payment_available: true,
+      data: [{ id: "p1", selling_price: 2500 }],
+      store: { online_payment_available: true },
     },
   })),
 }));

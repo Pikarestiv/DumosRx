@@ -1,7 +1,7 @@
 export type StorefrontPresetId = "workshop" | "clinic" | "studio";
 export type StorefrontHeroVariant = "band" | "tint" | "centered";
 export type StorefrontButtonShape = "square" | "pill" | "pill-outline";
-export type StorefrontAddButton = "ink" | "accent" | "outline";
+export type StorefrontAddButton = "accent" | "outline";
 
 export interface StorefrontPreset {
   id: StorefrontPresetId;
@@ -31,7 +31,7 @@ export const STOREFRONT_PRESETS: readonly StorefrontPreset[] = [
     accent: "#F2B705",
     hero: "band",
     button: "square",
-    addButton: "ink",
+    addButton: "accent",
     cardRadius: "10px",
     displayFont: `"Archivo", ${SANS_FALLBACK}`,
     displayWeight: 800,
@@ -102,7 +102,6 @@ const buttonTokens = ({ button, ink }: StorefrontPreset): Tokens =>
       };
 
 const addButtonTokens = ({ addButton, ink }: StorefrontPreset): Tokens => {
-  if (addButton === "ink") return { "--sf-add-bg": ink, "--sf-add-fg": "var(--primary)", "--sf-add-border": ink };
   if (addButton === "outline") return { "--sf-add-bg": "transparent", "--sf-add-fg": ink, "--sf-add-border": ink };
   return { "--sf-add-bg": "var(--primary)", "--sf-add-fg": "var(--primary-foreground)", "--sf-add-border": "transparent" };
 };

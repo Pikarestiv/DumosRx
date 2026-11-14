@@ -59,7 +59,7 @@ export default async function StorefrontPage({
         selectedBranchId={store.id}
       />
 
-      <StoreClosedNotice hours={storefront?.opening_hours} />
+      <StoreClosedNotice hours={storefront?.opening_hours} timeZone={store.timezone} />
 
       <StorefrontHero
         variant={preset.hero}

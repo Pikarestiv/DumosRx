@@ -15,15 +15,17 @@ const subscribe = (notify: () => void) => {
 
 interface StoreOpenStatusProps {
   hours?: OpeningHours | null;
+  timeZone?: string | null;
   className?: string;
+  openClassName?: string;
 }
 
-export function StoreOpenStatus({ hours, className }: StoreOpenStatusProps) {
+export function StoreOpenStatus({ hours, timeZone, className, openClassName }: StoreOpenStatusProps) {
   const { locale } = useStorefrontI18n();
   const snapshot = useSyncExternalStore(
     subscribe,
     () => {
-      const status = openStatus(hours, new Date());
+      const status = openStatus(hours, new Date(), timeZone);
       return status ? JSON.stringify({ text: describeOpenStatus(status, locale), open: status.state === "open" }) : null;
     },
     () => null,
@@ -33,7 +35,7 @@ export function StoreOpenStatus({ hours, className }: StoreOpenStatusProps) {
   const { text, open: isOpen } = JSON.parse(snapshot) as { text: string; open: boolean };
 
   return (
-    <span className={cn("inline-flex items-center gap-2 text-sm", className)}>
+    <span className={cn("inline-flex items-center gap-2 text-sm", className, isOpen && openClassName)}>
       <span aria-hidden="true" className={cn("h-2 w-2 rounded-full", isOpen ? "bg-emerald-500" : "bg-slate-400")} />
       {text}
     </span>

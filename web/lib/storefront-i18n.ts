@@ -51,7 +51,7 @@ export function formatStorefrontMoney(amount: number, currency: string | null | 
       style: "currency",
       currency: code,
       currencyDisplay: "narrowSymbol",
-      minimumFractionDigits: 0,
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
       maximumFractionDigits: 2,
     }).format(amount);
   } catch {

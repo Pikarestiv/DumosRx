@@ -34,6 +34,10 @@
   (`client/components/settings/store/online-storefront-card.tsx`) directly under
   Business Information, holding the slug and the online-store switch. When owners
   get to choose their own theme, the controls join it there.  Owner look controls live in that card, behind the per-store grant.
+- **The till's Online Storefront card is read-only** (2026-11-14): it states the
+  store's URL (with copy and open buttons) or says to contact the account manager.
+  Slug and the online switch are set by a super admin. No embedded preview: the
+  Tauri CSP forbids frames.
 - **Local preview:** the till's slug field prefix comes from
   `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/store`), so set it in
   `client/.env.local` (e.g. `localhost:3000/store`) to see a local link.

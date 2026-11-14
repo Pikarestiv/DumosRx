@@ -22,14 +22,17 @@ interface StorefrontHeaderProps {
   selectedBranchId?: string;
 }
 
-const TYPE_KEYS = new Map<string, "type.pharmacy" | "type.retail">([
+const TYPE_KEYS = new Map<string, "type.pharmacy" | "type.retail" | "type.supermarket" | "type.grocery" | "type.general">([
   ["pharmacy", "type.pharmacy"],
   ["retail", "type.retail"],
+  ["supermarket", "type.supermarket"],
+  ["grocery", "type.grocery"],
+  ["general", "type.general"],
 ]);
 
 export function StorefrontHeader({ storeSlug, store, storefront, branches, selectedBranchId }: StorefrontHeaderProps) {
   const { t } = useStorefrontI18n();
-  const brandName = storefront?.name || store?.name || "Store";
+  const brandName = storefront?.name || store?.name || t("header.fallbackName");
   const logo = storefront?.logo_url || store?.logo_url;
   const typeKey = store?.store_type ? TYPE_KEYS.get(store.store_type) : undefined;
   const typeLabel = typeKey ? t(typeKey) : store?.store_type ? store.store_type.charAt(0).toUpperCase() + store.store_type.slice(1) : null;
@@ -60,7 +63,7 @@ export function StorefrontHeader({ storeSlug, store, storefront, branches, selec
                 {brandName}
               </span>
               {subtitle && <span className="hidden text-xs opacity-70 sm:block">{subtitle}</span>}
-              <StoreOpenStatus hours={storefront?.opening_hours} className="text-xs text-emerald-800 sm:hidden" />
+              <StoreOpenStatus hours={storefront?.opening_hours} timeZone={store?.timezone} className="text-xs sm:hidden" openClassName="text-emerald-800" />
             </span>
           </Link>
 

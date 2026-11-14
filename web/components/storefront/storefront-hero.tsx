@@ -41,6 +41,7 @@ export function StorefrontHero({ variant, tagline, isPharmacy, store, storefront
         <div className={cn("flex flex-col gap-6", centered ? "items-center" : "items-start")}>
           <StoreOpenStatus
             hours={storefront?.opening_hours}
+            timeZone={store.timezone}
             className="hidden rounded-full border border-current/30 px-3 py-1 sm:inline-flex"
           />
           <h1 className={cn(DISPLAY_FONT, "max-w-3xl text-3xl leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl")}>

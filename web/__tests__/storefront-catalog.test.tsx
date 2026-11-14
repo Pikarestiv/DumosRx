@@ -207,4 +207,25 @@ describe("StorefrontCatalogView", () => {
     expect(screen.queryByRole("group", { name: "Categories" })).toBeNull();
     expect(screen.getByText("Paracetamol 500MG")).toBeTruthy();
   });
+
+  it("does not trust the stock baked in at build time: no hint and no disabled button until the live list arrives", async () => {
+    const soldOut = { ...PARACETAMOL, stock_quantity: 0, in_stock: false };
+    respond = () => page([{ ...PARACETAMOL, stock_quantity: 9, in_stock: true }], 1, 1, 1);
+    renderCatalog(page([soldOut], 1, 1, 1));
+
+    expect(screen.queryByText("Out of stock")).toBeNull();
+    expect((screen.getByRole("button", { name: /add to cart: paracetamol/i }) as HTMLButtonElement).disabled).toBe(false);
+
+    await settle();
+    expect(screen.getByText("In stock")).toBeTruthy();
+  });
+
+  it("shows out of stock once the live list says so", async () => {
+    respond = () => page([{ ...PARACETAMOL, stock_quantity: 0, in_stock: false }], 1, 1, 1);
+    renderCatalog();
+    await settle();
+
+    expect(screen.getByText("Out of stock")).toBeTruthy();
+    expect((screen.getByRole("button", { name: /add to cart: paracetamol/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });

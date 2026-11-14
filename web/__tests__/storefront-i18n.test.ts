@@ -85,7 +85,7 @@ describe("money in each language", () => {
   });
 
   it("keeps real decimals and drops empty ones", () => {
-    expect(formatStorefrontMoney(1500.5, "NGN", "en")).toBe("₦1,500.5");
+    expect(formatStorefrontMoney(1500.5, "NGN", "en")).toBe("₦1,500.50");
     expect(formatStorefrontMoney(0, "NGN", "en")).toBe("₦0");
   });
 });

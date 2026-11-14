@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Storefront;
 use App\Models\SystemConfig;
 use App\Services\Storefront\StorefrontRebuildDispatcher;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -32,11 +33,7 @@ class AdminStorefrontRebuildService
         }
 
         if (config('dumos.storefront.rebuild_token')) {
-            SystemConfig::setVal(
-                RebuildStorefrontIfDirty::REQUESTED_AT_KEY,
-                $requestedAt->toIso8601String(),
-                'When the last storefront rebuild was dispatched; cleared by the workflow\'s success callback.',
-            );
+            $this->recordRequest($requestedAt);
         } else {
             DB::table('stores')
                 ->whereNotNull('storefront_dirty_at')
@@ -52,5 +49,21 @@ class AdminStorefrontRebuildService
         ]);
 
         return null;
+    }
+
+    private function recordRequest(Carbon $requestedAt): void
+    {
+        $outstanding = SystemConfig::getVal(RebuildStorefrontIfDirty::REQUESTED_AT_KEY);
+        $timeout = max(1, (int) config('dumos.storefront.rebuild_confirmation_timeout', 45));
+
+        if ($outstanding && now()->lt(Carbon::parse($outstanding)->addMinutes($timeout))) {
+            return;
+        }
+
+        SystemConfig::setVal(
+            RebuildStorefrontIfDirty::REQUESTED_AT_KEY,
+            $requestedAt->toIso8601String(),
+            'When the last storefront rebuild was dispatched; cleared by the workflow\'s success callback.',
+        );
     }
 }

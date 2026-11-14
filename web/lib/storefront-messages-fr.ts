@@ -9,6 +9,11 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "header.branch": "Boutique :",
   "language.label": "Langue",
   "type.pharmacy": "Pharmacie",
+  "type.supermarket": "Supermarché",
+  "type.grocery": "Épicerie",
+  "type.general": "Commerce général",
+  "header.fallbackName": "Boutique",
+  "footer.fallbackName": "Cette boutique",
   "type.retail": "Commerce",
 
   "hero.browse": "Voir les articles",

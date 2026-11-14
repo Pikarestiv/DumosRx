@@ -42,11 +42,37 @@ export function formatClock(clock: string, locale: StorefrontLocale = DEFAULT_ST
   return `${twelve}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
-export function openStatus(hours: OpeningHours | null | undefined, now: Date): OpenStatus | null {
+interface ClockReading {
+  day: number;
+  minutes: number;
+}
+
+const WEEKDAY_INDEX = new Map<string, number>(WEEKDAYS.map((day, index) => [day, index]));
+
+function readClock(now: Date, timeZone?: string | null): ClockReading {
+  if (timeZone && timeZone !== "UTC") {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(now);
+      const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+      const day = WEEKDAY_INDEX.get(part("weekday").toLowerCase().slice(0, 3));
+      if (day !== undefined) return { day, minutes: Number(part("hour")) * 60 + Number(part("minute")) };
+    } catch {
+      // An unknown time zone name falls through to the visitor's own clock.
+    }
+  }
+  return { day: now.getDay(), minutes: now.getHours() * 60 + now.getMinutes() };
+}
+
+export function openStatus(hours: OpeningHours | null | undefined, now: Date, timeZone?: string | null): OpenStatus | null {
   if (!hours || !WEEKDAYS.some((day) => validDay(hours[day]))) return null;
 
-  const today = now.getDay();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const { day: today, minutes: nowMinutes } = readClock(now, timeZone);
   const todayHours = hours[WEEKDAYS[today]];
 
   if (validDay(todayHours) && nowMinutes >= minutesOf(todayHours.open) && nowMinutes < minutesOf(todayHours.close)) {

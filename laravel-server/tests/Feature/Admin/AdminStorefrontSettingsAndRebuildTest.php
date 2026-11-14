@@ -182,7 +182,7 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
     {
         $bad = [
             ['accent' => 'red'], ['accent' => '#fff'], ['accent' => '#F2B705;}body{display:none'],
-            ['tagline' => str_repeat('x', 141)], ['whatsapp' => 'call me'], ['pickup_minutes' => 0], ['pickup_minutes' => 2000],
+            ['tagline' => str_repeat('x', 141)], ['whatsapp' => 'call me'], ['whatsapp' => '08031234567'], ['whatsapp' => '237600000000'], ['pickup_minutes' => 0], ['pickup_minutes' => 2000],
             ['opening_hours' => ['funday' => ['open' => '08:00', 'close' => '18:00']]],
             ['opening_hours' => ['mon' => ['open' => '18:00', 'close' => '08:00']]],
             ['opening_hours' => ['mon' => ['open' => '8am', 'close' => '6pm']]],
@@ -263,6 +263,47 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
         $this->postJson('/api/v1/internal/storefront/rebuild-complete', [], ['X-Storefront-Rebuild-Token' => 'secret'])->assertOk();
 
         $this->assertNotNull($this->storefront()->style_dirty_at);
+    }
+
+    #[Test]
+    public function a_second_rebuild_while_one_is_unconfirmed_keeps_the_earlier_request_time(): void
+    {
+        config(['dumos.storefront.rebuild_token' => 'secret']);
+        Http::fake(['api.github.com/*' => Http::response([], 204)]);
+        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(202);
+        $first = SystemConfig::getVal('storefront_rebuild_requested_at');
+
+        $this->travel(5)->minutes();
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['tagline' => 'Between builds'])->assertOk();
+        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(202);
+
+        $this->assertSame($first, SystemConfig::getVal('storefront_rebuild_requested_at'));
+        $this->postJson('/api/v1/internal/storefront/rebuild-complete', [], ['X-Storefront-Rebuild-Token' => 'secret'])->assertOk();
+        $this->assertNotNull($this->storefront()->style_dirty_at, 'a change made after the first build started must not be marked shipped');
+    }
+
+    #[Test]
+    public function an_unconfirmed_request_that_has_timed_out_is_replaced_by_the_new_one(): void
+    {
+        config(['dumos.storefront.rebuild_token' => 'secret', 'dumos.storefront.rebuild_confirmation_timeout' => 45]);
+        Http::fake(['api.github.com/*' => Http::response([], 204)]);
+        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(202);
+        $first = SystemConfig::getVal('storefront_rebuild_requested_at');
+
+        $this->travel(60)->minutes();
+        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(202);
+
+        $this->assertNotSame($first, SystemConfig::getVal('storefront_rebuild_requested_at'));
+    }
+
+    #[Test]
+    public function opening_hours_keep_only_open_and_close(): void
+    {
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), [
+            'opening_hours' => ['mon' => ['open' => '08:00', 'close' => '18:00', 'notes' => 'x', 'script' => '<b>']],
+        ])->assertOk();
+
+        $this->assertSame(['open' => '08:00', 'close' => '18:00'], $this->storefront()->opening_hours['mon']);
     }
 
     #[Test]

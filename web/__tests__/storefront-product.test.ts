@@ -52,6 +52,7 @@ describe("storefront category tiles", () => {
     ["Éclairage", "lighting"],
     ["Light Bulbs", "lighting"],
     ["Protection électrique", "electrical"],
+    ["Circuit breakers", "electrical"],
     ["Pills & Supplements", "pill"],
     ["Nasal Sprays", "spray"],
     ["Face Creams", "jar"],
@@ -60,6 +61,11 @@ describe("storefront category tiles", () => {
     ["Provisions", "basket"],
   ])("gives %s the %s icon", (name, icon) => {
     expect(categoryIcon(name)).toBe(icon);
+  });
+
+  it("does not mistake words that merely contain a keyword for it", () => {
+    expect(categoryIcon("Sun protection")).toBe("box");
+    expect(categoryIcon("Skin lightening")).toBe("box");
   });
 
   it("uses the neutral box rather than guess when no keyword matches", () => {

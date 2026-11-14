@@ -36,7 +36,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
     <div className="min-h-screen bg-[color:var(--sf-page)] text-[color:var(--sf-ink)] flex flex-col">
       <StorefrontHeader storeSlug={store_slug} store={data?.store} />
 
-      <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full">
+      <main id="main-content" tabIndex={-1} className="flex-1 outline-none py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full">
         <CheckoutHeading />
         <Suspense fallback={null}>
           <CheckoutForm storeSlug={store_slug} />

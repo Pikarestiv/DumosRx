@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
+import { useLiveFeatured } from "@/lib/use-live-featured";
 import { ProductCard } from "@/components/storefront/product-card";
 import { correctCategoryName } from "@/lib/storefront-categories";
 import { toDisplayTitle, viewAllProductsLabel } from "@/lib/storefront-display";
@@ -30,8 +31,9 @@ function categoryNames(products: StorefrontProduct[]): string[] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
 }
 
-export function FeaturedProducts({ products, productCount, storeSlug, currency, whatsapp, catalogHref }: FeaturedProductsProps) {
+export function FeaturedProducts({ products: builtProducts, productCount: builtCount, storeSlug, currency, whatsapp, catalogHref }: FeaturedProductsProps) {
   const { t, tp, locale } = useStorefrontI18n();
+  const { products, productCount } = useLiveFeatured(storeSlug, builtProducts, builtCount);
   const [active, setActive] = useState<string | null>(null);
   const categories = categoryNames(products);
   const shown = (active ? products.filter((p) => p.category?.name === active) : products).slice(0, FEATURED_PRODUCT_COUNT);
@@ -56,7 +58,7 @@ export function FeaturedProducts({ products, productCount, storeSlug, currency, 
     );
 
   return (
-    <section aria-label="Products" className="space-y-5">
+    <section aria-label={t("products.heading")} className="space-y-5">
       <div className="flex items-end justify-between gap-4">
         <h2 className={`${DISPLAY_FONT} text-2xl sm:text-4xl`}>{t("products.heading")}</h2>
         <p className="text-sm opacity-70 [font-family:var(--sf-font-price)]">{tp("products.count", total)}</p>

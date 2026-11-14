@@ -62,7 +62,7 @@ export default async function StorefrontCatalogPage({
         selectedBranchId={selectedBranchId}
       />
 
-      <StoreClosedNotice hours={storefront?.opening_hours} />
+      <StoreClosedNotice hours={storefront?.opening_hours} timeZone={store.timezone} />
 
       <main id="main-content" tabIndex={-1} className="flex-1 outline-none py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6">
         <CatalogHeading storeSlug={store_slug} storeName={storefront?.name || store.name} />

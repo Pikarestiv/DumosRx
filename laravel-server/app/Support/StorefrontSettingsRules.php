@@ -24,7 +24,7 @@ final class StorefrontSettingsRules
         return [
             'accent' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'tagline' => ['sometimes', 'nullable', 'string', 'max:140'],
-            'whatsapp' => ['sometimes', 'nullable', 'string', 'regex:/^\+?[0-9 ()\-]{6,32}$/'],
+            'whatsapp' => ['sometimes', 'nullable', 'string', 'regex:/^\+[0-9 ()\-]{6,31}$/'],
             'pickup_minutes' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1440'],
             'opening_hours' => ['sometimes', 'nullable', 'array', self::openingHours(...)],
             'locale' => ['sometimes', 'nullable', 'string', Rule::in(StorefrontLocales::IDS)],
@@ -41,6 +41,13 @@ final class StorefrontSettingsRules
     {
         if (isset($validated['accent'])) {
             $validated['accent'] = strtoupper($validated['accent']);
+        }
+
+        if (isset($validated['opening_hours'])) {
+            $validated['opening_hours'] = array_map(
+                fn ($range) => is_array($range) ? ['open' => $range['open'], 'close' => $range['close']] : null,
+                $validated['opening_hours'],
+            );
         }
 
         return $validated;

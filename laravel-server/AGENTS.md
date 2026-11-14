@@ -240,6 +240,13 @@ without updating that.
   automatic rebuild (`Product::markStorefrontsDirty`) because an owner has no
   rebuild button. Validation lives once in `StorefrontSettingsRules` and writes
   go through `StorefrontStyleService::apply()`, shared with the admin endpoint.
+  `GET /storefront/{slug}/products` also accepts `ids` (up to 100 comma-separated
+  product ids, only online-listed products of the branch come back) so a cart can
+  be re-priced however deep in the catalogue it sits; the `show` payload's `store`
+  block carries the branch `timezone` for the open/closed status. A WhatsApp
+  number must be `+` then digits. A manual rebuild never overwrites an outstanding
+  unconfirmed request time (until the confirmation timeout), so the callback of
+  the first build cannot mark changes that build never fetched as shipped.
   `storefronts.locale` (default `en`) and `enabled_locales` are returned by the
   public `show` payload and the admin detail.
   `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,

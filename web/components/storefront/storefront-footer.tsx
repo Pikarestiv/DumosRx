@@ -15,13 +15,13 @@ interface StorefrontFooterProps {
 
 export function StorefrontFooter({ store, storefront }: StorefrontFooterProps) {
   const { t, locale } = useStorefrontI18n();
-  const businessName = storefront?.name || store?.name || "This store";
+  const businessName = storefront?.name || store?.name || t("footer.fallbackName");
   const logo = storefront?.logo_url || store?.logo_url;
   const details = [store ? storeAddressLine(store) : null, summarizeHours(storefront?.opening_hours, locale)].filter(Boolean);
 
   return (
     <footer className="border-t border-black/10 bg-white">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pb-24 pt-8 text-sm sm:pb-8 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
         <div className="flex items-center gap-3">
           <StoreLogo name={businessName} logo={logo} className="h-9 w-9 text-base" />
           <p>

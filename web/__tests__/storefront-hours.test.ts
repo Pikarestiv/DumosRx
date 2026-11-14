@@ -85,3 +85,27 @@ describe("storefront hours formatting", () => {
     expect(summarizeHours({ mon: null })).toBeNull();
   });
 });
+
+describe("opening status in the store's own time zone", () => {
+  const lagosHours: OpeningHours = { mon: { open: "08:00", close: "18:00" } };
+
+  it("reads the store's clock, not the visitor's: a London visitor at 17:30 sees a Lagos store (UTC+1) already closed", () => {
+    expect(openStatus(lagosHours, new Date(Date.UTC(2026, 10, 16, 16, 30)), "Africa/Lagos")?.state).toBe("open");
+    expect(openStatus(lagosHours, new Date(Date.UTC(2026, 10, 16, 17, 30)), "Africa/Lagos")?.state).toBe("closed");
+  });
+
+  it("uses the store's date, which can already be the next day", () => {
+    const status = openStatus(lagosHours, new Date(Date.UTC(2026, 10, 16, 23, 30)), "Africa/Lagos");
+
+    expect(describeOpenStatus(status!)).toBe("Closed · opens Mon at 8:00 am");
+  });
+
+  it("falls back to the visitor's clock for no zone, the UTC default, or a name it does not know", () => {
+    const visitorTime = new Date(2026, 10, 16, 10, 0);
+    const expected = openStatus(lagosHours, visitorTime);
+
+    for (const zone of [undefined, null, "", "UTC", "Not/AZone"]) {
+      expect(openStatus(lagosHours, visitorTime, zone)).toEqual(expected);
+    }
+  });
+});

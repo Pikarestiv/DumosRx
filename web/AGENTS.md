@@ -156,13 +156,14 @@ together). The current design:
 - **`useCartRepricing` names what it removed.** It splits the reprice result
   into `removed` (absent from the catalog response) and `repriced`, and names
   the items in each toast instead of the old blanket "Some prices or items in
-  your cart changed" (A-106). The structural half of A-106 is **not** fixed:
-  `GET /storefront/{slug}` is still capped at `MAX_STOREFRONT_PRODUCTS = 50`
-  while `checkout()`/`priceCart()` are uncapped, so a catalogue past 50
-  products can still drop a legitimately purchasable item — the customer now
-  at least sees which one. The real fix is a cart-scoped pricing endpoint
-  (`POST /storefront/{slug}/price-cart` taking item ids); log it there if it
-  gets built.
+  your cart changed" (A-106). The structural half is **fixed (2026-11-14)**: it
+  no longer reads the capped `GET /storefront/{slug}` landing list. It asks
+  `GET /storefront/{slug}/products?ids=<cart ids>&per_page=100` (the endpoint
+  accepts up to 100 comma-separated ids and returns only products still listed
+  online), so an item far down a catalogue of thousands is found. At most 100
+  cart lines are checked; any beyond that are left exactly as they were rather
+  than dropped. Currency and `online_payment_available` come from the
+  response's `store` block.
 
 ## Storefront money is formatted from the store's own currency (PG-4)
 
@@ -315,6 +316,20 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   hydration). Product names, categories and the owner's tagline are never
   translated. To add a language: a messages file, `STOREFRONT_LOCALES`,
   `LOCALE_NAMES`, the PHP list, and a plural rule if it is not one/other.
+- **Stock, prices and time zones are live, never trusted from the build
+  (2026-11-14).** Stock movements do not dirty a storefront, so the
+  `stock_quantity`/`in_stock` baked into the static HTML can be arbitrarily
+  stale: a card built "Out of stock" would stay disabled after a restock. So
+  `withoutStock()` strips them until a live list arrives (the home page's
+  `useLiveFeatured` refetches `GET /storefront/{slug}` on mount; the shop's
+  `useStorefrontCatalog` refetches page 1), and cards show no hint and a working
+  "+" until then. Open/closed status is computed against the store's own time
+  zone (`store.timezone` from the API, via `Intl`); a missing, `UTC` (the column
+  default, i.e. unset) or unknown zone falls back to the visitor's clock. The
+  add button is the accent with `--primary-foreground` on every preset, because
+  an accent-coloured icon on the dark workshop ink failed 3:1 for most accents.
+  A WhatsApp number must start with `+` and the country code (`wa.me` rejects a
+  local `0803...` number).
 - **Storefront states and accessibility (phase 5, 2026-11-14).** The home and
   shop show `StoreClosedNotice` under the header while the store is closed by
   its hours (browser clock, nothing when no hours are set); a store with no

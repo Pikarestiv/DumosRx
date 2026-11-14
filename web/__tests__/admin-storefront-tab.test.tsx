@@ -156,7 +156,8 @@ describe("StoreStorefrontTab", () => {
 
   it.each([
     ["Accent colour", "red", /six-digit hex/i],
-    ["WhatsApp number", "call me", /digits, spaces/i],
+    ["WhatsApp number", "call me", /start with \+/i],
+    ["WhatsApp number", "0803 123 4567", /start with \+/i],
     ["Pickup time (minutes)", "0", /whole number/i],
   ])("refuses to save a bad %s", async (label, value, message) => {
     renderTab(storeWith());

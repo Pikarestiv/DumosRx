@@ -15,8 +15,8 @@ interface CategoryRule {
 }
 
 const ICON_RULES: CategoryRule[] = [
-  { icon: "lighting", keywords: /(light|bulb|lamp|clairage|ampoule)/i },
-  { icon: "electrical", keywords: /(electric|breaker|protection|switch|socket|cable|wire|disjoncteur)/i },
+  { icon: "lighting", keywords: /(\blights?\b|\blighting\b|bulb|lamp|clairage|ampoule)/i },
+  { icon: "electrical", keywords: /(lectri|breaker|switch|socket|cable|wire|disjoncteur)/i },
   { icon: "spray", keywords: /(spray|aerosol|inhaler)/i },
   { icon: "pill", keywords: /(drug|medicine|medication|tablet|capsule|pill|supplement|vitamin|gumm)/i },
   { icon: "jar", keywords: /(cream|lotion|balm|ointment|moisturi[sz]er|butter)/i },

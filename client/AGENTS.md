@@ -4712,16 +4712,17 @@ behaviour without it, so no caller had to change at once.
   never silently replaces an existing classic theme. The server accepts only the store owner
   (a staff login gets 403 with an explanation) and only the three presets.
   `lib/utils/storefront-accent.ts` mirrors `web/lib/storefront-accent.ts` (the
-  two apps share no code). It has its own Save, separate from the card's slug
-  and switch save; a change reaches customers after the next automatic
+  two apps share no code). It has its own Save; a change reaches customers after the next automatic
   storefront rebuild, about 15 minutes.
 - `manage_online_store` — the storefront slice, and the one key here that
   **cuts across tabs rather than owning one**: the Online Storefront card on
   the Business Info tab, directly under Business Information
-  (`online-storefront-card.tsx` — the public URL slug and the Enable Online
-  Store switch; moved out of the Store Profile block 2026-11-14, with its own
-  edit and Save that call the same `handleSaveProfile`, so saving it also
-  saves any other pending Business Info edits) and the Paystack payout onboarding inside
+  (`online-storefront-card.tsx`, **read-only since 2026-11-14**: it says where the
+  online store is available, with copy and open actions, says "isn't switched on
+  yet" or "isn't set up yet" and to contact the account manager otherwise, and
+  embeds the look controls below; the slug and the Enable switch are set by a
+  super admin in the admin, not in the till, and there is no embedded preview
+  because the Tauri CSP is `frame-src 'none'`) and the Paystack payout onboarding inside
   Payment Methods (`online-payments-section.tsx`, gated from
   `panels/payment-methods-panel.tsx`). Both exist only to make the public
   storefront work, so the key sits **on top of** each tab's own rather than

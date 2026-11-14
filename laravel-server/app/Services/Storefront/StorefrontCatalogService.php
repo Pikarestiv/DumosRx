@@ -193,8 +193,13 @@ class StorefrontCatalogService
         ?string $search = null,
         ?string $categoryId = null,
         int $perPage = self::PER_PAGE,
+        ?array $ids = null,
     ): LengthAwarePaginator {
         $query = $this->storeProducts($store)->with('category')->withStockAt($store->id);
+
+        if ($ids !== null) {
+            $query->whereIn('products.id', $ids);
+        }
 
         if ($search !== null && trim($search) !== '') {
             $term = '%'.trim($search).'%';

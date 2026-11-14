@@ -200,6 +200,46 @@ class StorefrontControllerTest extends TestCase
         }
     }
 
+    public function test_products_can_be_looked_up_by_id_however_far_down_the_catalog_they_sit(): void
+    {
+        $mk = fn (string $name, array $extra = []) => Product::create(array_merge([
+            'name' => $name, 'selling_price' => 100, 'is_active' => true, 'show_online' => true,
+            'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id,
+        ], $extra));
+        foreach (range(1, 55) as $i) {
+            $mk(sprintf('Filler %02d', $i));
+        }
+        $deep = $mk('Zzz Deep Item');
+        $hidden = $mk('Hidden Item', ['show_online' => false]);
+        $foreign = Product::create([
+            'name' => 'Foreign', 'selling_price' => 100, 'is_active' => true, 'show_online' => true,
+            'user_id' => $this->ownerB->id,
+        ]);
+
+        $show = $this->getJson('/api/v1/storefront/store-a')->assertOk()->json('products');
+        $this->assertNotContains($deep->id, array_column($show, 'id'), 'the landing list is capped, so a deep item is not in it');
+
+        $found = $this->getJson("/api/v1/storefront/store-a/products?per_page=100&ids={$deep->id},{$hidden->id},{$foreign->id},not-a-product")
+            ->assertOk()->json('data');
+
+        $this->assertSame([$deep->id], array_column($found, 'id'));
+        $this->assertSame(1, $this->getJson('/api/v1/storefront/store-a/products?ids='.$deep->id)->json('meta.total'));
+    }
+
+    public function test_products_with_a_blank_ids_parameter_list_the_whole_catalog(): void
+    {
+        Product::create(['name' => 'One', 'selling_price' => 1, 'is_active' => true, 'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id]);
+
+        $this->getJson('/api/v1/storefront/store-a/products?ids=')->assertOk()->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_show_reports_the_stores_timezone(): void
+    {
+        $this->storeA->update(['timezone' => 'Africa/Lagos']);
+
+        $this->getJson('/api/v1/storefront/store-a')->assertOk()->assertJsonPath('store.timezone', 'Africa/Lagos');
+    }
+
     public function test_show_does_not_leak_internal_product_columns()
     {
         Product::create([

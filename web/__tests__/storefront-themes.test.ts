@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { contrastRatio as hexContrastRatio } from "@/lib/storefront-accent";
-import { STOREFRONT_PRESETS } from "@/lib/storefront-presets";
+import { STOREFRONT_PRESETS, storefrontPresetVars } from "@/lib/storefront-presets";
 import {
   DEFAULT_STOREFRONT_THEME_ID,
   STOREFRONT_THEMES,
@@ -134,6 +134,18 @@ describe("storefront accent override", () => {
     "emits nothing for the unusable accent %s",
     (accent) => {
       expect(storefrontAccentCss(accent, workshop)).toBe("");
+    },
+  );
+});
+
+describe("add-to-cart button colours", () => {
+  it.each(STOREFRONT_PRESETS.map((preset) => [preset.id] as const))(
+    "%s never puts the accent on a background it was not checked against",
+    (id) => {
+      const vars = storefrontPresetVars(STOREFRONT_PRESETS.find((preset) => preset.id === id)!);
+
+      if (vars["--sf-add-bg"] === "var(--primary)") expect(vars["--sf-add-fg"]).toBe("var(--primary-foreground)");
+      else expect(vars["--sf-add-fg"]).not.toContain("--primary)");
     },
   );
 });

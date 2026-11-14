@@ -16,6 +16,8 @@ use OpenApi\Attributes as OA;
 
 class StorefrontController extends Controller
 {
+    private const MAX_REQUESTED_IDS = 100;
+
     public const MAX_STOREFRONT_PRODUCTS = StorefrontCatalogService::MAX_STOREFRONT_PRODUCTS;
 
     public function __construct(
@@ -100,6 +102,7 @@ class StorefrontController extends Controller
             'store_type' => $branch->store_type ?? 'pharmacy',
             'currency' => $currency,
             'online_payment_available' => (bool) $branch->paystack_subaccount_code,
+            'timezone' => $branch->timezone,
         ];
 
         return response()->json([
@@ -144,6 +147,7 @@ class StorefrontController extends Controller
             new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'q', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'category', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'ids', in: 'query', required: false, description: 'Comma-separated product ids (at most 100): returns only those that are listed online, so a cart can be re-priced however far down the catalog its items sit', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'branch', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
@@ -183,7 +187,9 @@ class StorefrontController extends Controller
         $category = $request->input('category');
         $perPage = (int) $request->input('per_page', StorefrontCatalogService::PER_PAGE);
 
-        $paginated = $this->catalogService->paginateProducts($branch, $search, $category, $perPage);
+        $ids = $this->requestedIds($request->input('ids'));
+
+        $paginated = $this->catalogService->paginateProducts($branch, $search, $category, $perPage, $ids);
         $categories = $this->catalogService->getStoreCategories($branch);
         $currency = $this->catalogService->storeCurrency($branch);
 
@@ -353,5 +359,17 @@ class StorefrontController extends Controller
     public function uploadPrescription($store_slug, Request $request)
     {
         return $this->interactionService->uploadPrescription($store_slug, $request);
+    }
+
+    /**
+     * @return array<int, string>|null null when the request named no ids at all
+     */
+    private function requestedIds(mixed $raw): ?array
+    {
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        return array_slice(array_values(array_unique(array_filter(array_map('trim', explode(',', $raw))))), 0, self::MAX_REQUESTED_IDS);
     }
 }

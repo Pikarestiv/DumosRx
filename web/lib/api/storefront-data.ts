@@ -13,6 +13,7 @@ export interface StorefrontStore {
   is_primary?: boolean;
   store_type?: string | null;
   online_payment_available?: boolean;
+  timezone?: string | null;
 }
 
 export interface StorefrontBranch {
@@ -70,7 +71,7 @@ export async function getStorefrontData(
   store_slug: string,
   branchId?: string,
 ): Promise<StorefrontData | null> {
-  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
+  if ((process.env.STOREFRONT_ALLOW_EMPTY === "1" || process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1") && store_slug === "demo") {
     return DEMO_STOREFRONT_DATA;
   }
 

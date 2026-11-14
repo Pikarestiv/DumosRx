@@ -53,7 +53,7 @@ const PRESETS: {
 ];
 
 const LANGUAGE_NAMES = { en: "English", fr: "Français" } as const;
-const WHATSAPP_PATTERN = /^\+?[0-9 ()-]{6,32}$/;
+const WHATSAPP_PATTERN = /^\+[0-9 ()-]{6,31}$/;
 
 function presetFor(settings: StorefrontSettings): StorefrontPresetId {
   const chosen = PRESETS.find((preset) => preset.id === settings.theme);
@@ -281,7 +281,7 @@ function AppearanceForm({
             />
             {!whatsappValid ? (
               <p className="text-xs text-destructive">
-                Digits, spaces and a leading + only.
+                Start with + and the country code, e.g. +237 6 00 00 00 00.
               </p>
             ) : null}
           </div>

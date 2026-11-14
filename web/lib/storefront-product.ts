@@ -24,3 +24,10 @@ export function whatsappLink(number: string | null | undefined, message?: string
   if (digits === "") return null;
   return `https://wa.me/${digits}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
 }
+
+export function withoutStock(product: StorefrontProduct): StorefrontProduct {
+  const rest = { ...product };
+  delete rest.stock_quantity;
+  delete rest.in_stock;
+  return rest;
+}

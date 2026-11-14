@@ -65,23 +65,51 @@ describe("storefront home page", () => {
     expect(within(featured).getAllByRole("button", { name: /^add to cart:/i })).toHaveLength(6);
   });
 
-  it("gives every priced card one add button, and disables it when the product is out of stock", async () => {
+  it("gives every priced card one add button, and disables it once live stock says the product is out", async () => {
     const products = [
       { id: "a", name: "Bulb", selling_price: 1500, stock_quantity: 40, in_stock: true },
       { id: "b", name: "Lamp", selling_price: 2500, stock_quantity: 0, in_stock: false },
     ];
     await renderHome(storefrontData({ products }));
 
+    expect(await screen.findByText("Out of stock")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Add to cart: Bulb" }) as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByRole("button", { name: "Add to cart: Lamp" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText("In stock")).toBeTruthy();
-    expect(screen.getByText("Out of stock")).toBeTruthy();
   });
 
-  it("says only N left at five or fewer", async () => {
+  it("says only N left at five or fewer, once live stock arrives", async () => {
     await renderHome(storefrontData({ products: [{ id: "a", name: "Bulb", selling_price: 1500, stock_quantity: 3 }] }));
 
-    expect(screen.getByText("Only 3 left")).toBeTruthy();
+    expect(await screen.findByText("Only 3 left")).toBeTruthy();
+  });
+
+  it("never trusts the stock baked in at build time: nothing is disabled or labelled until the live list arrives", async () => {
+    const built = storefrontData({ products: [{ id: "a", name: "Lamp", selling_price: 2500, stock_quantity: 0, in_stock: false }] });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(built), { headers: { "content-type": "application/json" } }))
+      .mockReturnValue(new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(await StorefrontPage({ params }));
+
+    expect((screen.getByRole("button", { name: "Add to cart: Lamp" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText("Out of stock")).toBeNull();
+  });
+
+  it("re-enables a product the live list says is back in stock, and shows its current price", async () => {
+    const respond = (data: StorefrontData) => new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
+    const built = storefrontData({ products: [{ id: "a", name: "Lamp", selling_price: 2500, stock_quantity: 0, in_stock: false }] });
+    const live = storefrontData({ products: [{ id: "a", name: "Lamp", selling_price: 2800, stock_quantity: 12, in_stock: true }] });
+    const fetchMock = vi.fn().mockResolvedValueOnce(respond(built)).mockResolvedValue(respond(live));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(await StorefrontPage({ params }));
+
+    expect(await screen.findByText("In stock")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Add to cart: Lamp" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByText("₦2,800")).toBeTruthy();
   });
 
   it("shows Price on request, never a zero price, and offers Ask on WhatsApp only when a number is set", async () => {
@@ -289,6 +317,7 @@ describe("a French storefront", () => {
 
   it("shows French text, prices and times, and none of the English strings", async () => {
     const { container } = await renderFrench();
+    await screen.findByText("Plus que 3");
     const text = container.textContent ?? "";
 
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Tout ce qu'il vous faut, prêt au retrait.");

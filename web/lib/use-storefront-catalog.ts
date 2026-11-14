@@ -7,6 +7,7 @@ import {
   type PaginatedStorefrontProducts,
   type StorefrontCategory,
 } from "@/lib/api/storefront-data";
+import { withoutStock } from "@/lib/storefront-product";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 export const CATALOG_PAGE_SIZE = 48;
@@ -22,6 +23,7 @@ interface CatalogState {
   allTotal: number;
   categories: StorefrontCategory[];
   status: CatalogStatus;
+  live: boolean;
 }
 
 interface UseStorefrontCatalogOptions {
@@ -39,6 +41,7 @@ const stateFrom = (data: PaginatedStorefrontProducts | null): CatalogState => ({
   allTotal: data?.meta.total ?? 0,
   categories: data?.categories ?? [],
   status: "idle",
+  live: false,
 });
 
 function useDebounced<T>(value: T, delayMs: number): T {
@@ -86,6 +89,7 @@ export function useStorefrontCatalog({ storeSlug, initialData, initialQuery, bra
             allTotal: query || category ? prev.allTotal : res.meta.total,
             categories: res.categories ?? prev.categories,
             status: "idle",
+            live: true,
           };
         });
       } catch {
@@ -110,5 +114,7 @@ export function useStorefrontCatalog({ storeSlug, initialData, initialQuery, bra
     setCategory(null);
   }, []);
 
-  return { ...state, search, setSearch, category, setCategory, hasMore, loadMore, retry: () => load(1, true), resetFilters };
+  const items = state.live ? state.items : state.items.map(withoutStock);
+
+  return { ...state, items, search, setSearch, category, setCategory, hasMore, loadMore, retry: () => load(1, true), resetFilters };
 }

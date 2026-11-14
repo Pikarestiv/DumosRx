@@ -21,7 +21,7 @@ interface StorefrontSettingsFormProps {
   editable: boolean;
 }
 
-const WHATSAPP_PATTERN = /^\+?[0-9 ()-]{6,32}$/;
+const WHATSAPP_PATTERN = /^\+[0-9 ()-]{6,31}$/;
 const TAGLINE_MAX = 140;
 
 export function StorefrontSettingsForm({ store, accent, onAccentChange, editable }: StorefrontSettingsFormProps) {
@@ -141,7 +141,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             placeholder="+237 6 00 00 00 00"
             onChange={(event) => setWhatsapp(event.target.value)}
           />
-          {!whatsappValid ? <p className="text-xs text-destructive">Digits, spaces and a leading + only.</p> : null}
+          {!whatsappValid ? <p className="text-xs text-destructive">Start with + and the country code, e.g. +237 6 00 00 00 00.</p> : null}
         </div>
         <div className="space-y-2">
           <label htmlFor="storefront-pickup" className="text-sm font-medium">

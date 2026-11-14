@@ -40,11 +40,7 @@ export function BusinessInfoPanel(s: SettingsState) {
       />
       <OnlineStorefrontCard
         localStoreSlug={s.localStoreSlug}
-        setLocalStoreSlug={s.setLocalStoreSlug}
-        storeSlugChangedAt={s.storeProfile?.store_slug_changed_at}
         onlineStoreEnabled={s.onlineStoreEnabled}
-        setOnlineStoreEnabled={s.setOnlineStoreEnabled}
-        handleSaveProfile={() => void s.handleSaveProfile()}
       />
     </>
   );

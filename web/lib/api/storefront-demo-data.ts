@@ -1,5 +1,6 @@
 import type { PaginatedStorefrontProducts, StorefrontData } from "@/lib/api/storefront-data";
 import type { StorefrontProduct } from "@/lib/types/storefront";
+import { isPharmacyStore } from "@/lib/storefront-copy";
 
 const DEMO_PRODUCT_NAMES = [
   "Paracetamol 500mg Tablets",
@@ -23,22 +24,27 @@ const DEMO_PRODUCTS: StorefrontProduct[] = DEMO_PRODUCT_NAMES.map((name, index) 
   category: { name: index % 2 === 0 ? "Medicines" : "Wellness" },
 }));
 
+const DEMO_STORE_TYPE = process.env.STOREFRONT_DEMO_STORE_TYPE;
+const DEMO_KIND = isPharmacyStore({ store_type: DEMO_STORE_TYPE }) ? "Pharmacy" : "Store";
+const DEMO_NAME = `Demo ${DEMO_KIND}`;
+
 export const DEMO_STOREFRONT_DATA: StorefrontData = {
   store: {
     id: "demo",
-    name: "Demo Pharmacy",
+    name: DEMO_NAME,
     location: "Demo Location",
     address: "123 Demo Street",
     phone: "08000000000",
     email: "demo@example.com",
     currency: "NGN",
+    store_type: DEMO_STORE_TYPE,
   },
   storefront: {
     id: "demo",
     slug: "demo",
-    name: "Demo Pharmacy",
-    headline: "Your neighbourhood pharmacy, now online",
-    about: "Demo Pharmacy is a placeholder store used for offline and sandbox builds of the storefront.",
+    name: DEMO_NAME,
+    headline: `Your neighbourhood ${DEMO_KIND.toLowerCase()}, now online`,
+    about: `${DEMO_NAME} is a placeholder store used for offline and sandbox builds of the storefront.`,
     theme: process.env.STOREFRONT_DEMO_THEME,
   },
   products: DEMO_PRODUCTS,

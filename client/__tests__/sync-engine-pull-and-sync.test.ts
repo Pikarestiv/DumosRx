@@ -265,7 +265,7 @@ describe('Sync Engine pull callbacks and sync()', () => {
       expect(predicate({ meta: undefined } as unknown as Query)).toBe(true);
     });
 
-    it('does not invalidate anything when no tables changed', async () => {
+    it('invalidates only the pending-count queries when no tables changed', async () => {
       vi.mocked(query).mockResolvedValue([]);
       vi.mocked(apiClient.pullChanges).mockResolvedValueOnce({
         success: true,
@@ -275,10 +275,13 @@ describe('Sync Engine pull callbacks and sync()', () => {
 
       await sync();
 
-      const predicateCall = vi.mocked(queryClient.invalidateQueries).mock.calls.find(
-        (c) => (c[0] as { predicate?: unknown })?.predicate,
-      );
-      expect(predicateCall).toBeUndefined();
+      const predicates = vi.mocked(queryClient.invalidateQueries).mock.calls
+        .map((c) => (c[0] as { predicate?: (q: Query) => boolean })?.predicate)
+        .filter((p): p is (q: Query) => boolean => !!p);
+      const invalidates = (meta: Query['meta']) => predicates.some((p) => p({ meta } as unknown as Query));
+      expect(invalidates({ tables: ['_sync_queue'] })).toBe(true);
+      expect(invalidates({ tables: ['products'] })).toBe(false);
+      expect(invalidates(undefined)).toBe(false);
     });
   });
 

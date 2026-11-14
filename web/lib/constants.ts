@@ -5,6 +5,7 @@ export const APP_VERSION = "v0.0.41"; // DumosRx current version (update when bu
 export const GITHUB_REPO = "Pikarestiv/DumosRx";
 
 export const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || "https://dumosrx.com";
+export const WEB_APP_HOST = new URL(WEB_APP_URL).host.replace(/^www\./, "");
 export const WEB_APP_DASHBOARD_URL = process.env.NEXT_PUBLIC_WEB_APP_DASHBOARD_URL || "https://app.dumosrx.com/dashboard";
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.dumosrx.com";
 

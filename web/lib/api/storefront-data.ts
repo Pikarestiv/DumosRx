@@ -11,6 +11,7 @@ export interface StorefrontStore {
   logo_url?: string | null;
   currency?: string | null;
   is_primary?: boolean;
+  store_type?: string | null;
 }
 
 export interface StorefrontBranch {

@@ -135,7 +135,7 @@ export default async function StorefrontPage({
           <StoreLocationsSection storeSlug={store_slug} store={store} branches={branches} />
         )}
 
-        <StoreFaqSection />
+        <StoreFaqSection store={store} />
 
         {showContact && (
           <section id="contact" aria-label="Contact" className="scroll-mt-24 space-y-6">

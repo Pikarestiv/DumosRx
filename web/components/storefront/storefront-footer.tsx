@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Mail, MapPin, Phone } from "lucide-react";
 
-import { APP_NAME, WEB_APP_URL } from "@/lib/constants";
+import { WEB_APP_HOST, WEB_APP_URL } from "@/lib/constants";
 import type { StorefrontProfile, StorefrontStore } from "@/lib/api/storefront-data";
 import { hasContactDetails, storeAddressLine } from "@/lib/storefront-display";
 import { storefrontNavLinks } from "@/lib/storefront-nav";
+import { storefrontCopy } from "@/lib/storefront-copy";
 
 interface StorefrontFooterProps {
   storeSlug: string;
@@ -12,17 +13,10 @@ interface StorefrontFooterProps {
   storefront?: StorefrontProfile | null;
 }
 
-const ABOUT_PREVIEW_LENGTH = 220;
-
-function aboutPreview(about?: string | null): string | null {
-  const text = about?.trim();
-  if (!text) return null;
-  return text.length > ABOUT_PREVIEW_LENGTH ? `${text.slice(0, ABOUT_PREVIEW_LENGTH).trimEnd()}…` : text;
-}
-
 export function StorefrontFooter({ storeSlug, store, storefront }: StorefrontFooterProps) {
   const businessName = storefront?.name || store?.name || "This store";
-  const about = aboutPreview(storefront?.about) ?? storefront?.headline ?? null;
+  const about =
+    storefront?.about?.trim() || storefront?.headline?.trim() || storefrontCopy(store).footerAbout(businessName);
   const address = store ? storeAddressLine(store) : null;
 
   return (
@@ -30,7 +24,7 @@ export function StorefrontFooter({ storeSlug, store, storefront }: StorefrontFoo
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid gap-10 md:grid-cols-[2fr_1fr_1.5fr]">
         <div className="space-y-3">
           <p className="font-heading text-lg font-bold">{businessName}</p>
-          {about && <p className="text-sm leading-relaxed">{about}</p>}
+          <p className="text-sm leading-relaxed line-clamp-3 max-w-prose">{about}</p>
         </div>
 
         <nav aria-label="Footer" className="space-y-3">
@@ -72,7 +66,7 @@ export function StorefrontFooter({ storeSlug, store, storefront }: StorefrontFoo
             © {new Date().getFullYear()} {businessName}
           </p>
           <a href={WEB_APP_URL} target="_blank" rel="noopener noreferrer" className="hover:underline underline-offset-4">
-            Powered by {APP_NAME}
+            Powered by {WEB_APP_HOST}
           </a>
         </div>
       </div>

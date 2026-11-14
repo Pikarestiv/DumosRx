@@ -6,13 +6,10 @@ import {
   restorePullWindows,
 } from "./pull-window";
 import { SyncResult, PullResponse } from "./types";
-import {
-  recordSyncOutcome,
-  READ_ONLY_TAB_MESSAGE,
-  SYNC_IN_PROGRESS_ERROR,
-} from "./sync-outcome";
+import { recordSyncOutcome, READ_ONLY_TAB_MESSAGE, SYNC_IN_PROGRESS_ERROR, pushBatchesFailedError } from "./sync-outcome";
 import { resolveSyncRun } from "./sync-run";
 import { refusedRound } from "./store-refusal";
+import { refreshPendingCount } from "./pending-count-refresh";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
@@ -223,7 +220,7 @@ async function runSync(
         success: false,
         pushed: pushResult.pushed,
         pulled: pullResult.pulled,
-        error: `${pushResult.failedBatches} batch(es) failed to push; will retry automatically`,
+        error: pushBatchesFailedError(pushResult.failedBatches),
       };
     }
 
@@ -249,6 +246,7 @@ async function runSync(
       error: error instanceof Error ? error.message : error,
     };
   } finally {
+    await refreshPendingCount();
     isSyncInProgress = false;
   }
 }

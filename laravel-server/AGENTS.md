@@ -208,6 +208,11 @@ without updating that.
   published stores via `Product::markStorefrontsDirty()`. Re-sending the
   current theme is a no-op. The store detail payload carries
   `storefront.theme` and `storefront.available_themes`.
+  `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,
+  `pickup_minutes` and `opening_hours` (JSON), all nullable and returned by
+  `GET /storefront/{slug}`; nothing writes them yet (the admin settings tab,
+  storefront redesign phase 4, will). `storefronts` is not synced to the
+  client, so there is no SQLite counterpart.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has

@@ -10,5 +10,5 @@ final class StorefrontThemes
 {
     public const DEFAULT = 'emerald';
 
-    public const IDS = ['emerald', 'forest', 'navy', 'rose', 'amber', 'slate', 'violet'];
+    public const IDS = ['emerald', 'forest', 'navy', 'rose', 'amber', 'slate', 'violet', 'workshop', 'clinic', 'studio'];
 }

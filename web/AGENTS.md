@@ -271,6 +271,26 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `laravel-server/app/Support/StorefrontThemes.php`, which is the allow-list
   the server validates against. An unknown or missing theme falls back to
   `emerald`. To add a theme: add it to both lists, run that test.
+- **Style presets** (`lib/storefront-presets.ts`, storefront redesign phase 1,
+  2026-11-14; plan and decisions in `docs/storefront-redesign.md`). A preset
+  (`workshop`, `clinic`, `studio`) is a bundle of tokens (fonts, page and ink
+  colours, card radius, button shape, hero variant, default accent) and is
+  also a theme id: the three ids sit in `STOREFRONT_THEMES` and in the PHP
+  allow-list, so the existing admin picker assigns them. A legacy accent
+  theme has no preset of its own and resolves through
+  `resolveStorefrontPreset(themeId, storeType)` to `clinic` for a pharmacy and
+  `workshop` otherwise, keeping its accent. The layout emits
+  `data-storefront-preset` and `storefrontPresetCss()` (the `--sf-*` variables,
+  same `:root:has()` pattern as themes), plus `storefrontAccentCss()` when
+  `storefront.accent` is a valid `#RRGGBB`; `lib/storefront-accent.ts` picks
+  white or ink text on it (WCAG 4.5:1) and reports `readable: false` when
+  neither passes. Adding a look is one `STOREFRONT_PRESETS` entry plus the
+  PHP id. Nothing reads the `--sf-*` variables yet: phase 2 (home page and
+  product card) is the first consumer, so existing stores look unchanged.
+  Fonts (`lib/storefront-fonts.ts`) are self-hosted `next/font/local`
+  declarations with `preload: false`, so a store only downloads the faces its
+  preset's CSS uses. Presets define a light palette only; storefront dark mode
+  reuses the same accent and has not been designed per preset.
 - **Only a super admin chooses a theme**, through
   `PUT /admin/stores/{id}/storefront/theme` (`role:super_admin`) from
   `StorefrontThemePicker` in the admin store detail's Online Storefront card;

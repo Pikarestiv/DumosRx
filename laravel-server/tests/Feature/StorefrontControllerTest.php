@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\StockBatch;
 use App\Models\Store;
+use App\Models\Storefront;
 use App\Models\SystemConfig;
 use App\Models\User;
 use App\Services\Payment\PaymentService;
@@ -142,6 +143,36 @@ class StorefrontControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'products');
         $response->assertJsonMissing(['name' => 'Store B Product']);
+    }
+
+    public function test_show_returns_the_storefront_style_and_store_details(): void
+    {
+        Storefront::create([
+            'user_id' => $this->ownerA->id, 'slug' => 'store-a', 'name' => 'Store A',
+            'primary_store_id' => $this->storeA->id, 'theme' => 'workshop', 'accent' => '#F2B705',
+            'tagline' => 'Wiring and lighting, ready at the counter.', 'whatsapp' => '237600000000',
+            'pickup_minutes' => 20, 'opening_hours' => ['mon' => ['open' => '08:00', 'close' => '18:00']],
+        ]);
+
+        $this->getJson('/api/v1/storefront/store-a')
+            ->assertOk()
+            ->assertJsonPath('storefront.theme', 'workshop')
+            ->assertJsonPath('storefront.accent', '#F2B705')
+            ->assertJsonPath('storefront.tagline', 'Wiring and lighting, ready at the counter.')
+            ->assertJsonPath('storefront.whatsapp', '237600000000')
+            ->assertJsonPath('storefront.pickup_minutes', 20)
+            ->assertJsonPath('storefront.opening_hours.mon.close', '18:00');
+    }
+
+    public function test_show_returns_null_style_and_details_for_a_storefront_that_has_none_set(): void
+    {
+        $storefront = $this->getJson('/api/v1/storefront/store-a')->assertOk()->json('storefront');
+
+        $this->assertSame('emerald', $storefront['theme']);
+        foreach (['accent', 'tagline', 'whatsapp', 'pickup_minutes', 'opening_hours'] as $field) {
+            $this->assertArrayHasKey($field, $storefront);
+            $this->assertNull($storefront[$field], "{$field} should be null until an admin sets it");
+        }
     }
 
     public function test_show_does_not_leak_internal_product_columns()

@@ -5,6 +5,10 @@ import StorefrontLayout from "@/app/store/[store_slug]/layout";
 import StorefrontPage from "@/app/store/[store_slug]/page";
 import type { StorefrontData } from "@/lib/api/storefront-data";
 
+vi.mock("next/font/local", () => ({
+  default: ({ variable }: { variable: string }) => ({ variable }),
+}));
+
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -169,5 +173,26 @@ describe("storefront layout theme", () => {
 
   it.each([undefined, "neon"])("falls back to the default theme for %s", async (theme) => {
     expect(await themeFor(theme)).toBe("emerald");
+  });
+
+  it("styles a pharmacy on the clinic preset until an admin assigns another", async () => {
+    serveStorefront(
+      storefrontData({
+        store: { id: "s1", name: "Grace Pharmacy", currency: "NGN", store_type: "pharmacy" },
+        storefront: { id: "f1", slug: "grace", name: "Grace", theme: "emerald" },
+      }),
+    );
+    const { container } = render(await StorefrontLayout({ params, children: <p>page</p> }));
+
+    expect(container.querySelector("[data-storefront-preset]")?.getAttribute("data-storefront-preset")).toBe("clinic");
+  });
+
+  it("applies the store's own accent colour over the preset's", async () => {
+    serveStorefront(
+      storefrontData({ storefront: { id: "f1", slug: "grace", name: "Grace", theme: "workshop", accent: "#2255AA" } }),
+    );
+    const { container } = render(await StorefrontLayout({ params, children: <p>page</p> }));
+
+    expect(container.querySelector("style")?.textContent).toContain("--primary:#2255AA;");
   });
 });

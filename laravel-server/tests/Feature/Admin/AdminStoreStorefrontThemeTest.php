@@ -63,6 +63,19 @@ class AdminStoreStorefrontThemeTest extends TestCase
     }
 
     #[Test]
+    public function a_style_preset_can_be_assigned_as_the_theme(): void
+    {
+        foreach (['workshop', 'clinic', 'studio'] as $preset) {
+            $this->actingAs($this->userWithRole('super_admin'))
+                ->putJson($this->url(), ['theme' => $preset])
+                ->assertOk()
+                ->assertJson(['theme' => $preset]);
+        }
+
+        $this->assertSame('studio', Storefront::where('user_id', $this->owner->id)->value('theme'));
+    }
+
+    #[Test]
     public function changing_the_theme_marks_every_published_branch_for_rebuild_but_not_unpublished_ones(): void
     {
         $branch = $this->makeStore('Corner Pharmacy Lekki', 'corner-lekki');

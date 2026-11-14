@@ -25,6 +25,11 @@ class Storefront extends Model
         'headline',
         'about',
         'theme',
+        'accent',
+        'tagline',
+        'whatsapp',
+        'pickup_minutes',
+        'opening_hours',
         'primary_store_id',
         'logo_url',
         'banner_url',
@@ -34,6 +39,8 @@ class Storefront extends Model
 
     protected $casts = [
         'social_links' => 'array',
+        'opening_hours' => 'array',
+        'pickup_minutes' => 'integer',
         'is_active' => 'boolean',
     ];
 

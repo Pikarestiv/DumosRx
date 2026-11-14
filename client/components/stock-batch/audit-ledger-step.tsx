@@ -12,6 +12,8 @@ import { AUDIT_LEDGER_GRID_COLS as GRID_COLS } from "./audit-ledger-format";
 import { AuditLedgerRowCells } from "./audit-ledger-row-cells";
 import { AuditLedgerTotalsRow } from "./audit-ledger-totals-row";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
+import type { PreAuditSync } from "@/lib/hooks/use-pre-audit-sync";
+import { AuditPresyncPanel } from "./audit-presync-panel";
 
 const ALL_CATEGORIES = "__all__";
 const LEDGER_ROW_HEIGHT = 49;
@@ -33,7 +35,7 @@ interface AuditLedgerStepProps {
   items: AuditItem[];
   totalItems: number;
   isLoading: boolean;
-  isSyncing: boolean;
+  presync: PreAuditSync;
   isReadOnly?: boolean;
   onUpdateItem: (id: string, patch: Partial<AuditItem>) => void;
   /** Records a count and re-baselines the row against live stock (A-263). */
@@ -64,7 +66,7 @@ export function AuditLedgerStep({
   items,
   totalItems,
   isLoading,
-  isSyncing,
+  presync,
   isReadOnly = false,
   onUpdateItem,
   onCountRow,
@@ -102,6 +104,7 @@ export function AuditLedgerStep({
   );
 
   const { sortKey, direction, toggleSort } = sort;
+  const blockedBySync = presync.state === "syncing" || presync.state === "failed";
 
   const rowsContainerRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -128,7 +131,7 @@ export function AuditLedgerStep({
         Counted Qty starts empty: type what you actually counted, or tick a
         row whose count matched the system. Each entry is checked against
         stock as it stands at that moment.{" "}
-        {isSyncing
+        {presync.state === "syncing"
           ? "Syncing latest stock levels…"
           : `(${items.length} of ${totalItems} item${totalItems === 1 ? "" : "s"} shown, ${countedCount} counted)`}
       </div>
@@ -170,13 +173,15 @@ export function AuditLedgerStep({
         </div>
       </div>
 
-      {isLoading && (
+      <AuditPresyncPanel presync={presync} />
+
+      {isLoading && !blockedBySync && (
         <div className="text-center p-8 text-muted-foreground">
           Loading items...
         </div>
       )}
 
-      {!isLoading && (
+      {!isLoading && !blockedBySync && (
         <div className="border border-border rounded-xl overflow-x-auto">
           <div
             role="table"

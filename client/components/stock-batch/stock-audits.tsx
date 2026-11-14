@@ -64,7 +64,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const { storeProfile } = useStore();
   const storeName = storeProfile?.name || "";
   const [step, setStep] = useState<AuditStep>("ledger");
-  const { isLoading, isSyncing } = useAuditSheetSource();
+  const { isLoading, presync } = useAuditSheetSource();
   const items = useStockAuditDraftStore((state) => state.items);
   const clearDraft = useStockAuditDraftStore((state) => state.clearDraft);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -259,7 +259,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 items={ledger.visibleItems}
                 totalItems={items.length}
                 isLoading={isLoading}
-                isSyncing={isSyncing}
+                presync={presync}
                 isReadOnly={isReadOnly}
                 onUpdateItem={updateLedgerItem}
                 onCountRow={(id, qty) => void countRow(id, qty)}

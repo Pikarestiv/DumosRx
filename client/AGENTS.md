@@ -2008,6 +2008,23 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   submit button until the counter acknowledges the warning. Offline-first is
   non-negotiable: a till with no connectivity for two days must still be able
   to count. Do not turn this into a refusal.
+- **Cycle Count pulls before it lets anyone count** (2026-11-14, a mitigation
+  of A-211, not its fix). `usePreAuditSync()` (`lib/hooks/use-pre-audit-sync.ts`)
+  runs `sync(true)` when the screen opens and `useAuditSheetSource()` neither
+  builds the sheet nor `AuditLedgerStep` renders countable rows until it
+  settles; `AuditPresyncPanel` shows "Syncing the latest stock before you
+  count...". Outcomes: success (or an unlinked till, which has no cloud to
+  pull) refetches products and proceeds; offline, a read-only tab,
+  impersonation or a plan restriction proceeds with a notice that counts are
+  measured against the till's last sync; any other failure while online
+  blocks with Retry and a "Count anyway" that goes through `ConfirmDialog`
+  explaining the risk. A sync already in flight (instant sync, the
+  indicator) answers `SYNC_IN_PROGRESS_ERROR`; the hook polls `isSyncing()`
+  until it ends and pulls once more, at most three attempts, so it never
+  runs a second sync alongside it. A resumed draft with counted rows is
+  never rebuilt (`shouldRebuildAuditSheet`), so its baselines stay; the pull
+  only means rows counted from here re-baseline against fresher stock.
+  Offline counting still works: never turn the offline case into a block.
 - **`COUNT_STALE_AFTER_MINUTES` is 60** (`lib/utils/count-freshness.ts`). The
   auto-sync setting offers instant/5/15/30/60/360 minutes; below 60 the
   warning would be permanent on a store set to 30, and 360 would call a

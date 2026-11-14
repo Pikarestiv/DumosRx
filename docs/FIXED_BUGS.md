@@ -1,3 +1,15 @@
+### A-381 — the Cycle Count ledger showed cost and cost difference to users without view_cost_fields
+- **Fixed:** 2026-11-14, client only, TDD. Found during the release review of #312–#314.
+- **Was:** `client/components/stock-batch/audit-ledger-row-cells.tsx` rendered the cost price, the counted cost (as read-only text when `canEditProductCost` is false) and the cost difference for every row. `audit-ledger-step.tsx` rendered the "Cost Price", "Counted Cost", and "Diff Cost" headers, and `audit-ledger-totals-row.tsx` rendered the cost difference totals. In the review step (`audit-review-step.tsx`), any cost correction displayed the old and new cost prices. Only cost editing was gated on `edit_product_cost`; anyone with `perform_stock_audit` could view all product batch costs.
+- **Now:** `audit-ledger-step.tsx` and `audit-review-step.tsx` check `useHasPermission("view_cost_fields")`. When withheld:
+  (1) The three cost column headers ("Cost Price", "Counted Cost", "Diff Cost") are excluded from the ledger table, and the CSS grid collapses from 11 columns to 8 (`AUDIT_LEDGER_GRID_COLS_NO_COST`).
+  (2) `AuditLedgerRowCells` omits the three cost cells.
+  (3) `AuditLedgerTotalsRow` omits the diff-cost total cell and uses the 8-column grid.
+  (4) Empty state column span dynamically adjusts to `col-span-8`.
+  (5) In `AuditReviewStep`, cost adjustments display "Cost price adjusted" without exposing numeric cost prices.
+- **Coverage:** `client/__tests__/audit-ledger-cost-visibility.test.tsx` (tests hiding headers/cells/totals when withheld, showing them when permitted, column span adjustments, and review step notice).
+- **Compat:** no schema, storage or API changes.
+
 ### A-385 — the sync indicator stayed orange after a sync had finished, so users kept clicking it
 - **Fixed:** 2026-11-14, client only, TDD. Reported by the owner: "sometimes sync is done but the sync indicator still remains orange for several seconds".
 - **Was:** "Pending Sync" is driven by `getSyncQueueCount()` through the `queueCount` query, which refetched only on `addSyncQueueChangeListener` events or its 30s `refetchInterval`. The push drains `_sync_queue` with raw `execute()` (`push-response.ts`, `sync-queue.ts`), which emits no change event, and the post-pull invalidation in `sync()` only matches pulled tables, never `_sync_queue`. So when a sync ended the card fell from "Syncing..." to an orange "Pending Sync" showing the pre-sync count until the next poll, up to 30s. Separately, a click that landed while another caller held the sync mutex (the second indicator instance, the store's background sync) returned `SYNC_IN_PROGRESS_ERROR` and its `finally` set `isSyncInProgress` to false, so the card showed orange with no spinner while a sync was running.

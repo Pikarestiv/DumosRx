@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { CountFreshnessWarning } from "./count-freshness-warning";
 import type { CountFreshness } from "@/lib/hooks/use-count-freshness";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 interface AuditReviewStepProps {
   countedItems: AuditItem[];
@@ -21,6 +22,7 @@ export function AuditReviewStep({
   onStaleAcknowledgedChange,
 }: AuditReviewStepProps) {
   const capsClass = useUppercaseDisplayClass();
+  const canViewCost = useHasPermission("view_cost_fields");
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="text-[17px] font-semibold mb-1.5">Review &amp; submit</div>
@@ -67,7 +69,9 @@ export function AuditReviewStep({
                   )}
                   {costChanged && (
                     <div className="text-[12px] font-semibold text-amber-600">
-                      Cost: {formatCurrency(item.costPrice ?? 0)} → {formatCurrency(item.countedCostPrice ?? 0)}
+                      {canViewCost
+                        ? `Cost: ${formatCurrency(item.costPrice ?? 0)} → ${formatCurrency(item.countedCostPrice ?? 0)}`
+                        : "Cost price adjusted"}
                     </div>
                   )}
                   {sellingChanged && (

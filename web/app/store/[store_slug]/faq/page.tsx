@@ -68,7 +68,7 @@ export default async function StorefrontFaqPage({ params }: FaqPageProps) {
           <span className="text-foreground font-medium">FAQ & Policies</span>
         </nav>
 
-        <StoreFaqSection headingAs="h1" />
+        <StoreFaqSection store={store} headingAs="h1" />
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

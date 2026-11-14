@@ -57,7 +57,7 @@ function renderLedger() {
       items={[item]}
       totalItems={1}
       isLoading={false}
-      isSyncing={false}
+      presync={{ state: "ready", error: null, notice: null, retry: vi.fn(), countAnyway: vi.fn() }}
       onUpdateItem={vi.fn()}
       onCountRow={vi.fn()}
       onClearCount={vi.fn()}

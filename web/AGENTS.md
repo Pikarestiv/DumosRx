@@ -245,9 +245,11 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   re-add either link as a side effect of other work.
 - **Footer** (`storefront-footer.tsx`, takes `storeSlug`, `store`,
   `storefront`): `bg-primary text-primary-foreground`, so it follows the
-  theme; store name plus the first 220 characters of `storefront.about`
-  (else the headline), the shared quick links, phone/email/address via
-  `storeAddressLine()`, copyright, and "Powered by {APP_NAME}" linking
+  theme; store name plus `storefront.about` (else the headline, else
+  `storefrontCopy(store).footerAbout(name)`) clamped to three lines with
+  `line-clamp-3`, the shared quick links, phone/email/address via
+  `storeAddressLine()`, copyright, and "Powered by {WEB_APP_HOST}" (the host
+  of `WEB_APP_URL` without `www.`, from `lib/constants.ts`) linking
   `WEB_APP_URL`. No social links: `storefronts.social_links` exists in the
   schema but `GET /storefront/{slug}` does not expose it; add it to the
   response first if wanted. No text opacity in the footer: white on the
@@ -288,7 +290,16 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   12 sample products, so the home page and shop render something to look at) and
   static export prerendering (`/store/demo`, `/about`, `/locations`, `/faq`,
   `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds without a mock
-  server. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme.
+  server. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and
+  `STOREFRONT_DEMO_STORE_TYPE=<type>` (e.g. `retail`) previews the non-pharmacy copy.
+- **Store-type copy** (`lib/storefront-copy.ts`). `GET /storefront/{slug}`
+  returns `store.store_type` (the selected branch's, since 2026-11-14). Every
+  piece of storefront copy that differs by store type (FAQ, About, Locations
+  subtitle, footer fallback, the order tracker's labels) comes from
+  `storefrontCopy(store)`; do not hardcode pharmacy wording in a component.
+  A missing type means an older API, and is treated as `pharmacy`, so a
+  pharmacy's copy is unchanged; every other type gets neutral retail copy
+  with no prescription Q&A and no dispensary/medication wording.
 - **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`
   (logo + store name, linking home, the nav and the cart) and

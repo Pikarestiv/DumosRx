@@ -31,6 +31,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Audit your pharmacy shelves section by section. Counted quantities start clean, in-progress audits are saved on the device as you count and survive logout, switching user and restarts, and cloud session locking prevents multi-till count collisions.",
     steps: [
       "Navigate to Inventory > Audits and tap 'Start Audit'.",
+      "Wait a moment while the till syncs the latest stock from the cloud. Offline, you can still count; the screen tells you counts are measured against the till's last sync. If the sync fails while online, tap Retry, or 'Count anyway' only if you accept that sales on other tills may be missing.",
       "Walk the shelves and enter your physical counts row by row. Where a quantity matches system records, tap the checkmark to confirm.",
       "Filter the sheet by 'Counted', 'Not Counted', or 'Qty Differences' to review variances.",
       "Need to stop part-way? Logging out, switching account or closing the app keeps the count on this device, and you are reminded first. Sign back in on the same device to carry on; while the till was online, another till can also take the count over.",

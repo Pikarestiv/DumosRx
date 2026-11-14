@@ -198,7 +198,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     name, "Shop now", and "Contact us" when the store has contact details), **Featured Products** (the first 8 of
     the show endpoint's `products`, which the API orders as best sellers,
     in stock first; see `laravel-server/AGENTS.md`, "Which products a
-    storefront lists". The web just slices, so ranking needs no web change), plus "View all N products" → `/catalog`), a headline band
+    storefront lists". The web just slices, so ranking needs no web change; on a phone only the first 4 show, `MOBILE_FEATURED_COUNT`, in a 2-column grid of compact cards whose add button is a round plus beside the price, while sm and up keep all 8 with the full-width Add to Cart), plus "View all N products" → `/catalog`), a headline band
     (`storefront.headline` with fixed supporting copy and "Browse the shop"),
     then `StoreAboutSection` (`#about`), `StoreLocationsSection`
     (`#locations`, only when `hasLocationsToShow()`: more than one branch, or

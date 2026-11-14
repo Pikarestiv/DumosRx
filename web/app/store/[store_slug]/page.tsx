@@ -17,6 +17,7 @@ import { hasContactDetails, viewAllProductsLabel } from "@/lib/storefront-displa
 import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
 
 const FEATURED_PRODUCT_COUNT = 8;
+const MOBILE_FEATURED_COUNT = 4;
 
 interface StorefrontProps {
   params: Promise<{
@@ -103,9 +104,15 @@ export default async function StorefrontPage({
             </p>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {featured.map((product) => (
-                  <ProductCard key={product.id} product={product} storeSlug={store_slug} currency={store.currency} />
+              <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+                {featured.map((product, index) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    storeSlug={store_slug}
+                    currency={store.currency}
+                    className={index >= MOBILE_FEATURED_COUNT ? "hidden sm:flex" : undefined}
+                  />
                 ))}
               </div>
               <div className="flex justify-center">

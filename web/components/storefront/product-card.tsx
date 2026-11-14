@@ -37,6 +37,7 @@ export function ProductCard({ product, storeSlug, currency }: ProductCardProps) 
     <Card className="flex flex-col h-full hover:shadow-lg transition-shadow overflow-hidden">
       {showImage && (
         <div className="aspect-square w-full bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static export: no next/image optimizer */}
           <img
             src={product.image_url ?? undefined}
             alt={displayName}

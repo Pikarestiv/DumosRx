@@ -30,6 +30,7 @@ export function toCloudItem(item: AuditItem): CloudAuditSessionItem {
   return {
     product_id: item.id,
     system_quantity: item.systemQty,
+    baseline_quantity: item.baselineQty ?? null,
     counted_quantity: item.countedQty ?? null,
     cost_price: item.costPrice ?? null,
     counted_cost_price: item.countedCostPrice ?? null,
@@ -75,6 +76,10 @@ export function mergeCloudItemsIntoLocal(
       return {
         ...local,
         counted: true,
+        baselineQty:
+          remote.baseline_quantity !== null && remote.baseline_quantity !== undefined
+            ? Number(remote.baseline_quantity)
+            : local.baselineQty,
         countedQty: Number(remote.counted_quantity),
         countedAt: remote.counted_at ?? local.countedAt,
         countedCostPrice:

@@ -91,6 +91,7 @@ class AuditSessionService
                         'audit_session_id' => $session->id,
                         'product_id' => $item['product_id'],
                         'system_quantity' => $item['system_quantity'] ?? 0,
+                        'baseline_quantity' => $item['baseline_quantity'] ?? null,
                         'counted_quantity' => $item['counted_quantity'] ?? null,
                         'cost_price' => $item['cost_price'] ?? null,
                         'counted_cost_price' => $item['counted_cost_price'] ?? null,
@@ -194,6 +195,7 @@ class AuditSessionService
                     ],
                     [
                         'system_quantity' => $item['system_quantity'] ?? 0,
+                        'baseline_quantity' => $item['baseline_quantity'] ?? null,
                         'counted_quantity' => $item['counted_quantity'] ?? null,
                         'cost_price' => $item['cost_price'] ?? null,
                         'counted_cost_price' => $item['counted_cost_price'] ?? null,

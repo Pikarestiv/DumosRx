@@ -47,12 +47,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
 - **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
 
-#### A-378. `client/` — a row taken over from another till's cloud session has no baseline, so its submit measures against stock at submit time
-
-- **Found:** 2026-11-13, alongside A-376.
-- **What's wrong:** `audit_session_items` stores `system_quantity` (the sheet's opening figure) but not the `baselineQty` the counting till read when the row was counted. `mergeCloudItemsIntoLocal()` fills the count without a baseline, so after a takeover `submitStockAudit()` measures that row against live stock at submit, and any sale between the count and the submit is added back.
-- **Fix:** add a `baseline_quantity` column and payload field beside `system_quantity` (additive; old clients send none and keep today's behaviour), send `item.baselineQty`, and set `baselineQty` from it in the merge.
-
 #### A-380. `client/` — the Activity Log detail panel prints every logged field, batch cost included, to anyone with `view_activity_log`
 
 - **Found:** 2026-11-13, reviewing the batch cost correction (PR #308); pre-existing.

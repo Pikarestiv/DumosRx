@@ -75,6 +75,7 @@ class AuditSessionTest extends TestCase
                 [
                     'product_id' => $this->productA->id,
                     'system_quantity' => 50,
+                    'baseline_quantity' => 50,
                     'cost_price' => 70,
                     'selling_price' => 100,
                     'counted' => false,
@@ -114,6 +115,18 @@ class AuditSessionTest extends TestCase
         ]);
 
         $this->assertDatabaseCount('audit_session_items', 2);
+        $this->assertDatabaseHas('audit_session_items', [
+            'audit_session_id' => $sessionId,
+            'product_id' => $this->productA->id,
+            'system_quantity' => 50,
+            'baseline_quantity' => 50,
+        ]);
+        $this->assertDatabaseHas('audit_session_items', [
+            'audit_session_id' => $sessionId,
+            'product_id' => $this->productB->id,
+            'system_quantity' => 20,
+            'baseline_quantity' => null,
+        ]);
     }
 
     public function test_concurrent_start_from_another_till_is_rejected_with_conflict(): void
@@ -291,6 +304,40 @@ class AuditSessionTest extends TestCase
             'status' => AuditSession::STATUS_ABANDONED,
             'lease_expires_at' => null,
         ]);
+    }
+
+    public function test_baseline_quantity_persisted_on_sync_and_returned_for_takeover(): void
+    {
+        $startRes = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id, 'X-Device-Id' => 'TILL-01'])
+            ->postJson('/api/v1/app/audit-sessions', ['items' => []]);
+
+        $sessionId = $startRes->json('session.id');
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/sync-items", [
+                'till_id' => 'TILL-01',
+                'lease_version' => 1,
+                'items' => [[
+                    'product_id' => $this->productA->id,
+                    'system_quantity' => 50,
+                    'baseline_quantity' => 50,
+                    'counted_quantity' => 52,
+                    'counted' => true,
+                    'counted_at' => now()->toIso8601String(),
+                ]],
+            ])
+            ->assertStatus(200);
+
+        $activeRes = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id])
+            ->getJson('/api/v1/app/audit-sessions/active?include_items=1');
+
+        $activeRes->assertStatus(200);
+        $items = $activeRes->json('session.items');
+        $this->assertNotEmpty($items);
+        $this->assertEquals(50, (float) $items[0]['baseline_quantity']);
     }
 }
 

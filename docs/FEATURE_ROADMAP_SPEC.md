@@ -138,6 +138,11 @@ Phase 1, the offline intent router, has shipped (`client/AGENTS.md`, "In-app Ass
 - **Revisit if:** there's demand for accountant-facing exports or a genuine cash-flow-vs-accrual distinction.
 - **Effort:** ~3–5 days (new ledger table + migration + query rewrites).
 
+### Online store: owner-chosen featured products (postponed 2026-11-14)
+
+- **Current state:** the storefront home page's eight featured products are the store's best sellers, ranked automatically (`StorefrontCatalogService::getLandingProducts()`, refreshed nightly by `storefront:refresh-featured`). An owner cannot pin or hide a product from that row.
+- **What to build:** a per-product "featured" flag (synced `products` column, client toggle) that pins flagged products ahead of the ranked best sellers. Postponed by the owner when the best-seller ranking shipped.
+
 ### Online store: stop two customers buying the last unit
 
 - **Current state:** stock is only deducted when the store fulfils an online order from the POS, not at storefront checkout, so two customers can both order the last unit before either is fulfilled. A store with **Allow sales beyond recorded stock** on records a confirmed oversell as owed units; the checkout race is unchanged.

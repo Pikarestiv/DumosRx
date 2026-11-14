@@ -127,6 +127,7 @@ tracks current behavior.
 
 ## Online Storefront (`web/`)
 - Per-store public storefront at `/store/[slug]`, switched on per store (plan-gated) with a 6-month slug-change cooldown; products show online by default, with a per-product "Show Online" switch
+- Home page features the store's eight best sellers (last 90 days, units and revenue weighted equally, in stock first), refreshed nightly at 23:00 Lagos only when the top eight changed
 - Home, Shop (searchable, paginated catalog) and checkout, with server-verified Paystack among the payment methods; multi-branch owners get one storefront with a branch picker
 - Static pages rebuild automatically (debounced) after a store goes online/offline or changes slug or published details, so a change is live after the next rebuild, not instantly
 

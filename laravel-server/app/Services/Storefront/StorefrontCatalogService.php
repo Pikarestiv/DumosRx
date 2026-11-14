@@ -11,12 +11,19 @@ use App\Services\SubscriptionService;
 use App\Support\StorefrontThemes;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class StorefrontCatalogService
 {
     public const MAX_STOREFRONT_PRODUCTS = 50;
     public const PER_PAGE = 50;
+    public const FEATURED_PRODUCT_COUNT = 8;
+    public const BEST_SELLER_WINDOW_DAYS = 90;
+    public const BEST_SELLER_UNITS_WEIGHT = 0.5;
+    public const BEST_SELLER_REVENUE_WEIGHT = 0.5;
+    public const NOT_SOLD_PAYMENT_STATUSES = ['failed', 'refunded'];
 
     public function __construct(
         private readonly SubscriptionService $subscriptionService,
@@ -135,12 +142,46 @@ class StorefrontCatalogService
      */
     public function getLandingProducts(Store $store, int $limit = self::MAX_STOREFRONT_PRODUCTS): Collection
     {
+        $sales = $this->bestSellerTotals($store);
+        $peaks = DB::query()->fromSub($sales, 'totals')
+            ->selectRaw('MAX(units) AS max_units, MAX(revenue) AS max_revenue');
+
         return $this->storeProducts($store)
+            ->select('products.*')
+            ->leftJoinSub($sales, 'best_sellers', 'best_sellers.product_id', '=', 'products.id')
+            ->crossJoinSub($peaks, 'best_seller_peaks')
             ->with('category')
             ->inStockFirstAt($store->id)
-            ->orderBy('name')
+            ->orderByRaw(
+                '(? * COALESCE(best_sellers.units / NULLIF(best_seller_peaks.max_units, 0), 0)'
+                .' + ? * COALESCE(best_sellers.revenue / NULLIF(best_seller_peaks.max_revenue, 0), 0)) DESC',
+                [self::BEST_SELLER_UNITS_WEIGHT, self::BEST_SELLER_REVENUE_WEIGHT],
+            )
+            ->orderBy('products.name')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function featuredProductIds(Store $store): array
+    {
+        return $this->getLandingProducts($store, self::FEATURED_PRODUCT_COUNT)->pluck('id')->all();
+    }
+
+    private function bestSellerTotals(Store $store): QueryBuilder
+    {
+        return DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->whereIn('sale_items.product_id', $this->storeProducts($store)->select('products.id'))
+            ->where(fn ($q) => $q->where('sales.store_id', $store->id)->orWhereNull('sales.store_id'))
+            ->where('sales.transaction_date', '>=', now()->utc()->subDays(self::BEST_SELLER_WINDOW_DAYS))
+            ->whereNotIn('sales.payment_status', self::NOT_SOLD_PAYMENT_STATUSES)
+            ->whereNull('sales.deleted_at')
+            ->whereNull('sale_items.deleted_at')
+            ->groupBy('sale_items.product_id')
+            ->selectRaw('sale_items.product_id, SUM(sale_items.quantity) * 1.0 AS units, SUM(sale_items.total_price) * 1.0 AS revenue');
     }
 
     /**

@@ -38,15 +38,10 @@ interface BusinessInformationCardProps {
   localLogo: string;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveLogo: () => void;
-  localStoreSlug?: string;
-  setLocalStoreSlug?: (val: string) => void;
-  storeSlugChangedAt?: string | null;
   localPcn: string;
   setLocalPcn: (val: string) => void;
   showRetailSuggestions?: boolean;
   setShowRetailSuggestions?: (val: boolean) => void;
-  onlineStoreEnabled?: boolean;
-  setOnlineStoreEnabled?: (val: boolean) => void;
   loyaltyProgramEnabled?: boolean;
   setLoyaltyProgramEnabled?: (val: boolean) => void;
   canAccessLoyaltyProgramPlan?: boolean;
@@ -70,22 +65,16 @@ export function BusinessInformationCard({
   localLogo,
   handleLogoUpload,
   handleRemoveLogo,
-  localStoreSlug,
-  setLocalStoreSlug,
-  storeSlugChangedAt,
   localPcn,
   setLocalPcn,
   showRetailSuggestions = false,
   setShowRetailSuggestions,
-  onlineStoreEnabled = false,
-  setOnlineStoreEnabled,
   loyaltyProgramEnabled = false,
   setLoyaltyProgramEnabled,
   canAccessLoyaltyProgramPlan = false,
   handleSaveProfile,
 }: BusinessInformationCardProps) {
   const {
-    canUseEcommerce,
     canCustomizeTheme,
     withRestriction,
     getUpgradeMessage,
@@ -248,16 +237,10 @@ export function BusinessInformationCard({
         <StoreProfileSection
           storeType={storeType}
           isEditingProfile={isEditingProfile}
-          localStoreSlug={localStoreSlug}
-          setLocalStoreSlug={setLocalStoreSlug}
-          storeSlugChangedAt={storeSlugChangedAt}
           localPcn={localPcn}
           setLocalPcn={setLocalPcn}
           showRetailSuggestions={showRetailSuggestions}
           setShowRetailSuggestions={setShowRetailSuggestions}
-          onlineStoreEnabled={onlineStoreEnabled}
-          setOnlineStoreEnabled={setOnlineStoreEnabled}
-          canUseEcommerce={canUseEcommerce}
           loyaltyProgramEnabled={loyaltyProgramEnabled}
           setLoyaltyProgramEnabled={setLoyaltyProgramEnabled}
           canAccessLoyaltyProgramPlan={canAccessLoyaltyProgramPlan}

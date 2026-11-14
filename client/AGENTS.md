@@ -4694,15 +4694,19 @@ behaviour without it, so no caller had to change at once.
   and it is the only tab a manager outright loses. One tick restores it, and
   that tick previously did nothing.
 - `manage_online_store` — the storefront slice, and the one key here that
-  **cuts across tabs rather than owning one**: the Store Profile block inside
-  Business Info (`store-profile-section.tsx` — the public URL slug and the
-  Enable Online Store switch) and the Paystack payout onboarding inside
+  **cuts across tabs rather than owning one**: the Online Storefront card on
+  the Business Info tab, directly under Business Information
+  (`online-storefront-card.tsx` — the public URL slug and the Enable Online
+  Store switch; moved out of the Store Profile block 2026-11-14, with its own
+  edit and Save that call the same `handleSaveProfile`, so saving it also
+  saves any other pending Business Info edits) and the Paystack payout onboarding inside
   Payment Methods (`online-payments-section.tsx`, gated from
   `panels/payment-methods-panel.tsx`). Both exist only to make the public
   storefront work, so the key sits **on top of** each tab's own rather than
-  replacing it. The Store Profile block returns `null` when nothing is left
-  to show (a retail store whose group lacks the key and whose plan has no
-  loyalty program) instead of an empty bordered box with a heading in it.
+  replacing it. The Online Storefront card returns `null` without the key, and the
+  Store Profile block (`store-profile-section.tsx`, now only PCN, retail
+  suggestions and the loyalty switch) returns `null` when nothing is left
+  to show (a retail store whose plan has no loyalty program) instead of an empty bordered box with a heading in it.
   `products.show_online` is deliberately **left under `manage_products`**: it
   is a per-product catalog attribute set in three places — the Add Product
   form, the CSV/XLSX importer and the catalog toolbar's "Online" dropdown

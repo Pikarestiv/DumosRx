@@ -151,7 +151,7 @@ export function useSyncIndicatorState() {
         setShowAuthModal(true);
       }
     } finally {
-      setIsSyncInProgress(false);
+      setIsSyncInProgress(checkIsSyncing());
     }
   }, [isSyncInProgress, isImpersonating, isReadOnlyTab, storeRefusal]);
 

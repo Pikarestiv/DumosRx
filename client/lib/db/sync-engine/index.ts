@@ -13,6 +13,7 @@ import {
 } from "./sync-outcome";
 import { resolveSyncRun } from "./sync-run";
 import { refusedRound } from "./store-refusal";
+import { refreshPendingCount } from "./pending-count-refresh";
 import { apiClient } from "@/lib/api/client";
 import { queryClient } from "@/lib/query-client";
 import { query, execute, isTauri, isWriterTab } from "../core";
@@ -249,6 +250,7 @@ async function runSync(
       error: error instanceof Error ? error.message : error,
     };
   } finally {
+    await refreshPendingCount();
     isSyncInProgress = false;
   }
 }

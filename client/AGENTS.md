@@ -1972,9 +1972,22 @@ component itself only renders.
   (30 min) only escalates the visual urgency. Gating visibility on it let a
   real backlog of unsynced sales sit behind a green "Cloud Active".
 - The queue count is event-driven via `addSyncQueueChangeListener`, with a
-  30s `refetchInterval` as a slow safety net for a drain that emits no
-  change event — it is no longer the 5s poll against main-thread sql.js it
-  once was.
+  30s `refetchInterval` as a slow safety net — it is no longer the 5s poll
+  against main-thread sql.js it once was. The sync engine's own drain
+  (`DELETE FROM _sync_queue` after a push, pull reconcile, sync commands)
+  goes through raw `execute()` and emits no change event, so `sync()`'s
+  `finally` awaits `refreshPendingCount()` (`sync-engine/pending-count-refresh.ts`),
+  which refetches every query tagged `_sync_queue` **before** the mutex is
+  released. Without it the indicator went from "Syncing..." back to an
+  orange "Pending Sync" with the pre-sync count for up to 30s (A-385). It
+  deliberately does not call `queueTableInvalidation("_sync_queue")`: that
+  also fires the queue-change listeners, and the instant-sync daemon would
+  answer every completed sync with another one.
+- `runSync`'s `finally` sets `isSyncInProgress` from the engine's
+  `isSyncing()`, not `false`: a click that hits the mutex while another
+  caller's sync runs (the other indicator instance, the store's background
+  sync) keeps showing "Syncing..." until the 2s poll sees it end, instead of
+  dropping to orange and inviting another click (A-385).
 - Collapsed rendering: the collapsed rail shows the bare icon with no status
   border or background, and the expanded state is one persistent shape
   revealed via max-width/max-height + opacity on the sidebar's own 300ms

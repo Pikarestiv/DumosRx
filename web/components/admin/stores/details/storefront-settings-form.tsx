@@ -22,6 +22,39 @@ interface StorefrontSettingsFormProps {
   editable: boolean;
 }
 
+interface FormState {
+  tagline: string;
+  whatsapp: string;
+  pickup: string;
+  hours: OpeningHours;
+  locale: StorefrontLocale;
+  paymentInstructions: string;
+  deliveryAvailable: boolean;
+  deliveryNote: string;
+  payOnDelivery: boolean;
+  showServices: boolean;
+  ownerStyle: boolean;
+  allowSwitch: boolean;
+}
+
+const initialFormState = (storefront: AdminStoreDetail["storefront"]): FormState => {
+  const locale = resolveLocale(storefront.locale);
+  return {
+    tagline: storefront.tagline ?? "",
+    whatsapp: storefront.whatsapp ?? "",
+    pickup: storefront.pickup_minutes ? String(storefront.pickup_minutes) : "",
+    hours: storefront.opening_hours ?? {},
+    locale,
+    paymentInstructions: storefront.payment_instructions ?? "",
+    deliveryAvailable: Boolean(storefront.delivery_available),
+    deliveryNote: storefront.delivery_note ?? "",
+    payOnDelivery: Boolean(storefront.pay_on_delivery),
+    showServices: Boolean(storefront.show_services),
+    ownerStyle: Boolean(storefront.owner_style_enabled),
+    allowSwitch: resolveEnabledLocales(locale, storefront.enabled_locales).length > 1,
+  };
+};
+
 const WHATSAPP_PATTERN = /^\+[0-9 ()-]{6,31}$/;
 const TAGLINE_MAX = 140;
 
@@ -29,18 +62,9 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
   const save = useUpdateStoreStorefrontSettingsMutation();
   const { storefront } = store;
   const preset = resolveStorefrontPreset(storefront.theme, store.store_type);
-  const [tagline, setTagline] = useState(storefront.tagline ?? "");
-  const [whatsapp, setWhatsapp] = useState(storefront.whatsapp ?? "");
-  const [pickup, setPickup] = useState(storefront.pickup_minutes ? String(storefront.pickup_minutes) : "");
-  const [hours, setHours] = useState<OpeningHours>(storefront.opening_hours ?? {});
-  const [locale, setLocale] = useState<StorefrontLocale>(resolveLocale(storefront.locale));
-  const [paymentInstructions, setPaymentInstructions] = useState(storefront.payment_instructions ?? "");
-  const [deliveryAvailable, setDeliveryAvailable] = useState(Boolean(storefront.delivery_available));
-  const [deliveryNote, setDeliveryNote] = useState(storefront.delivery_note ?? "");
-  const [payOnDelivery, setPayOnDelivery] = useState(Boolean(storefront.pay_on_delivery));
-  const [showServices, setShowServices] = useState(Boolean(storefront.show_services));
-  const [ownerStyle, setOwnerStyle] = useState(Boolean(storefront.owner_style_enabled));
-  const [allowSwitch, setAllowSwitch] = useState(resolveEnabledLocales(resolveLocale(storefront.locale), storefront.enabled_locales).length > 1);
+  const [form, setForm] = useState<FormState>(() => initialFormState(storefront));
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((prev) => ({ ...prev, [key]: value }));
+  const { tagline, whatsapp, pickup, hours, locale, paymentInstructions, deliveryAvailable, deliveryNote, payOnDelivery, showServices, ownerStyle, allowSwitch } = form;
 
   const accentValid = accent === "" || isHexColour(accent);
   const contrast = isHexColour(accent) ? readableForeground(accent, preset.ink) : null;
@@ -135,7 +159,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
           maxLength={TAGLINE_MAX}
           disabled={!editable}
           placeholder="Leave blank to use the default for this store type"
-          onChange={(event) => setTagline(event.target.value)}
+          onChange={(event) => update("tagline", event.target.value)}
         />
       </div>
 
@@ -150,7 +174,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             disabled={!editable}
             aria-invalid={!whatsappValid}
             placeholder="+237 6 00 00 00 00"
-            onChange={(event) => setWhatsapp(event.target.value)}
+            onChange={(event) => update("whatsapp", event.target.value)}
           />
           {!whatsappValid ? <p className="text-xs text-destructive">Start with + and the country code, e.g. +237 6 00 00 00 00.</p> : null}
         </div>
@@ -165,13 +189,13 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             disabled={!editable}
             aria-invalid={!pickupValid}
             placeholder="20"
-            onChange={(event) => setPickup(event.target.value)}
+            onChange={(event) => update("pickup", event.target.value)}
           />
           {!pickupValid ? <p className="text-xs text-destructive">A whole number from 1 to 1440.</p> : null}
         </div>
       </div>
 
-      <StorefrontHoursEditor hours={hours} onChange={setHours} disabled={!editable} />
+      <StorefrontHoursEditor hours={hours} onChange={(value) => update("hours", value)} disabled={!editable} />
 
       <StorefrontCheckoutFields
         paymentInstructions={paymentInstructions}
@@ -179,10 +203,10 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
         deliveryNote={deliveryNote}
         payOnDelivery={payOnDelivery}
         disabled={!editable}
-        onPaymentInstructions={setPaymentInstructions}
-        onDeliveryAvailable={setDeliveryAvailable}
-        onDeliveryNote={setDeliveryNote}
-        onPayOnDelivery={setPayOnDelivery}
+        onPaymentInstructions={(value) => update("paymentInstructions", value)}
+        onDeliveryAvailable={(value) => update("deliveryAvailable", value)}
+        onDeliveryNote={(value) => update("deliveryNote", value)}
+        onPayOnDelivery={(value) => update("payOnDelivery", value)}
       />
 
       <fieldset className="space-y-3">
@@ -195,7 +219,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             id="storefront-locale"
             value={locale}
             disabled={!editable}
-            onChange={(event) => setLocale(resolveLocale(event.target.value))}
+            onChange={(event) => update("locale", resolveLocale(event.target.value))}
             className="flex h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
           >
             {STOREFRONT_LOCALES.map((code) => (
@@ -210,7 +234,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             type="checkbox"
             checked={allowSwitch}
             disabled={!editable}
-            onChange={(event) => setAllowSwitch(event.target.checked)}
+            onChange={(event) => update("allowSwitch", event.target.checked)}
           />
           Let visitors switch language
         </label>
@@ -219,7 +243,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Services</legend>
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" className="mt-1" checked={showServices} disabled={!editable} onChange={(event) => setShowServices(event.target.checked)} />
+          <input type="checkbox" className="mt-1" checked={showServices} disabled={!editable} onChange={(event) => update("showServices", event.target.checked)} />
           <span>
             Show this store's services on the storefront
             <span className="block text-xs text-muted-foreground">
@@ -237,7 +261,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             className="mt-1"
             checked={ownerStyle}
             disabled={!editable}
-            onChange={(event) => setOwnerStyle(event.target.checked)}
+            onChange={(event) => update("ownerStyle", event.target.checked)}
           />
           <span>
             Let the store owner change the look themselves from the till

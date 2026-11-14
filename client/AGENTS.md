@@ -7754,6 +7754,15 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - The top search bar in `POSLayoutHeader` is the single search input for the entire POS, dynamically adapting its placeholder and search target to the active tab (`Products` vs `Services`).
   - Redundant duplicate search bars inside the Services tab are removed on desktop, leaving only a mobile input on small screens.
 
+## Fonts are self-hosted (2026-11-14)
 
-
-
+`app/layout.tsx` in both `client/` and `web/` loads Inter (`--font-sans`) and
+Montserrat (`--font-heading`) with `next/font/local` from `app/fonts/*.woff2`
+(the variable, latin-subset files from the Fontsource packages, SIL Open Font
+License). They used to come from `next/font/google`, which fetches the fonts
+from Google at **build** time: a flaky runner network failed the dev deploy
+("Module not found ... font/google"), and `client/` is an offline-first PWA, so
+the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
+`fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
+contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
+update the `localFont` call; do not reintroduce `next/font/google`.

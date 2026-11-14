@@ -46,7 +46,7 @@ export function OnlineStorefrontCard({
 
   return (
     <Card>
-      <CardHeader className="pb-4">
+      <CardHeader>
         <CardTitle>Online Storefront</CardTitle>
         <CardDescription>
           Your public online store, where customers can browse and order.

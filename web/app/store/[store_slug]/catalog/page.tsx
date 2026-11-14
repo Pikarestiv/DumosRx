@@ -9,6 +9,7 @@ import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { getStorefrontData, getStorefrontProducts } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
+import { DISPLAY_FONT } from "@/lib/storefront-styles";
 import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
 
 interface CatalogPageProps {
@@ -70,7 +71,7 @@ export default async function StorefrontCatalogPage({
         </nav>
 
         <div className="flex items-center justify-between">
-          <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
+          <h1 className={`${DISPLAY_FONT} text-3xl sm:text-4xl`}>
             Shop
           </h1>
         </div>
@@ -79,6 +80,7 @@ export default async function StorefrontCatalogPage({
           <StorefrontCatalogView
             storeSlug={store_slug}
             currency={store.currency}
+            whatsapp={storefront?.whatsapp}
             initialData={initialCatalog}
           />
         </Suspense>

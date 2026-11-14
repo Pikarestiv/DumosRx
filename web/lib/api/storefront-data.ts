@@ -1,4 +1,4 @@
-import { DEMO_PAGINATED_PRODUCTS, DEMO_STOREFRONT_DATA } from "@/lib/api/storefront-demo-data";
+import { DEMO_STOREFRONT_DATA, demoCatalog } from "@/lib/api/storefront-demo-data";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 export interface StorefrontStore {
@@ -114,6 +114,8 @@ export async function getStorefrontData(
   }
 }
 
+const PRODUCTS_REQUEST_TIMEOUT_MS = 15_000;
+
 export interface StorefrontCategory {
   id: string;
   name: string;
@@ -145,8 +147,8 @@ export async function getStorefrontProducts(
   store_slug: string,
   options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string },
 ): Promise<PaginatedStorefrontProducts | null> {
-  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
-    return DEMO_PAGINATED_PRODUCTS;
+  if (process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1" && store_slug === "demo") {
+    return demoCatalog(options);
   }
 
   const apiUrl =
@@ -163,7 +165,9 @@ export async function getStorefrontProducts(
 
   let res: Response;
   try {
-    res = await fetch(`${apiUrl}/storefront/${store_slug}/products${queryStr}`);
+    res = await fetch(`${apiUrl}/storefront/${store_slug}/products${queryStr}`, {
+      signal: AbortSignal.timeout(PRODUCTS_REQUEST_TIMEOUT_MS),
+    });
   } catch (error) {
     throw new StorefrontFetchError(
       `Could not reach the API for /store/${store_slug}/products: ` +

@@ -244,8 +244,23 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     every deployed API returns `product_count` (the same release as this
     change). One product reads "View all 1 product". The shop page's own count comes from its paginated `meta.total`.
   - Shop (`/catalog`, labelled **Shop** in breadcrumbs, title and heading;
-    the route name stays `catalog` so old links work): search, category
-    pills and pagination via `StorefrontCatalogView`.
+    the route name stays `catalog` so old links work; rebuilt 2026-11-14,
+    storefront redesign phase 3). The page shell and its first 50 products are
+    built statically, but `StorefrontCatalogView` (via `useStorefrontCatalog`)
+    **refetches page 1 from `GET /storefront/{slug}/products` on every load**,
+    so prices, stock and new products are live and a build never has to be
+    redone for them. Search filters as the user types (350 ms debounce,
+    stale responses discarded; there is no Search button) and starts from
+    `?q=`, which the header search form sets. Categories are a sticky sidebar at
+    lg+ and a horizontally scrolling chip row below it, from the response's
+    `categories` (id, name, count). There is no pagination: pages of 48 append
+    as the sentinel nears the viewport (`IntersectionObserver`), with a "Load
+    more products" button always present as the keyboard and no-observer
+    fallback, and duplicates are dropped because stock changes can shift
+    offsets. The endpoint is throttled at 120 requests a minute per IP
+    (`storefront-read`), which debounced typing plus scrolling stays well
+    inside. Server-rendered products and per-product pages are deliberately
+    not built (static export; see `docs/storefront-redesign.md`).
   - `/about`, `/locations`, `/faq` stay as routes so old links and anything
     indexed keep resolving, and render the same section components as the
     home page (with `headingAs="h1"`). Never fork their content back into the
@@ -328,8 +343,12 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   12 sample products, so the home page and shop render something to look at) and
   static export prerendering (`/store/demo`, `/about`, `/locations`, `/faq`,
   `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds without a mock
-  server. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and
-  `STOREFRONT_DEMO_STORE_TYPE=<type>` (e.g. `retail`) previews the non-pharmacy copy.
+  server. `next.config.ts` republishes the flag to the browser as
+  `NEXT_PUBLIC_STOREFRONT_SANDBOX`, because the shop refetches its products at
+  runtime and would otherwise call a real API; `demoCatalog()` answers search and
+  category filters from the demo products. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and
+  `STOREFRONT_DEMO_STORE_TYPE=<type>` (e.g. `retail`) previews the non-pharmacy copy, and
+  `STOREFRONT_DEMO_ACCENT=#RRGGBB` previews an accent override.
 - **Store-type copy** (`lib/storefront-copy.ts`). `GET /storefront/{slug}`
   returns `store.store_type` (the selected branch's, since 2026-11-14). Every
   piece of storefront copy that differs by store type (FAQ, About, Locations

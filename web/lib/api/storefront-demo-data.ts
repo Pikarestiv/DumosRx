@@ -64,18 +64,34 @@ export const DEMO_STOREFRONT_DATA: StorefrontData = {
   product_count: DEMO_PRODUCTS.length,
 };
 
-export const DEMO_PAGINATED_PRODUCTS: PaginatedStorefrontProducts = {
-  data: DEMO_PRODUCTS,
-  links: { first: null, last: null, prev: null, next: null },
-  meta: {
-    current_page: 1,
-    from: 1,
-    last_page: 1,
-    path: "/storefront/demo/products",
-    per_page: 50,
-    to: DEMO_PRODUCTS.length,
-    total: DEMO_PRODUCTS.length,
-  },
-  categories: [],
-  store: { id: "demo", name: "Demo Pharmacy", currency: "NGN" },
-};
+const DEMO_STORE_SUMMARY = { id: "demo", name: DEMO_NAME, currency: "NGN" };
+
+export function demoCatalog(options?: { q?: string; category?: string; page?: number }): PaginatedStorefrontProducts {
+  const term = options?.q?.trim().toLowerCase();
+  const matches = DEMO_PRODUCTS.filter(
+    (product) =>
+      (!term || product.name.toLowerCase().includes(term)) &&
+      (!options?.category || product.category?.name === options.category),
+  );
+  const categories = DEMO_CATEGORIES.map((name) => ({
+    id: name,
+    name,
+    count: DEMO_PRODUCTS.filter((product) => product.category?.name === name).length,
+  }));
+
+  return {
+    data: matches,
+    links: { first: null, last: null, prev: null, next: null },
+    meta: {
+      current_page: 1,
+      from: matches.length ? 1 : null,
+      last_page: 1,
+      path: "/storefront/demo/products",
+      per_page: 48,
+      to: matches.length || null,
+      total: matches.length,
+    },
+    categories,
+    store: DEMO_STORE_SUMMARY,
+  };
+}

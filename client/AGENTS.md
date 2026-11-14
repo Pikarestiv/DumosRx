@@ -2540,13 +2540,13 @@ There are two distinct workflows for selling goods sourced outside the store:
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
    - **Trigger & UI:** A product cart line shows the amber `"Source outside"` pill only when
-     `quantity >= stock` (which includes `stock <= 0`), with the status as separate text beside
-     it: `"Out of stock"`, `"N short"`, or a muted `"All shelf stock used"` when the cart holds
-     exactly the shelf stock. Service lines never show it. Below the shelf level there is no
-     control at all (owner decision, 2026-11-13: the always-visible link under every line cost
-     a row of height each), so sourcing outside because the shelf units are damaged or
+     `quantity > stock` (which includes `stock <= 0`), with the status as separate text beside
+     it: `"Out of stock"` or `"N short"`. Service lines never show it. At or below the shelf
+     level there is no control at all (owner decisions: 2026-11-13, the always-visible link
+     under every line cost a row of height each; 2026-11-14, a line holding exactly the shelf
+     stock no longer offers it, and the muted "All shelf stock used" status is gone), so sourcing outside because the shelf units are damaged or
      reserved is no longer offered from the cart line: write the damaged units off as a stock
-     adjustment first, or raise the quantity to the shelf level, and the pill appears.
+     adjustment first, or raise the quantity above the shelf level, and the pill appears.
      Clicking it opens `SpotSourceDialog`, whose "Source all externally" toggle still covers
      unusable shelf units at that point. The pill text is `text-amber-800 dark:text-amber-400`
      (amber-700 measured 4.15:1 on its own tint). A spot-sourced line shows a "Spot Sourced"
@@ -6047,7 +6047,8 @@ same tab session still gets its own fresh one-time retry.
     labels at 390×844 in light and dark: one line, unclipped, the spot cost
     visible, at least 6px clear of the quantity stepper on either axis, and
     the delete backdrop transparent at rest; "Source outside" absent on an
-    in-stock line until its quantity reaches the shelf stock; the two-line
+    in-stock line even at exactly the shelf stock, and offered with "1 short"
+    once a backordered line goes one over; the two-line
     name; and "Clear cart" at >= 4.5:1. `e2e/layout-metrics.ts` composites
     translucent backgrounds when it measures contrast (set `E2E_SCREENSHOT_DIR` to keep the
     screenshots; dark is applied by swapping the `<html>` class, which is all

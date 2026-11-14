@@ -26,7 +26,7 @@ const faqs = [
     questions: [
       {
         q: "How do I sell products sourced from neighboring stores or outside?",
-        a: "At the Point of Sale, click 'Source outside' on a cart item whose quantity is more than you have in stock (or click an out-of-stock product). Enter what you paid the neighboring shop and select whether you paid from the Cash Drawer or on Owner Credit. The customer receives a receipt for your normal price, your profit margin is calculated instantly, and if cash was taken from the drawer, your Daily Close register balances automatically without manual notes.",
+        a: "At the Point of Sale, click an out-of-stock product, or, when the store allows sales beyond recorded stock, click 'Source outside' on a cart item whose quantity is more than you have in stock. Enter what you paid the neighboring shop and select whether you paid from the Cash Drawer or on Owner Credit. The customer receives a receipt for your normal price, your profit margin is calculated instantly, and if cash was taken from the drawer, your Daily Close register balances automatically without manual notes.",
       },
       {
         q: "Can I sell items when physical stock arrives before paperwork is entered?",

@@ -2563,7 +2563,9 @@ There are two distinct workflows for selling goods sourced outside the store:
      under every line cost a row of height each; 2026-11-14, a line holding exactly the shelf
      stock no longer offers it, and the muted "All shelf stock used" status is gone), so sourcing outside because the shelf units are damaged or
      reserved is no longer offered from the cart line: write the damaged units off as a stock
-     adjustment first, or raise the quantity above the shelf level, and the pill appears.
+     adjustment first, or (only when the store allows sales beyond recorded stock; otherwise
+     the cart stops at the shelf level) raise the quantity above it and the pill appears.
+     An out-of-stock product tile still opens the dialog directly either way.
      Clicking it opens `SpotSourceDialog`, whose "Source all externally" toggle still covers
      unusable shelf units at that point. The pill text is `text-amber-800 dark:text-amber-400`
      (amber-700 measured 4.15:1 on its own tint). A spot-sourced line shows a "Spot Sourced"

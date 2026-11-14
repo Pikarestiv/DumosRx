@@ -32,6 +32,7 @@ export const transformProduct = (apiData: ProductWithDetails): Product => ({
       ? Number(apiData.last_bought_price)
       : null,
   showOnline: apiData.show_online === 1,
+  imageKey: apiData.image_key ?? null,
   requiresPrescription: apiData.requires_prescription === 1,
   isControlled: apiData.is_controlled === 1,
   status: (() => {

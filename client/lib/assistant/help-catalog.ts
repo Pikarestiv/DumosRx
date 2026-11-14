@@ -1,3 +1,5 @@
+import { CATALOG_HELP_TOPICS } from "./help-catalog-catalog";
+
 export interface HelpTopic {
   id: string;
   title: string;
@@ -315,23 +317,5 @@ export const HELP_TOPICS: HelpTopic[] = [
       /\bhow (do|to|can) (i |we )?(re[- ]?link|reconnect) (a |the )?till\b/,
     ],
   },
-  {
-    id: "print_labels",
-    title: "Print barcode labels",
-    href: "/inventory/catalog",
-    steps: [
-      "Go to Inventory > Catalog",
-      "Right-click the product and choose Print barcode label",
-      "Enter how many labels and pick Label roll or A4 sheet",
-      "On a partly used A4 sheet, set Start at position, then tap Print",
-      "For many products at once, filter the catalog and tap Print labels beside the search box",
-    ],
-    keywords: ["barcode label", "price label", "print labels", "sticker", "label sheet"],
-    phrases: [
-      /print (a |the |some |my )?(barcode |price |product )?(labels?|stickers?|tags?)/,
-      /(barcode|price|product) (labels?|stickers?|tags?)/,
-      /label (sheets?|rolls?|printer)/,
-    ],
-    requiredPermission: "print_product_labels",
-  },
+  ...CATALOG_HELP_TOPICS,
 ];

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 import { formatMoney } from "@/lib/utils/currency";
 import { toDisplayTitle } from "@/lib/storefront-display";
+import { useState } from "react";
 
 interface ProductCardProps {
   product: StorefrontProduct;
@@ -19,6 +20,8 @@ interface ProductCardProps {
 export function ProductCard({ product, storeSlug, currency }: ProductCardProps) {
   const cart = useCart(storeSlug);
   const displayName = toDisplayTitle(product.name);
+  const [imageFailed, setImageFailed] = useState(false);
+  const showImage = Boolean(product.image_url) && !imageFailed;
 
   const handleAddToCart = () => {
     cart.addItem({
@@ -31,7 +34,22 @@ export function ProductCard({ product, storeSlug, currency }: ProductCardProps) 
   };
 
   return (
-    <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">
+    <Card className="flex flex-col h-full hover:shadow-lg transition-shadow overflow-hidden">
+      {showImage && (
+        <div className="aspect-square w-full bg-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element -- static export: no next/image optimizer */}
+          <img
+            src={product.image_url ?? undefined}
+            alt={displayName}
+            width={512}
+            height={512}
+            loading="lazy"
+            decoding="async"
+            onError={() => setImageFailed(true)}
+            className="h-full w-full object-cover"
+          />
+        </div>
+      )}
       <CardHeader>
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg line-clamp-2">{displayName}</CardTitle>

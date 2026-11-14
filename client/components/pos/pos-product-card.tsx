@@ -15,7 +15,7 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { CategoryIcon } from "./category-icon";
+import { ProductImage } from "@/components/products/product-image";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
 export type GroupedProduct = POSProduct & { posGroup: PosGroup };
@@ -86,10 +86,16 @@ export const POSProductCard = memo(function POSProductCard({
           </div>
         )}
 
-        {/* Icon Area */}
-        <div className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-1.5 sm:mb-2.5">
-          <CategoryIcon categoryName={product.category_name} className="h-4 w-4 sm:h-5 sm:w-5" />
-        </div>
+        <ProductImage
+          imageKey={product.image_key}
+          categoryName={product.category_name}
+          alt=""
+          sizePx={56}
+          fit="contain"
+          showImage={storeProfile?.pos_show_product_images !== 0}
+          className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 mb-1.5 sm:mb-2.5"
+          iconClassName="h-4 w-4 sm:h-5 sm:w-5"
+        />
 
         <TooltipProvider delayDuration={1000}>
           <Tooltip>

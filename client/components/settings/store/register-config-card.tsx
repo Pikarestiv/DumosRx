@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/context/store-context";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
+import { useProductImageConfig } from "@/lib/product-images/config-store";
 
 interface RegisterConfigCardProps {
   requireSaleNotes: boolean;
@@ -41,6 +42,7 @@ export function RegisterConfigCard({
 }: RegisterConfigCardProps) {
   const { storeProfile, updateStoreProfile } = useStore();
   const { canUseResellerCommission } = useFeatureGate();
+  const productImagesEnabled = useProductImageConfig().enabled;
 
   // Each row saves immediately on toggle — same as Payment Methods — rather than sitting behind a Save button, so there's no…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-register-config-card-tsx-L45
@@ -65,6 +67,19 @@ export function RegisterConfigCard({
         void updateStoreProfile({ display_stock_levels: checked ? 1 : 0 });
       },
     },
+    ...(productImagesEnabled
+      ? [
+          {
+            id: "pos-show-product-images",
+            label: "Show product images in POS grid",
+            description: "Show each product's photo on its POS tile. Turn this off on slower tills to keep the grid fast; the category icon is shown instead.",
+            checked: storeProfile?.pos_show_product_images !== 0,
+            onCheckedChange: (checked: boolean) => {
+              void updateStoreProfile({ pos_show_product_images: checked ? 1 : 0 });
+            },
+          },
+        ]
+      : []),
     {
       id: "uppercase-display",
       label: "Display Names in Uppercase",

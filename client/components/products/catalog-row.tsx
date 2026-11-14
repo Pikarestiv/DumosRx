@@ -12,6 +12,8 @@ import {
   EditableQuickNumberCell,
 } from "./catalog-editable-cells";
 import { describeStock } from "@/lib/utils/stock-status";
+import { ProductImage } from "./product-image";
+import { useProductImageConfig } from "@/lib/product-images/config-store";
 
 const NO_LABEL_PERMISSION =
   "You don't have permission to print product labels. Ask an admin for the “Print Product Labels” permission.";
@@ -82,6 +84,18 @@ function CatalogRowInner({
   onPrintLabel,
   onDeleteProduct,
 }: CatalogRowProps) {
+  const showThumbnail = useProductImageConfig().enabled;
+  const thumbnail = (sizeClass: string, sizePx: number) =>
+    showThumbnail && (
+      <ProductImage
+        imageKey={product.imageKey}
+        categoryName={product.category}
+        alt=""
+        sizePx={sizePx}
+        className={`${sizeClass} shrink-0 rounded-lg bg-primary/5 text-primary/60`}
+        iconClassName="h-4 w-4"
+      />
+    );
   const stockColour = product.stockQuantity <= product.reorderLevel ? "text-destructive" : "text-primary";
   const row = (
     <div
@@ -105,6 +119,7 @@ function CatalogRowInner({
           data-catalog-row-mobile
           className="flex items-center justify-between"
         >
+          {thumbnail("h-10 w-10 mr-3", 40)}
           <div className="min-w-0 pr-2 flex-1">
             <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
               <span className={capsClass}>{product.name}</span>
@@ -152,20 +167,23 @@ function CatalogRowInner({
           data-catalog-row-desktop
           className={`grid gap-2 items-center ${showCostColumn ? CATALOG_GRID_COLS.withCost : CATALOG_GRID_COLS.withoutCost}`}
         >
-          <div className="min-w-0 pr-2">
-            <div className="text-[13px] font-semibold truncate flex items-center gap-2">
-              <span className={capsClass}>{product.name}</span>
-              {isPharmacy && !product.genericName && (
-                <span
-                  className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
-                  title="Missing Generic Name"
-                >
-                  No Generic
-                </span>
-              )}
-            </div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              {product.barcode || product.id.slice(0, 8)}
+          <div className="min-w-0 pr-2 flex items-center gap-2">
+            {thumbnail("h-8 w-8", 32)}
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold truncate flex items-center gap-2">
+                <span className={capsClass}>{product.name}</span>
+                {isPharmacy && !product.genericName && (
+                  <span
+                    className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
+                    title="Missing Generic Name"
+                  >
+                    No Generic
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-muted-foreground truncate">
+                {product.barcode || product.id.slice(0, 8)}
+              </div>
             </div>
           </div>
           <EditableCategoryCell

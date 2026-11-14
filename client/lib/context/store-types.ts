@@ -66,6 +66,7 @@ export interface StoreProfile {
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#context-store-context-tsx-L96
   markup_sales_enabled?: number;
   allow_sale_without_stock?: number;
+  pos_show_product_images?: number;
 }
 
 export interface StoreContextType {

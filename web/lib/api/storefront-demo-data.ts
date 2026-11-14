@@ -21,6 +21,7 @@ const DEMO_PRODUCTS: StorefrontProduct[] = DEMO_PRODUCT_NAMES.map((name, index) 
   name,
   selling_price: 1500 + index * 750,
   category: { name: index % 2 === 0 ? "Medicines" : "Wellness" },
+  image_url: null,
 }));
 
 export const DEMO_STOREFRONT_DATA: StorefrontData = {

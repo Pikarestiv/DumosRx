@@ -16,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->scoped(\App\Services\ProductImages\ProductImageService::class);
     }
 
     /**
@@ -146,6 +146,10 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('bank-account-resolve', function (Request $request) {
             return Limit::perMinute(8)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('product-images', function (Request $request) {
+            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
         Gate::define('manage-staff', function (User $user) {

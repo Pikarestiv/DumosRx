@@ -30,6 +30,7 @@ tracks current behavior.
 ## Inventory
 - Overview: stock health stat cards, a "Needs attention" panel (expiring batches, low/out-of-stock products), and a Fast Movers panel (last-7-days top sellers)
 - Catalog: full product list with search, category filter, an inventory-status filter (Active/Inactive/Expiring Soon/Expired/Low Stock/Out of Stock), sortable columns, and a category management dialog
+- Product images (when the server has R2 configured): one photo per product, uploaded from the catalog detail panel (browser-compressed WebP, online only, presigned upload to Cloudflare R2), shown as catalog row thumbnails, on POS tiles (store toggle "Show product images in POS grid") and on storefront cards; cached for offline by the service worker, category icon as fallback
 - Barcode labels: print from a catalog row or the product actions menu, on a 50 × 25 mm label roll (one per label) or packed 24 to an A4 sticker sheet (3 × 8) with a start position for partly used sheets, typed quantity with presets, paper/sheet count shown before printing, per-device layout memory, a warning when a barcode is too long to scan, and a Print labels button on the desktop catalog toolbar that prints one label per product for whatever the search and filters show (copies per product, packed across A4 sheets, up to 2000 labels a job)
 - Batch cost correction: a pencil on each batch in a product's Batches tab fixes a cost typed wrongly at receiving (review-then-confirm, audit-logged with old and new cost, gated by View Cost & Margin Fields plus Edit Product Cost Price); past sales keep their recorded cost
 - Bulk product import: multi-sheet workbook support, auto column-mapping from known header sets (QuickBooks POS, Moniebook, and other common exports), an in-file duplicate warning before committing
@@ -127,6 +128,7 @@ tracks current behavior.
 
 ## Online Storefront (`web/`)
 - Per-store public storefront at `/store/[slug]`, switched on per store (plan-gated) with a 6-month slug-change cooldown; products show online by default, with a per-product "Show Online" switch
+- Product cards show the product photo when it has one
 - Home, Shop (searchable, paginated catalog) and checkout, with server-verified Paystack among the payment methods; multi-branch owners get one storefront with a branch picker
 - Static pages rebuild automatically (debounced) after a store goes online/offline or changes slug or published details, so a change is live after the next rebuild, not instantly
 

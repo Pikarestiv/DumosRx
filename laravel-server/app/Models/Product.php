@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * @property string|null $store_id
  * @property string|null $user_id
+ * @property string|null $image_key
  */
 class Product extends Model
 {
@@ -43,6 +44,7 @@ class Product extends Model
         'selling_price',
         'show_online',
         'is_active',
+        'image_key',
     ];
 
     /** Rationale: laravel-server/AGENTS.md, "What dirties a storefront" and "The stamp is always refreshed". */

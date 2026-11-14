@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS products (
   is_controlled INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
   show_online INTEGER DEFAULT 1,
+  image_key TEXT,
   barcode TEXT,
   base_unit TEXT DEFAULT 'Unit',
   bulk_unit TEXT,
@@ -395,7 +396,8 @@ CREATE TABLE IF NOT EXISTS stores (
   permission_catalog_version INTEGER,
   staff_can_request_transfers INTEGER DEFAULT 0,
   markup_sales_enabled INTEGER DEFAULT 0,
-  allow_sale_without_stock INTEGER DEFAULT 0
+  allow_sale_without_stock INTEGER DEFAULT 0,
+  pos_show_product_images INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS expenses (

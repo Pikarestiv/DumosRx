@@ -353,6 +353,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('app')->middleware('subscription')->group(function () {
             // Online Orders
             Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
+            Route::post('/online-orders/{id}/ready', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markReady']);
             Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
 
             // Storefront look (owner only)

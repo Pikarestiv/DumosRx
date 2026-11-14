@@ -17,6 +17,8 @@ interface TrackedOrder {
   payment_status: string;
   payment_method: "paystack" | "transfer" | "in_store";
   fulfilment_method: "pickup" | "delivery";
+  ready: boolean;
+  cancel_reason: string | null;
   payment_instructions: string | null;
   total_amount: string | number;
   currency: string;
@@ -29,6 +31,12 @@ interface TrackedOrder {
 const subscribeToLocation = (notify: () => void) => {
   window.addEventListener("popstate", notify);
   return () => window.removeEventListener("popstate", notify);
+};
+
+const statusKey = (order: TrackedOrder) => {
+  if (order.order_status === "cancelled" && order.cancel_reason === "expired") return "order.status.expired" as const;
+  if (order.order_status === "pending" && order.ready) return "order.status.ready" as const;
+  return `order.status.${order.order_status}` as const;
 };
 
 type LoadState = { status: "loading" } | { status: "missing" } | { status: "ready"; order: TrackedOrder };
@@ -87,7 +95,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
         <p className="text-lg">
           {t("order.code")}: <span className="font-semibold [font-family:var(--sf-font-price)]">{order.code}</span>
         </p>
-        <p className="opacity-80">{t(`order.status.${order.order_status}`)}</p>
+        <p className="opacity-80">{t(statusKey(order))}</p>
       </div>
 
       <section aria-label={t("order.items")} className="space-y-3 rounded-[var(--sf-card-radius)] border border-black/10 bg-white p-5">

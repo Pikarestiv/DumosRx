@@ -151,6 +151,8 @@ export const EN_MESSAGES = {
   "order.title": "Thank you, your order is in",
   "order.code": "Order code",
   "order.status.pending": "The store has your order and will prepare it.",
+  "order.status.ready": "The store says your order is ready.",
+  "order.status.expired": "This order was cancelled because it was not paid in time. Place a new order if you still want it.",
   "order.status.fulfilled": "This order has been completed.",
   "order.status.cancelled": "This order was cancelled.",
   "order.items": "Your items",

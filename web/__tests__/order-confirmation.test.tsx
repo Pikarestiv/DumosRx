@@ -14,6 +14,8 @@ const order = (overrides: Record<string, unknown> = {}) => ({
   payment_status: "pending",
   payment_method: "in_store",
   fulfilment_method: "pickup",
+  ready: false,
+  cancel_reason: null,
   payment_instructions: null,
   total_amount: "3000.00",
   currency: "XAF",
@@ -89,6 +91,20 @@ describe("order confirmation", () => {
     await screen.findByText("Thank you, your order is in");
     expect(screen.queryByRole("link", { name: /whatsapp/i })).toBeNull();
     expect(screen.getByRole("link", { name: "Back to the store" })).toBeTruthy();
+  });
+
+  it("says when the store has marked the order ready", async () => {
+    getMock.mockResolvedValue({ data: { order: order({ ready: true }) } });
+    render(<OrderConfirmation storeSlug="divamax" />);
+
+    expect(await screen.findByText("The store says your order is ready.")).toBeTruthy();
+  });
+
+  it("says an unpaid order expired, so the customer knows to order again", async () => {
+    getMock.mockResolvedValue({ data: { order: order({ order_status: "cancelled", cancel_reason: "expired" }) } });
+    render(<OrderConfirmation storeSlug="divamax" />);
+
+    expect(await screen.findByText(/not paid in time/)).toBeTruthy();
   });
 
   it("is honest that no text message is sent, and mentions the phone and the optional email", async () => {

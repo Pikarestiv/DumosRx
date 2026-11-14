@@ -268,6 +268,20 @@ without updating that.
   first 8 characters of the id, upper case) is the order number customers see;
   the public order lookup returns it with the fulfilment method, the payment
   instructions (transfer orders only), the store phone and WhatsApp.
+  **Order lifecycle (2026-11-15).** An unpaid `transfer` order is held 30 minutes
+  and an unpaid `in_store` (pay at pickup or on delivery) order 24 hours
+  (`dumos.storefront.unpaid_hold_minutes`, env `STOREFRONT_TRANSFER_HOLD_MINUTES`
+  and `STOREFRONT_PICKUP_HOLD_MINUTES`, `0` switches that method's expiry off).
+  `storefront:expire-unpaid-orders` (every 5 minutes, scheduled) cancels what
+  outlived its hold with `cancel_reason = 'expired'`, which frees the stock
+  because availability only counts pending orders; it never touches a paid
+  order or one with `ready_at` set. Expiry notifies store staff in-app and the
+  customer by email. `POST /app/online-orders/{id}/ready` (the POS "Email
+  customer: ready" / "Mark ready" button) stamps `ready_at` once and emails the
+  customer if they gave an address; it is idempotent (no second email) and a
+  ready order stops expiring. A manual cancel from the till stamps
+  `cancel_reason = 'store'` and emails the customer too. Fulfilling sends no
+  email. There is still no SMS or WhatsApp.
   `storefronts.locale` (default `en`) and `enabled_locales` are returned by the
   public `show` payload and the admin detail.
   `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,

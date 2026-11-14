@@ -52,6 +52,8 @@ class StorefrontInteractionService
                 'id' => $order->id,
                 'code' => $order->code(),
                 'fulfilment_method' => $order->fulfilment_method,
+                'ready' => $order->ready_at !== null,
+                'cancel_reason' => $order->cancel_reason,
                 'payment_instructions' => $order->payment_method === 'transfer' ? $storefront->payment_instructions : null,
                 'store_phone' => $order->store->phone,
                 'whatsapp' => $storefront->whatsapp,

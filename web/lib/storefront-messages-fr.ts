@@ -153,6 +153,8 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "order.title": "Merci, votre commande est enregistrée",
   "order.code": "Code de commande",
   "order.status.pending": "La boutique a reçu votre commande et va la préparer.",
+  "order.status.ready": "La boutique indique que votre commande est prête.",
+  "order.status.expired": "Cette commande a été annulée faute de paiement à temps. Passez une nouvelle commande si vous la souhaitez encore.",
   "order.status.fulfilled": "Cette commande est terminée.",
   "order.status.cancelled": "Cette commande a été annulée.",
   "order.items": "Vos articles",

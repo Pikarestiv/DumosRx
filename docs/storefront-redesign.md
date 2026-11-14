@@ -44,6 +44,11 @@
   with an order code, payment details and a WhatsApp button, customer details saved
   with the order and in the browser, and confirmation emails to the owner and, if
   given, the customer. No SMS or WhatsApp is sent; the copy says so.
+- **Order holds and customer emails (2026-11-15):** an unpaid transfer order is held
+  30 minutes and an unpaid pay-at-pickup/delivery order 24 hours, then cancelled so
+  the stock is released; staff can email the customer that an order is ready from
+  the till's Online Orders; the customer is emailed on a cancellation or expiry.
+  The delivery note stays a plain text note (no fee or zone logic) by decision.
 - **Local preview:** the till's slug field prefix comes from
   `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/store`), so set it in
   `client/.env.local` (e.g. `localhost:3000/store`) to see a local link.

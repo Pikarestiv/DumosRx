@@ -335,7 +335,9 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   and plain wording that the store may phone to confirm and that **no text
   message is sent**. The customer's name, phone, email and address are remembered
   in `localStorage` (`dumosrx-checkout-details`) after a successful order and
-  prefill the next one.
+  prefill the next one. The confirmation page also reflects the order's state:
+  "the store says it is ready" once staff mark it ready, and an expiry message
+  for an unpaid order that timed out (`ready`/`cancel_reason` from the lookup).
 - **Stock, prices and time zones are live, never trusted from the build
   (2026-11-14).** Stock movements do not dirty a storefront, so the
   `stock_quantity`/`in_stock` baked into the static HTML can be arbitrarily

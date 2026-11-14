@@ -11,7 +11,14 @@ import {
 // Automatic repair of this device's own stock drift, run from the 24-hourly sync health check.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-auto-heal-ts-L11
 
-type HealSkipReason = "movement-log-incomplete" | "inspection-session";
+export type HealSkipReason = "movement-log-incomplete" | "inspection-session";
+
+export interface HealStockIntegrityOutcome {
+  diverged: number;
+  unreconstructable: number;
+  folded: number;
+  skipped: HealSkipReason | null;
+}
 
 // Whether this device holds the whole movement log up to a server timestamp:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-auto-heal-ts-L19
@@ -59,10 +66,12 @@ function describe(
 
 // Verifies, repairs what the log can rebuild, re-verifies, and reports once.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-stock-auto-heal-ts-L67
-export async function healStockIntegrity(): Promise<void> {
+export async function healStockIntegrity(): Promise<HealStockIntegrityOutcome> {
   try {
     const before = await verifyStockIntegrity();
-    if (before.diverged === 0 && before.unreconstructable === 0) return;
+    if (before.diverged === 0 && before.unreconstructable === 0) {
+      return { diverged: 0, unreconstructable: 0, folded: 0, skipped: null };
+    }
 
     const skipped = before.diverged > 0 ? await skipReason() : null;
     const result =
@@ -91,7 +100,15 @@ export async function healStockIntegrity(): Promise<void> {
         ),
       },
     );
+
+    return {
+      diverged: before.diverged,
+      unreconstructable: before.unreconstructable,
+      folded: result?.folded ?? 0,
+      skipped,
+    };
   } catch (error) {
     console.error("Stock auto-heal failed:", error);
+    return { diverged: 0, unreconstructable: 0, folded: 0, skipped: null };
   }
 }

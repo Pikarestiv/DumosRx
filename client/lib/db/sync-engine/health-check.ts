@@ -76,11 +76,14 @@ export async function checkSyncHealth(): Promise<void> {
     const response = await apiClient.getSyncCounts();
     if (!response.success) return;
 
-    // Only stamped on a successful fetch - a failed attempt (offline, server error) should retry on the next app open, not sit dormant for the res…
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-sync-engine-health-check-ts-L89
-    localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
+    const healOutcome = await healStockIntegrity();
 
-    await healStockIntegrity();
+    // A skipped heal (e.g. movement log mid-stream during multi-round catchup) must NOT burn
+    // the 24-hour window, so the device retries on the next sync round or app open rather
+    // than waiting another full day (A-238).
+    if (!healOutcome.skipped) {
+      localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
+    }
 
     const serverCounts = response.counts;
     const localCounts = await getLocalCounts(storeId);

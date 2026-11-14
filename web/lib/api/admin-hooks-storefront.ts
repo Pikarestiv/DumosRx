@@ -20,6 +20,10 @@ export interface StorefrontSettingsInput {
   tagline?: string | null;
   whatsapp?: string | null;
   pickup_minutes?: number | null;
+  payment_instructions?: string | null;
+  delivery_available?: boolean;
+  delivery_note?: string | null;
+  pay_on_delivery?: boolean;
   opening_hours?: Record<string, { open: string; close: string } | null> | null;
   owner_style_enabled?: boolean;
   locale?: string | null;

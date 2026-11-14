@@ -38,6 +38,12 @@
   store's URL (with copy and open buttons) or says to contact the account manager.
   Slug and the online switch are set by a super admin. No embedded preview: the
   Tauri CSP forbids frames.
+- **Checkout and confirmation (2026-11-15):** a per-store "how to pay" text for
+  transfer or mobile money (the option is hidden without it), pickup or delivery
+  (with a delivery note and a "pay on delivery" switch), an order confirmation page
+  with an order code, payment details and a WhatsApp button, customer details saved
+  with the order and in the browser, and confirmation emails to the owner and, if
+  given, the customer. No SMS or WhatsApp is sent; the copy says so.
 - **Local preview:** the till's slug field prefix comes from
   `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/store`), so set it in
   `client/.env.local` (e.g. `localhost:3000/store`) to see a local link.

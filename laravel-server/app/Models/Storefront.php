@@ -32,6 +32,10 @@ class Storefront extends Model
         'tagline',
         'whatsapp',
         'pickup_minutes',
+        'payment_instructions',
+        'delivery_available',
+        'delivery_note',
+        'pay_on_delivery',
         'opening_hours',
         'primary_store_id',
         'logo_url',
@@ -48,6 +52,8 @@ class Storefront extends Model
         'pickup_minutes' => 'integer',
         'is_active' => 'boolean',
         'owner_style_enabled' => 'boolean',
+        'delivery_available' => 'boolean',
+        'pay_on_delivery' => 'boolean',
         'style_dirty_at' => 'datetime',
     ];
 

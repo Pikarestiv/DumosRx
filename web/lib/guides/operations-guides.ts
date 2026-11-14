@@ -72,7 +72,7 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
       "Share your branded storefront URL (e.g. dumosrx.com/store/your-pharmacy) with customers on WhatsApp and social media.",
       "Customers can switch between branches, search available medicines, and complete purchases via Paystack.",
       "Your home page opens with your tagline and an open/closed status, then shows your best sellers from the last 90 days (refreshed nightly, in-stock items first), how ordering works, and a footer with your address and hours, so keep those details current in the app.",
-      "Want it to look like your own business? See the guide 'Make Your Storefront Look Like Yours' to pick a style, accent colour, language and opening hours.",
+      "Customers can pay at pickup, and by transfer or mobile money once your account manager adds your payment details; ask them to switch on delivery too if you offer it. Want it to look like your own business? See the guide 'Make Your Storefront Look Like Yours' to pick a style, accent colour, language and opening hours.",
     ],
     proTip:
       "Online orders appear in real time on the store's POS screen, allowing staff to prepare items for customer pickup or dispatch.",

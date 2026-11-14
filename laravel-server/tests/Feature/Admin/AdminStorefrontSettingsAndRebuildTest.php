@@ -147,6 +147,28 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
     }
 
     #[Test]
+    public function a_super_admin_sets_how_customers_pay_and_whether_the_store_delivers(): void
+    {
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), [
+            'payment_instructions' => "MTN MoMo 677 000 000\nOrange Money 699 000 000",
+            'delivery_available' => true, 'delivery_note' => 'Douala only', 'pay_on_delivery' => true,
+        ])->assertOk();
+        $this->assertTrue((bool) $this->storefront()->pay_on_delivery);
+
+        $this->assertSame("MTN MoMo 677 000 000\nOrange Money 699 000 000", $this->storefront()->payment_instructions);
+        $this->assertTrue((bool) $this->storefront()->delivery_available);
+        $this->actingAs($this->admin())
+            ->getJson("/api/v1/admin/stores/{$this->store->id}")
+            ->assertJsonPath('storefront.delivery_note', 'Douala only')
+            ->assertJsonPath('storefront.delivery_available', true);
+
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['payment_instructions' => str_repeat('x', 1001)])->assertStatus(422);
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['delivery_available' => 'sometimes'])->assertStatus(422);
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['payment_instructions' => null])->assertOk();
+        $this->assertNull($this->storefront()->payment_instructions);
+    }
+
+    #[Test]
     public function the_store_detail_payload_carries_the_settings_and_the_pending_flag(): void
     {
         $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['tagline' => 'Hello'])->assertOk();

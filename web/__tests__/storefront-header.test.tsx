@@ -82,4 +82,14 @@ describe("StorefrontHeader store name", () => {
 
     expect(screen.getByText("Supermarché")).toBeTruthy();
   });
+
+  it("advertises local delivery in the top bar only when the store delivers", () => {
+    const without = render(<StorefrontHeader storeSlug="g" store={{ id: "s1", name: "G" }} storefront={{ id: "f", slug: "g", name: "G", delivery_available: false }} />);
+    expect(screen.getByText("Store pickup")).toBeTruthy();
+    expect(screen.queryByText(/local delivery/i)).toBeNull();
+    without.unmount();
+
+    render(<StorefrontHeader storeSlug="g" store={{ id: "s1", name: "G" }} storefront={{ id: "f", slug: "g", name: "G", delivery_available: true }} />);
+    expect(screen.getByText("Store pickup · Local delivery")).toBeTruthy();
+  });
 });

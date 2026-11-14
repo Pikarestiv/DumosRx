@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { StorefrontCheckoutFields } from "./storefront-checkout-fields";
 import { hoursAreValid, StorefrontHoursEditor } from "./storefront-hours-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,10 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
   const [pickup, setPickup] = useState(storefront.pickup_minutes ? String(storefront.pickup_minutes) : "");
   const [hours, setHours] = useState<OpeningHours>(storefront.opening_hours ?? {});
   const [locale, setLocale] = useState<StorefrontLocale>(resolveLocale(storefront.locale));
+  const [paymentInstructions, setPaymentInstructions] = useState(storefront.payment_instructions ?? "");
+  const [deliveryAvailable, setDeliveryAvailable] = useState(Boolean(storefront.delivery_available));
+  const [deliveryNote, setDeliveryNote] = useState(storefront.delivery_note ?? "");
+  const [payOnDelivery, setPayOnDelivery] = useState(Boolean(storefront.pay_on_delivery));
   const [ownerStyle, setOwnerStyle] = useState(Boolean(storefront.owner_style_enabled));
   const [allowSwitch, setAllowSwitch] = useState(resolveEnabledLocales(resolveLocale(storefront.locale), storefront.enabled_locales).length > 1);
 
@@ -55,6 +60,10 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
           opening_hours: anyOpenDay ? hours : null,
           locale,
           owner_style_enabled: ownerStyle,
+          payment_instructions: paymentInstructions.trim() || null,
+          delivery_available: deliveryAvailable,
+          delivery_note: deliveryAvailable ? deliveryNote.trim() || null : null,
+          pay_on_delivery: deliveryAvailable && payOnDelivery,
           enabled_locales: allowSwitch ? [locale, ...STOREFRONT_LOCALES.filter((code) => code !== locale)] : [locale],
         },
       },
@@ -161,6 +170,18 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
       </div>
 
       <StorefrontHoursEditor hours={hours} onChange={setHours} disabled={!editable} />
+
+      <StorefrontCheckoutFields
+        paymentInstructions={paymentInstructions}
+        deliveryAvailable={deliveryAvailable}
+        deliveryNote={deliveryNote}
+        payOnDelivery={payOnDelivery}
+        disabled={!editable}
+        onPaymentInstructions={setPaymentInstructions}
+        onDeliveryAvailable={setDeliveryAvailable}
+        onDeliveryNote={setDeliveryNote}
+        onPayOnDelivery={setPayOnDelivery}
+      />
 
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">Language</legend>

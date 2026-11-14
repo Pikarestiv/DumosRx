@@ -28,7 +28,7 @@ describe("storefront messages", () => {
   });
 
   it("never leaves a French message identical to its English one, except names that are the same in both", () => {
-    const sameInBoth = new Set(["hero.whatsapp.short", "cart.total", "checkout.total"]);
+    const sameInBoth = new Set(["hero.whatsapp.short", "cart.total", "checkout.total", "order.total"]);
     for (const key of Object.keys(EN_MESSAGES) as (keyof typeof EN_MESSAGES)[]) {
       if (sameInBoth.has(key)) continue;
       expect(FR_MESSAGES[key], `${key} looks untranslated`).not.toBe(EN_MESSAGES[key]);

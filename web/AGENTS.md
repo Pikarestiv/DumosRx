@@ -316,6 +316,26 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   hydration). Product names, categories and the owner's tagline are never
   translated. To add a language: a messages file, `STOREFRONT_LOCALES`,
   `LOCALE_NAMES`, the PHP list, and a plural rule if it is not one/other.
+- **Checkout (2026-11-15).** `CheckoutForm` takes the store's
+  `payment_instructions`, `delivery_available`, `delivery_note` and
+  `pay_on_delivery`. `CheckoutContactFields` collects name, phone and an optional
+  email (required only for Paystack), a pickup/delivery choice when the store
+  delivers, and an address only for delivery. `availablePaymentMethods()`
+  (`lib/storefront-checkout.ts`) decides what is offered: pay at pickup or on
+  delivery (delivery only if the store accepts it), transfer **only when the
+  store wrote payment instructions** (so nobody is offered a way to pay with no
+  details), and Paystack when the store has a payout account; if none remain the
+  form says so and blocks the order. The chosen method is whatever is actually
+  offered, so switching to delivery cannot submit an option that vanished. On
+  success the customer lands on `/store/<slug>/order/?id=<order id>`
+  (`OrderConfirmation`, static page, id read from the URL, order fetched from the
+  public lookup): order code, items, total, how it is received and paid, the
+  store's payment details for a transfer, a prefilled **Send my order on
+  WhatsApp** button (only if the store has a WhatsApp number), the store's phone,
+  and plain wording that the store may phone to confirm and that **no text
+  message is sent**. The customer's name, phone, email and address are remembered
+  in `localStorage` (`dumosrx-checkout-details`) after a successful order and
+  prefill the next one.
 - **Stock, prices and time zones are live, never trusted from the build
   (2026-11-14).** Stock movements do not dirty a storefront, so the
   `stock_quantity`/`in_stock` baked into the static HTML can be arbitrarily

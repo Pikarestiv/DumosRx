@@ -250,6 +250,24 @@ without updating that.
   callback that finds no recorded request time clears nothing (one extra rebuild
   beats a lost change). Flipping `owner_style_enabled` alone does not stamp
   `style_dirty_at`, since nothing visible changed.
+  **Checkout details (2026-11-15).** `storefronts.payment_instructions` (text, how to
+  pay by transfer or mobile money), `delivery_available`, `delivery_note` and
+  `pay_on_delivery` are set by a super admin and returned by the public `show`
+  payload; `online_orders` gains `customer_email` and `fulfilment_method`
+  (`pickup`|`delivery`). The checkout rules live in `StorefrontCheckoutRules`:
+  `customer_email` optional, an address required for delivery, delivery refused
+  when the store does not deliver, and an `in_store` payment refused for a
+  delivery order unless `pay_on_delivery` (old bundles never send delivery, so
+  this cannot affect them). A transfer order is **not** refused when the store
+  has no instructions (old bundles still offer it); the new UI simply hides it.
+  `StorefrontOrderNotifier` emails the owner and the store address (once if they
+  match) and the customer if they gave an email, synchronously like the other
+  mail here, with a failure only logged: an order is never lost to a mail
+  error. The customer email says to expect a possible phone call, not a
+  "ready" message: **no SMS or WhatsApp is sent**. `OnlineOrder::code()` (the
+  first 8 characters of the id, upper case) is the order number customers see;
+  the public order lookup returns it with the fulfilment method, the payment
+  instructions (transfer orders only), the store phone and WhatsApp.
   `storefronts.locale` (default `en`) and `enabled_locales` are returned by the
   public `show` payload and the admin detail.
   `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,

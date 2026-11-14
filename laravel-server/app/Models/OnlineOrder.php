@@ -14,7 +14,7 @@ class OnlineOrder extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'store_id', 'customer_name', 'customer_phone', 'customer_address',
+        'store_id', 'customer_name', 'customer_phone', 'customer_email', 'customer_address', 'fulfilment_method',
         'total_amount', 'payment_method', 'payment_status', 'order_status',
         'paystack_reference', 'synced_at',
     ];
@@ -38,5 +38,10 @@ class OnlineOrder extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OnlineOrderItem::class);
+    }
+
+    public function code(): string
+    {
+        return strtoupper(substr(str_replace('-', '', (string) $this->id), 0, 8));
     }
 }

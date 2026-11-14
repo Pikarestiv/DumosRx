@@ -5,8 +5,6 @@ import { useCart } from "@/lib/store/use-cart-store";
 import { useCartRepricing } from "@/lib/store/use-cart-repricing";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -17,10 +15,17 @@ import {
   FailedConfirmationPanel,
   OrphanReferencePanel,
 } from "@/components/storefront/checkout-reference-panels";
+import { CheckoutContactFields, type FulfilmentMethod } from "@/components/storefront/checkout-contact-fields";
 import { CheckoutPaymentMethod } from "@/components/storefront/checkout-payment-method";
+import { availablePaymentMethods } from "@/lib/storefront-checkout";
+import { readSavedCheckoutDetails, saveCheckoutDetails } from "@/lib/use-saved-checkout-details";
 
 interface CheckoutFormProps {
   storeSlug: string;
+  paymentInstructions?: string | null;
+  deliveryAvailable?: boolean;
+  deliveryNote?: string | null;
+  payOnDelivery?: boolean;
 }
 
 interface PendingCheckout {
@@ -29,10 +34,20 @@ interface PendingCheckout {
     customer_phone: string;
     customer_address: string;
     customer_email: string;
+    fulfilment_method: FulfilmentMethod;
     payment_method: string;
   };
   items: { product_id: string; quantity: number }[];
 }
+
+const orderFields = (form: PendingCheckout["formData"]) => ({
+  customer_name: form.customer_name,
+  customer_phone: form.customer_phone,
+  payment_method: form.payment_method,
+  fulfilment_method: form.fulfilment_method,
+  ...(form.customer_email.trim() ? { customer_email: form.customer_email.trim() } : {}),
+  ...(form.fulfilment_method === "delivery" && form.customer_address.trim() ? { customer_address: form.customer_address.trim() } : {}),
+});
 
 const wasRefunded = (error: unknown): boolean => {
   const response = (error as { response?: { status?: number; data?: { refunded?: boolean } } } | null)
@@ -40,7 +55,7 @@ const wasRefunded = (error: unknown): boolean => {
   return response?.status === 422 && response?.data?.refunded === true;
 };
 
-export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
+export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable = false, deliveryNote, payOnDelivery = false }: CheckoutFormProps) {
   const { t, money } = useStorefrontI18n();
   const cart = useCart(storeSlug);
   const router = useRouter();
@@ -58,10 +73,35 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     customer_phone: "",
     customer_address: "",
     customer_email: "",
-    payment_method: "in_store", // transfer, in_store, paystack
+    fulfilment_method: "pickup" as FulfilmentMethod,
+    payment_method: "in_store",
   });
 
+  useEffect(() => {
+    const saved = readSavedCheckoutDetails();
+    setFormData((prev) => ({
+      ...prev,
+      customer_name: prev.customer_name || saved.customer_name,
+      customer_phone: prev.customer_phone || saved.customer_phone,
+      customer_email: prev.customer_email || saved.customer_email,
+      customer_address: prev.customer_address || saved.customer_address,
+    }));
+  }, []);
+
+  const methods = availablePaymentMethods({
+    delivery: formData.fulfilment_method === "delivery",
+    payOnDelivery,
+    hasInstructions: Boolean(paymentInstructions?.trim()),
+    onlinePaymentAvailable,
+  });
+  const chosenMethod = methods.includes(formData.payment_method as never) ? formData.payment_method : (methods[0] ?? formData.payment_method);
+
   const pendingStorageKey = `dumos_pending_checkout_${storeSlug}`;
+
+  const goToConfirmation = (orderId: string) => {
+    saveCheckoutDetails(formData);
+    router.push(`/store/${storeSlug}/order/?id=${encodeURIComponent(orderId)}`);
+  };
 
   const readPendingCheckout = (): PendingCheckout | null => {
     const raw = sessionStorage.getItem(pendingStorageKey);
@@ -76,8 +116,8 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
   const confirmPaidCheckout = async (reference: string, pending: PendingCheckout) => {
     setLoading(true);
     try {
-      await apiClient.post(`/storefront/${storeSlug}/checkout`, {
-        ...pending.formData,
+      const { data } = await apiClient.post<{ order: { id: string } }>(`/storefront/${storeSlug}/checkout`, {
+        ...orderFields(pending.formData),
         items: pending.items,
         payment_method: 'paystack',
         paystack_reference: reference,
@@ -86,7 +126,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       setFailedReference(null);
       toast.success(t("checkout.placed"));
       cart.clearCart();
-      router.push(`/store/${storeSlug}`);
+      goToConfirmation(data.order.id);
     } catch (error) {
       setFailedReference(reference);
       setFailedWasRefunded(wasRefunded(error));
@@ -135,6 +175,10 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
     setFormData((prev) => ({ ...prev, payment_method: value }));
   };
 
+  const handleFulfilmentChange = (value: FulfilmentMethod) => {
+    setFormData((prev) => ({ ...prev, fulfilment_method: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -148,7 +192,14 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
       return;
     }
 
-    if (formData.payment_method === 'paystack' && !formData.customer_email) {
+    if (formData.fulfilment_method === "delivery" && !formData.customer_address.trim()) {
+      toast.error(t("checkout.error.required"));
+      return;
+    }
+
+    const submitted = { ...formData, payment_method: chosenMethod };
+
+    if (submitted.payment_method === 'paystack' && !submitted.customer_email) {
       toast.error(t("checkout.error.email"));
       return;
     }
@@ -164,8 +215,8 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
         quantity: item.quantity
       }));
 
-      if (formData.payment_method === 'paystack') {
-        sessionStorage.setItem(pendingStorageKey, JSON.stringify({ formData, items }));
+      if (submitted.payment_method === 'paystack') {
+        sessionStorage.setItem(pendingStorageKey, JSON.stringify({ formData: submitted, items }));
         const { data } = await apiClient.post<{ payment_url: string }>(
           `/storefront/${storeSlug}/checkout/initialize`,
           { customer_email: formData.customer_email, items },
@@ -176,12 +227,14 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
         return;
       }
 
-      const payload = { ...formData, items };
-      await apiClient.post(`/storefront/${storeSlug}/checkout`, payload);
+      const { data } = await apiClient.post<{ order: { id: string } }>(`/storefront/${storeSlug}/checkout`, {
+        ...orderFields(submitted),
+        items,
+      });
 
       toast.success(t("checkout.placed"));
       cart.clearCart();
-      router.push(`/store/${storeSlug}`);
+      goToConfirmation(data.order.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("checkout.error.generic"));
     } finally {
@@ -229,47 +282,22 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
               <CardTitle>{t("checkout.delivery")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">{t("checkout.contact")}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="customer_name">{t("checkout.name")}</Label>
-                    <Input 
-                      id="customer_name" 
-                      name="customer_name" 
-                      required 
-                      value={formData.customer_name}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customer_phone">{t("checkout.phone")}</Label>
-                    <Input 
-                      id="customer_phone" 
-                      name="customer_phone" 
-                      required 
-                      value={formData.customer_phone}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="customer_address">{t("checkout.address")}</Label>
-                  <Input 
-                    id="customer_address" 
-                    name="customer_address" 
-                    value={formData.customer_address}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
+              <CheckoutContactFields
+                values={formData}
+                fulfilment={formData.fulfilment_method}
+                deliveryAvailable={deliveryAvailable}
+                deliveryNote={deliveryNote}
+                emailRequired={chosenMethod === "paystack"}
+                onChange={handleInputChange}
+                onFulfilmentChange={handleFulfilmentChange}
+              />
 
               <CheckoutPaymentMethod
-                paymentMethod={formData.payment_method}
-                customerEmail={formData.customer_email}
-                onlinePaymentAvailable={onlinePaymentAvailable}
+                paymentMethod={chosenMethod}
+                fulfilment={formData.fulfilment_method}
+                paymentInstructions={paymentInstructions}
+                methods={methods}
                 onMethodChange={handleMethodChange}
-                onInputChange={handleInputChange}
               />
             </CardContent>
             <CardFooter className="flex-col items-stretch gap-2">
@@ -277,7 +305,7 @@ export function CheckoutForm({ storeSlug }: CheckoutFormProps) {
                 type="submit"
                 className="w-full"
                 size="lg"
-                disabled={loading || redirecting || pricesLoading}
+                disabled={loading || redirecting || pricesLoading || methods.length === 0}
               >
                 {(loading || redirecting || pricesLoading) && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -17,11 +17,11 @@ describe("assistant catalog help topics", () => {
     },
   );
 
-  it.each(["print barcode labels", "I need price stickers"])("routes %j to the label printing topic (A-385)", (utterance) => {
+  it.each(["print barcode labels", "I need price stickers"])("routes %j to the label printing topic (A-391)", (utterance) => {
     expect(routes(utterance)).toBe("navigate_print_labels");
   });
 
-  it("holds no control characters in any help phrase, so a written \\b is a word boundary (A-385)", () => {
+  it("holds no control characters in any help phrase, so a written \\b is a word boundary (A-391)", () => {
     const sources = HELP_TOPICS.flatMap((topic) => topic.phrases.map((phrase) => phrase.source));
 
     expect(sources.filter((source) => /[\u0000-\u001f]/.test(source))).toEqual([]);

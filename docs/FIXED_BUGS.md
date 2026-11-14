@@ -1,4 +1,4 @@
-### A-385 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
+### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
 - **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.
 - **Now:** the `print_labels` and new `product_images` topics live in `client/lib/assistant/help-catalog-catalog.ts` (moved to keep `help-catalog.ts` under 350 lines) with real word boundaries.

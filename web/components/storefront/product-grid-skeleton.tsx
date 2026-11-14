@@ -1,13 +1,18 @@
+"use client";
+
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { CARD_SURFACE } from "@/lib/storefront-styles";
 import { cn } from "@/lib/utils";
 
 const PLACEHOLDER_COUNT = 8;
 
 export function ProductGridSkeleton({ className }: { className?: string }) {
+  const { t } = useStorefrontI18n();
+
   return (
     <div
       role="status"
-      aria-label="Loading products"
+      aria-label={t("shop.loading")}
       className={cn("grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4", className)}
     >
       {Array.from({ length: PLACEHOLDER_COUNT }, (_, index) => (

@@ -119,6 +119,8 @@ describe("StoreStorefrontTab", () => {
           whatsapp: "+237 6 00 00 00 00",
           pickup_minutes: 20,
           opening_hours: { mon: { open: "08:00", close: "18:00" } },
+          locale: "en",
+          enabled_locales: ["en"],
         },
       },
     ]);
@@ -134,7 +136,9 @@ describe("StoreStorefrontTab", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save storefront settings" }));
 
     await waitFor(() => expect(settingsCall()).toBeTruthy());
-    expect(settingsCall()?.[1].body).toEqual({ accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null });
+    expect(settingsCall()?.[1].body).toEqual({
+      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", enabled_locales: ["en"],
+    });
   });
 
   it("warns when neither white nor dark text is readable on the accent, but not for a readable one", async () => {
@@ -199,5 +203,23 @@ describe("StoreStorefrontTab", () => {
 
     renderTab(storeWith({ online_store_enabled: false }));
     expect(screen.queryByRole("link", { name: /preview storefront/i })).toBeNull();
+  });
+
+  it("saves a French store whose visitors may switch to English", async () => {
+    renderTab(storeWith());
+
+    await userEvent.selectOptions(screen.getByLabelText("Default language"), "fr");
+    await userEvent.click(screen.getByLabelText("Let visitors switch language"));
+    await userEvent.click(screen.getByRole("button", { name: "Save storefront settings" }));
+
+    await waitFor(() => expect(settingsCall()).toBeTruthy());
+    expect(settingsCall()?.[1].body).toMatchObject({ locale: "fr", enabled_locales: ["fr", "en"] });
+  });
+
+  it("shows a store's saved languages", () => {
+    renderTab(storeWith({ locale: "fr", enabled_locales: ["fr", "en"] }));
+
+    expect((screen.getByLabelText("Default language") as HTMLSelectElement).value).toBe("fr");
+    expect((screen.getByLabelText("Let visitors switch language") as HTMLInputElement).checked).toBe(true);
   });
 });

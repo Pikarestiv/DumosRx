@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight } from "lucide-react";
 
 import { StoreClosedNotice } from "@/components/storefront/store-closed-notice";
+import { CatalogHeading } from "@/components/storefront/catalog-heading";
 import { StorefrontCatalogView } from "@/components/storefront/storefront-catalog-view";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { getStorefrontData, getStorefrontProducts } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
-import { DISPLAY_FONT } from "@/lib/storefront-styles";
+import { resolveLocale, translate } from "@/lib/storefront-i18n";
 import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
 
 interface CatalogPageProps {
@@ -27,10 +26,12 @@ export async function generateMetadata({
 }: CatalogPageProps): Promise<Metadata> {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
-  const base = buildStorefrontMetadata(store_slug, data?.store);
+  const locale = resolveLocale(data?.storefront?.locale);
+  const base = buildStorefrontMetadata(store_slug, data?.store, locale);
+  const shop = translate(locale, "shop.title");
   return {
     ...base,
-    title: data?.store?.name ? `Shop | ${data.store.name}` : "Shop",
+    title: data?.store?.name ? `${shop} | ${data.store.name}` : shop,
   };
 }
 
@@ -64,19 +65,7 @@ export default async function StorefrontCatalogPage({
       <StoreClosedNotice hours={storefront?.opening_hours} />
 
       <main id="main-content" tabIndex={-1} className="flex-1 outline-none py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs opacity-80">
-          <Link href={`/store/${store_slug}`} className="underline-offset-4 hover:underline">
-            {storefront?.name || store.name}
-          </Link>
-          <ChevronRight className="h-3 w-3" />
-          <span className="text-foreground font-medium">Shop</span>
-        </nav>
-
-        <div className="flex items-center justify-between">
-          <h1 className={`${DISPLAY_FONT} text-3xl sm:text-4xl`}>
-            Shop
-          </h1>
-        </div>
+        <CatalogHeading storeSlug={store_slug} storeName={storefront?.name || store.name} />
 
         <StorefrontCatalogView
           storeSlug={store_slug}

@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { CategoryTile } from "@/components/storefront/category-tile";
 import { useCart } from "@/lib/store/use-cart-store";
 import { toDisplayTitle } from "@/lib/storefront-display";
@@ -10,7 +11,6 @@ import { isPriceOnRequest, stockHint, whatsappLink, type StockHint } from "@/lib
 import { ADD_BUTTON, CARD_SURFACE, FOCUS_RING, PRICE_FONT } from "@/lib/storefront-styles";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 import { cn } from "@/lib/utils";
-import { formatMoney } from "@/lib/utils/currency";
 
 interface ProductCardProps {
   product: StorefrontProduct;
@@ -27,24 +27,24 @@ const HINT_STYLE: Record<StockHint["kind"], string> = {
   unknown: "",
 };
 
-function hintLabel(hint: StockHint): string {
-  if (hint.kind === "in") return "In stock";
-  if (hint.kind === "low") return `Only ${hint.left} left`;
-  if (hint.kind === "out") return "Out of stock";
-  return "";
-}
-
 export function ProductCard({ product, storeSlug, currency, whatsapp, className }: ProductCardProps) {
+  const { t, money } = useStorefrontI18n();
   const cart = useCart(storeSlug);
+  const hintLabel = (hint: StockHint): string => {
+    if (hint.kind === "in") return t("stock.in");
+    if (hint.kind === "low") return t("stock.low", { count: hint.left });
+    if (hint.kind === "out") return t("stock.out");
+    return "";
+  };
   const displayName = toDisplayTitle(product.name);
   const price = parseFloat(String(product.selling_price));
   const onRequest = isPriceOnRequest(product.selling_price);
   const hint = stockHint(product);
-  const askLink = onRequest ? whatsappLink(whatsapp, `Hi, how much is ${displayName}?`) : null;
+  const askLink = onRequest ? whatsappLink(whatsapp, t("card.askMessage", { name: displayName })) : null;
 
   const handleAddToCart = () => {
     cart.addItem({ id: product.id, name: product.name, price, quantity: 1 });
-    toast.success(`${displayName} added to cart`);
+    toast.success(t("card.added", { name: displayName }));
   };
 
   return (
@@ -60,7 +60,7 @@ export function ProductCard({ product, storeSlug, currency, whatsapp, className 
         <div className="mt-auto flex items-end justify-between gap-2">
           <div className="min-w-0">
             <p className={cn("text-base sm:text-lg", onRequest ? "text-sm" : PRICE_FONT)}>
-              {onRequest ? "Price on request" : formatMoney(price, currency)}
+              {onRequest ? t("card.priceOnRequest") : money(price, currency)}
             </p>
             {!onRequest && hint.kind !== "unknown" && (
               <p className={cn("text-xs", HINT_STYLE[hint.kind])}>{hintLabel(hint)}</p>
@@ -72,16 +72,16 @@ export function ProductCard({ product, storeSlug, currency, whatsapp, className 
                 href={askLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={`Ask about the price of ${displayName}`}
+                aria-label={t("card.ask.aria", { name: displayName })}
                 className={cn("inline-flex min-h-11 items-center rounded-[var(--sf-button-radius)] border border-current px-4 text-sm font-medium", FOCUS_RING)}
               >
-                Ask
+                {t("card.ask")}
               </a>
             )
           ) : (
             <button
               type="button"
-              aria-label={`Add to cart: ${displayName}`}
+              aria-label={t("card.add.aria", { name: displayName })}
               disabled={hint.kind === "out"}
               onClick={handleAddToCart}
               className={ADD_BUTTON}

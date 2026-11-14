@@ -1,3 +1,5 @@
+import { DEFAULT_STOREFRONT_LOCALE, translate, type StorefrontLocale } from "@/lib/storefront-i18n";
+
 export const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
 
@@ -12,17 +14,15 @@ export type OpenStatus =
   | { state: "open"; closesAt: string }
   | { state: "closed"; opensAt: string; opensOn: "today" | "tomorrow" | Weekday };
 
-const DAY_LABELS: Record<Weekday, string> = {
-  sun: "Sun",
-  mon: "Mon",
-  tue: "Tue",
-  wed: "Wed",
-  thu: "Thu",
-  fri: "Fri",
-  sat: "Sat",
-};
-
+const MONDAY_2024 = Date.UTC(2024, 0, 1);
+const DAY_MS = 24 * 60 * 60 * 1000;
 const MONDAY_FIRST: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+const dayLabel = (day: Weekday, locale: StorefrontLocale): string =>
+  new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" })
+    .format(new Date(MONDAY_2024 + MONDAY_FIRST.indexOf(day) * DAY_MS))
+    .replace(/\.$/, "");
+
 
 const minutesOf = (clock: string) => {
   const [hours, minutes] = clock.split(":").map(Number);
@@ -34,8 +34,9 @@ const isClock = (value: unknown): value is string => typeof value === "string" &
 const validDay = (day: DayHours | null | undefined): day is DayHours =>
   Boolean(day && isClock(day.open) && isClock(day.close) && minutesOf(day.open) < minutesOf(day.close));
 
-export function formatClock(clock: string): string {
+export function formatClock(clock: string, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string {
   const [hours, minutes] = clock.split(":").map(Number);
+  if (locale === "fr") return `${String(hours).padStart(2, "0")}h${String(minutes).padStart(2, "0")}`;
   const suffix = hours >= 12 ? "pm" : "am";
   const twelve = hours % 12 === 0 ? 12 : hours % 12;
   return `${twelve}:${String(minutes).padStart(2, "0")} ${suffix}`;
@@ -65,20 +66,22 @@ export function openStatus(hours: OpeningHours | null | undefined, now: Date): O
   return null;
 }
 
-export function describeOpenStatus(status: OpenStatus): string {
-  if (status.state === "open") return `Open · closes at ${formatClock(status.closesAt)}`;
-  const when = status.opensOn === "today" || status.opensOn === "tomorrow" ? status.opensOn : DAY_LABELS[status.opensOn];
-  return `Closed · opens ${when} at ${formatClock(status.opensAt)}`;
+export function describeOpenStatus(status: OpenStatus, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string {
+  if (status.state === "open") return translate(locale, "status.open", { time: formatClock(status.closesAt, locale) });
+  const time = formatClock(status.opensAt, locale);
+  if (status.opensOn === "today") return translate(locale, "status.closed.today", { time });
+  if (status.opensOn === "tomorrow") return translate(locale, "status.closed.tomorrow", { time });
+  return translate(locale, "status.closed.day", { day: dayLabel(status.opensOn, locale), time });
 }
 
-export function summarizeHours(hours: OpeningHours | null | undefined): string | null {
+export function summarizeHours(hours: OpeningHours | null | undefined, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string | null {
   if (!hours) return null;
   const groups: { days: Weekday[]; range: string }[] = [];
 
   for (const day of MONDAY_FIRST) {
     const dayHours = hours[day];
     if (!validDay(dayHours)) continue;
-    const range = `${formatClock(dayHours.open)} – ${formatClock(dayHours.close)}`;
+    const range = `${formatClock(dayHours.open, locale)} – ${formatClock(dayHours.close, locale)}`;
     const last = groups[groups.length - 1];
     const previous = MONDAY_FIRST[MONDAY_FIRST.indexOf(day) - 1];
     if (last && last.range === range && last.days[last.days.length - 1] === previous) {
@@ -91,7 +94,7 @@ export function summarizeHours(hours: OpeningHours | null | undefined): string |
   if (groups.length === 0) return null;
   return groups
     .map(({ days, range }) => {
-      const span = days.length === 1 ? DAY_LABELS[days[0]] : `${DAY_LABELS[days[0]]} – ${DAY_LABELS[days[days.length - 1]]}`;
+      const span = days.length === 1 ? dayLabel(days[0], locale) : `${dayLabel(days[0], locale)} – ${dayLabel(days[days.length - 1], locale)}`;
       return `${span} · ${range}`;
     })
     .join("; ");

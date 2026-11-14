@@ -9,6 +9,7 @@ use App\Models\Storefront;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesDeviceLabels;
+use App\Support\StorefrontLocales;
 use App\Support\StorefrontThemes;
 
 /**
@@ -93,6 +94,8 @@ class AdminStoreDetailService
                 'dirty_since' => ($store->storefront_dirty_at ?? $storefront?->style_dirty_at)?->diffForHumans(),
                 'theme' => $storefront?->theme ?? StorefrontThemes::DEFAULT,
                 'available_themes' => StorefrontThemes::IDS,
+                'locale' => $storefront?->locale ?? StorefrontLocales::DEFAULT,
+                'enabled_locales' => $storefront?->enabled_locales ?? [$storefront?->locale ?? StorefrontLocales::DEFAULT],
                 'accent' => $storefront?->accent,
                 'tagline' => $storefront?->tagline,
                 'whatsapp' => $storefront?->whatsapp,

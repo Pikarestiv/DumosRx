@@ -21,6 +21,8 @@ export interface StorefrontSettingsInput {
   whatsapp?: string | null;
   pickup_minutes?: number | null;
   opening_hours?: Record<string, { open: string; close: string } | null> | null;
+  locale?: string | null;
+  enabled_locales?: string[] | null;
 }
 
 export const useUpdateStoreStorefrontSettingsMutation = () => {

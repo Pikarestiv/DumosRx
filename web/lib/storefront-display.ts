@@ -1,3 +1,5 @@
+import { DEFAULT_STOREFRONT_LOCALE, translate, translatePlural, type StorefrontLocale } from "@/lib/storefront-i18n";
+
 const CONNECTOR_WORDS = new Set(["of", "and", "for", "with", "in", "the", "to", "or", "on", "at", "by"]);
 const KNOWN_ACRONYMS = new Set(["ors", "hiv", "act", "bcg", "uti", "otc", "ent", "ocp", "ppi", "nsaid", "spf", "aids"]);
 const SHORT_ACRONYM_MAX_LETTERS = 2;
@@ -58,7 +60,7 @@ export function storeNameTextClass(name: string): string {
 
 export const STOREFRONT_LANDING_PRODUCT_CAP = 50;
 
-export function viewAllProductsLabel(shown: number, productCount?: number): string {
+export function viewAllProductsLabel(shown: number, productCount?: number, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string {
   const total = productCount !== undefined ? Math.max(productCount, shown) : shown < STOREFRONT_LANDING_PRODUCT_CAP ? shown : null;
-  return total === null ? "View all products" : `View all ${total} product${total === 1 ? "" : "s"}`;
+  return total === null ? translate(locale, "products.viewAll.unknown") : translatePlural(locale, "products.viewAll", total);
 }

@@ -4,8 +4,8 @@ import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
 import { OPEN_CART_EVENT } from "@/components/storefront/storefront-cart";
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { useCart } from "@/lib/store/use-cart-store";
-import { formatMoney } from "@/lib/utils/currency";
 
 interface MobileCartBarProps {
   storeSlug: string;
@@ -15,6 +15,7 @@ interface MobileCartBarProps {
 const subscribeNothing = () => () => {};
 
 export function MobileCartBar({ storeSlug, currency }: MobileCartBarProps) {
+  const { t, money } = useStorefrontI18n();
   const cart = useCart(storeSlug);
   const pathname = usePathname();
   const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
@@ -33,9 +34,9 @@ export function MobileCartBar({ storeSlug, currency }: MobileCartBarProps) {
           <span className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold [background:var(--primary)] [color:var(--primary-foreground)]">
             {count}
           </span>
-          View cart
+          {t("cartbar.view")}
         </span>
-        <span className="[font-family:var(--sf-font-price)] font-semibold tabular-nums">{formatMoney(cart.getTotal(), currency)}</span>
+        <span className="[font-family:var(--sf-font-price)] font-semibold tabular-nums">{money(cart.getTotal(), currency)}</span>
       </button>
     </div>
   );

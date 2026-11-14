@@ -25,6 +25,8 @@ class Storefront extends Model
         'headline',
         'about',
         'theme',
+        'locale',
+        'enabled_locales',
         'accent',
         'tagline',
         'whatsapp',
@@ -41,6 +43,7 @@ class Storefront extends Model
     protected $casts = [
         'social_links' => 'array',
         'opening_hours' => 'array',
+        'enabled_locales' => 'array',
         'pickup_minutes' => 'integer',
         'is_active' => 'boolean',
         'style_dirty_at' => 'datetime',

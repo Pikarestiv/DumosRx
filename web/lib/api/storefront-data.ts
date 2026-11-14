@@ -31,6 +31,8 @@ export interface StorefrontProfile {
   headline?: string | null;
   about?: string | null;
   theme?: string;
+  locale?: string | null;
+  enabled_locales?: string[] | null;
   accent?: string | null;
   tagline?: string | null;
   whatsapp?: string | null;

@@ -6,6 +6,7 @@ use App\Exceptions\StoreActionBlockedException;
 use App\Services\Admin\AdminStorefrontRebuildService;
 use App\Services\Admin\AdminStoreStorefrontService;
 use App\Services\Storefront\StorefrontRebuildDispatcher;
+use App\Support\StorefrontSettingsRules;
 use App\Support\StorefrontThemes;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -20,10 +21,6 @@ use OpenApi\Attributes as OA;
  */
 class AdminStoreStorefrontController extends AdminBaseController
 {
-    private const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-
-    private const CLOCK = '/^([01]\d|2[0-3]):[0-5]\d$/';
-
     public function __construct(
         private AdminStoreStorefrontService $storefrontService,
         private AdminStorefrontRebuildService $rebuildService,
@@ -142,6 +139,8 @@ class AdminStoreStorefrontController extends AdminBaseController
             new OA\Property(property: 'whatsapp', type: 'string', nullable: true),
             new OA\Property(property: 'pickup_minutes', type: 'integer', nullable: true),
             new OA\Property(property: 'opening_hours', type: 'object', nullable: true),
+            new OA\Property(property: 'locale', type: 'string', nullable: true, enum: ['en', 'fr']),
+            new OA\Property(property: 'enabled_locales', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Saved', content: new OA\JsonContent(properties: [new OA\Property(property: 'message', type: 'string')])),
@@ -152,37 +151,7 @@ class AdminStoreStorefrontController extends AdminBaseController
     )]
     public function updateSettings(Request $request, string $id)
     {
-        $validated = $request->validate([
-            'accent' => ['sometimes', 'nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'tagline' => ['sometimes', 'nullable', 'string', 'max:140'],
-            'whatsapp' => ['sometimes', 'nullable', 'string', 'regex:/^\+?[0-9 ()\-]{6,32}$/'],
-            'pickup_minutes' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1440'],
-            'opening_hours' => ['sometimes', 'nullable', 'array', function (string $attribute, mixed $hours, \Closure $fail) {
-                foreach ((array) $hours as $day => $range) {
-                    if (! in_array($day, self::WEEKDAYS, true)) {
-                        $fail("'{$day}' is not a weekday.");
-
-                        return;
-                    }
-                    if ($range === null) {
-                        continue;
-                    }
-                    $valid = is_array($range)
-                        && preg_match(self::CLOCK, (string) ($range['open'] ?? ''))
-                        && preg_match(self::CLOCK, (string) ($range['close'] ?? ''))
-                        && $range['open'] < $range['close'];
-                    if (! $valid) {
-                        $fail("The hours for {$day} must be HH:MM times with opening before closing.");
-
-                        return;
-                    }
-                }
-            }],
-        ]);
-
-        if (isset($validated['accent'])) {
-            $validated['accent'] = strtoupper($validated['accent']);
-        }
+        $validated = StorefrontSettingsRules::normalise($request->validate(StorefrontSettingsRules::rules()));
 
         return $this->withErrorResponse('Storefront Settings', 'Failed to update the storefront settings', function () use ($id, $validated) {
             try {

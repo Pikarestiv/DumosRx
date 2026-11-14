@@ -263,3 +263,56 @@ describe("storefront layout theme", () => {
     expect(container.querySelector("style")?.textContent).toContain("--primary:#2255AA;");
   });
 });
+
+describe("a French storefront", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const frenchStore = () =>
+    storefrontData({
+      store: { id: "s1", name: "Divamax", currency: "XAF", store_type: "retail", phone: "699000000", online_payment_available: true },
+      storefront: {
+        id: "f1", slug: "grace", name: "Divamax", theme: "workshop", locale: "fr", enabled_locales: ["fr", "en"],
+        whatsapp: "+237 6 00 00 00 00", opening_hours: { mon: { open: "08:00", close: "18:00" } },
+      },
+      products: [
+        { id: "a", name: "Ampoule", selling_price: 1500, stock_quantity: 3, category: { name: "Éclairage" } },
+        { id: "b", name: "Mèche", selling_price: 0 },
+      ],
+      product_count: 2,
+    });
+
+  async function renderFrench() {
+    serveStorefront(frenchStore());
+    const layout = await StorefrontLayout({ params, children: await StorefrontPage({ params }) });
+    return render(layout);
+  }
+
+  it("shows French text, prices and times, and none of the English strings", async () => {
+    const { container } = await renderFrench();
+    const text = container.textContent ?? "";
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Tout ce qu'il vous faut, prêt au retrait.");
+    expect(screen.getByRole("link", { name: "Voir les articles" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ajouter au panier : Ampoule" })).toBeTruthy();
+    expect(text.replace(/\s/g, " ")).toContain("1 500 FCFA");
+    expect(text).toContain("Plus que 3");
+    expect(text).toContain("Prix sur demande");
+    expect(text).toContain("08h00 – 18h00");
+    for (const english of ["Browse products", "Add to cart", "Price on request", "How ordering works", "Powered by", "Store pickup", "items", "In stock", "Only 3 left"]) {
+      expect(text, `English text leaked: ${english}`).not.toContain(english);
+    }
+  });
+
+  it("offers the language switch because the store enabled two languages", async () => {
+    await renderFrench();
+
+    expect(screen.getByRole("group", { name: "Langue" })).toBeTruthy();
+  });
+
+  it("asks about a price in French on WhatsApp", async () => {
+    await renderFrench();
+
+    const ask = screen.getByRole("link", { name: "Demander le prix de Mèche" });
+    expect(decodeURIComponent(ask.getAttribute("href") ?? "")).toContain("Bonjour, quel est le prix de Mèche ?");
+  });
+});

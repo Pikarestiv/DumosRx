@@ -112,6 +112,8 @@ export interface AdminStoreDetail {
     dirty_since: string | null;
     theme?: string;
     available_themes?: string[];
+    locale?: string | null;
+    enabled_locales?: string[] | null;
     accent?: string | null;
     tagline?: string | null;
     whatsapp?: string | null;

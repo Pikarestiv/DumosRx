@@ -355,6 +355,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
             Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
 
+            // Storefront look (owner only)
+            Route::get('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'show']);
+            Route::put('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'update'])->middleware('subscription:custom_branding');
+
             // Sync
             Route::post('/sync/push', [SyncController::class, 'push']);
             Route::post('/sync/pull', [SyncController::class, 'pull']);

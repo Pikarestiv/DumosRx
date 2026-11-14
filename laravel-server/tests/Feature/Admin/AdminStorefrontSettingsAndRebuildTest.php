@@ -100,6 +100,23 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
     }
 
     #[Test]
+    public function a_super_admin_sets_the_default_language_and_the_enabled_switch_languages(): void
+    {
+        $this->actingAs($this->admin())
+            ->putJson($this->settingsUrl(), ['locale' => 'fr', 'enabled_locales' => ['fr', 'en']])
+            ->assertOk();
+
+        $this->assertSame('fr', $this->storefront()->locale);
+        $this->assertSame(['fr', 'en'], $this->storefront()->enabled_locales);
+
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['locale' => 'de'])->assertStatus(422);
+        $this->actingAs($this->admin())
+            ->getJson("/api/v1/admin/stores/{$this->store->id}")
+            ->assertJsonPath('storefront.locale', 'fr')
+            ->assertJsonPath('storefront.enabled_locales', ['fr', 'en']);
+    }
+
+    #[Test]
     public function the_store_detail_payload_carries_the_settings_and_the_pending_flag(): void
     {
         $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['tagline' => 'Hello'])->assertOk();

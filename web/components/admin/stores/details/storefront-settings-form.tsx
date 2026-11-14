@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useUpdateStoreStorefrontSettingsMutation } from "@/lib/api/admin-hooks";
 import { ACCENT_SWATCHES, isHexColour, readableForeground } from "@/lib/storefront-accent";
 import type { OpeningHours } from "@/lib/storefront-hours";
+import { LOCALE_NAMES, STOREFRONT_LOCALES, resolveEnabledLocales, resolveLocale, type StorefrontLocale } from "@/lib/storefront-i18n";
 import { resolveStorefrontPreset } from "@/lib/storefront-themes";
 import type { AdminStoreDetail } from "@/lib/types/admin-store-detail";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,8 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
   const [whatsapp, setWhatsapp] = useState(storefront.whatsapp ?? "");
   const [pickup, setPickup] = useState(storefront.pickup_minutes ? String(storefront.pickup_minutes) : "");
   const [hours, setHours] = useState<OpeningHours>(storefront.opening_hours ?? {});
+  const [locale, setLocale] = useState<StorefrontLocale>(resolveLocale(storefront.locale));
+  const [allowSwitch, setAllowSwitch] = useState(resolveEnabledLocales(resolveLocale(storefront.locale), storefront.enabled_locales).length > 1);
 
   const accentValid = accent === "" || isHexColour(accent);
   const contrast = isHexColour(accent) ? readableForeground(accent, preset.ink) : null;
@@ -49,6 +52,8 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
           whatsapp: whatsapp.trim() || null,
           pickup_minutes: pickup === "" ? null : Number(pickup),
           opening_hours: anyOpenDay ? hours : null,
+          locale,
+          enabled_locales: allowSwitch ? [locale, ...STOREFRONT_LOCALES.filter((code) => code !== locale)] : [locale],
         },
       },
       {
@@ -154,6 +159,37 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
       </div>
 
       <StorefrontHoursEditor hours={hours} onChange={setHours} disabled={!editable} />
+
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-medium">Language</legend>
+        <div className="space-y-2">
+          <label htmlFor="storefront-locale" className="text-sm">
+            Default language
+          </label>
+          <select
+            id="storefront-locale"
+            value={locale}
+            disabled={!editable}
+            onChange={(event) => setLocale(resolveLocale(event.target.value))}
+            className="flex h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            {STOREFRONT_LOCALES.map((code) => (
+              <option key={code} value={code}>
+                {LOCALE_NAMES[code]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={allowSwitch}
+            disabled={!editable}
+            onChange={(event) => setAllowSwitch(event.target.checked)}
+          />
+          Let visitors switch language
+        </label>
+      </fieldset>
 
       {editable ? (
         <Button type="submit" disabled={!valid || save.isPending}>

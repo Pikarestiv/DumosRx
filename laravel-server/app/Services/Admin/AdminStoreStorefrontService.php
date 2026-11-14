@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Store;
 use App\Models\Storefront;
 use App\Services\Storefront\StorefrontCatalogService;
+use App\Services\Storefront\StorefrontStyleService;
 use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,10 @@ class AdminStoreStorefrontService
 {
     private const MAX_SLUG_LENGTH = 100;
 
-    public function __construct(private StorefrontCatalogService $catalogService) {}
+    public function __construct(
+        private StorefrontCatalogService $catalogService,
+        private StorefrontStyleService $styleService,
+    ) {}
 
     /**
      * Super-admin-only for now; see web/AGENTS.md "Storefront themes".
@@ -62,7 +66,7 @@ class AdminStoreStorefrontService
     }
 
     /**
-     * @param  array<string, mixed>  $settings  accent, tagline, whatsapp, pickup_minutes, opening_hours (any subset)
+     * @param  array<string, mixed>  $settings  accent, tagline, whatsapp, pickup_minutes, opening_hours, locale, enabled_locales (any subset)
      */
     public function updateSettings(string $id, array $settings): Storefront
     {
@@ -75,24 +79,12 @@ class AdminStoreStorefrontService
                 );
             }
 
-            $storefront = $this->catalogService->storefrontForStore($store);
-            $storefront->fill($settings);
-
-            if (! $storefront->isDirty()) {
-                return $storefront;
-            }
-
-            $changed = array_keys($storefront->getDirty());
-            $storefront->style_dirty_at = now();
-            $storefront->save();
-
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action' => 'STOREFRONT_SETTINGS_CHANGED',
-                'description' => "Changed storefront settings (".implode(', ', $changed).") for store: {$store->name} ({$store->id})",
-            ]);
-
-            return $storefront->refresh();
+            return $this->styleService->apply(
+                $this->catalogService->storefrontForStore($store),
+                $settings,
+                " for store: {$store->name} ({$store->id})",
+                queueAutomaticRebuild: false,
+            );
         });
     }
 

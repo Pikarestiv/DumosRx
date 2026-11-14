@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { ProductCard } from "@/components/storefront/product-card";
 import { correctCategoryName } from "@/lib/storefront-categories";
 import { toDisplayTitle, viewAllProductsLabel } from "@/lib/storefront-display";
@@ -30,10 +31,20 @@ function categoryNames(products: StorefrontProduct[]): string[] {
 }
 
 export function FeaturedProducts({ products, productCount, storeSlug, currency, whatsapp, catalogHref }: FeaturedProductsProps) {
+  const { t, tp, locale } = useStorefrontI18n();
   const [active, setActive] = useState<string | null>(null);
   const categories = categoryNames(products);
   const shown = (active ? products.filter((p) => p.category?.name === active) : products).slice(0, FEATURED_PRODUCT_COUNT);
   const total = productCount ?? products.length;
+
+  if (products.length === 0) {
+    return (
+      <div className="rounded-[var(--sf-card-radius)] border border-black/10 bg-white px-6 py-14 text-center">
+        <p className="text-lg font-semibold">{t("products.empty.title")}</p>
+        <p className="mt-1 text-sm opacity-75">{t("products.empty.body")}</p>
+      </div>
+    );
+  }
 
   const chip = (selected: boolean) =>
     cn(
@@ -47,14 +58,14 @@ export function FeaturedProducts({ products, productCount, storeSlug, currency, 
   return (
     <section aria-label="Products" className="space-y-5">
       <div className="flex items-end justify-between gap-4">
-        <h2 className={`${DISPLAY_FONT} text-2xl sm:text-4xl`}>Products</h2>
-        <p className="text-sm opacity-70 [font-family:var(--sf-font-price)]">{total} items</p>
+        <h2 className={`${DISPLAY_FONT} text-2xl sm:text-4xl`}>{t("products.heading")}</h2>
+        <p className="text-sm opacity-70 [font-family:var(--sf-font-price)]">{tp("products.count", total)}</p>
       </div>
 
       {categories.length > 0 && (
-        <div role="group" aria-label="Categories" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        <div role="group" aria-label={t("products.categories")} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
           <button type="button" aria-pressed={active === null} onClick={() => setActive(null)} className={chip(active === null)}>
-            All · {total}
+            {t("products.all", { count: total })}
           </button>
           {categories.map((name) => (
             <button key={name} type="button" aria-pressed={active === name} onClick={() => setActive(name)} className={chip(active === name)}>
@@ -72,7 +83,7 @@ export function FeaturedProducts({ products, productCount, storeSlug, currency, 
 
       <div className="flex justify-center pt-2">
         <Link href={catalogHref} className={SECONDARY_BUTTON}>
-          {viewAllProductsLabel(products.length, productCount)}
+          {viewAllProductsLabel(products.length, productCount, locale)}
         </Link>
       </div>
     </section>

@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { describeOpenStatus, openStatus, type OpeningHours } from "@/lib/storefront-hours";
 import { cn } from "@/lib/utils";
 
@@ -18,17 +19,18 @@ interface StoreOpenStatusProps {
 }
 
 export function StoreOpenStatus({ hours, className }: StoreOpenStatusProps) {
-  const text = useSyncExternalStore(
+  const { locale } = useStorefrontI18n();
+  const snapshot = useSyncExternalStore(
     subscribe,
     () => {
       const status = openStatus(hours, new Date());
-      return status ? describeOpenStatus(status) : null;
+      return status ? JSON.stringify({ text: describeOpenStatus(status, locale), open: status.state === "open" }) : null;
     },
     () => null,
   );
 
-  if (!text) return null;
-  const isOpen = text.startsWith("Open");
+  if (!snapshot) return null;
+  const { text, open: isOpen } = JSON.parse(snapshot) as { text: string; open: boolean };
 
   return (
     <span className={cn("inline-flex items-center gap-2 text-sm", className)}>

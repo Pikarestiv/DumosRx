@@ -20,14 +20,8 @@ export interface StorefrontCopy {
   locationsSubtitle: string;
   trackerProcessing: string;
   trackerItemsHeading: string;
-  heroTagline: string;
-  orderingSteps: [StorefrontPromise, StorefrontPromise, StorefrontPromise];
 }
 
-const PAY_STEP: StorefrontPromise = {
-  title: "Pay",
-  body: "Pay online, or when you collect, whichever suits you.",
-};
 
 const PAYMENTS_FAQ: StorefrontFaq = {
   q: "What payment methods are supported?",
@@ -76,12 +70,6 @@ const PHARMACY_COPY: StorefrontCopy = {
   locationsSubtitle: "Visit our pharmacy locations for physical pickup, prescriptions, and healthcare inquiries.",
   trackerProcessing: "Processing at Pharmacy",
   trackerItemsHeading: "Prescription & Products Ordered",
-  heroTagline: "Medicines, wellness and everyday essentials.",
-  orderingSteps: [
-    { title: "Choose", body: "Add products to your cart. Prescription items need a valid prescription at pickup." },
-    PAY_STEP,
-    { title: "Collect", body: "Our pharmacy team prepares your order and lets you know when it is ready." },
-  ],
 };
 
 const RETAIL_COPY: StorefrontCopy = {
@@ -110,12 +98,6 @@ const RETAIL_COPY: StorefrontCopy = {
   locationsSubtitle: "Visit our branches for pickup and in-store enquiries.",
   trackerProcessing: "Processing at Store",
   trackerItemsHeading: "Products Ordered",
-  heroTagline: "Everything you need, ready for pickup.",
-  orderingSteps: [
-    { title: "Choose", body: "Add items to your cart. The stock shown is the store's own, kept up to date." },
-    PAY_STEP,
-    { title: "Collect", body: "You get a message as soon as your order is ready at the counter." },
-  ],
 };
 
 export function isPharmacyStore(store?: Pick<StorefrontStore, "store_type"> | null): boolean {
@@ -125,16 +107,3 @@ export function isPharmacyStore(store?: Pick<StorefrontStore, "store_type"> | nu
 export function storefrontCopy(store?: Pick<StorefrontStore, "store_type"> | null): StorefrontCopy {
   return isPharmacyStore(store) ? PHARMACY_COPY : RETAIL_COPY;
 }
-
-const STORE_TYPE_LABELS: ReadonlyMap<string, string> = new Map([
-  ["pharmacy", "Pharmacy"],
-  ["retail", "Retail store"],
-]);
-
-export function storeTypeLabel(store?: Pick<StorefrontStore, "store_type"> | null): string | null {
-  const type = store?.store_type;
-  if (!type) return null;
-  return STORE_TYPE_LABELS.get(type) ?? type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-export const defaultTagline = (storeType?: string | null): string => storefrontCopy({ store_type: storeType }).heroTagline;

@@ -65,12 +65,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `client/components/stock-batch/audit-ledger-row-cells.tsx` renders the cost price, the counted cost (read-only text when `canEditProductCost` is false) and the cost difference for every row. Only editing is gated (`edit_product_cost`); seeing the figures needs nothing beyond `perform_stock_audit`, so a role without `view_cost_fields` reads every product's cost there.
 - **Fix:** read `view_cost_fields` in `audit-ledger-step.tsx` and hide the three cost cells and their headers when it is withheld.
 
-#### A-382. `client/` — the product export's Cost Price column ignores `view_cost_fields`
-
-- **Found:** 2026-11-13, same review; pre-existing.
-- **What's wrong:** `EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts` always offers "Cost Price" (the batch average from `lib/db/queries/product-export.ts`), and the toolbar (`components/stock-batch/import-export-toolbar.tsx`) gates the export on `export_product_list` only.
-- **Fix:** drop the `costPrice` column from the column picker and the file when the user lacks `view_cost_fields`.
-
 #### A-383. `client/` — the Inventory Valuation report export carries Cost Price for anyone with report access
 
 - **Found:** 2026-11-13, same review; pre-existing.

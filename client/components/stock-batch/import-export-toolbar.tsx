@@ -48,6 +48,7 @@ export function ImportExportToolbar({
 }: ImportExportToolbarProps) {
   const { storeProfile } = useStore();
   const canExportProductList = useHasPermission("export_product_list");
+  const canViewCost = useHasPermission("view_cost_fields");
   const [showImport, setShowImport] = useState(false);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [pendingFormat, setPendingFormat] = useState<ExportFormat | null>(null);
@@ -74,7 +75,7 @@ export function ImportExportToolbar({
 
       if (format === "pdf") {
         await setProgress("Preparing data...", 35);
-        const { headers, rows } = buildExportRows(products, columns);
+        const { headers, rows } = buildExportRows(products, columns, canViewCost);
         await setProgress("Rendering PDF...", 60);
         const blob = await generateReportPdfBlob({
           storeName: storeProfile?.name || "",
@@ -98,7 +99,7 @@ export function ImportExportToolbar({
           format === "csv" ? "Building CSV..." : "Building spreadsheet...",
           60,
         );
-        const blob = await buildExportBlob(products, columns, format);
+        const blob = await buildExportBlob(products, columns, format, canViewCost);
         downloadBlob(
           blob,
           buildExportFilename({

@@ -47,6 +47,7 @@ class AdminStoreStorefrontController extends AdminBaseController
                 new OA\Property(property: 'store_slug', type: 'string', nullable: true),
             ])),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
+            new OA\Response(response: 404, description: 'No store with that id'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Enabling a store that has no storefront slug, or a slug that is malformed, taken, or inside the change cooldown'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -65,6 +66,8 @@ class AdminStoreStorefrontController extends AdminBaseController
                     (bool) $validated['enabled'],
                     $validated['store_slug'] ?? null,
                 );
+            } catch (ModelNotFoundException) {
+                return response()->json(['message' => 'Store not found'], 404);
             } catch (StoreActionBlockedException $e) {
                 // `message`, not the admin controllers' usual `error` key:
                 // base-client.ts only lifts `data.message` onto the thrown

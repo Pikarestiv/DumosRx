@@ -1,3 +1,10 @@
+### A-371 — PUT /admin/stores/{id}/storefront answered 500, not 404, for a store id that does not exist
+- **Fixed:** 2026-11-14, server only, TDD. Found adding the storefront theme endpoint beside it.
+- **Was:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail($id)`, but `AdminStoreStorefrontController::update()` did not catch `ModelNotFoundException` (unlike `updateTheme()` and `updateSettings()`). `AdminBaseController::withErrorResponse()` caught it as a generic exception, logging an error and returning HTTP 500 "Failed to update the storefront".
+- **Now:** `AdminStoreStorefrontController::update()` catches `ModelNotFoundException` and returns 404 `{"message": "Store not found"}`, matching `updateTheme()` and OpenAPI documentation.
+- **Coverage:** `laravel-server/tests/Feature/Admin/AdminStoreStorefrontToggleTest.php` (`toggling_storefront_for_non_existent_store_answers_404`).
+- **Compat:** bug fix; no schema or request payload change.
+
 ### A-385 — the sync indicator stayed orange after a sync had finished, so users kept clicking it
 - **Fixed:** 2026-11-14, client only, TDD. Reported by the owner: "sometimes sync is done but the sync indicator still remains orange for several seconds".
 - **Was:** "Pending Sync" is driven by `getSyncQueueCount()` through the `queueCount` query, which refetched only on `addSyncQueueChangeListener` events or its 30s `refetchInterval`. The push drains `_sync_queue` with raw `execute()` (`push-response.ts`, `sync-queue.ts`), which emits no change event, and the post-pull invalidation in `sync()` only matches pulled tables, never `_sync_queue`. So when a sync ended the card fell from "Syncing..." to an orange "Pending Sync" showing the pre-sync count until the next poll, up to 30s. Separately, a click that landed while another caller held the sync mutex (the second indicator instance, the store's background sync) returned `SYNC_IN_PROGRESS_ERROR` and its `finally` set `isSyncInProgress` to false, so the card showed orange with no spinner while a sync was running.

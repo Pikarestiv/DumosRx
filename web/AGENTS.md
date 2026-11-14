@@ -194,22 +194,44 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 ## Storefront chrome and display conventions (storefront Phases 1–5, 2026-11-02; home refresh and themes 2026-11-13)
 
 - **Storefront routes (refreshed 2026-11-13):**
-  - Home (`app/store/[store_slug]/page.tsx`), top to bottom: hero (store
-    name, "Shop now", and "Contact us" when the store has contact details), **Featured Products** (the first 8 of
-    the show endpoint's `products`, which the API orders as best sellers,
-    in stock first; see `laravel-server/AGENTS.md`, "Which products a
-    storefront lists". The web just slices, so ranking needs no web change; on a phone only the first 4 show, `MOBILE_FEATURED_COUNT`, in a 2-column grid of compact cards whose add button is a round plus beside the price, while sm and up keep all 8 with the full-width Add to Cart), plus "View all N products" → `/catalog`), a headline band
-    (`storefront.headline` with fixed supporting copy and "Browse the shop"),
-    then `StoreAboutSection` (`#about`), `StoreLocationsSection`
-    (`#locations`, only when `hasLocationsToShow()`: more than one branch, or
-    the store has an address), `StoreFaqSection` (`#faq`) and a Contact
-    section (`#contact`) wrapping `StoreContactBlock`. The Contact section,
-    the hero's "Contact us", the footer's Contact column and the Contact nav
-    link (`storefrontNavLinks(slug, store)`) all appear only when
-    `hasContactDetails(store)` (`lib/storefront-display.ts`): a phone, an
-    email or an address line, each ignored when it is only whitespace
-    (A-384). Without one there is nothing to link to. Every section carries
-    `scroll-mt-24` so the sticky header does not cover its heading.
+  - Home (`app/store/[store_slug]/page.tsx`, redesigned 2026-11-14, storefront
+    redesign phase 2; see `docs/storefront-redesign.md`), top to bottom:
+    utility bar ("Store pickup · Local delivery"), header, hero
+    (`StorefrontHero`), **Products** (`FeaturedProducts`, a client component:
+    category chips filter the first 8 of the show endpoint's `products` in the
+    page, with "All · N" and "View all N products" → `/catalog`), "How ordering
+    works" (`OrderingSteps`, three numbered steps, wording from
+    `storefrontCopy(store).orderingSteps`) and a quiet footer. The hero H1 is
+    the owner's `storefront.tagline`, else `storefront.headline`, else
+    `copy.heroTagline` for the store type. The hero's layout follows the
+    preset (`band` shows the `StoreInfoPanel` at lg+, `tint` and `centered`
+    do not); status ("Open · closes at 6:00 pm") comes from
+    `storefront.opening_hours` and is computed **in the browser**
+    (`StoreOpenStatus`, `lib/storefront-hours.ts`) because the page is a static
+    export, so it renders nothing until mounted and at build time. The
+    WhatsApp button and every "Ask" button exist only when `storefront.whatsapp`
+    has digits; panel rows with no value are omitted. The About, Locations, FAQ
+    and Contact sections, the headline band and the pill label are gone from
+    the home page; `/about`, `/locations` and `/faq` still render those
+    section components for old links.
+  - **Product card** (`product-card.tsx`): a 4:3 `CategoryTile` (tint hashed
+    from the category name over the accent, line icon by keyword in
+    `lib/storefront-categories.ts`, neutral box when nothing matches; renders
+    `product.image` instead once the API sends one), name, price in the preset's
+    price font, a stock hint (`stockHint()`: "In stock", "Only N left" at 5 or
+    fewer, "Out of stock" disabling the add button) and one 44px "+" button
+    labelled "Add to cart: {name}". A price of 0 or missing reads "Price on
+    request" with an "Ask" WhatsApp link, never a zero. Stock comes from
+    `stock_quantity`/`in_stock` on the product payload (units on hand at the
+    branch, before pending online orders); an older API without them shows no
+    hint. Known category typos are corrected by `correctCategoryName()`.
+  - **Mobile:** 2-column grid, a compact header (name with the open status
+    beneath it, a search icon linking to the shop) and `MobileCartBar`, a fixed
+    "View cart · count · total" bar rendered by the layout once the cart has
+    items (hidden on `/checkout`); it opens the cart sheet through the
+    `storefront:open-cart` window event, because the sheet's state lives in
+    `StorefrontCart` inside a header whose `backdrop-blur` would trap a fixed
+    child.
   - **N in "View all N products" is the show endpoint's `product_count`**
     (2026-11-13), the uncapped total of the branch's online-visible products.
     `products` itself stays capped at
@@ -229,10 +251,12 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     home page (with `headingAs="h1"`). Never fork their content back into the
     page files.
   - Checkout (`/checkout`): order confirmation and Paystack payment.
-- **Nav is exactly Home, Shop, Contact**, then the cart, plus the branch
-  selector (unchanged). The list lives once in `lib/storefront-nav.ts` and
-  both the header and the footer's quick links render it. Contact is
-  `/store/<slug>#contact`, so it works from any storefront page.
+- **The header has no nav links** (2026-11-14): logo (or the store's initial in
+  the accent), name with "type · location" beneath, a search box that submits
+  `GET /store/<slug>/catalog?q=` (the shop view reads `q` on load), the branch
+  selector when there are several branches, and the cart. The old
+  Home/Shop/Contact list (`lib/storefront-nav.ts`) is deleted; contact details
+  live in the hero panel and footer.
 - **Upload Rx and Track Order are intentionally unlinked** (2026-11-13). The
   `/prescription` and `/track` routes and their components stay, still
   prerendered, but no storefront page links them. Track Order: a store can
@@ -243,17 +267,11 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   pulled from the nav in the same refresh to keep the nav to three items;
   relink it when prescription intake is part of the order flow. Do not
   re-add either link as a side effect of other work.
-- **Footer** (`storefront-footer.tsx`, takes `storeSlug`, `store`,
-  `storefront`): `bg-primary text-primary-foreground`, so it follows the
-  theme; store name plus `storefront.about` (else the headline, else
-  `storefrontCopy(store).footerAbout(name)`) clamped to three lines with
-  `line-clamp-3`, the shared quick links, phone/email/address via
-  `storeAddressLine()`, copyright, and "Powered by {WEB_APP_HOST}" (the host
-  of `WEB_APP_URL` without `www.`, from `lib/constants.ts`) linking
-  `WEB_APP_URL`. No social links: `storefronts.social_links` exists in the
-  schema but `GET /storefront/{slug}` does not expose it; add it to the
-  response first if wanted. No text opacity in the footer: white on the
-  default blue is close enough to 4.5:1 that dimming it fails.
+- **Footer** (`storefront-footer.tsx`): deliberately quiet, white with a top
+  border: logo, "© year name", address and hours, and "Powered by
+  {WEB_APP_HOST}" (the host of `WEB_APP_URL` without `www.`) linking
+  `WEB_APP_URL`. No links to storefront routes, no about text, no social links
+  (`storefronts.social_links` is not exposed by `GET /storefront/{slug}`).
 - **Storefront themes** (`lib/storefront-themes.ts`). Each theme sets
   `--primary`, `--primary-foreground` and `--ring` for light and dark mode.
   `app/store/[store_slug]/layout.tsx` is the one place a theme is applied

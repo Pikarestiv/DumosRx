@@ -1,15 +1,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Search } from "lucide-react";
 
 import { StoreBranchSelector } from "@/components/storefront/store-branch-selector";
+import { StoreLogo } from "@/components/storefront/store-logo";
+import { StoreOpenStatus } from "@/components/storefront/store-open-status";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
-import { storefrontNavLinks } from "@/lib/storefront-nav";
+import { StorefrontUtilityBar } from "@/components/storefront/storefront-utility-bar";
+import type { StorefrontBranch, StorefrontProfile, StorefrontStore } from "@/lib/api/storefront-data";
+import { storeTypeLabel } from "@/lib/storefront-copy";
 import { storeNameTextClass } from "@/lib/storefront-display";
-import type {
-  StorefrontBranch,
-  StorefrontProfile,
-  StorefrontStore,
-} from "@/lib/api/storefront-data";
+import { DISPLAY_FONT } from "@/lib/storefront-styles";
 
 interface StorefrontHeaderProps {
   storeSlug: string;
@@ -19,80 +20,60 @@ interface StorefrontHeaderProps {
   selectedBranchId?: string;
 }
 
-export function StorefrontHeader({
-  storeSlug,
-  store,
-  storefront,
-  branches,
-  selectedBranchId,
-}: StorefrontHeaderProps) {
+export function StorefrontHeader({ storeSlug, store, storefront, branches, selectedBranchId }: StorefrontHeaderProps) {
   const brandName = storefront?.name || store?.name || "Store";
   const logo = storefront?.logo_url || store?.logo_url;
+  const subtitle = [storeTypeLabel(store), store?.location?.trim()].filter(Boolean).join(" · ");
+  const home = `/store/${storeSlug}`;
+  const hasBranches = Boolean(branches && branches.length > 1);
+  const branchSelector = (
+    <Suspense fallback={null}>
+      <StoreBranchSelector branches={branches ?? []} selectedBranchId={selectedBranchId || store?.id || ""} storeSlug={storeSlug} />
+    </Suspense>
+  );
 
   return (
-    <header className="bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <Link
-            href={`/store/${storeSlug}`}
-            title={brandName}
-            className="flex items-center gap-3 min-w-0"
-          >
-            {logo && (
-              // eslint-disable-next-line @next/next/no-img-element -- static export arbitrary data URI
-              <img
-                src={logo}
-                alt=""
-                className="h-9 w-9 shrink-0 object-contain rounded"
-              />
-            )}
-            <span className={`font-heading font-bold leading-tight text-primary line-clamp-2 break-words max-w-[200px] sm:max-w-[320px] ${storeNameTextClass(brandName)}`}>
-              {brandName}
+    <>
+      <StorefrontUtilityBar />
+      <header className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur-sm">
+        <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-3 px-4 py-2 sm:gap-6 sm:px-6 lg:px-8">
+          <Link href={home} title={brandName} className="flex min-w-0 items-center gap-3">
+            <StoreLogo name={brandName} logo={logo} />
+            <span className="min-w-0">
+              <span className={`${DISPLAY_FONT} block leading-tight line-clamp-2 break-words ${storeNameTextClass(brandName)}`}>
+                {brandName}
+              </span>
+              {subtitle && <span className="hidden text-xs opacity-70 sm:block">{subtitle}</span>}
+              <StoreOpenStatus hours={storefront?.opening_hours} className="text-xs text-emerald-800 sm:hidden" />
             </span>
           </Link>
 
-          {branches && branches.length > 1 && (
-            <div className="hidden sm:block">
-              <Suspense fallback={null}>
-                <StoreBranchSelector
-                  branches={branches}
-                  selectedBranchId={selectedBranchId || store?.id || ""}
-                  storeSlug={storeSlug}
-                />
-              </Suspense>
-            </div>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-3 sm:gap-6">
-          <nav aria-label="Store" className="flex items-center gap-3 sm:gap-5 text-sm font-medium whitespace-nowrap">
-            {storefrontNavLinks(storeSlug, store).map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <StorefrontCart storeSlug={storeSlug} currency={store?.currency} />
-        </div>
-      </div>
-      {branches && branches.length > 1 && (
-        <div className="sm:hidden border-t border-border/60 px-4 py-2 bg-muted/20 flex items-center justify-between">
-          <span className="text-xs text-muted-foreground font-medium">
-            Branch:
-          </span>
-          <Suspense fallback={null}>
-            <StoreBranchSelector
-              branches={branches}
-              selectedBranchId={selectedBranchId || store?.id || ""}
-              storeSlug={storeSlug}
+          <form action={`${home}/catalog`} method="get" role="search" className="relative ml-auto hidden max-w-xl flex-1 sm:ml-4 sm:block">
+            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 opacity-60" />
+            <input
+              type="search"
+              name="q"
+              aria-label="Search products"
+              placeholder="Search products…"
+              className="h-11 w-full rounded-[var(--sf-button-radius)] border border-black/10 bg-[color:var(--sf-page)] pl-10 pr-4 text-sm"
             />
-          </Suspense>
+          </form>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
+            <Link href={`${home}/catalog`} aria-label="Search products" className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--sf-button-radius)] border border-black/10 sm:hidden">
+              <Search aria-hidden="true" className="h-5 w-5" />
+            </Link>
+            {hasBranches && <div className="hidden sm:block">{branchSelector}</div>}
+            <StorefrontCart storeSlug={storeSlug} currency={store?.currency} />
+          </div>
         </div>
-      )}
-    </header>
+        {hasBranches && (
+          <div className="flex items-center justify-between border-t border-black/10 px-4 py-2 sm:hidden">
+            <span className="text-xs font-medium opacity-70">Branch:</span>
+            {branchSelector}
+          </div>
+        )}
+      </header>
+    </>
   );
 }

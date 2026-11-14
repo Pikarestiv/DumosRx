@@ -1,0 +1,23 @@
+import { DISPLAY_FONT } from "@/lib/storefront-styles";
+import type { StorefrontPromise } from "@/lib/storefront-copy";
+
+interface OrderingStepsProps {
+  steps: StorefrontPromise[];
+}
+
+export function OrderingSteps({ steps }: OrderingStepsProps) {
+  return (
+    <section aria-label="How ordering works" className="space-y-6">
+      <h2 className={`${DISPLAY_FONT} text-2xl sm:text-3xl`}>How ordering works</h2>
+      <ol className="grid gap-8 border-t-2 border-[color:var(--sf-ink)] pt-6 sm:grid-cols-3">
+        {steps.map((step, index) => (
+          <li key={step.title} className="space-y-2">
+            <p className="text-sm opacity-70 [font-family:var(--sf-font-price)]">{String(index + 1).padStart(2, "0")}</p>
+            <h3 className="text-lg font-semibold">{step.title}</h3>
+            <p className="text-sm leading-relaxed opacity-80">{step.body}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}

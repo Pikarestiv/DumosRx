@@ -213,6 +213,11 @@ without updating that.
   `GET /storefront/{slug}`; nothing writes them yet (the admin settings tab,
   storefront redesign phase 4, will). `storefronts` is not synced to the
   client, so there is no SQLite counterpart.
+  Each storefront product also carries `stock_quantity` (units on hand at the
+  selected branch, `Product::scopeWithStockAt`, before pending online orders)
+  and `in_stock` (`stock_quantity > 0`), added 2026-11-14 for the card's stock
+  hint. Both are additive, so older web bundles ignore them; the resource is
+  only used by `show` and `products`, which both apply the scope.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has

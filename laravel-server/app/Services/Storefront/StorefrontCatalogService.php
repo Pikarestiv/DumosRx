@@ -151,6 +151,7 @@ class StorefrontCatalogService
             ->leftJoinSub($sales, 'best_sellers', 'best_sellers.product_id', '=', 'products.id')
             ->crossJoinSub($peaks, 'best_seller_peaks')
             ->with('category')
+            ->withStockAt($store->id)
             ->inStockFirstAt($store->id)
             ->orderByRaw(
                 '(? * COALESCE(best_sellers.units / NULLIF(best_seller_peaks.max_units, 0), 0)'
@@ -193,7 +194,7 @@ class StorefrontCatalogService
         ?string $categoryId = null,
         int $perPage = self::PER_PAGE,
     ): LengthAwarePaginator {
-        $query = $this->storeProducts($store)->with('category');
+        $query = $this->storeProducts($store)->with('category')->withStockAt($store->id);
 
         if ($search !== null && trim($search) !== '') {
             $term = '%'.trim($search).'%';

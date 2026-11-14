@@ -31,7 +31,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
   const data = await getStorefrontData(store_slug);
 
   return (
-    <div className="min-h-screen bg-muted/40 flex flex-col">
+    <div className="min-h-screen bg-[color:var(--sf-page)] text-[color:var(--sf-ink)] flex flex-col">
       <StorefrontHeader storeSlug={store_slug} store={data?.store} />
 
       <main className="flex-1 py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full">

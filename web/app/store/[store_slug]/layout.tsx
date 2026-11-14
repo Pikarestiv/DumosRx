@@ -1,3 +1,4 @@
+import { MobileCartBar } from "@/components/storefront/mobile-cart-bar";
 import { getStorefrontData } from "@/lib/api/storefront-data";
 import { STOREFRONT_FONT_CLASSES } from "@/lib/storefront-fonts";
 import { storefrontPresetCss } from "@/lib/storefront-presets";
@@ -27,6 +28,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
     >
       <style>{storefrontThemeCss() + storefrontPresetCss() + storefrontAccentCss(data?.storefront?.accent, preset)}</style>
       {children}
+      <MobileCartBar storeSlug={store_slug} currency={data?.store?.currency} />
     </div>
   );
 }

@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { formatMoney } from "@/lib/utils/currency";
 import { toDisplayTitle } from "@/lib/storefront-display";
 
+export const OPEN_CART_EVENT = "storefront:open-cart";
+
 interface StorefrontCartProps {
   storeSlug: string;
   currency?: string | null;
@@ -25,6 +27,12 @@ export function StorefrontCart({ storeSlug, currency }: StorefrontCartProps) {
   const [isOpen, setIsOpen] = useState(false);
   const cart = useCart(storeSlug);
   const router = useRouter();
+
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener(OPEN_CART_EVENT, open);
+    return () => window.removeEventListener(OPEN_CART_EVENT, open);
+  }, []);
 
   useEffect(() => {
     // Persisted cart state is client-only; render after mount to avoid a hydration mismatch.
@@ -42,14 +50,17 @@ export function StorefrontCart({ storeSlug, currency }: StorefrontCartProps) {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" aria-label="Open cart" className="relative h-12 w-12 rounded-full shadow-md">
-          <ShoppingCart className="h-6 w-6" />
-          {cart.getItemCount() > 0 && (
-            <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
-              {cart.getItemCount()}
-            </span>
-          )}
-        </Button>
+        <button
+          type="button"
+          aria-label="Open cart"
+          className="inline-flex min-h-11 items-center gap-2 rounded-[var(--sf-button-radius)] border border-[color:var(--sf-ink)] bg-white px-3 text-sm font-semibold sm:px-4"
+        >
+          <ShoppingCart aria-hidden="true" className="h-5 w-5" />
+          <span className="hidden sm:inline">Cart</span>
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-bold [background:var(--primary)] [color:var(--primary-foreground)]">
+            {cart.getItemCount()}
+          </span>
+        </button>
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md flex flex-col gap-0 p-0">
         <SheetHeader className="px-4 sm:px-6 pt-5 pb-4 border-b">

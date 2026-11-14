@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import StorefrontLayout from "@/app/store/[store_slug]/layout";
 import StorefrontPage from "@/app/store/[store_slug]/page";
@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
+  usePathname: () => "/store/grace",
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -49,31 +50,62 @@ describe("storefront home page", () => {
   it("features only eight products and links to the shop with the full count", async () => {
     await renderHome(storefrontData());
 
-    const featured = screen.getByRole("region", { name: "Featured products" });
-    expect(within(featured).getAllByRole("button", { name: /add to cart/i })).toHaveLength(8);
+    const featured = screen.getByRole("region", { name: "Products" });
+    expect(within(featured).getAllByRole("button", { name: /^add to cart:/i })).toHaveLength(8);
     expect(screen.getByRole("link", { name: /view all 20 products/i }).getAttribute("href")).toBe("/store/grace/catalog");
   });
 
-  it("shows four featured products on a phone and all eight from the sm breakpoint up", async () => {
-    await renderHome(storefrontData());
+  it("filters the grid by category chip without leaving the page", async () => {
+    const products = productList(6).map((p, i) => ({ ...p, category: { name: i < 2 ? "Lighting" : "Tools" } }));
+    await renderHome(storefrontData({ products, product_count: 6 }));
 
-    const featured = screen.getByRole("region", { name: "Featured products" });
-    const cards = Array.from(featured.querySelectorAll("[data-slot='card'], .rounded-xl.border")).filter((el) =>
-      el.querySelector("button"),
-    );
-    expect(cards).toHaveLength(8);
-    expect(cards.slice(0, 4).every((c) => !c.className.includes("hidden"))).toBe(true);
-    expect(cards.slice(4).every((c) => c.className.includes("hidden sm:flex"))).toBe(true);
+    expect(screen.getByRole("button", { name: "All · 6" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Lighting" }));
+
+    const featured = screen.getByRole("region", { name: "Products" });
+    expect(within(featured).getAllByRole("button", { name: /^add to cart:/i })).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "All · 6" }));
+    expect(within(featured).getAllByRole("button", { name: /^add to cart:/i })).toHaveLength(6);
   });
 
-  it("gives each card a compact add button for phones beside the full-width one for larger screens", async () => {
-    await renderHome(storefrontData({ products: productList(1) }));
+  it("gives every priced card one add button, and disables it when the product is out of stock", async () => {
+    const products = [
+      { id: "a", name: "Bulb", selling_price: 1500, stock_quantity: 40, in_stock: true },
+      { id: "b", name: "Lamp", selling_price: 2500, stock_quantity: 0, in_stock: false },
+    ];
+    await renderHome(storefrontData({ products }));
 
-    const featured = screen.getByRole("region", { name: "Featured products" });
-    const buttons = within(featured).getAllByRole("button");
-    expect(buttons).toHaveLength(2);
-    expect(buttons.some((b) => b.className.includes("sm:hidden") && /^Add /.test(b.getAttribute("aria-label") ?? ""))).toBe(true);
-    expect(buttons.some((b) => /add to cart/i.test(b.textContent ?? ""))).toBe(true);
+    expect((screen.getByRole("button", { name: "Add to cart: Bulb" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "Add to cart: Lamp" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("In stock")).toBeTruthy();
+    expect(screen.getByText("Out of stock")).toBeTruthy();
+  });
+
+  it("says only N left at five or fewer", async () => {
+    await renderHome(storefrontData({ products: [{ id: "a", name: "Bulb", selling_price: 1500, stock_quantity: 3 }] }));
+
+    expect(screen.getByText("Only 3 left")).toBeTruthy();
+  });
+
+  it("shows Price on request, never a zero price, and offers Ask on WhatsApp only when a number is set", async () => {
+    const unpriced = [{ id: "a", name: "Face Cream", selling_price: 0 }];
+    const withNumber = await renderHome(
+      storefrontData({
+        products: unpriced,
+        storefront: { id: "f1", slug: "grace", name: "Grace", whatsapp: "+234 800 000 0000" },
+      }),
+    );
+
+    expect(screen.getByText("Price on request")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /add to cart/i })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/₦\s?0(?![\d,])/);
+    const ask = screen.getByRole("link", { name: /ask about the price of face cream/i });
+    expect(ask.getAttribute("href")).toBe("https://wa.me/2348000000000?text=Hi%2C%20how%20much%20is%20Face%20Cream%3F");
+    withNumber.unmount();
+
+    await renderHome(storefrontData({ products: unpriced }));
+    expect(screen.getByText("Price on request")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /ask about the price/i })).toBeNull();
   });
 
   it("shows every product and still offers the shop when the store has fewer than eight", async () => {
@@ -103,56 +135,91 @@ describe("storefront home page", () => {
     expect(screen.queryByRole("link", { name: /view all/i })).toBeNull();
   });
 
-  it("puts the headline, About, FAQ and Contact sections on the home page under their anchors", async () => {
+  it("leads with the owner's tagline, then the headline, then the default for the store type", async () => {
+    const withTagline = await renderHome(
+      storefrontData({ storefront: { id: "f1", slug: "grace", name: "Grace", headline: "Old headline", tagline: "Wiring, lighting, done." } }),
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Wiring, lighting, done.");
+    withTagline.unmount();
+
+    const headlineOnly = await renderHome(storefrontData());
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Care you can trust");
+    headlineOnly.unmount();
+
+    await renderHome(storefrontData({ storefront: { id: "f1", slug: "grace", name: "Grace" } }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Medicines, wellness and everyday essentials.");
+  });
+
+  it("no longer carries the generic template sections", async () => {
     const { container } = await renderHome(storefrontData());
 
-    expect(screen.getByRole("heading", { name: "Care you can trust" })).toBeTruthy();
-    for (const id of ["about", "faq", "contact"]) {
-      expect(container.querySelector(`section#${id}`)).not.toBeNull();
+    expect(screen.queryByText(/genuine products, ready when you are/i)).toBeNull();
+    expect(screen.queryByText(/fast pickup & delivery/i)).toBeNull();
+    for (const id of ["about", "faq", "locations", "contact"]) {
+      expect(container.querySelector(`section#${id}`)).toBeNull();
     }
-    expect(within(container.querySelector("section#contact") as HTMLElement).getByText("0801")).toBeTruthy();
   });
 
-  it("drops the Contact section, nav link and hero button for a store with no contact details", async () => {
-    await renderHome(storefrontData({ store: { id: "s1", name: "Grace Pharmacy", currency: "NGN" } }));
+  it("explains ordering in three numbered steps worded for the store type", async () => {
+    const pharmacy = await renderHome(storefrontData());
+    const steps = within(screen.getByRole("region", { name: "How ordering works" })).getAllByRole("listitem");
+    expect(steps.map((step) => within(step).getByRole("heading").textContent)).toEqual(["Choose", "Pay", "Collect"]);
+    expect(screen.getByText(/prescription items need a valid prescription/i)).toBeTruthy();
+    pharmacy.unmount();
 
-    expect(screen.queryByRole("region", { name: "Contact" })).toBeNull();
-    const nav = screen.getByRole("navigation", { name: "Store" });
-    expect(within(nav).queryByRole("link", { name: "Contact" })).toBeNull();
-    expect(screen.queryByRole("link", { name: /contact us/i })).toBeNull();
-    const footer = screen.getByRole("contentinfo");
-    expect(within(footer).queryByText("Contact")).toBeNull();
+    await renderHome(storefrontData({ store: { id: "s1", name: "Grace Hardware", currency: "NGN", store_type: "retail" } }));
+    expect(screen.queryByText(/prescription/i)).toBeNull();
   });
 
-  it("keeps the Contact section and nav link once the store has a phone", async () => {
-    await renderHome(storefrontData({ store: { id: "s1", name: "Grace Pharmacy", phone: "0801", currency: "NGN" } }));
+  it("offers WhatsApp only when the store has a number, linking wa.me with digits only", async () => {
+    const without = await renderHome(storefrontData());
+    expect(screen.queryByRole("link", { name: /whatsapp/i })).toBeNull();
+    without.unmount();
 
-    expect(within(screen.getByRole("region", { name: "Contact" })).getByText("0801")).toBeTruthy();
-    const nav = screen.getByRole("navigation", { name: "Store" });
-    expect(within(nav).getByRole("link", { name: "Contact" }).getAttribute("href")).toBe("/store/grace#contact");
+    await renderHome(
+      storefrontData({ storefront: { id: "f1", slug: "grace", name: "Grace", whatsapp: "+237 6 00 00 00 00" } }),
+    );
+    const links = screen.getAllByRole("link", { name: /whatsapp/i });
+    expect(links[0].getAttribute("href")).toBe("https://wa.me/237600000000");
   });
 
-  it("omits Locations for a single branch with no address, and shows it once there is one", async () => {
-    const { container, unmount } = await renderHome(storefrontData());
-    expect(container.querySelector("section#locations")).toBeNull();
-    unmount();
+  it("shows the store information panel on the workshop preset, hiding any row with no value", async () => {
+    await renderHome(
+      storefrontData({
+        store: { id: "s1", name: "Grace Hardware", phone: "0801", address: "12 Allen Avenue", currency: "NGN", store_type: "retail" },
+        storefront: {
+          id: "f1", slug: "grace", name: "Grace", theme: "workshop", pickup_minutes: 20,
+          opening_hours: { mon: { open: "08:00", close: "18:00" } },
+        },
+      }),
+    );
 
-    const withAddress = storefrontData();
-    withAddress.store.address = "12 Allen Avenue";
-    const second = await renderHome(withAddress);
-    expect(second.container.querySelector("section#locations")).not.toBeNull();
+    const panel = screen.getByRole("complementary", { name: "Store information" });
+    expect(within(panel).getByText("12 Allen Avenue")).toBeTruthy();
+    expect(within(panel).getByText("Mon · 8:00 am – 6:00 pm")).toBeTruthy();
+    expect(within(panel).getByText("0801")).toBeTruthy();
+    expect(within(panel).getByText("Ready in about 20 min")).toBeTruthy();
   });
 
-  it("navigates with exactly Home, Shop and Contact, and no Upload Rx or Track Order link", async () => {
+  it("leaves out the information panel rows the store has not filled in", async () => {
+    await renderHome(
+      storefrontData({
+        store: { id: "s1", name: "Grace Hardware", currency: "NGN", store_type: "retail" },
+        storefront: { id: "f1", slug: "grace", name: "Grace", theme: "workshop" },
+      }),
+    );
+
+    const panel = screen.getByRole("complementary", { name: "Store information" });
+    for (const label of ["Address", "Hours", "Phone", "Pickup"]) {
+      expect(within(panel).queryByText(label)).toBeNull();
+    }
+    expect(within(panel).getByText("Payment")).toBeTruthy();
+  });
+
+  it("has no header nav and never links Upload Rx or Track Order", async () => {
     await renderHome(storefrontData());
 
-    const nav = screen.getByRole("navigation", { name: "Store" });
-    const links = within(nav).getAllByRole("link").map((a) => [a.textContent, a.getAttribute("href")]);
-    expect(links).toEqual([
-      ["Home", "/store/grace"],
-      ["Shop", "/store/grace/catalog"],
-      ["Contact", "/store/grace#contact"],
-    ]);
+    expect(screen.queryByRole("navigation", { name: "Store" })).toBeNull();
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
     expect(hrefs.some((href) => href.includes("/prescription") || href.includes("/track"))).toBe(false);
   });

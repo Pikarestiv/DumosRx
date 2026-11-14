@@ -19,8 +19,16 @@
 - **The admin "Online Storefront" card moves to its own tab** in store detail,
   holding the preset picker with a live preview and the storefront settings.
 - **Logo:** `storefront.logo_url` falls back to the store's own `logo_url`.
+- **Owner-facing settings later:** the till's Settings > Business Information
+  card (`client/components/settings/store/business-information-card.tsx`)
+  currently holds the storefront slug and online-store toggle. When owners get
+  to choose their own theme, the storefront controls move out into a separate
+  "Online Storefront" card directly beneath it. Not built yet.
+- **Local preview:** the till's slug field prefix comes from
+  `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/store`), so set it in
+  `client/.env.local` (e.g. `localhost:3000/store`) to see a local link.
 
-Phases 1 (foundation) is built; 2-5 follow the order in §10, minus the dropped items.
+Phases 1 (foundation) and 2 (home page and product card) are built; 3-5 follow the order in §10, minus the dropped items. Phase 2 also moved the header to logo + search + cart (no nav links) and added `stock_quantity`/`in_stock` to the product payload.
 
 ---
 

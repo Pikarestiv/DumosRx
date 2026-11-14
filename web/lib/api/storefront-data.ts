@@ -12,6 +12,7 @@ export interface StorefrontStore {
   currency?: string | null;
   is_primary?: boolean;
   store_type?: string | null;
+  online_payment_available?: boolean;
 }
 
 export interface StorefrontBranch {

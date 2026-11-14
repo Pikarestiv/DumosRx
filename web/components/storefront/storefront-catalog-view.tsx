@@ -29,7 +29,8 @@ export function StorefrontCatalogView({
   const branch = searchParams?.get("branch") || undefined;
 
   const [data, setData] = useState<PaginatedStorefrontProducts | null>(initialData);
-  const [search, setSearch] = useState("");
+  const initialQuery = searchParams?.get("q") ?? "";
+  const [search, setSearch] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [isPending, startTransition] = useTransition();
@@ -58,7 +59,7 @@ export function StorefrontCatalogView({
   };
 
   useEffect(() => {
-    if (branch) {
+    if (branch || initialQuery) {
       fetchCatalog(1, search, selectedCategory);
     }
   }, [branch]);

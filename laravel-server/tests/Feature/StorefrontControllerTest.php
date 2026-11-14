@@ -175,6 +175,31 @@ class StorefrontControllerTest extends TestCase
         }
     }
 
+    public function test_products_report_the_stock_on_hand_at_the_selected_branch(): void
+    {
+        $storeB = Store::create([
+            'user_id' => $this->ownerA->id, 'name' => 'Store A Annex',
+            'store_slug' => 'store-a-annex', 'device_id' => 'WEB-A2', 'online_store_enabled' => true,
+        ]);
+        $stocked = Product::create(['name' => 'Stocked', 'selling_price' => 100, 'is_active' => true, 'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id]);
+        $empty = Product::create(['name' => 'Empty', 'selling_price' => 100, 'is_active' => true, 'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id]);
+        foreach ([[$this->storeA->id, 3], [$this->storeA->id, 4], [$storeB->id, 50]] as $i => [$storeId, $quantity]) {
+            StockBatch::create([
+                'product_id' => $stocked->id, 'user_id' => $this->ownerA->id, 'store_id' => $storeId,
+                'batch_number' => "B-{$i}", 'quantity' => $quantity, 'cost_price' => 10, 'expiry_date' => now()->addYear(),
+            ]);
+        }
+
+        foreach (['/api/v1/storefront/store-a', '/api/v1/storefront/store-a/products'] as $url) {
+            $products = collect($this->getJson($url)->assertOk()->json('products') ?? $this->getJson($url)->json('data'))->keyBy('name');
+
+            $this->assertEquals(7, $products['Stocked']['stock_quantity'], $url);
+            $this->assertTrue($products['Stocked']['in_stock']);
+            $this->assertEquals(0, $products['Empty']['stock_quantity']);
+            $this->assertFalse($products['Empty']['in_stock']);
+        }
+    }
+
     public function test_show_does_not_leak_internal_product_columns()
     {
         Product::create([

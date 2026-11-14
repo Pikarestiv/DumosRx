@@ -7766,3 +7766,21 @@ the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
 `fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
 contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
 update the `localFont` call; do not reintroduce `next/font/google`.
+
+## TanStack Query runs offline-first (2026-11-14)
+
+`lib/query-client.ts` sets `networkMode: "offlineFirst"` for every query. The
+TanStack default (`online`) refuses to start a query while the browser has
+reported offline, and nearly every query here reads the local database, so a
+till that went offline mid-session showed an empty Cycle Count sheet for any
+product list it had not already cached (reproduced in a browser; firing the
+`online` event made the rows appear). A device that **cold-started** offline
+never had the problem, because `onlineManager` only learns about offline from
+the browser's `offline` event. With `offlineFirst` the first attempt always
+runs, so local reads work in both cases; a query that calls the API tries once
+and, if that fails while offline, holds its retries until the browser is back
+online (it does not retry-spam). `networkMode: "always"` was rejected as a
+default because it would keep retrying API queries while offline. Mutations keep
+their own default (an offline checkout was checked and completes).
+`__tests__/query-client-offline-first.test.ts` pins both behaviours.
+

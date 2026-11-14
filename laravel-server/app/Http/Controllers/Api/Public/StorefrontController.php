@@ -96,6 +96,7 @@ class StorefrontController extends Controller
             'address' => $branch->address,
             'phone' => $branch->phone,
             'email' => $branch->email,
+            'store_type' => $branch->store_type ?? 'pharmacy',
             'currency' => $currency,
             'online_payment_available' => (bool) $branch->paystack_subaccount_code,
         ];

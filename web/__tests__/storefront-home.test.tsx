@@ -50,6 +50,28 @@ describe("storefront home page", () => {
     expect(screen.getByRole("link", { name: /view all 20 products/i }).getAttribute("href")).toBe("/store/grace/catalog");
   });
 
+  it("shows four featured products on a phone and all eight from the sm breakpoint up", async () => {
+    await renderHome(storefrontData());
+
+    const featured = screen.getByRole("region", { name: "Featured products" });
+    const cards = Array.from(featured.querySelectorAll("[data-slot='card'], .rounded-xl.border")).filter((el) =>
+      el.querySelector("button"),
+    );
+    expect(cards).toHaveLength(8);
+    expect(cards.slice(0, 4).every((c) => !c.className.includes("hidden"))).toBe(true);
+    expect(cards.slice(4).every((c) => c.className.includes("hidden sm:flex"))).toBe(true);
+  });
+
+  it("gives each card a compact add button for phones beside the full-width one for larger screens", async () => {
+    await renderHome(storefrontData({ products: productList(1) }));
+
+    const featured = screen.getByRole("region", { name: "Featured products" });
+    const buttons = within(featured).getAllByRole("button");
+    expect(buttons).toHaveLength(2);
+    expect(buttons.some((b) => b.className.includes("sm:hidden") && /^Add /.test(b.getAttribute("aria-label") ?? ""))).toBe(true);
+    expect(buttons.some((b) => /add to cart/i.test(b.textContent ?? ""))).toBe(true);
+  });
+
   it("shows every product and still offers the shop when the store has fewer than eight", async () => {
     await renderHome(storefrontData({ products: productList(3) }));
 

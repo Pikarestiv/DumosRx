@@ -11,6 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('funnel:remind')->daily();
 Schedule::command('storefront:rebuild-if-dirty')->everyFifteenMinutes();
 Schedule::command('storefront:sync-subaccount-fees')->everyFifteenMinutes();
+Schedule::command('storefront:refresh-featured')->dailyAt('23:00')->timezone('Africa/Lagos')->withoutOverlapping();
 Schedule::command('summary:end-of-day')->dailyAt('21:00')->timezone('Africa/Lagos');
 Schedule::command('admin:send-daily-summary')->dailyAt('08:00')->timezone('Africa/Lagos');
 Schedule::command('backups:prune')->dailyAt('03:00');

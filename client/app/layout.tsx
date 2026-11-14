@@ -1,6 +1,6 @@
 import type React from "react";
 import type { Metadata } from "next";
-import { Inter, Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -20,17 +20,18 @@ import { PwaRegistrar } from "@/components/pwa-registrar";
 import { AutoUpdater } from "@/components/tauri/auto-updater";
 import { QueryProvider } from "@/lib/query-provider";
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
+const inter = localFont({
+  src: "./fonts/inter-latin-wght-normal.woff2",
   variable: "--font-sans",
+  display: "swap",
+  weight: "100 900",
 });
 
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  display: "swap",
+const montserrat = localFont({
+  src: "./fonts/montserrat-latin-wght-normal.woff2",
   variable: "--font-heading",
-  weight: ["400", "600", "700", "900"],
+  display: "swap",
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {

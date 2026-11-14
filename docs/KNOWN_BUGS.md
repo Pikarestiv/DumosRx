@@ -93,6 +93,7 @@ suggested tackle order rather than a strict ranking.
 
 - **Found:** 2026-10-10, in review of the derived-stock-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`).
 - **Shipped so far (the cheap guard):** the cycle-count review step warns when this device has not completed a successful sync in the last 60 minutes, and when the server reports another till in the same store that has not synced in that window, and the submit button is held until the counter acknowledges it. See `docs/FIXED_BUGS.md` A-211. It is deliberately not a block — a till with no connectivity for two days must still be able to count.
+- **Mitigated further (2026-11-14), still open:** Cycle Count now pulls from the cloud when it opens and lets no row be counted until that pull settles (`client/lib/hooks/use-pre-audit-sync.ts`), so an online till starts the count from current stock. This narrows the stale-till case; it does not fix it. Sales made on other tills while the count is in progress, an offline count, and a confirmed "Count anyway" still produce the same delta error.
 - **What is still open:** `submitStockAudit()` (`client/lib/db/queries/inventory.ts:659`) still writes `countedQty - currentSystemQty`, a delta against this device's belief. A warned-and-acknowledged count on a stale device is still wrong by exactly the amount that has not arrived. The correct fix is to record the count as an **absolute observation** ("at this moment a human counted 8") and derive the correction from it; the honest difficulty, which must not be hand-waved, is that a count taken offline and a sale that arrives afterwards but is dated earlier are genuinely ambiguous, and this codebase already knows not to trust `created_at` for ordering (commit `24257592`). That belongs in its own design.
 - **Also still unwarned:** the other two callers of `submitStockAudit()` — the catalog quick edit (`components/products/catalog-list.tsx`) and the CSV product import (`lib/db/queries/product-import.ts`) — reconcile stock through the same delta with no freshness check at all.
 
@@ -236,6 +237,13 @@ suggested tackle order rather than a strict ranking.
 - **Proposed fix:** once decided, `UNION ALL` the matching `sale_services` aggregate (`service_name`, `SUM(total_price)`, `SUM(quantity)`, live rows only, same date/store/`joined.clause` filters) into each query, with a test that the category split sums to net product + service revenue on a mixed sale.
 
 ### Tier 3 — sync reliability, observability, latent hazards
+
+#### A-390. `client/` — editing a purchase order soft-deletes and re-inserts every line, so each save churns the whole PO through sync
+- **Found:** 2026-11-14, reading a read-only production query on the Nest Amawbia store (31 POs): 2,358 `purchase_order_items` rows, only 967 live. Deleted lines clustered on edit days (122, 136, 274, 37, 727, 95); one 142-line PO carried 410 deleted rows (about three saves) and another 50 live / 122 deleted. Only 2 deleted lines had no live replacement for the same product on that PO, so no lines were lost; the ratio is the edit pattern, not data loss.
+- **Where:** `client/lib/db/procurement.ts` `updatePurchaseOrder` (~lines 254-322): it selects every live line of the PO, `softDelete`s each, then `insert`s the edited set with new ids.
+- **What's wrong:** a save of an N-line PO writes N tombstones and N inserts to `_sync_queue` even when one quantity changed, which inflates `purchase_order_items` (here about 59% soft-deleted), multiplies push and pull volume, and widens the window where a PO's lines can reach the cloud out of step with its header (the suspected shape of A-296). It also changes every line's id, so anything that referenced a line id (activity log rows, receive progress) points at a tombstone.
+- **Fix:** diff the edited lines against the live ones by product (or a stable line key): update changed lines in place, insert only new ones, soft-delete only removed ones, and keep line ids stable. Test with real sql.js: a one-line quantity change queues one update and no inserts or deletes; adding and removing a line queues one insert and one delete.
+- **Not an emergency:** no loss was observed. Logged only; deliberately not fixed here.
 
 #### A-332. `client/` — ten Playwright e2e specs fail on `dev` and on the base commit, so the e2e suite is not a regression gate
 

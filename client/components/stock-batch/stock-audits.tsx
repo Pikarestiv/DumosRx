@@ -23,6 +23,7 @@ import { useCountFreshness } from "@/lib/hooks/use-count-freshness";
 import { useAuditLedgerLens } from "@/lib/hooks/use-audit-ledger-lens";
 import { useAuditSheetExport } from "@/lib/hooks/use-audit-sheet-export";
 import { useAuditSheetSource } from "@/lib/hooks/use-audit-sheet-source";
+import { isBlockedBySync } from "@/lib/hooks/use-pre-audit-sync";
 import { useAuditCounting } from "@/lib/hooks/use-audit-counting";
 import { useCloudAuditSession } from "@/lib/hooks/use-cloud-audit-session";
 import { AuditCloudPill, AuditCloudInspectionBanner } from "./audit-cloud-banner";
@@ -64,7 +65,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   const { storeProfile } = useStore();
   const storeName = storeProfile?.name || "";
   const [step, setStep] = useState<AuditStep>("ledger");
-  const { isLoading, isSyncing } = useAuditSheetSource();
+  const { isLoading, presync } = useAuditSheetSource();
   const items = useStockAuditDraftStore((state) => state.items);
   const clearDraft = useStockAuditDraftStore((state) => state.clearDraft);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -259,7 +260,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 items={ledger.visibleItems}
                 totalItems={items.length}
                 isLoading={isLoading}
-                isSyncing={isSyncing}
+                presync={presync}
                 isReadOnly={isReadOnly}
                 onUpdateItem={updateLedgerItem}
                 onCountRow={(id, qty) => void countRow(id, qty)}
@@ -308,7 +309,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
       <div className="border-t border-border bg-background p-4 md:px-8 md:py-5 flex justify-center shrink-0">
         <div className={STEP_WIDTH(step)}>
           {step === "ledger" && (
-            <button className={PRIMARY_BUTTON} onClick={() => setStep("review")}>
+            <button className={`${PRIMARY_BUTTON} disabled:opacity-60`} disabled={isBlockedBySync(presync)} onClick={() => setStep("review")}>
               Review &amp; submit
             </button>
           )}

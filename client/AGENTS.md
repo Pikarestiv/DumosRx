@@ -920,8 +920,9 @@ reach for if the call sites keep drifting.
   that don't get full sync, so plan changes/suspensions still land.
 
 Call `sync(true)` before any workflow where stale local data would be
-actively misleading (e.g. `StockAudits` syncs on mount before showing
-counts, see `components/stock-batch/stock-audits.tsx`).
+actively misleading (e.g. Cycle Count pulls before any row can be counted:
+`usePreAuditSync()` in `lib/hooks/use-pre-audit-sync.ts`, gated by
+`isBlockedBySync()`; see "Counting on a device that is behind sync").
 
 #### Queue collapsing (`addToSyncQueue`, A-203)
 
@@ -1972,9 +1973,22 @@ component itself only renders.
   (30 min) only escalates the visual urgency. Gating visibility on it let a
   real backlog of unsynced sales sit behind a green "Cloud Active".
 - The queue count is event-driven via `addSyncQueueChangeListener`, with a
-  30s `refetchInterval` as a slow safety net for a drain that emits no
-  change event — it is no longer the 5s poll against main-thread sql.js it
-  once was.
+  30s `refetchInterval` as a slow safety net — it is no longer the 5s poll
+  against main-thread sql.js it once was. The sync engine's own drain
+  (`DELETE FROM _sync_queue` after a push, pull reconcile, sync commands)
+  goes through raw `execute()` and emits no change event, so `sync()`'s
+  `finally` awaits `refreshPendingCount()` (`sync-engine/pending-count-refresh.ts`),
+  which refetches every query tagged `_sync_queue` **before** the mutex is
+  released. Without it the indicator went from "Syncing..." back to an
+  orange "Pending Sync" with the pre-sync count for up to 30s (A-385). It
+  deliberately does not call `queueTableInvalidation("_sync_queue")`: that
+  also fires the queue-change listeners, and the instant-sync daemon would
+  answer every completed sync with another one.
+- `runSync`'s `finally` sets `isSyncInProgress` from the engine's
+  `isSyncing()`, not `false`: a click that hits the mutex while another
+  caller's sync runs (the other indicator instance, the store's background
+  sync) keeps showing "Syncing..." until the 2s poll sees it end, instead of
+  dropping to orange and inviting another click (A-385).
 - Collapsed rendering: the collapsed rail shows the bare icon with no status
   border or background, and the expanded state is one persistent shape
   revealed via max-width/max-height + opacity on the sidebar's own 300ms
@@ -1995,6 +2009,32 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   submit button until the counter acknowledges the warning. Offline-first is
   non-negotiable: a till with no connectivity for two days must still be able
   to count. Do not turn this into a refusal.
+- **Cycle Count pulls before it lets anyone count** (2026-11-14, a mitigation
+  of A-211, not its fix). `usePreAuditSync()` (`lib/hooks/use-pre-audit-sync.ts`)
+  runs `sync(true)` when the screen opens; while `isBlockedBySync()` is true
+  `useAuditSheetSource()` builds no sheet, `AuditLedgerStep` renders no
+  countable rows and Review & submit is disabled, and `AuditPresyncPanel`
+  shows "Syncing the latest stock before you count…" (the only syncing text
+  on screen). Outcomes:
+  - success, an unlinked till (no cloud to pull) or a plan without cloud sync
+    proceeds with no notice;
+  - a push batch rejected after the pull completed (`isPushBatchesFailedError`,
+    from `sync-outcome.ts`) proceeds with a notice that this till's changes
+    have not uploaded yet: the pull is what the count needs;
+  - offline, a read-only tab or impersonation proceeds with a notice that
+    counts are measured against the till's last sync;
+  - any other failure while online, or no answer within
+    `PRE_COUNT_PULL_DEADLINE_MS` (25s), blocks with Retry and a "Count
+    anyway" that goes through `ConfirmDialog`. A read-only viewer of another
+    till's cloud session gets Retry only.
+  A sync already in flight answers `SYNC_IN_PROGRESS_ERROR`; the hook polls
+  `isSyncing()` (capped at 8s, like `auth-login.ts`) and pulls once more, at
+  most three attempts, never alongside it. The pull starts a microtask after
+  the effect and every run carries its own cancel flag, so StrictMode's double
+  effect pulls once and closing the screen stops the outcome being applied.
+  A resumed draft with counted rows is never rebuilt
+  (`shouldRebuildAuditSheet`), so its baselines stay. Offline counting still
+  works: never turn the offline case into a block.
 - **`COUNT_STALE_AFTER_MINUTES` is 60** (`lib/utils/count-freshness.ts`). The
   auto-sync setting offers instant/5/15/30/60/360 minutes; below 60 the
   warning would be permanent on a store set to 30, and 360 would call a
@@ -2527,13 +2567,15 @@ There are two distinct workflows for selling goods sourced outside the store:
    When a walk-in customer requests an out-of-stock item, a cashier can run to a
    neighboring pharmacy or partner shop, buy the units, and ring them up immediately:
    - **Trigger & UI:** A product cart line shows the amber `"Source outside"` pill only when
-     `quantity >= stock` (which includes `stock <= 0`), with the status as separate text beside
-     it: `"Out of stock"`, `"N short"`, or a muted `"All shelf stock used"` when the cart holds
-     exactly the shelf stock. Service lines never show it. Below the shelf level there is no
-     control at all (owner decision, 2026-11-13: the always-visible link under every line cost
-     a row of height each), so sourcing outside because the shelf units are damaged or
+     `quantity > stock` (which includes `stock <= 0`), with the status as separate text beside
+     it: `"Out of stock"` or `"N short"`. Service lines never show it. At or below the shelf
+     level there is no control at all (owner decisions: 2026-11-13, the always-visible link
+     under every line cost a row of height each; 2026-11-14, a line holding exactly the shelf
+     stock no longer offers it, and the muted "All shelf stock used" status is gone), so sourcing outside because the shelf units are damaged or
      reserved is no longer offered from the cart line: write the damaged units off as a stock
-     adjustment first, or raise the quantity to the shelf level, and the pill appears.
+     adjustment first, or (only when the store allows sales beyond recorded stock; otherwise
+     the cart stops at the shelf level) raise the quantity above it and the pill appears.
+     An out-of-stock product tile still opens the dialog directly either way.
      Clicking it opens `SpotSourceDialog`, whose "Source all externally" toggle still covers
      unusable shelf units at that point. The pill text is `text-amber-800 dark:text-amber-400`
      (amber-700 measured 4.15:1 on its own tint). A spot-sourced line shows a "Spot Sourced"
@@ -6034,7 +6076,8 @@ same tab session still gets its own fresh one-time retry.
     labels at 390×844 in light and dark: one line, unclipped, the spot cost
     visible, at least 6px clear of the quantity stepper on either axis, and
     the delete backdrop transparent at rest; "Source outside" absent on an
-    in-stock line until its quantity reaches the shelf stock; the two-line
+    in-stock line even at exactly the shelf stock, and offered with "1 short"
+    once a backordered line goes one over; the two-line
     name; and "Clear cart" at >= 4.5:1. `e2e/layout-metrics.ts` composites
     translucent backgrounds when it measures contrast (set `E2E_SCREENSHOT_DIR` to keep the
     screenshots; dark is applied by swapping the `<html>` class, which is all
@@ -7711,6 +7754,33 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
   - The top search bar in `POSLayoutHeader` is the single search input for the entire POS, dynamically adapting its placeholder and search target to the active tab (`Products` vs `Services`).
   - Redundant duplicate search bars inside the Services tab are removed on desktop, leaving only a mobile input on small screens.
 
+## Fonts are self-hosted (2026-11-14)
 
+`app/layout.tsx` in both `client/` and `web/` loads Inter (`--font-sans`) and
+Montserrat (`--font-heading`) with `next/font/local` from `app/fonts/*.woff2`
+(the variable, latin-subset files from the Fontsource packages, SIL Open Font
+License). They used to come from `next/font/google`, which fetches the fonts
+from Google at **build** time: a flaky runner network failed the dev deploy
+("Module not found ... font/google"), and `client/` is an offline-first PWA, so
+the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
+`fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
+contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
+update the `localFont` call; do not reintroduce `next/font/google`.
 
+## TanStack Query runs offline-first (2026-11-14)
+
+`lib/query-client.ts` sets `networkMode: "offlineFirst"` for every query. The
+TanStack default (`online`) refuses to start a query while the browser has
+reported offline, and nearly every query here reads the local database, so a
+till that went offline mid-session showed an empty Cycle Count sheet for any
+product list it had not already cached (reproduced in a browser; firing the
+`online` event made the rows appear). A device that **cold-started** offline
+never had the problem, because `onlineManager` only learns about offline from
+the browser's `offline` event. With `offlineFirst` the first attempt always
+runs, so local reads work in both cases; a query that calls the API tries once
+and, if that fails while offline, holds its retries until the browser is back
+online (it does not retry-spam). `networkMode: "always"` was rejected as a
+default because it would keep retrying API queries while offline. Mutations keep
+their own default (an offline checkout was checked and completes).
+`__tests__/query-client-offline-first.test.ts` pins both behaviours.
 

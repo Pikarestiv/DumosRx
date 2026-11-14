@@ -196,8 +196,9 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 - **Storefront routes (refreshed 2026-11-13):**
   - Home (`app/store/[store_slug]/page.tsx`), top to bottom: hero (store
     name, "Shop now", and "Contact us" when the store has contact details), **Featured Products** (the first 8 of
-    the show endpoint's `products`, which the API already orders in-stock
-    first, plus "View all N products" → `/catalog`), a headline band
+    the show endpoint's `products`, which the API orders as best sellers,
+    in stock first; see `laravel-server/AGENTS.md`, "Which products a
+    storefront lists". The web just slices, so ranking needs no web change; on a phone only the first 4 show, `MOBILE_FEATURED_COUNT`, in a 2-column grid of compact cards whose add button is a round plus beside the price, while sm and up keep all 8 with the full-width Add to Cart), plus "View all N products" → `/catalog`), a headline band
     (`storefront.headline` with fixed supporting copy and "Browse the shop"),
     then `StoreAboutSection` (`#about`), `StoreLocationsSection`
     (`#locations`, only when `hasLocationsToShow()`: more than one branch, or
@@ -244,9 +245,11 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   re-add either link as a side effect of other work.
 - **Footer** (`storefront-footer.tsx`, takes `storeSlug`, `store`,
   `storefront`): `bg-primary text-primary-foreground`, so it follows the
-  theme; store name plus the first 220 characters of `storefront.about`
-  (else the headline), the shared quick links, phone/email/address via
-  `storeAddressLine()`, copyright, and "Powered by {APP_NAME}" linking
+  theme; store name plus `storefront.about` (else the headline, else
+  `storefrontCopy(store).footerAbout(name)`) clamped to three lines with
+  `line-clamp-3`, the shared quick links, phone/email/address via
+  `storeAddressLine()`, copyright, and "Powered by {WEB_APP_HOST}" (the host
+  of `WEB_APP_URL` without `www.`, from `lib/constants.ts`) linking
   `WEB_APP_URL`. No social links: `storefronts.social_links` exists in the
   schema but `GET /storefront/{slug}` does not expose it; add it to the
   response first if wanted. No text opacity in the footer: white on the
@@ -287,7 +290,16 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   12 sample products, so the home page and shop render something to look at) and
   static export prerendering (`/store/demo`, `/about`, `/locations`, `/faq`,
   `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds without a mock
-  server. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme.
+  server. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and
+  `STOREFRONT_DEMO_STORE_TYPE=<type>` (e.g. `retail`) previews the non-pharmacy copy.
+- **Store-type copy** (`lib/storefront-copy.ts`). `GET /storefront/{slug}`
+  returns `store.store_type` (the selected branch's, since 2026-11-14). Every
+  piece of storefront copy that differs by store type (FAQ, About, Locations
+  subtitle, footer fallback, the order tracker's labels) comes from
+  `storefrontCopy(store)`; do not hardcode pharmacy wording in a component.
+  A missing type means an older API, and is treated as `pharmacy`, so a
+  pharmacy's copy is unchanged; every other type gets neutral retail copy
+  with no prescription Q&A and no dispensary/medication wording.
 - **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`
   (logo + store name, linking home, the nav and the cart) and
@@ -1947,3 +1959,16 @@ pushes to `dev`/`main`. The job executes:
 `deploy-web.yml` gates on `checks.yml` for all code pushes to `main` before
 running `next build` and syncing to FTP (storefront-change repository dispatches
 bypass checks so storefront toggles stay fast).
+
+## Fonts are self-hosted (2026-11-14)
+
+`app/layout.tsx` in both `client/` and `web/` loads Inter (`--font-sans`) and
+Montserrat (`--font-heading`) with `next/font/local` from `app/fonts/*.woff2`
+(the variable, latin-subset files from the Fontsource packages, SIL Open Font
+License). They used to come from `next/font/google`, which fetches the fonts
+from Google at **build** time: a flaky runner network failed the dev deploy
+("Module not found ... font/google"), and `client/` is an offline-first PWA, so
+the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
+`fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
+contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
+update the `localFont` call; do not reintroduce `next/font/google`.

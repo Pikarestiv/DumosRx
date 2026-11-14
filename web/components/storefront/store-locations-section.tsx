@@ -4,6 +4,7 @@ import { MapPin, Phone, Store as StoreIcon } from "lucide-react";
 import { StoreSectionHeading } from "@/components/storefront/store-section-heading";
 import type { StorefrontBranch, StorefrontStore } from "@/lib/api/storefront-data";
 import { storeAddressLine } from "@/lib/storefront-display";
+import { storefrontCopy } from "@/lib/storefront-copy";
 
 interface StoreLocationsSectionProps {
   storeSlug: string;
@@ -24,7 +25,7 @@ export function StoreLocationsSection({ storeSlug, store, branches, headingAs }:
       <StoreSectionHeading
         as={headingAs}
         title="Our Branches & Locations"
-        subtitle="Visit our pharmacy locations for physical pickup, prescriptions, and healthcare inquiries."
+        subtitle={storefrontCopy(store).locationsSubtitle}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

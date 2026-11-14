@@ -133,6 +133,20 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
     }
 
     #[Test]
+    public function switching_owner_access_alone_does_not_show_pending_rebuild(): void
+    {
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['owner_style_enabled' => true])->assertOk();
+
+        $this->assertNull($this->storefront()->style_dirty_at);
+        $this->actingAs($this->admin())
+            ->getJson("/api/v1/admin/stores/{$this->store->id}")
+            ->assertJsonPath('storefront.pending_rebuild', false);
+
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['owner_style_enabled' => false, 'tagline' => 'Visible change'])->assertOk();
+        $this->assertNotNull($this->storefront()->style_dirty_at);
+    }
+
+    #[Test]
     public function the_store_detail_payload_carries_the_settings_and_the_pending_flag(): void
     {
         $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['tagline' => 'Hello'])->assertOk();

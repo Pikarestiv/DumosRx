@@ -4708,7 +4708,9 @@ behaviour without it, so no caller had to change at once.
   offline message and retry when the load fails. The plan gate is
   `useFeatureGate().canCustomizeTheme` (`custom_branding`), enforced again by
   the server's `subscription:custom_branding` on the PUT; a locked plan sees the
-  upgrade message and disabled fields. `theme` is sent only if the owner actually clicked a style, so saving a detail
+  upgrade message and disabled fields. `handleSaveProfile` no longer pushes `store_slug` or `online_store_enabled`
+  (a stale local copy would have overwritten a super admin's change through the
+  sync path; older till bundles still can, a known gap). `theme` is sent only if the owner actually clicked a style, so saving a detail
   never silently replaces an existing classic theme. The server accepts only the store owner
   (a staff login gets 403 with an explanation) and only the three presets.
   `lib/utils/storefront-accent.ts` mirrors `web/lib/storefront-accent.ts` (the

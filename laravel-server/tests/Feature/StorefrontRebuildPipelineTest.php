@@ -245,4 +245,30 @@ class StorefrontRebuildPipelineTest extends TestCase
 
         $this->postJson('/api/v1/internal/storefront/rebuild-complete')->assertStatus(503);
     }
+
+    public function test_a_callback_with_no_recorded_request_clears_nothing(): void
+    {
+        DB::table('stores')->where('id', $this->store->id)->update(['storefront_dirty_at' => now()]);
+        SystemConfig::setVal(RebuildStorefrontIfDirty::REQUESTED_AT_KEY, null);
+
+        $this->postJson('/api/v1/internal/storefront/rebuild-complete', [], ['X-Storefront-Rebuild-Token' => 'rebuild-secret'])
+            ->assertOk()->assertJson(['cleared' => 0]);
+
+        $this->assertNotNull($this->dirtyAt(), 'a late second callback must not mark changes it never built as shipped');
+    }
+
+    public function test_the_second_of_two_queued_builds_cannot_clear_a_change_made_while_it_ran(): void
+    {
+        Http::fake(['api.github.com/*' => Http::response([], 204)]);
+        DB::table('stores')->where('id', $this->store->id)->update(['storefront_dirty_at' => now()]);
+        $this->artisan('storefront:rebuild-if-dirty');
+        $this->postJson('/api/v1/internal/storefront/rebuild-complete', [], ['X-Storefront-Rebuild-Token' => 'rebuild-secret'])->assertOk();
+        $this->assertNull($this->dirtyAt());
+
+        $this->travel(10)->minutes();
+        DB::table('stores')->where('id', $this->store->id)->update(['storefront_dirty_at' => now()]);
+        $this->postJson('/api/v1/internal/storefront/rebuild-complete', [], ['X-Storefront-Rebuild-Token' => 'rebuild-secret'])->assertOk();
+
+        $this->assertNotNull($this->dirtyAt());
+    }
 }

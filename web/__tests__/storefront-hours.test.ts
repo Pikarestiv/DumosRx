@@ -94,6 +94,14 @@ describe("opening status in the store's own time zone", () => {
     expect(openStatus(lagosHours, new Date(Date.UTC(2026, 10, 16, 17, 30)), "Africa/Lagos")?.state).toBe("closed");
   });
 
+  it("works for a zone far from the visitor's, whichever clock the test machine uses", () => {
+    const newYork: OpeningHours = { mon: { open: "08:00", close: "18:00" } };
+
+    expect(openStatus(newYork, new Date(Date.UTC(2026, 10, 16, 20, 0)), "America/New_York")?.state).toBe("open");
+    expect(openStatus(newYork, new Date(Date.UTC(2026, 10, 16, 12, 0)), "America/New_York")?.state).toBe("closed");
+    expect(openStatus(newYork, new Date(Date.UTC(2026, 6, 20, 21, 30)), "America/New_York")?.state).toBe("open");
+  });
+
   it("uses the store's date, which can already be the next day", () => {
     const status = openStatus(lagosHours, new Date(Date.UTC(2026, 10, 16, 23, 30)), "Africa/Lagos");
 

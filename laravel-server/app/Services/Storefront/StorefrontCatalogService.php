@@ -19,6 +19,8 @@ class StorefrontCatalogService
 {
     public const MAX_STOREFRONT_PRODUCTS = 50;
     public const PER_PAGE = 50;
+
+    private const MAX_REQUESTED_IDS = 100;
     public const FEATURED_PRODUCT_COUNT = 8;
     public const BEST_SELLER_WINDOW_DAYS = 90;
     public const BEST_SELLER_UNITS_WEIGHT = 0.5;
@@ -183,6 +185,38 @@ class StorefrontCatalogService
             ->whereNull('sale_items.deleted_at')
             ->groupBy('sale_items.product_id')
             ->selectRaw('sale_items.product_id, SUM(sale_items.quantity) * 1.0 AS units, SUM(sale_items.total_price) * 1.0 AS revenue');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function branchPayload(Store $branch, string $currency): array
+    {
+        return [
+            'id' => $branch->id,
+            'name' => $branch->name,
+            'store_slug' => $branch->store_slug,
+            'location' => $branch->location,
+            'address' => $branch->address,
+            'phone' => $branch->phone,
+            'email' => $branch->email,
+            'store_type' => $branch->store_type ?? 'pharmacy',
+            'currency' => $currency,
+            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
+            'timezone' => $branch->timezone,
+        ];
+    }
+
+    /**
+     * @return array<int, string>|null null when the request named no ids at all
+     */
+    public function parseRequestedIds(mixed $raw): ?array
+    {
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        return array_slice(array_values(array_unique(array_filter(array_map('trim', explode(',', $raw))))), 0, self::MAX_REQUESTED_IDS);
     }
 
     /**

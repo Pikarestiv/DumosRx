@@ -7,12 +7,7 @@ use App\Models\Product;
 use App\Models\Storefront;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * Applies changes to a storefront's look and details, whoever makes them. A
- * super admin's changes wait for a manual rebuild (the admin owns the timing);
- * a store owner has no rebuild button, so theirs also queue the debounced
- * automatic rebuild.
- */
+/** Applies storefront look and details changes; rationale in laravel-server/AGENTS.md. */
 class StorefrontStyleService
 {
     /**
@@ -27,7 +22,9 @@ class StorefrontStyleService
         }
 
         $changed = array_keys($storefront->getDirty());
-        $storefront->style_dirty_at = now();
+        if (array_diff($changed, ['owner_style_enabled']) !== []) {
+            $storefront->style_dirty_at = now();
+        }
         $storefront->save();
 
         if ($queueAutomaticRebuild) {

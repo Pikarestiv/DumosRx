@@ -47,6 +47,12 @@ export function useCartRepricing(storeSlug: string) {
         });
         if (cancelled) return;
 
+        const askedIds = new Set(asked.map((item) => item.id));
+        if ((data.data ?? []).some((product) => !askedIds.has(product.id))) {
+          setPricesStale(true);
+          return;
+        }
+
         setOnlinePaymentAvailable(!!data.store?.online_payment_available);
         setCurrency(data.store?.currency ?? null);
 

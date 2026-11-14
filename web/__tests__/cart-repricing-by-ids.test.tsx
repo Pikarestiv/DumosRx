@@ -77,4 +77,15 @@ describe("cart repricing", () => {
 
     expect(useCartStore.getState().carts.shop).toHaveLength(1);
   });
+
+  it("marks prices stale, and removes nothing, when an older API ignores ids and answers with other products", async () => {
+    act(() => useCartStore.setState({ carts: { shop: [item("deep-120")] } }));
+    getMock.mockResolvedValue({ data: { data: [{ id: "first-alphabetically", selling_price: 5 }], store: {} } });
+
+    const { result } = renderHook(() => useCartRepricing("shop"));
+    await waitFor(() => expect(result.current.pricesLoading).toBe(false));
+
+    expect(result.current.pricesStale).toBe(true);
+    expect(useCartStore.getState().carts.shop.map((i) => i.id)).toEqual(["deep-120"]);
+  });
 });

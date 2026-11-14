@@ -246,7 +246,10 @@ without updating that.
   block carries the branch `timezone` for the open/closed status. A WhatsApp
   number must be `+` then digits. A manual rebuild never overwrites an outstanding
   unconfirmed request time (until the confirmation timeout), so the callback of
-  the first build cannot mark changes that build never fetched as shipped.
+  the first build cannot mark changes that build never fetched as shipped, and a
+  callback that finds no recorded request time clears nothing (one extra rebuild
+  beats a lost change). Flipping `owner_style_enabled` alone does not stamp
+  `style_dirty_at`, since nothing visible changed.
   `storefronts.locale` (default `en`) and `enabled_locales` are returned by the
   public `show` payload and the admin detail.
   `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,

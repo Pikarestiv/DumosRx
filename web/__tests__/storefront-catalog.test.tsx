@@ -228,4 +228,17 @@ describe("StorefrontCatalogView", () => {
     expect(screen.getByText("Out of stock")).toBeTruthy();
     expect((screen.getByRole("button", { name: /add to cart: paracetamol/i }) as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it("keeps stock hidden if the first refresh failed and only a later page loaded", async () => {
+    const soldOut = { ...PARACETAMOL, stock_quantity: 0, in_stock: false };
+    respond = (params) => (params.get("page") === "2" ? page([{ ...AMOXIL, stock_quantity: 5, in_stock: true }], 2, 2, 52) : 500);
+    renderCatalog(page([soldOut], 1, 2, 52));
+    await settle();
+
+    fireEvent.click(screen.getByRole("button", { name: "Load more products" }));
+    await settle();
+
+    expect(screen.queryByText("Out of stock")).toBeNull();
+    expect((screen.getByRole("button", { name: /add to cart: paracetamol/i }) as HTMLButtonElement).disabled).toBe(false);
+  });
 });

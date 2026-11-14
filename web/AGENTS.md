@@ -321,7 +321,10 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `stock_quantity`/`in_stock` baked into the static HTML can be arbitrarily
   stale: a card built "Out of stock" would stay disabled after a restock. So
   `withoutStock()` strips them until a live list arrives (the home page's
-  `useLiveFeatured` refetches `GET /storefront/{slug}` on mount; the shop's
+  `useLiveFeatured` refetches just the products already on the page, by id, via
+  `GET /storefront/{slug}/products?ids=` (cheap, and keeps the built order; an
+  answer containing ids it was not asked for, i.e. an older API that ignored
+  `ids`, is ignored, as is the same case in cart repricing); the shop's
   `useStorefrontCatalog` refetches page 1), and cards show no hint and a working
   "+" until then. Open/closed status is computed against the store's own time
   zone (`store.timezone` from the API, via `Intl`); a missing, `UTC` (the column

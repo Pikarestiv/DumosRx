@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
 import StorefrontLayout from "@/app/store/[store_slug]/layout";
 import StorefrontPage from "@/app/store/[store_slug]/page";
@@ -26,10 +26,13 @@ const storefrontData = (overrides: Partial<StorefrontData> = {}): StorefrontData
   ...overrides,
 });
 
+const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+const productsPage = (data: StorefrontData) => ({ data: data.products, meta: { current_page: 1, last_page: 1, total: data.products.length } });
+
 function serveStorefront(data: StorefrontData) {
   vi.stubGlobal(
     "fetch",
-    vi.fn(() => Promise.resolve(new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } }))),
+    vi.fn((url: string) => Promise.resolve(json(String(url).includes("/products") ? productsPage(data) : data))),
   );
 }
 
@@ -86,10 +89,7 @@ describe("storefront home page", () => {
 
   it("never trusts the stock baked in at build time: nothing is disabled or labelled until the live list arrives", async () => {
     const built = storefrontData({ products: [{ id: "a", name: "Lamp", selling_price: 2500, stock_quantity: 0, in_stock: false }] });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify(built), { headers: { "content-type": "application/json" } }))
-      .mockReturnValue(new Promise(() => {}));
+    const fetchMock = vi.fn().mockResolvedValueOnce(json(built)).mockReturnValue(new Promise(() => {}));
     vi.stubGlobal("fetch", fetchMock);
 
     render(await StorefrontPage({ params }));
@@ -99,17 +99,64 @@ describe("storefront home page", () => {
   });
 
   it("re-enables a product the live list says is back in stock, and shows its current price", async () => {
-    const respond = (data: StorefrontData) => new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
     const built = storefrontData({ products: [{ id: "a", name: "Lamp", selling_price: 2500, stock_quantity: 0, in_stock: false }] });
     const live = storefrontData({ products: [{ id: "a", name: "Lamp", selling_price: 2800, stock_quantity: 12, in_stock: true }] });
-    const fetchMock = vi.fn().mockResolvedValueOnce(respond(built)).mockResolvedValue(respond(live));
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json(built)).mockResolvedValue(json(productsPage(live))));
 
     render(await StorefrontPage({ params }));
 
     expect(await screen.findByText("In stock")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Add to cart: Lamp" }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByText("₦2,800")).toBeTruthy();
+  });
+
+  it("refreshes only the products already on the page, by id, and keeps their order", async () => {
+    const built = storefrontData({
+      products: [
+        { id: "a", name: "Alpha", selling_price: 100 },
+        { id: "b", name: "Bravo", selling_price: 200 },
+      ],
+    });
+    const live = storefrontData({
+      products: [
+        { id: "b", name: "Bravo", selling_price: 250, stock_quantity: 9 },
+        { id: "a", name: "Alpha", selling_price: 120, stock_quantity: 9 },
+      ],
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(json(built)).mockResolvedValue(json(productsPage(live)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(await StorefrontPage({ params }));
+    await screen.findAllByText("In stock");
+
+    expect(String(fetchMock.mock.calls[1][0])).toMatch(/\/products\?.*ids=a%2Cb/);
+    const names = within(screen.getByRole("region", { name: "Products" })).getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(names).toEqual(["Alpha", "Bravo"]);
+    expect(screen.getByText("₦120")).toBeTruthy();
+  });
+
+  it("drops a product the live list no longer offers", async () => {
+    const built = storefrontData({ products: [{ id: "a", name: "Alpha", selling_price: 100 }, { id: "b", name: "Bravo", selling_price: 200 }] });
+    const live = storefrontData({ products: [{ id: "a", name: "Alpha", selling_price: 100, stock_quantity: 9 }] });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json(built)).mockResolvedValue(json(productsPage(live))));
+
+    render(await StorefrontPage({ params }));
+    await screen.findByText("In stock");
+
+    expect(screen.queryByText("Bravo")).toBeNull();
+  });
+
+  it("ignores a live answer from an older API that did not honour the ids, instead of dropping products", async () => {
+    const built = storefrontData({ products: [{ id: "a", name: "Alpha", selling_price: 100 }, { id: "b", name: "Bravo", selling_price: 200 }] });
+    const ignoringIds = storefrontData({ products: [{ id: "zzz", name: "Unrelated", selling_price: 1, stock_quantity: 9 }] });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(json(built)).mockResolvedValue(json(productsPage(ignoringIds))));
+
+    render(await StorefrontPage({ params }));
+    await act(async () => {});
+
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(screen.getByText("Bravo")).toBeTruthy();
+    expect(screen.queryByText("Unrelated")).toBeNull();
   });
 
   it("shows Price on request, never a zero price, and offers Ask on WhatsApp only when a number is set", async () => {

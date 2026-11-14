@@ -16,8 +16,6 @@ use OpenApi\Attributes as OA;
 
 class StorefrontController extends Controller
 {
-    private const MAX_REQUESTED_IDS = 100;
-
     public const MAX_STOREFRONT_PRODUCTS = StorefrontCatalogService::MAX_STOREFRONT_PRODUCTS;
 
     public function __construct(
@@ -91,19 +89,7 @@ class StorefrontController extends Controller
         $products = $this->catalogService->getLandingProducts($branch);
         $currency = $this->catalogService->storeCurrency($branch);
 
-        $branchData = [
-            'id' => $branch->id,
-            'name' => $branch->name,
-            'store_slug' => $branch->store_slug,
-            'location' => $branch->location,
-            'address' => $branch->address,
-            'phone' => $branch->phone,
-            'email' => $branch->email,
-            'store_type' => $branch->store_type ?? 'pharmacy',
-            'currency' => $currency,
-            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
-            'timezone' => $branch->timezone,
-        ];
+        $branchData = $this->catalogService->branchPayload($branch, $currency);
 
         return response()->json([
             'storefront' => [
@@ -187,7 +173,7 @@ class StorefrontController extends Controller
         $category = $request->input('category');
         $perPage = (int) $request->input('per_page', StorefrontCatalogService::PER_PAGE);
 
-        $ids = $this->requestedIds($request->input('ids'));
+        $ids = $this->catalogService->parseRequestedIds($request->input('ids'));
 
         $paginated = $this->catalogService->paginateProducts($branch, $search, $category, $perPage, $ids);
         $categories = $this->catalogService->getStoreCategories($branch);
@@ -359,17 +345,5 @@ class StorefrontController extends Controller
     public function uploadPrescription($store_slug, Request $request)
     {
         return $this->interactionService->uploadPrescription($store_slug, $request);
-    }
-
-    /**
-     * @return array<int, string>|null null when the request named no ids at all
-     */
-    private function requestedIds(mixed $raw): ?array
-    {
-        if (! is_string($raw) || trim($raw) === '') {
-            return null;
-        }
-
-        return array_slice(array_values(array_unique(array_filter(array_map('trim', explode(',', $raw))))), 0, self::MAX_REQUESTED_IDS);
     }
 }

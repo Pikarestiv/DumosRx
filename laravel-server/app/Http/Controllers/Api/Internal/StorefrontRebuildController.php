@@ -55,7 +55,12 @@ class StorefrontRebuildController extends Controller
         }
 
         $requestedAt = SystemConfig::getVal(RebuildStorefrontIfDirty::REQUESTED_AT_KEY);
-        $cutoff = $requestedAt ? Carbon::parse($requestedAt) : now();
+
+        if (! $requestedAt) {
+            return response()->json(['cleared' => 0]);
+        }
+
+        $cutoff = Carbon::parse($requestedAt);
 
         $cleared = DB::table('stores')
             ->whereNotNull('storefront_dirty_at')

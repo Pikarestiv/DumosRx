@@ -148,7 +148,7 @@ export interface PaginatedStorefrontProducts {
 
 export async function getStorefrontProducts(
   store_slug: string,
-  options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string },
+  options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string; ids?: string[] },
 ): Promise<PaginatedStorefrontProducts | null> {
   if (process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1" && store_slug === "demo") {
     return demoCatalog(options);
@@ -163,6 +163,7 @@ export async function getStorefrontProducts(
   if (options?.category) params.set("category", options.category);
   if (options?.per_page) params.set("per_page", String(options.per_page));
   if (options?.branch) params.set("branch", options.branch);
+  if (options?.ids?.length) params.set("ids", options.ids.join(","));
 
   const queryStr = params.toString() ? `?${params.toString()}` : "";
 

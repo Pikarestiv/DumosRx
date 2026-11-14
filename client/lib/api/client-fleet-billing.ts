@@ -18,11 +18,6 @@ export class FleetBillingApiClient extends StorefrontApiClient {
     return this.request<StoreOption[]>("/stores");
   }
 
-  async checkStoreSlug(slug: string, ignoreId?: string) {
-    const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ""}`;
-    return this.request<{ available: boolean; slug: string }>(url);
-  }
-
   async getPaymentBanks(storeId: string, country: string) {
     return this.request<{ banks: { name: string; code: string }[] }>(
       `/stores/${storeId}/payment-banks?country=${encodeURIComponent(country)}`,

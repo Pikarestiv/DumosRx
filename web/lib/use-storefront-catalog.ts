@@ -89,7 +89,7 @@ export function useStorefrontCatalog({ storeSlug, initialData, initialQuery, bra
             allTotal: query || category ? prev.allTotal : res.meta.total,
             categories: res.categories ?? prev.categories,
             status: "idle",
-            live: true,
+            live: replace ? true : prev.live,
           };
         });
       } catch {

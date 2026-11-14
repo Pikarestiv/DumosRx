@@ -11,11 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-/**
- * The admin's manual "Rebuild storefronts now": the same dispatch the
- * scheduled command sends, minus its dirty-store gate, so style changes (which
- * deliberately do not dirty a store) can be shipped on demand.
- */
+/** The admin's manual rebuild; rationale in laravel-server/AGENTS.md. */
 class AdminStorefrontRebuildService
 {
     public function __construct(private StorefrontRebuildDispatcher $dispatcher) {}

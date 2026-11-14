@@ -14,15 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use OpenApi\Attributes as OA;
 
-/**
- * A store owner's own control over how their storefront looks: preset, accent
- * colour, details and languages. The super admin's equivalent lives in
- * AdminStoreStorefrontController; both validate through StorefrontSettingsRules
- * and write through StorefrontStyleService. Off by default per store: a super
- * admin switches owner_style_enabled on for a store, because an owner change
- * queues a full automatic rebuild. Owner-only: staff accounts carry a
- * store_id and are refused, because a storefront's look is the owner's call.
- */
+/** A store owner's own storefront look settings; off per store, see laravel-server/AGENTS.md. */
 class StorefrontSettingsController extends Controller
 {
     public function __construct(private StorefrontStyleService $styleService) {}

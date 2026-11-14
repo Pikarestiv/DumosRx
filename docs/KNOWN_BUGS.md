@@ -53,12 +53,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `audit_session_items` stores `system_quantity` (the sheet's opening figure) but not the `baselineQty` the counting till read when the row was counted. `mergeCloudItemsIntoLocal()` fills the count without a baseline, so after a takeover `submitStockAudit()` measures that row against live stock at submit, and any sale between the count and the submit is added back.
 - **Fix:** add a `baseline_quantity` column and payload field beside `system_quantity` (additive; old clients send none and keep today's behaviour), send `item.baselineQty`, and set `baselineQty` from it in the merge.
 
-#### A-380. `client/` — the Activity Log detail panel prints every logged field, batch cost included, to anyone with `view_activity_log`
-
-- **Found:** 2026-11-13, reviewing the batch cost correction (PR #308); pre-existing.
-- **What's wrong:** `client/components/activity-log/activity-log-detail-panel.tsx` parses an entry's `details` and lists every key. A `BATCH_COST_CORRECTED` row carries `cost_price` and `previous_cost_price`, and a `stock_batches` insert or update carries `cost_price`, so a role with `view_activity_log` but without `view_cost_fields` reads batch costs there. The product History tab hides them since A-379; this panel does not.
-- **Fix:** read `view_cost_fields` in the panel and drop cost keys (`cost_price`, `previous_cost_price`, `counted_cost_price`, `unit_cost`, `total_cost`) from the listed fields when it is withheld.
-
 #### A-381. `client/` — the Cycle Count ledger shows cost and cost difference to anyone who can count stock
 
 - **Found:** 2026-11-13, in the release review of #312–#314; pre-existing.

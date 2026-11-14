@@ -115,6 +115,7 @@ test.describe('POS cart sourcing controls at phone width', () => {
       await line.getByRole('spinbutton').fill('10');
       await line.getByRole('spinbutton').press('Enter');
       await expect(line.getByRole('spinbutton')).toHaveValue('10');
+      await expect(line.getByText('₦12,000', { exact: true })).toBeVisible();
       await expect(sourceOutside).toHaveCount(0);
     });
 

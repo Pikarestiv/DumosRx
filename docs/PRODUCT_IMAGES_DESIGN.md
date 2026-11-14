@@ -38,14 +38,22 @@ the same shape.
 | Variable | Purpose |
 | --- | --- |
 | `PRODUCT_IMAGES_ENABLED` | Feature flag. Off by default; while off every image surface is invisible and the write endpoints return 404. |
-| `PRODUCT_IMAGES_DISK` | Filesystem disk name, default `r2`. Tests use `Storage::fake('r2')`. |
+| `PRODUCT_IMAGES_DISK` / `PRODUCT_IMAGES_INCOMING_DISK` | Disk names, default `r2` / `r2_incoming`. Tests use `Storage::fake()` on both. |
 | `R2_ACCOUNT_ID` | Builds the S3 endpoint `https://{account}.r2.cloudflarestorage.com` (override with `R2_ENDPOINT`). |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 API token, Object Read & Write on the one bucket. Never leaves the server. |
-| `R2_BUCKET` | Bucket name. |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | R2 API token, Object Read & Write on both buckets. Never leaves the server. |
+| `R2_BUCKET` | Public bucket (custom domain attached). Holds only validated images. |
+| `R2_INCOMING_BUCKET` | Private bucket (no public access) the browser uploads into. |
 | `R2_PUBLIC_BASE_URL` | Public read origin (custom domain on the bucket). Required for the feature to count as configured. |
 
-The `r2` disk is Laravel's `s3` driver (`league/flysystem-aws-s3-v3`) with a
+Both disks are Laravel's `s3` driver (`league/flysystem-aws-s3-v3`) with a
 custom endpoint, `region=auto` and path-style addressing.
+
+**Why two buckets.** A presigned PUT cannot bind the content type or length:
+the AWS SDK strips both from the signed headers, and R2 does not support POST
+policies. So the browser uploads into a private bucket, and only bytes the
+server has checked (size cap, magic bytes of the declared type) are copied to
+the public bucket under a server-chosen `Content-Type`. Nothing a caller
+uploads is publicly reachable until it has passed confirm.
 
 ## Flows (all online-only)
 
@@ -58,21 +66,25 @@ custom endpoint, `region=auto` and path-style addressing.
    encodes WebP, stepping quality down until it is at most 120 KB (JPEG when
    the browser cannot encode WebP, e.g. older Safari). Then:
    - `POST /app/products/{id}/image/presign {content_type, content_length}`:
-     auth, store ownership, `manage_products`; returns a presigned `PUT` URL
-     (5 minute expiry, signed `Content-Type` and `Content-Length`) and the key.
-     The issued key is remembered server-side for the same 5 minutes.
-   - The browser `PUT`s the bytes straight to R2.
+     auth, store ownership, `manage_products`, type in the allow-list, declared
+     length within the cap; returns a presigned `PUT` URL into the incoming
+     bucket (5 minute expiry) and the key. The issued key is remembered
+     server-side for the same 5 minutes.
+   - The browser `PUT`s the bytes straight to the incoming bucket.
    - `POST /app/products/{id}/image/confirm {key}`: the key must be the one
-     issued for this product and still remembered; the server checks the
-     object exists, is at most `max_bytes` and has an allowed type, then writes
-     `image_key`. The previous object is deleted only after that write commits.
-     A failed check deletes the uploaded object and returns 422.
+     issued for this product and still remembered (single use); the server
+     reads the incoming object, checks it is at most `max_bytes` and starts
+     with the declared type's magic bytes, deletes the incoming copy, writes
+     the bytes to the public bucket, then writes `image_key`. The previous
+     public object is deleted only after that write. A failed check returns
+     422 and leaves the product's current image alone.
 3. **Remove.** `DELETE /app/products/{id}/image` clears `image_key`, then
    deletes the object.
 4. **Orphans.** `php artisan product-images:prune-orphans [--dry-run]`
-   (scheduled daily) deletes objects under `stores/` older than 24 hours that
-   no product row (including soft-deleted ones) references: abandoned uploads,
-   failed post-commit deletes, force-deleted products.
+   (scheduled daily) deletes incoming objects older than an hour (abandoned
+   uploads) and public objects older than 24 hours that no product row
+   (including soft-deleted ones) references (failed post-commit deletes,
+   force-deleted products).
 
 All four write endpoints sit behind `throttle:product-images`
 (30 per minute per user).

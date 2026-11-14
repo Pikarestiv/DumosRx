@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Product;
+use App\Services\ProductImages\ProductImageService;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Attributes as OA;
 
@@ -39,7 +40,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'selling_price', type: 'number'),
         new OA\Property(property: 'requires_prescription', type: 'boolean'),
         new OA\Property(property: 'in_stock', type: 'boolean'),
-        new OA\Property(property: 'image', type: 'string', nullable: true),
+        new OA\Property(property: 'image_url', type: 'string', nullable: true, description: 'Public CDN URL of the product image; null when the product has none or product images are not configured.'),
         new OA\Property(property: 'category', type: 'string', nullable: true),
     ],
     type: 'object',
@@ -64,6 +65,7 @@ class StorefrontProductResource extends JsonResource
             'unit_of_measure' => $product->unit_of_measure,
             'selling_price' => $product->selling_price,
             'requires_prescription' => (bool) $product->requires_prescription,
+            'image_url' => app(ProductImageService::class)->publicUrl($product->image_key),
             'category' => $this->whenLoaded('category', fn () => $product->category
                 ? ['id' => $product->category->id, 'name' => $product->category->name]
                 : null),

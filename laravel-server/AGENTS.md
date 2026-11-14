@@ -4688,4 +4688,48 @@ Any query assembling the tenant's allowed user IDs for sync authorization must u
 - **Admin Purge Sweeper:**
   - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.
 
+## Product images (2026-11-14)
+
+Design and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`. The server-side rules:
+
+- **Two buckets.** Browsers `PUT` into the private incoming bucket
+  (`r2_incoming` disk, `R2_INCOMING_BUCKET`); confirm re-validates the bytes
+  (size cap and magic bytes for the declared type) and writes them to the
+  public bucket (`r2` disk, `R2_BUCKET`, served through `R2_PUBLIC_BASE_URL`)
+  with a server-chosen `Content-Type` and an immutable `Cache-Control`. This is
+  not optional: the AWS SDK refuses to sign `Content-Type` or
+  `Content-Length` into a presigned URL (`SignatureV4::getHeaderBlacklist()` /
+  `getPresignHeaderDenyList()`), and R2 has no POST policy, so a presigned PUT
+  cannot stop a caller uploading any bytes with any type. Anything uploaded
+  but never confirmed sits only in the private bucket until the sweep.
+- **`products.image_key` is server-owned.** It is in
+  `PushPayloadNormalizer::PRODUCT_SYNC_FORBIDDEN_FIELDS`, stripped from every
+  push, and written only by `ProductImageService` with `_synced_at` stamped
+  and no `_version` bump (the A-245 exemption for a stripped column). Do not
+  start accepting it from sync.
+- **The feature is off until configured and migrated.**
+  `ProductImageService::isEnabled()` needs `PRODUCT_IMAGES_ENABLED`, a
+  non-empty `R2_PUBLIC_BASE_URL` and the `products.image_key` column (A-225
+  probe, cached per request; the service is bound `scoped`). Off means the
+  write endpoints 404 and `GET /app/product-images/config` says
+  `enabled: false`. The same migration adds `stores.pos_show_product_images`,
+  and the client only shows that toggle while the feature is enabled, so no
+  current client pushes the store column to a server that lacks it.
+- **Authorization** (`ProductImageAccess`): a product outside the caller's
+  stores, or with no `store_id`, is a 404 before any permission check; then
+  `manage_products` via the caller's permission group (owners/admins pass).
+  No plan gate: images are available on every plan.
+- **Keys** are `stores/{store_id}/products/{product_id}/{uuid}.{ext}`, issued
+  only by presign and remembered in the cache for the 5 minute URL lifetime;
+  confirm accepts only a key issued for that product, and only once.
+- **Storefront:** `StorefrontProductResource::image_url` is derived, never
+  stored; `image_key` is in `Product::STOREFRONT_PUBLISHED_FIELDS`, so a change
+  schedules a storefront rebuild like a price change.
+- **`product-images:prune-orphans [--dry-run]`** runs daily at 04:30: incoming
+  objects older than an hour, and public objects older than 24 hours that no
+  product (trashed included) references. It lists the bucket under `stores/`;
+  at fleet scale that listing will want paging by store.
+- **Dependency:** `league/flysystem-aws-s3-v3` (pulls `aws/aws-sdk-php`, a
+  large vendor tree for the FTP deploy).
+
 

@@ -47,26 +47,6 @@ describe("storefront copy follows the store type", () => {
 });
 
 describe("storefront footer", () => {
-  it("falls back to a short sentence about the store when it has no about text or headline", () => {
-    render(<StorefrontFooter storeSlug="c" store={{ id: "c", name: "Cutis", store_type: "retail" }} />);
-
-    const about = screen.getByText(/Shop Cutis online/);
-    expect(about.className).toContain("line-clamp-3");
-  });
-
-  it("prefers the store's own about text, clamped to three lines", () => {
-    render(
-      <StorefrontFooter
-        storeSlug="c"
-        store={{ id: "c", name: "Cutis", store_type: "retail" }}
-        storefront={{ id: "f", slug: "c", name: "Cutis", about: "Skin care and aesthetics in Lekki." }}
-      />,
-    );
-
-    expect(screen.getByText("Skin care and aesthetics in Lekki.").className).toContain("line-clamp-3");
-    expect(screen.queryByText(/Shop Cutis online/)).toBeNull();
-  });
-
   it("credits the platform by its domain, not its brand name", () => {
     render(<StorefrontFooter storeSlug="c" store={{ id: "c", name: "Cutis" }} />);
 

@@ -1,3 +1,11 @@
+import { isHexColour, readableForeground } from "@/lib/storefront-accent";
+import {
+  STOREFRONT_PRESETS,
+  getStorefrontPreset,
+  type StorefrontPreset,
+  type StorefrontPresetId,
+} from "@/lib/storefront-presets";
+
 export interface StorefrontThemePalette {
   primary: string;
   primaryForeground: string;
@@ -7,6 +15,7 @@ export interface StorefrontThemePalette {
 export interface StorefrontTheme {
   id: string;
   label: string;
+  preset?: StorefrontPresetId;
   light: StorefrontThemePalette;
   dark: StorefrontThemePalette;
 }
@@ -20,6 +29,19 @@ const palette = (primary: string, primaryForeground: string): StorefrontThemePal
   primary,
   primaryForeground,
   ring: primary,
+});
+
+const accentPalette = (accent: string, ink: string): StorefrontThemePalette => {
+  const { foreground } = readableForeground(accent, ink);
+  return { primary: accent, primaryForeground: foreground, ring: accent };
+};
+
+const presetTheme = ({ id, label, accent, ink }: StorefrontPreset): StorefrontTheme => ({
+  id,
+  label,
+  preset: id,
+  light: accentPalette(accent, ink),
+  dark: accentPalette(accent, ink),
 });
 
 export const STOREFRONT_THEMES: readonly StorefrontTheme[] = [
@@ -65,10 +87,16 @@ export const STOREFRONT_THEMES: readonly StorefrontTheme[] = [
     light: palette("oklch(0.5 0.2 295)", WHITE),
     dark: palette("oklch(0.74 0.13 295)", INK),
   },
+  ...STOREFRONT_PRESETS.map(presetTheme),
 ];
 
 export function resolveStorefrontTheme(id?: string | null): StorefrontTheme {
   return STOREFRONT_THEMES.find((theme) => theme.id === id) ?? STOREFRONT_THEMES[0];
+}
+
+export function resolveStorefrontPreset(id?: string | null, storeType?: string | null): StorefrontPreset {
+  const presetId = resolveStorefrontTheme(id).preset ?? (storeType === "pharmacy" ? "clinic" : "workshop");
+  return getStorefrontPreset(presetId) ?? STOREFRONT_PRESETS[0];
 }
 
 const declarations = ({ primary, primaryForeground, ring }: StorefrontThemePalette) =>
@@ -83,4 +111,17 @@ export function storefrontThemeCss(): string {
       return `${light}{${declarations(theme.light)}}${dark}{${declarations(theme.dark)}}`;
     })
     .join("");
+}
+
+export function storefrontAccentVars(accent: string, preset: StorefrontPreset): Record<string, string> {
+  const { primary, primaryForeground, ring } = accentPalette(accent, preset.ink);
+  return { "--primary": primary, "--primary-foreground": primaryForeground, "--ring": ring };
+}
+
+export function storefrontAccentCss(accent?: string | null, preset: StorefrontPreset = STOREFRONT_PRESETS[0]): string {
+  if (!isHexColour(accent)) return "";
+  const vars = Object.entries(storefrontAccentVars(accent, preset))
+    .map(([name, value]) => `${name}:${value};`)
+    .join("");
+  return `:root:has([data-storefront-theme]){${vars}}`;
 }

@@ -71,12 +71,33 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
       "Products in your catalog automatically list online unless 'Show Online' is turned off.",
       "Share your branded storefront URL (e.g. dumosrx.com/store/your-pharmacy) with customers on WhatsApp and social media.",
       "Customers can switch between branches, search available medicines, and complete purchases via Paystack.",
-      "Your home page shows your eight best sellers from the last 90 days (refreshed nightly, in-stock items first), your headline, About, Locations, FAQ and Contact sections, and a footer with your phone, email and address, so keep those details current in the app.",
-      "Want a different colour scheme? Ask DumosRx support: storefront themes are currently set by the DumosRx team.",
+      "Your home page opens with your tagline and an open/closed status, then shows your best sellers from the last 90 days (refreshed nightly, in-stock items first), how ordering works, and a footer with your address and hours, so keep those details current in the app.",
+      "Customers can pay at pickup, and by transfer or mobile money once your account manager adds your payment details; ask them to switch on delivery too if you offer it. Want it to look like your own business? See the guide 'Make Your Storefront Look Like Yours' to pick a style, accent colour, language and opening hours.",
     ],
     proTip:
       "Online orders appear in real time on the store's POS screen, allowing staff to prepare items for customer pickup or dispatch.",
     videoPlaceholderText: "Video Walkthrough: Setting up your webstore and managing online orders",
+  },
+  {
+    id: "customize-your-storefront",
+    title: "Make Your Storefront Look Like Yours",
+    category: "Online Storefront",
+    badge: "Branding",
+    readTime: "3 min read",
+    videoDuration: "2:45",
+    summary:
+      "Choose a style that fits your business, set your accent colour, tell customers your hours and WhatsApp number, and offer your storefront in French and English, all from Settings.",
+    steps: [
+      "Open Settings, then the Business Info tab, and find the Online Storefront card (it needs a storefront address and a plan with custom branding).",
+      "Under 'Look & details', pick a style: Workshop (dark banner, for hardware and general retail), Clinic (light and calm, for pharmacies) or Studio (elegant serif, for beauty, spa and fashion).",
+      "Choose an accent colour from the swatches or type your own hex code. If the text on it would be hard to read, you will see a warning.",
+      "Add a tagline, your WhatsApp number and a pickup time, and set your opening hours day by day. Your storefront then shows 'Open until 6:00 pm' or 'Closed, opens tomorrow at 8:00 am' automatically.",
+      "Choose a default language and tick 'Let customers switch language' to show an English/French switch. Product names and your tagline stay exactly as you wrote them.",
+      "Press 'Save look & details'. Your storefront updates within about 15 minutes, once the next site rebuild finishes.",
+    ],
+    proTip:
+      "Products without a price show 'Price on request' with an Ask button that opens WhatsApp with a ready-made message, so a WhatsApp number turns every unpriced item into a lead.",
+    videoPlaceholderText: "Video Walkthrough: Choosing a style, accent colour, hours and language for your storefront",
   },
 ];
 

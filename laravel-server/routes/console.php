@@ -16,6 +16,7 @@ Schedule::command('summary:end-of-day')->dailyAt('21:00')->timezone('Africa/Lago
 Schedule::command('admin:send-daily-summary')->dailyAt('08:00')->timezone('Africa/Lagos');
 Schedule::command('backups:prune')->dailyAt('03:00');
 Schedule::command('storefront:sweep-payment-intents')->hourly();
+Schedule::command('storefront:expire-unpaid-orders')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('subscriptions:expire')->dailyAt('02:00');
 Schedule::command('sync:prune-failures')->dailyAt('03:30');
 Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('04:00');

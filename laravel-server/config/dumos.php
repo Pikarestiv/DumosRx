@@ -84,6 +84,10 @@ return [
     'storefront' => [
         'rebuild_token' => env('STOREFRONT_REBUILD_TOKEN'),
         'rebuild_confirmation_timeout' => (int) env('STOREFRONT_REBUILD_TIMEOUT_MINUTES', 45),
+        'unpaid_hold_minutes' => [
+            'transfer' => (int) env('STOREFRONT_TRANSFER_HOLD_MINUTES', 1440),
+            'in_store' => (int) env('STOREFRONT_PICKUP_HOLD_MINUTES', 1440),
+        ],
     ],
 
     'client_app_url' => env('CLIENT_APP_URL', 'https://app.dumosrx.com'),

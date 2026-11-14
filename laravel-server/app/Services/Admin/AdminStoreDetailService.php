@@ -9,6 +9,7 @@ use App\Models\Storefront;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesDeviceLabels;
+use App\Support\StorefrontLocales;
 use App\Support\StorefrontThemes;
 
 /**
@@ -47,6 +48,7 @@ class AdminStoreDetailService
         }
 
         $owner = $store->user;
+        $storefront = Storefront::where('user_id', $store->user_id)->first();
         $manager = AccountManagerController::resolveFor($owner);
         $lastSyncAt = $this->operationalMetricsService->clampToNow($store->last_sync_at);
         $operationalMetrics = $this->operationalMetricsService->operationalMetrics($store);
@@ -88,10 +90,23 @@ class AdminStoreDetailService
             'storefront' => [
                 'online_store_enabled' => (bool) $store->online_store_enabled,
                 'store_slug' => $store->store_slug,
-                'pending_rebuild' => $store->storefront_dirty_at !== null,
-                'dirty_since' => $store->storefront_dirty_at?->diffForHumans(),
-                'theme' => Storefront::where('user_id', $store->user_id)->value('theme') ?? StorefrontThemes::DEFAULT,
+                'pending_rebuild' => $store->storefront_dirty_at !== null || $storefront?->style_dirty_at !== null,
+                'dirty_since' => ($store->storefront_dirty_at ?? $storefront?->style_dirty_at)?->diffForHumans(),
+                'theme' => $storefront?->theme ?? StorefrontThemes::DEFAULT,
                 'available_themes' => StorefrontThemes::IDS,
+                'owner_style_enabled' => (bool) $storefront?->owner_style_enabled,
+                'locale' => $storefront?->locale ?? StorefrontLocales::DEFAULT,
+                'enabled_locales' => $storefront?->enabled_locales ?? [$storefront?->locale ?? StorefrontLocales::DEFAULT],
+                'accent' => $storefront?->accent,
+                'tagline' => $storefront?->tagline,
+                'whatsapp' => $storefront?->whatsapp,
+                'pickup_minutes' => $storefront?->pickup_minutes,
+                'payment_instructions' => $storefront?->payment_instructions,
+                'delivery_available' => (bool) $storefront?->delivery_available,
+                'delivery_note' => $storefront?->delivery_note,
+                'pay_on_delivery' => (bool) $storefront?->pay_on_delivery,
+                'opening_hours' => $storefront?->opening_hours,
+                'logo_url' => $storefront?->logo_url ?? $store->logo_url,
             ],
             'payments' => [
                 'paystack_connected' => ! empty($store->paystack_subaccount_code),

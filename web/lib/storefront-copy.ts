@@ -18,14 +18,14 @@ export interface StorefrontCopy {
   aboutClosing: string;
   promises: [StorefrontPromise, StorefrontPromise, StorefrontPromise];
   locationsSubtitle: string;
-  footerAbout: (name: string) => string;
   trackerProcessing: string;
   trackerItemsHeading: string;
 }
 
+
 const PAYMENTS_FAQ: StorefrontFaq = {
   q: "What payment methods are supported?",
-  a: "Depending on your selected branch, we accept secure online card payments via Paystack, direct bank transfers, or payment on pickup (cash/POS at the counter).",
+  a: "Depending on the store, you can pay online (where the store offers it), by transfer or mobile money using the details shown at checkout, or when you collect your order.",
 };
 
 const BRANCHES_FAQ: StorefrontFaq = {
@@ -43,7 +43,7 @@ const PHARMACY_COPY: StorefrontCopy = {
   faqs: [
     {
       q: "How does in-store pickup work?",
-      a: "Once you place your order online, our dispensary prepares your items immediately. You will receive an SMS/WhatsApp or email confirmation when your package is ready for pickup at your selected branch.",
+      a: "Once you place your order online, our dispensary prepares your items immediately. The team may contact you on the phone number you gave to confirm it, and you can collect it at your selected branch.",
     },
     PAYMENTS_FAQ,
     {
@@ -68,8 +68,6 @@ const PHARMACY_COPY: StorefrontCopy = {
     { title: "Expert Consultation", body: "Experienced pharmacists available to guide dosage and regimen adherence." },
   ],
   locationsSubtitle: "Visit our pharmacy locations for physical pickup, prescriptions, and healthcare inquiries.",
-  footerAbout: (name) =>
-    `Order from ${name} online: browse genuine healthcare and wellness products, and we'll have them ready for pickup or delivery.`,
   trackerProcessing: "Processing at Pharmacy",
   trackerItemsHeading: "Prescription & Products Ordered",
 };
@@ -79,7 +77,7 @@ const RETAIL_COPY: StorefrontCopy = {
   faqs: [
     {
       q: "How does in-store pickup work?",
-      a: "Once you place your order online, the store prepares your items. You will receive an SMS/WhatsApp or email confirmation when your order is ready for pickup at your selected branch.",
+      a: "Once you place your order online, the store prepares your items. The store may contact you on the phone number you gave to confirm it, and you can collect it at your selected branch.",
     },
     PAYMENTS_FAQ,
     BRANCHES_FAQ,
@@ -98,8 +96,6 @@ const RETAIL_COPY: StorefrontCopy = {
     { title: "Friendly Support", body: "Our team is on hand to answer questions about products and orders." },
   ],
   locationsSubtitle: "Visit our branches for pickup and in-store enquiries.",
-  footerAbout: (name) =>
-    `Shop ${name} online: browse the range, order, and we'll be in touch to arrange pickup or delivery.`,
   trackerProcessing: "Processing at Store",
   trackerItemsHeading: "Products Ordered",
 };

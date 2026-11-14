@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Internal;
 
 use App\Console\Commands\RebuildStorefrontIfDirty;
 use App\Http\Controllers\Controller;
+use App\Models\Storefront;
 use App\Models\SystemConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -54,12 +55,19 @@ class StorefrontRebuildController extends Controller
         }
 
         $requestedAt = SystemConfig::getVal(RebuildStorefrontIfDirty::REQUESTED_AT_KEY);
-        $cutoff = $requestedAt ? Carbon::parse($requestedAt) : now();
+
+        if (! $requestedAt) {
+            return response()->json(['cleared' => 0]);
+        }
+
+        $cutoff = Carbon::parse($requestedAt);
 
         $cleared = DB::table('stores')
             ->whereNotNull('storefront_dirty_at')
             ->where('storefront_dirty_at', '<=', $cutoff)
             ->update(['storefront_dirty_at' => null]);
+
+        Storefront::clearStyleDirty($cutoff);
 
         SystemConfig::setVal(RebuildStorefrontIfDirty::REQUESTED_AT_KEY, null);
 

@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StorefrontCheckoutRequest;
 use App\Http\Resources\StorefrontProductResource;
+use App\Support\StorefrontCheckoutRules;
+use App\Support\StorefrontLocales;
 use App\Models\Store;
 use App\Services\Payment\PaymentService;
 use App\Services\Storefront\StorefrontCatalogService;
@@ -88,18 +89,7 @@ class StorefrontController extends Controller
         $products = $this->catalogService->getLandingProducts($branch);
         $currency = $this->catalogService->storeCurrency($branch);
 
-        $branchData = [
-            'id' => $branch->id,
-            'name' => $branch->name,
-            'store_slug' => $branch->store_slug,
-            'location' => $branch->location,
-            'address' => $branch->address,
-            'phone' => $branch->phone,
-            'email' => $branch->email,
-            'store_type' => $branch->store_type ?? 'pharmacy',
-            'currency' => $currency,
-            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
-        ];
+        $branchData = $this->catalogService->branchPayload($branch, $currency);
 
         return response()->json([
             'storefront' => [
@@ -109,6 +99,17 @@ class StorefrontController extends Controller
                 'headline' => $storefront->headline,
                 'about' => $storefront->about,
                 'theme' => $storefront->theme ?? 'emerald',
+                'locale' => $storefront->locale ?? StorefrontLocales::DEFAULT,
+                'enabled_locales' => $storefront->enabled_locales ?? [$storefront->locale ?? StorefrontLocales::DEFAULT],
+                'accent' => $storefront->accent,
+                'tagline' => $storefront->tagline,
+                'whatsapp' => $storefront->whatsapp,
+                'pickup_minutes' => $storefront->pickup_minutes,
+                'payment_instructions' => $storefront->payment_instructions,
+                'delivery_available' => (bool) $storefront->delivery_available,
+                'delivery_note' => $storefront->delivery_note,
+                'pay_on_delivery' => (bool) $storefront->pay_on_delivery,
+                'opening_hours' => $storefront->opening_hours,
                 'logo_url' => $storefront->logo_url ?? $branch->logo_url,
                 'banner_url' => $storefront->banner_url,
             ],
@@ -136,6 +137,7 @@ class StorefrontController extends Controller
             new OA\Parameter(name: 'store_slug', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'q', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'category', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'ids', in: 'query', required: false, description: 'Comma-separated product ids (at most 100): returns only those that are listed online, so a cart can be re-priced however far down the catalog its items sit', schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'branch', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
@@ -175,7 +177,9 @@ class StorefrontController extends Controller
         $category = $request->input('category');
         $perPage = (int) $request->input('per_page', StorefrontCatalogService::PER_PAGE);
 
-        $paginated = $this->catalogService->paginateProducts($branch, $search, $category, $perPage);
+        $ids = $this->catalogService->parseRequestedIds($request->input('ids'));
+
+        $paginated = $this->catalogService->paginateProducts($branch, $search, $category, $perPage, $ids);
         $categories = $this->catalogService->getStoreCategories($branch);
         $currency = $this->catalogService->storeCurrency($branch);
 
@@ -313,22 +317,15 @@ class StorefrontController extends Controller
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
-        $validated = $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:50',
-            'customer_address' => 'nullable|string|max:1000',
-            'payment_method' => 'required|in:paystack,transfer,in_store',
-            'paystack_reference' => [
-                'required_if:payment_method,paystack',
-                'nullable',
-                'string',
-                'prohibited_unless:payment_method,paystack',
-            ],
-            'branch_id' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|uuid|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-        ]);
+        $validated = $request->validate(StorefrontCheckoutRules::rules());
+
+        if (($validated['fulfilment_method'] ?? 'pickup') === 'delivery' && ! $storefront->delivery_available) {
+            return response()->json(['message' => 'This store does not offer delivery.'], 422);
+        }
+
+        if (($validated['fulfilment_method'] ?? 'pickup') === 'delivery' && $validated['payment_method'] === 'in_store' && ! $storefront->pay_on_delivery) {
+            return response()->json(['message' => 'This store does not accept payment on delivery. Pay by transfer or online.'], 422);
+        }
 
         return $this->checkoutService->placeOrder(
             $branch,

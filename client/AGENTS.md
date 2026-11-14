@@ -4693,16 +4693,45 @@ behaviour without it, so no caller had to change at once.
   always said, but it *is* a visible change for an existing store on upgrade,
   and it is the only tab a manager outright loses. One tick restores it, and
   that tick previously did nothing.
+- **Storefront look and details (owner controls, 2026-11-14).** The Online
+  Storefront card also embeds `StorefrontAppearance`
+  (`components/settings/store/storefront-appearance.tsx`), shown once the store
+  has a slug and a super admin has allowed it for the store (the GET answers
+  `{allowed: false}` otherwise, and a failed load behaves the same: a note to
+  contact the account manager, never an error): a style (Workshop, Clinic or Studio, defaulting to Clinic for a
+  pharmacy and Workshop otherwise while the store is still on a classic theme),
+  an accent colour with a contrast warning, tagline, WhatsApp number, pickup
+  minutes, opening hours by day, and the default language plus a "let customers
+  switch language" box. It is **online-only**, not synced: `GET/PUT
+  /app/storefront-settings` through `StorefrontApiClient`
+  (`lib/api/client-storefront.ts`) and `useStorefrontSettings`, with an
+  offline message and retry when the load fails. The plan gate is
+  `useFeatureGate().canCustomizeTheme` (`custom_branding`), enforced again by
+  the server's `subscription:custom_branding` on the PUT; a locked plan sees the
+  upgrade message and disabled fields. `handleSaveProfile` no longer pushes `store_slug` or `online_store_enabled`
+  (a stale local copy would have overwritten a super admin's change through the
+  sync path; older till bundles still can, a known gap). `theme` is sent only if the owner actually clicked a style, so saving a detail
+  never silently replaces an existing classic theme. The server accepts only the store owner
+  (a staff login gets 403 with an explanation) and only the three presets.
+  `lib/utils/storefront-accent.ts` mirrors `web/lib/storefront-accent.ts` (the
+  two apps share no code). It has its own Save; a change reaches customers after the next automatic
+  storefront rebuild, about 15 minutes.
 - `manage_online_store` — the storefront slice, and the one key here that
-  **cuts across tabs rather than owning one**: the Store Profile block inside
-  Business Info (`store-profile-section.tsx` — the public URL slug and the
-  Enable Online Store switch) and the Paystack payout onboarding inside
+  **cuts across tabs rather than owning one**: the Online Storefront card on
+  the Business Info tab, directly under Business Information
+  (`online-storefront-card.tsx`, **read-only since 2026-11-14**: it says where the
+  online store is available, with copy and open actions, says "isn't switched on
+  yet" or "isn't set up yet" and to contact the account manager otherwise, and
+  embeds the look controls below; the slug and the Enable switch are set by a
+  super admin in the admin, not in the till, and there is no embedded preview
+  because the Tauri CSP is `frame-src 'none'`) and the Paystack payout onboarding inside
   Payment Methods (`online-payments-section.tsx`, gated from
   `panels/payment-methods-panel.tsx`). Both exist only to make the public
   storefront work, so the key sits **on top of** each tab's own rather than
-  replacing it. The Store Profile block returns `null` when nothing is left
-  to show (a retail store whose group lacks the key and whose plan has no
-  loyalty program) instead of an empty bordered box with a heading in it.
+  replacing it. The Online Storefront card returns `null` without the key, and the
+  Store Profile block (`store-profile-section.tsx`, now only PCN, retail
+  suggestions and the loyalty switch) returns `null` when nothing is left
+  to show (a retail store whose plan has no loyalty program) instead of an empty bordered box with a heading in it.
   `products.show_online` is deliberately **left under `manage_products`**: it
   is a per-product catalog attribute set in three places — the Add Product
   form, the CSV/XLSX importer and the catalog toolbar's "Online" dropdown

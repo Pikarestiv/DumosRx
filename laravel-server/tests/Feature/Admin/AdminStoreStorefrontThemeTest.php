@@ -63,25 +63,36 @@ class AdminStoreStorefrontThemeTest extends TestCase
     }
 
     #[Test]
-    public function changing_the_theme_marks_every_published_branch_for_rebuild_but_not_unpublished_ones(): void
+    public function a_style_preset_can_be_assigned_as_the_theme(): void
+    {
+        foreach (['workshop', 'clinic', 'studio'] as $preset) {
+            $this->actingAs($this->userWithRole('super_admin'))
+                ->putJson($this->url(), ['theme' => $preset])
+                ->assertOk()
+                ->assertJson(['theme' => $preset]);
+        }
+
+        $this->assertSame('studio', Storefront::where('user_id', $this->owner->id)->value('theme'));
+    }
+
+    #[Test]
+    public function changing_the_theme_shows_pending_rebuild_but_never_queues_an_automatic_rebuild(): void
     {
         $branch = $this->makeStore('Corner Pharmacy Lekki', 'corner-lekki');
-        $unpublished = $this->makeStore('Corner Pharmacy Draft', 'corner-draft', false);
-        $otherOwnerStore = Store::create([
-            'user_id' => $this->userWithRole('store_owner')->id,
-            'name' => 'Rival', 'store_slug' => 'rival', 'device_id' => 'TEST-'.uniqid(),
-            'status' => 'Active', 'online_store_enabled' => true,
-        ]);
         Store::query()->update(['storefront_dirty_at' => null]);
 
         $this->actingAs($this->userWithRole('super_admin'))
             ->putJson($this->url(), ['theme' => 'rose'])
             ->assertOk();
 
-        $this->assertNotNull($this->store->refresh()->storefront_dirty_at);
-        $this->assertNotNull($branch->refresh()->storefront_dirty_at);
-        $this->assertNull($unpublished->refresh()->storefront_dirty_at);
-        $this->assertNull($otherOwnerStore->refresh()->storefront_dirty_at);
+        $this->assertNull($this->store->refresh()->storefront_dirty_at);
+        $this->assertNull($branch->refresh()->storefront_dirty_at);
+        $this->assertNotNull(Storefront::where('user_id', $this->owner->id)->value('style_dirty_at'));
+
+        $this->actingAs($this->userWithRole('super_admin'))
+            ->getJson("/api/v1/admin/stores/{$this->store->id}")
+            ->assertOk()
+            ->assertJsonPath('storefront.pending_rebuild', true);
     }
 
     #[Test]
@@ -98,7 +109,7 @@ class AdminStoreStorefrontThemeTest extends TestCase
             ->assertOk()
             ->assertJson(['theme' => 'forest']);
 
-        $this->assertNull($this->store->refresh()->storefront_dirty_at);
+        $this->assertNull(Storefront::where('user_id', $this->owner->id)->value('style_dirty_at'));
         $this->assertFalse(ActivityLog::where('action', 'STOREFRONT_THEME_CHANGED')->exists());
     }
 

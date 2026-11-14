@@ -9,15 +9,18 @@ import { useStoreStockDivergence, useStoreTableAgreement } from "@/lib/api/admin
 import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import { syncVerdict, type SyncVerdict, type SyncVerdictTone } from "@/lib/admin/sync-verdict";
 import { StoreOverviewTab } from "@/components/admin/stores/details/store-overview-tab";
+import { StoreStorefrontTab } from "@/components/admin/stores/details/store-storefront-tab";
 import { StoreSyncTab } from "@/components/admin/stores/details/store-sync-tab";
 import { StoreActivityTab } from "@/components/admin/stores/details/store-activity-tab";
 
-type StoreDetailTab = "overview" | "sync" | "activity";
+type StoreDetailTab = "overview" | "storefront" | "sync" | "activity";
 
 function resolveTab(value: string | null | undefined, canViewSync: boolean): StoreDetailTab {
   switch (value ?? "") {
     case "sync":
       return canViewSync ? "sync" : "overview";
+    case "storefront":
+      return "storefront";
     case "activity":
       return "activity";
     default:
@@ -82,6 +85,13 @@ export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
         >
           Overview
         </TabsTrigger>
+        <TabsTrigger
+          value="storefront"
+          className="px-4 shrink-0 gap-2 min-h-11"
+          ref={activeTab === "storefront" ? activeTriggerRef : undefined}
+        >
+          Storefront
+        </TabsTrigger>
         {canViewSync && (
           <TabsTrigger
             value="sync"
@@ -107,6 +117,10 @@ export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
 
       <TabsContent value="overview" className="focus-visible:outline-none">
         <StoreOverviewTab store={store} />
+      </TabsContent>
+
+      <TabsContent value="storefront" className="focus-visible:outline-none">
+        <StoreStorefrontTab store={store} />
       </TabsContent>
 
       {canViewSync && (

@@ -50,6 +50,13 @@ class StorefrontInteractionService
         return response()->json([
             'order' => [
                 'id' => $order->id,
+                'code' => $order->code(),
+                'fulfilment_method' => $order->fulfilment_method,
+                'ready' => $order->ready_at !== null,
+                'cancel_reason' => $order->cancel_reason,
+                'payment_instructions' => $order->payment_method === 'transfer' ? $storefront->payment_instructions : null,
+                'store_phone' => $order->store->phone,
+                'whatsapp' => $storefront->whatsapp,
                 'order_status' => $order->order_status,
                 'payment_status' => $order->payment_status,
                 'payment_method' => $order->payment_method,

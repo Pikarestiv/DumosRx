@@ -10,6 +10,7 @@ const { nav, auth, sync } = vi.hoisted(() => ({
   sync: { agreementEnabled: [] as boolean[], divergenceEnabled: [] as boolean[] },
 }));
 
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: nav.replace, push: nav.push }),
   useSearchParams: () => new URLSearchParams(nav.search),

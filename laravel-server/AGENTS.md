@@ -204,10 +204,98 @@ without updating that.
   (mirrored and pinned by `web/__tests__/storefront-themes.test.ts`), writes
   `storefronts.theme` on the owner's row (created lazily through
   `StorefrontCatalogService::storefrontForStore()`, refused with a 422 when
-  the store has no slug and no storefront yet), and dirties the owner's
-  published stores via `Product::markStorefrontsDirty()`. Re-sending the
-  current theme is a no-op. The store detail payload carries
-  `storefront.theme` and `storefront.available_themes`.
+  the store has no slug and no storefront yet), and stamps
+  `storefronts.style_dirty_at`. It deliberately does **not** dirty the owner's
+  stores (changed 2026-11-14): `storefront_dirty_at` is what the 15-minute
+  `storefront:rebuild-if-dirty` schedule fires on, and the owner wants style
+  changes shipped by hand. Re-sending the current theme is a no-op. The store detail payload carries
+  `storefront.theme` and `storefront.available_themes`, plus the settings below
+  and `pending_rebuild`, true when either the store's `storefront_dirty_at` or
+  the storefront's `style_dirty_at` is set.
+  **`PUT /admin/stores/{id}/storefront/settings`** (`updateSettings`,
+  `role:super_admin`) writes any subset of `accent` (`#RRGGBB`, upper-cased),
+  `tagline` (140), `whatsapp`, `pickup_minutes` (1-1440) and `opening_hours`
+  (`mon..sun`, each null or `{open, close}` as `HH:MM`, open before close), null
+  clears one, and stamps `style_dirty_at` only when something changed.
+  **`POST /admin/storefront/rebuild`** (`rebuild`, `role:super_admin`) sends the
+  `storefront-changed` dispatch through `StorefrontRebuildDispatcher`, the one
+  class that talks to GitHub (`GITHUB_TOKEN`/`GITHUB_REPO`; the scheduled
+  command uses it too): 202 on acceptance, 502 when GitHub refuses, 503 when
+  the server has no credentials. With `STOREFRONT_REBUILD_TOKEN` set it records
+  the request and leaves the flags until the workflow's
+  `/internal/storefront/rebuild-complete` callback, which now also clears
+  `style_dirty_at` up to the dispatch time; without one it clears them at once.
+  **Owner control (2026-11-14): `GET/PUT /app/storefront-settings`**
+  (`Api\App\StorefrontSettingsController`, inside the `subscription` group; the
+  PUT also needs `subscription:custom_branding`). **Off per store by default:**
+  `storefronts.owner_style_enabled` is switched on by a super admin (admin settings
+  endpoint, Storefront tab checkbox) because every owner save queues a full
+  automatic rebuild. While off, GET answers `{allowed: false}` and PUT 403s with
+  a message to contact the account manager; an owner can never set the flag.
+  Owner only: a user with a
+  `store_id` (staff) gets 403. It serves the owner's first slugged store, accepts
+  `theme` only from `StorefrontThemes::OWNER_IDS` (the three presets) plus every
+  field above and `locale` / `enabled_locales` (`StorefrontLocales::IDS`, pinned
+  by the web), and, unlike the admin endpoints, **does** queue the debounced
+  automatic rebuild (`Product::markStorefrontsDirty`) because an owner has no
+  rebuild button. Validation lives once in `StorefrontSettingsRules` and writes
+  go through `StorefrontStyleService::apply()`, shared with the admin endpoint.
+  `GET /storefront/{slug}/products` also accepts `ids` (up to 100 comma-separated
+  product ids, only online-listed products of the branch come back) so a cart can
+  be re-priced however deep in the catalogue it sits; the `show` payload's `store`
+  block carries the branch `timezone` for the open/closed status. A WhatsApp
+  number must be `+` then digits. A manual rebuild never overwrites an outstanding
+  unconfirmed request time (until the confirmation timeout), so the callback of
+  the first build cannot mark changes that build never fetched as shipped, and a
+  callback that finds no recorded request time clears nothing (one extra rebuild
+  beats a lost change). Flipping `owner_style_enabled` alone does not stamp
+  `style_dirty_at`, since nothing visible changed.
+  **Checkout details (2026-11-15).** `storefronts.payment_instructions` (text, how to
+  pay by transfer or mobile money), `delivery_available`, `delivery_note` and
+  `pay_on_delivery` are set by a super admin and returned by the public `show`
+  payload; `online_orders` gains `customer_email` and `fulfilment_method`
+  (`pickup`|`delivery`). The checkout rules live in `StorefrontCheckoutRules`:
+  `customer_email` optional, an address required for delivery, delivery refused
+  when the store does not deliver, and an `in_store` payment refused for a
+  delivery order unless `pay_on_delivery` (old bundles never send delivery, so
+  this cannot affect them). A transfer order is **not** refused when the store
+  has no instructions (old bundles still offer it); the new UI simply hides it.
+  `StorefrontOrderNotifier` emails the owner and the store address (once if they
+  match) and the customer if they gave an email, synchronously like the other
+  mail here, with a failure only logged: an order is never lost to a mail
+  error. The customer email says to expect a possible phone call, not a
+  "ready" message: **no SMS or WhatsApp is sent**. `OnlineOrder::code()` (the
+  first 8 characters of the id, upper case) is the order number customers see;
+  the public order lookup returns it with the fulfilment method, the payment
+  instructions (transfer orders only), the store phone and WhatsApp.
+  **Order lifecycle (2026-11-15).** An unpaid `transfer` or `in_store` (pay at pickup or on
+  delivery) order is held 24 hours by default (a transfer cannot be confirmed
+  by the system before handover, so a short hold would cancel orders customers
+  have already paid)
+  (`dumos.storefront.unpaid_hold_minutes`, env `STOREFRONT_TRANSFER_HOLD_MINUTES`
+  and `STOREFRONT_PICKUP_HOLD_MINUTES`, `0` switches that method's expiry off).
+  `storefront:expire-unpaid-orders` (every 5 minutes, scheduled) cancels what
+  outlived its hold with `cancel_reason = 'expired'`, which frees the stock
+  because availability only counts pending orders; it never touches a paid
+  order or one with `ready_at` set. Expiry notifies store staff in-app and the
+  customer by email. `POST /app/online-orders/{id}/ready` (the POS "Email
+  customer: ready" / "Mark ready" button) stamps `ready_at` once and emails the
+  customer if they gave an address; it is idempotent (no second email) and a
+  ready order stops expiring. A manual cancel from the till stamps
+  `cancel_reason = 'store'` and emails the customer too. Fulfilling sends no
+  email. There is still no SMS or WhatsApp.
+  `storefronts.locale` (default `en`) and `enabled_locales` are returned by the
+  public `show` payload and the admin detail.
+  `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,
+  `pickup_minutes` and `opening_hours` (JSON), all nullable and returned by
+  `GET /storefront/{slug}`; nothing writes them yet (the admin settings tab,
+  storefront redesign phase 4, will). `storefronts` is not synced to the
+  client, so there is no SQLite counterpart.
+  Each storefront product also carries `stock_quantity` (units on hand at the
+  selected branch, `Product::scopeWithStockAt`, before pending online orders)
+  and `in_stock` (`stock_quantity > 0`), added 2026-11-14 for the card's stock
+  hint. Both are additive, so older web bundles ignore them; the resource is
+  only used by `show` and `products`, which both apply the scope.
   - **Enforced by omission, not by a deny-list.** A never-delegatable action
     (delete a user/store, edit another admin's profile/role, coupons and
     referral payouts, the subscription/platform config endpoints) simply has

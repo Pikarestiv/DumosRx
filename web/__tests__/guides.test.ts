@@ -3,7 +3,7 @@ import { GUIDES, GUIDE_CATEGORIES, getGuideBySlug } from "../lib/guides-data";
 
 describe("Guides & Video Tutorials Hub", () => {
   it("contains all core feature guides", () => {
-    expect(GUIDES.length).toBe(26);
+    expect(GUIDES.length).toBe(27);
   });
 
   it("has valid categories for all guides", () => {

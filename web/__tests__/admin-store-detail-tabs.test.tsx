@@ -24,6 +24,7 @@ const { nav, sync } = vi.hoisted(() => ({
   },
 }));
 
+
 vi.mock("@/lib/store/use-admin-auth-store", () => ({
   useAdminAuthStore: () => ({ user: { role: "super_admin" } }),
   checkIsSuperAdmin: (role?: string) => role === "super_admin",

@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { apiClient } from "@/lib/api/base-client";
 import { useCartStore } from "@/lib/store/use-cart-store";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
+const MAX_REPRICED_ITEMS = 100;
+
 interface CatalogResponse {
-  products: StorefrontProduct[];
-  online_payment_available?: boolean;
-  store?: { currency?: string | null };
+  data: StorefrontProduct[];
+  store?: { currency?: string | null; online_payment_available?: boolean };
 }
 
 /**
@@ -17,6 +19,11 @@ interface CatalogResponse {
  * surfaced rather than presented as confirmed pricing.
  */
 export function useCartRepricing(storeSlug: string) {
+  const i18n = useStorefrontI18n();
+  const latestI18n = useRef(i18n);
+  useEffect(() => {
+    latestI18n.current = i18n;
+  }, [i18n]);
   const [pricesLoading, setPricesLoading] = useState(true);
   const [pricesStale, setPricesStale] = useState(false);
   const [onlinePaymentAvailable, setOnlinePaymentAvailable] = useState(false);
@@ -34,16 +41,26 @@ export function useCartRepricing(storeSlug: string) {
       }
 
       try {
-        const { data } = await apiClient.get<CatalogResponse>(`/storefront/${storeSlug}`);
+        const asked = items.slice(0, MAX_REPRICED_ITEMS);
+        const { data } = await apiClient.get<CatalogResponse>(`/storefront/${storeSlug}/products`, {
+          params: { ids: asked.map((item) => item.id).join(","), per_page: MAX_REPRICED_ITEMS },
+        });
         if (cancelled) return;
 
-        setOnlinePaymentAvailable(!!data.online_payment_available);
+        const askedIds = new Set(asked.map((item) => item.id));
+        if ((data.data ?? []).some((product) => !askedIds.has(product.id))) {
+          setPricesStale(true);
+          return;
+        }
+
+        setOnlinePaymentAvailable(!!data.store?.online_payment_available);
         setCurrency(data.store?.currency ?? null);
 
         const prices: Record<string, number> = {};
-        for (const product of data.products ?? []) {
+        for (const product of data.data ?? []) {
           prices[product.id] = parseFloat(String(product.selling_price));
         }
+        for (const item of items.slice(MAX_REPRICED_ITEMS)) prices[item.id] = item.price;
 
         const removed = items.filter((item) => prices[item.id] === undefined);
         const repriced = items.filter(
@@ -51,17 +68,13 @@ export function useCartRepricing(storeSlug: string) {
         );
         reconcilePrices(storeSlug, prices);
 
+        const { t } = latestI18n.current;
         if (removed.length > 0) {
           const names = removed.map((item) => item.name).join(", ");
-          toast.error(
-            `${names} ${removed.length === 1 ? "is" : "are"} no longer available online and ${removed.length === 1 ? "was" : "were"} removed from your cart. Ask the store if you still want ${removed.length === 1 ? "it" : "them"}.`,
-            { duration: 10000 },
-          );
+          toast.error(t(removed.length === 1 ? "cart.removed.one" : "cart.removed.other", { names }), { duration: 10000 });
         }
         if (repriced.length > 0) {
-          toast.info(
-            `The price of ${repriced.map((item) => item.name).join(", ")} changed. Your order summary has been updated.`,
-          );
+          toast.info(t("cart.repriced", { names: repriced.map((item) => item.name).join(", ") }));
         }
       } catch {
         if (!cancelled) setPricesStale(true);

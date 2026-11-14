@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\StockBatch;
 use App\Models\Store;
+use App\Models\Storefront;
 use App\Models\SystemConfig;
 use App\Models\User;
 use App\Services\Payment\PaymentService;
@@ -142,6 +143,101 @@ class StorefrontControllerTest extends TestCase
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'products');
         $response->assertJsonMissing(['name' => 'Store B Product']);
+    }
+
+    public function test_show_returns_the_storefront_style_and_store_details(): void
+    {
+        Storefront::create([
+            'user_id' => $this->ownerA->id, 'slug' => 'store-a', 'name' => 'Store A',
+            'primary_store_id' => $this->storeA->id, 'theme' => 'workshop', 'accent' => '#F2B705',
+            'tagline' => 'Wiring and lighting, ready at the counter.', 'whatsapp' => '237600000000',
+            'pickup_minutes' => 20, 'opening_hours' => ['mon' => ['open' => '08:00', 'close' => '18:00']],
+        ]);
+
+        $this->getJson('/api/v1/storefront/store-a')
+            ->assertOk()
+            ->assertJsonPath('storefront.theme', 'workshop')
+            ->assertJsonPath('storefront.accent', '#F2B705')
+            ->assertJsonPath('storefront.tagline', 'Wiring and lighting, ready at the counter.')
+            ->assertJsonPath('storefront.whatsapp', '237600000000')
+            ->assertJsonPath('storefront.pickup_minutes', 20)
+            ->assertJsonPath('storefront.opening_hours.mon.close', '18:00');
+    }
+
+    public function test_show_returns_null_style_and_details_for_a_storefront_that_has_none_set(): void
+    {
+        $storefront = $this->getJson('/api/v1/storefront/store-a')->assertOk()->json('storefront');
+
+        $this->assertSame('emerald', $storefront['theme']);
+        foreach (['accent', 'tagline', 'whatsapp', 'pickup_minutes', 'opening_hours'] as $field) {
+            $this->assertArrayHasKey($field, $storefront);
+            $this->assertNull($storefront[$field], "{$field} should be null until an admin sets it");
+        }
+    }
+
+    public function test_products_report_the_stock_on_hand_at_the_selected_branch(): void
+    {
+        $storeB = Store::create([
+            'user_id' => $this->ownerA->id, 'name' => 'Store A Annex',
+            'store_slug' => 'store-a-annex', 'device_id' => 'WEB-A2', 'online_store_enabled' => true,
+        ]);
+        $stocked = Product::create(['name' => 'Stocked', 'selling_price' => 100, 'is_active' => true, 'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id]);
+        $empty = Product::create(['name' => 'Empty', 'selling_price' => 100, 'is_active' => true, 'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id]);
+        foreach ([[$this->storeA->id, 3], [$this->storeA->id, 4], [$storeB->id, 50]] as $i => [$storeId, $quantity]) {
+            StockBatch::create([
+                'product_id' => $stocked->id, 'user_id' => $this->ownerA->id, 'store_id' => $storeId,
+                'batch_number' => "B-{$i}", 'quantity' => $quantity, 'cost_price' => 10, 'expiry_date' => now()->addYear(),
+            ]);
+        }
+
+        foreach (['/api/v1/storefront/store-a', '/api/v1/storefront/store-a/products'] as $url) {
+            $products = collect($this->getJson($url)->assertOk()->json('products') ?? $this->getJson($url)->json('data'))->keyBy('name');
+
+            $this->assertEquals(7, $products['Stocked']['stock_quantity'], $url);
+            $this->assertTrue($products['Stocked']['in_stock']);
+            $this->assertEquals(0, $products['Empty']['stock_quantity']);
+            $this->assertFalse($products['Empty']['in_stock']);
+        }
+    }
+
+    public function test_products_can_be_looked_up_by_id_however_far_down_the_catalog_they_sit(): void
+    {
+        $mk = fn (string $name, array $extra = []) => Product::create(array_merge([
+            'name' => $name, 'selling_price' => 100, 'is_active' => true, 'show_online' => true,
+            'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id,
+        ], $extra));
+        foreach (range(1, 55) as $i) {
+            $mk(sprintf('Filler %02d', $i));
+        }
+        $deep = $mk('Zzz Deep Item');
+        $hidden = $mk('Hidden Item', ['show_online' => false]);
+        $foreign = Product::create([
+            'name' => 'Foreign', 'selling_price' => 100, 'is_active' => true, 'show_online' => true,
+            'user_id' => $this->ownerB->id,
+        ]);
+
+        $show = $this->getJson('/api/v1/storefront/store-a')->assertOk()->json('products');
+        $this->assertNotContains($deep->id, array_column($show, 'id'), 'the landing list is capped, so a deep item is not in it');
+
+        $found = $this->getJson("/api/v1/storefront/store-a/products?per_page=100&ids={$deep->id},{$hidden->id},{$foreign->id},not-a-product")
+            ->assertOk()->json('data');
+
+        $this->assertSame([$deep->id], array_column($found, 'id'));
+        $this->assertSame(1, $this->getJson('/api/v1/storefront/store-a/products?ids='.$deep->id)->json('meta.total'));
+    }
+
+    public function test_products_with_a_blank_ids_parameter_list_the_whole_catalog(): void
+    {
+        Product::create(['name' => 'One', 'selling_price' => 1, 'is_active' => true, 'show_online' => true, 'user_id' => $this->ownerA->id, 'store_id' => $this->storeA->id]);
+
+        $this->getJson('/api/v1/storefront/store-a/products?ids=')->assertOk()->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_show_reports_the_stores_timezone(): void
+    {
+        $this->storeA->update(['timezone' => 'Africa/Lagos']);
+
+        $this->getJson('/api/v1/storefront/store-a')->assertOk()->assertJsonPath('store.timezone', 'Africa/Lagos');
     }
 
     public function test_show_does_not_leak_internal_product_columns()

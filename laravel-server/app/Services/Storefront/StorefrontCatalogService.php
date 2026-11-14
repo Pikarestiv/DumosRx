@@ -19,6 +19,8 @@ class StorefrontCatalogService
 {
     public const MAX_STOREFRONT_PRODUCTS = 50;
     public const PER_PAGE = 50;
+
+    private const MAX_REQUESTED_IDS = 100;
     public const FEATURED_PRODUCT_COUNT = 8;
     public const BEST_SELLER_WINDOW_DAYS = 90;
     public const BEST_SELLER_UNITS_WEIGHT = 0.5;
@@ -151,6 +153,7 @@ class StorefrontCatalogService
             ->leftJoinSub($sales, 'best_sellers', 'best_sellers.product_id', '=', 'products.id')
             ->crossJoinSub($peaks, 'best_seller_peaks')
             ->with('category')
+            ->withStockAt($store->id)
             ->inStockFirstAt($store->id)
             ->orderByRaw(
                 '(? * COALESCE(best_sellers.units / NULLIF(best_seller_peaks.max_units, 0), 0)'
@@ -185,6 +188,38 @@ class StorefrontCatalogService
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function branchPayload(Store $branch, string $currency): array
+    {
+        return [
+            'id' => $branch->id,
+            'name' => $branch->name,
+            'store_slug' => $branch->store_slug,
+            'location' => $branch->location,
+            'address' => $branch->address,
+            'phone' => $branch->phone,
+            'email' => $branch->email,
+            'store_type' => $branch->store_type ?? 'pharmacy',
+            'currency' => $currency,
+            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
+            'timezone' => $branch->timezone,
+        ];
+    }
+
+    /**
+     * @return array<int, string>|null null when the request named no ids at all
+     */
+    public function parseRequestedIds(mixed $raw): ?array
+    {
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        return array_slice(array_values(array_unique(array_filter(array_map('trim', explode(',', $raw))))), 0, self::MAX_REQUESTED_IDS);
+    }
+
+    /**
      * @return LengthAwarePaginator<int, Product>
      */
     public function paginateProducts(
@@ -192,8 +227,13 @@ class StorefrontCatalogService
         ?string $search = null,
         ?string $categoryId = null,
         int $perPage = self::PER_PAGE,
+        ?array $ids = null,
     ): LengthAwarePaginator {
-        $query = $this->storeProducts($store)->with('category');
+        $query = $this->storeProducts($store)->with('category')->withStockAt($store->id);
+
+        if ($ids !== null) {
+            $query->whereIn('products.id', $ids);
+        }
 
         if ($search !== null && trim($search) !== '') {
             $term = '%'.trim($search).'%';

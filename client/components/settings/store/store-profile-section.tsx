@@ -1,29 +1,17 @@
-import { Copy, Check, Edit2 } from "lucide-react";
-import { addMonths, format, isAfter } from "date-fns";
-import { STOREFRONT_BASE_URL } from "@/lib/constants";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { StoreType } from "@/lib/context/store-context";
-import { useState } from "react";
 import { toast } from "sonner";
-import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { HelpTooltip } from "./help-tooltip";
 
 interface StoreProfileSectionProps {
   storeType: StoreType;
   isEditingProfile: boolean;
-  localStoreSlug?: string;
-  setLocalStoreSlug?: (val: string) => void;
-  storeSlugChangedAt?: string | null;
   localPcn: string;
   setLocalPcn: (val: string) => void;
   showRetailSuggestions?: boolean;
   setShowRetailSuggestions?: (val: boolean) => void;
-  onlineStoreEnabled?: boolean;
-  setOnlineStoreEnabled?: (val: boolean) => void;
-  canUseEcommerce: boolean;
   loyaltyProgramEnabled?: boolean;
   setLoyaltyProgramEnabled?: (val: boolean) => void;
   canAccessLoyaltyProgramPlan?: boolean;
@@ -35,71 +23,19 @@ interface StoreProfileSectionProps {
 export function StoreProfileSection({
   storeType,
   isEditingProfile,
-  localStoreSlug,
-  setLocalStoreSlug,
-  storeSlugChangedAt,
   localPcn,
   setLocalPcn,
   showRetailSuggestions = false,
   setShowRetailSuggestions,
-  onlineStoreEnabled = false,
-  setOnlineStoreEnabled,
-  canUseEcommerce,
   loyaltyProgramEnabled = false,
   setLoyaltyProgramEnabled,
   canAccessLoyaltyProgramPlan = false,
   getUpgradeMessage,
 }: StoreProfileSectionProps) {
-  const canManageOnlineStore = useHasPermission("manage_online_store");
-  const [isEditingSlug, setIsEditingSlug] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    void navigator.clipboard.writeText(
-      `${STOREFRONT_BASE_URL}/${localStoreSlug}`,
-    );
-    setCopied(true);
-    toast.success("Store link copied!");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Server-enforced cooldown backstop lives in Store::boot() (Laravel) - this
-  // is just the UI-side reflection of the same 6-month rule, computed from
-  // the same store_slug_changed_at the server stamps. First-ever slug set
-  // (no changed-at yet) is never restricted.
-  const nextEligibleSlugChange = storeSlugChangedAt
-    ? addMonths(new Date(storeSlugChangedAt), 6)
-    : null;
-  const slugChangeLocked =
-    !!nextEligibleSlugChange && isAfter(nextEligibleSlugChange, new Date());
-
-  const handleEditClick = () => {
-    if (!canUseEcommerce) {
-      toast.error(
-        getUpgradeMessage(
-          "store_url",
-          "Upgrade to a premium plan to customize your storefront URL.",
-        ),
-      );
-      return;
-    }
-    if (slugChangeLocked && nextEligibleSlugChange) {
-      toast.error(
-        `You can change your storefront URL once every 6 months. You'll be able to change it again on ${format(nextEligibleSlugChange, "d MMM yyyy")} — contact support if you need it sooner.`,
-      );
-      return;
-    }
-    setIsEditingSlug(true);
-  };
-
   const showPharmacyFields = storeType === "pharmacy";
   // Nothing left to show is a real state for a retail store whose group lacks the storefront key and whose plan has no loyal…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-store-store-profile-section-tsx-L102
-  if (
-    !canManageOnlineStore &&
-    !setLoyaltyProgramEnabled &&
-    !showPharmacyFields
-  ) {
+  if (!setLoyaltyProgramEnabled && !showPharmacyFields) {
     return null;
   }
 
@@ -108,133 +44,9 @@ export function StoreProfileSection({
       <div className="space-y-1">
         <h4 className="text-sm font-semibold">Store Profile</h4>
         <p className="text-xs text-muted-foreground">
-          This store's public storefront settings.
+          Settings specific to this store.
         </p>
       </div>
-
-      {canManageOnlineStore && (
-        <div className="grid gap-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="store-slug">Store URL Slug</Label>
-            <HelpTooltip>
-              Your unique web address where customers can browse your
-              products online.
-            </HelpTooltip>
-          </div>
-          {isEditingProfile ? (
-            <>
-              {isEditingSlug ? (
-                <div className="flex rounded-md shadow-sm">
-                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
-                    {STOREFRONT_BASE_URL}/
-                  </span>
-                  <Input
-                    id="store-slug"
-                    className="rounded-l-none"
-                    placeholder="my-store"
-                    value={localStoreSlug || ""}
-                    onChange={(e) => setLocalStoreSlug?.(e.target.value)}
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-muted/30">
-                  <span className="text-sm font-medium">
-                    {STOREFRONT_BASE_URL}/{localStoreSlug}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={handleCopy}
-                      type="button"
-                    >
-                      {copied ? (
-                        <Check className="h-3 w-3 text-green-500" />
-                      ) : (
-                        <Copy className="h-3 w-3" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={handleEditClick}
-                      type="button"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-              <p className="text-[0.8rem] text-muted-foreground">
-                This will be your unique public storefront link.
-              </p>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium py-2">
-                {STOREFRONT_BASE_URL}/{localStoreSlug}
-              </p>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={handleCopy}
-                type="button"
-              >
-                {copied ? (
-                  <Check className="h-3 w-3 text-green-500" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {canManageOnlineStore && (
-        <div className="flex items-center justify-between rounded-lg border p-4 bg-background">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <Label className="text-base">Enable Online Store</Label>
-              <HelpTooltip>
-                When off, your storefront link above is unreachable:
-                customers see a 404 even with the correct URL. Products
-                also need &quot;Show Online&quot; turned on individually
-                in each product&apos;s Additional Details.
-              </HelpTooltip>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Let customers browse and order from {STOREFRONT_BASE_URL}/
-              {localStoreSlug || "your-store"}
-            </p>
-          </div>
-          {isEditingProfile ? (
-            <Switch
-              id="online-store-enabled"
-              checked={onlineStoreEnabled}
-              onCheckedChange={(val) => {
-                if (!canUseEcommerce) {
-                  toast.error(
-                    getUpgradeMessage(
-                      "ecommerce",
-                      "Upgrade to a premium plan to enable your online store.",
-                    ),
-                  );
-                  return;
-                }
-                setOnlineStoreEnabled?.(val);
-              }}
-            />
-          ) : (
-            <p className="text-sm font-medium py-2">
-              {onlineStoreEnabled ? "Enabled" : "Disabled"}
-            </p>
-          )}
-        </div>
-      )}
 
       {setLoyaltyProgramEnabled && (
         <div className="flex items-center justify-between rounded-lg border p-4 bg-background">

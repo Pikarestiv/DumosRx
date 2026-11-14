@@ -1,4 +1,4 @@
-import { DEMO_PAGINATED_PRODUCTS, DEMO_STOREFRONT_DATA } from "@/lib/api/storefront-demo-data";
+import { DEMO_STOREFRONT_DATA, demoCatalog } from "@/lib/api/storefront-demo-data";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 export interface StorefrontStore {
@@ -12,6 +12,8 @@ export interface StorefrontStore {
   currency?: string | null;
   is_primary?: boolean;
   store_type?: string | null;
+  online_payment_available?: boolean;
+  timezone?: string | null;
 }
 
 export interface StorefrontBranch {
@@ -30,6 +32,17 @@ export interface StorefrontProfile {
   headline?: string | null;
   about?: string | null;
   theme?: string;
+  locale?: string | null;
+  enabled_locales?: string[] | null;
+  accent?: string | null;
+  tagline?: string | null;
+  whatsapp?: string | null;
+  pickup_minutes?: number | null;
+  payment_instructions?: string | null;
+  delivery_available?: boolean;
+  delivery_note?: string | null;
+  pay_on_delivery?: boolean;
+  opening_hours?: Record<string, { open: string; close: string } | null> | null;
   logo_url?: string | null;
   banner_url?: string | null;
 }
@@ -62,7 +75,7 @@ export async function getStorefrontData(
   store_slug: string,
   branchId?: string,
 ): Promise<StorefrontData | null> {
-  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
+  if ((process.env.STOREFRONT_ALLOW_EMPTY === "1" || process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1") && store_slug === "demo") {
     return DEMO_STOREFRONT_DATA;
   }
 
@@ -108,6 +121,8 @@ export async function getStorefrontData(
   }
 }
 
+const PRODUCTS_REQUEST_TIMEOUT_MS = 15_000;
+
 export interface StorefrontCategory {
   id: string;
   name: string;
@@ -137,10 +152,10 @@ export interface PaginatedStorefrontProducts {
 
 export async function getStorefrontProducts(
   store_slug: string,
-  options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string },
+  options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string; ids?: string[] },
 ): Promise<PaginatedStorefrontProducts | null> {
-  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
-    return DEMO_PAGINATED_PRODUCTS;
+  if (process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1" && store_slug === "demo") {
+    return demoCatalog(options);
   }
 
   const apiUrl =
@@ -152,12 +167,15 @@ export async function getStorefrontProducts(
   if (options?.category) params.set("category", options.category);
   if (options?.per_page) params.set("per_page", String(options.per_page));
   if (options?.branch) params.set("branch", options.branch);
+  if (options?.ids?.length) params.set("ids", options.ids.join(","));
 
   const queryStr = params.toString() ? `?${params.toString()}` : "";
 
   let res: Response;
   try {
-    res = await fetch(`${apiUrl}/storefront/${store_slug}/products${queryStr}`);
+    res = await fetch(`${apiUrl}/storefront/${store_slug}/products${queryStr}`, {
+      signal: AbortSignal.timeout(PRODUCTS_REQUEST_TIMEOUT_MS),
+    });
   } catch (error) {
     throw new StorefrontFetchError(
       `Could not reach the API for /store/${store_slug}/products: ` +

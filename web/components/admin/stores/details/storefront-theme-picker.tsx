@@ -14,7 +14,8 @@ export function StorefrontThemePicker({ store }: { store: AdminStoreDetail }) {
   const setTheme = useSetStoreStorefrontThemeMutation();
   const current = resolveStorefrontTheme(store.storefront.theme);
   const allowed = store.storefront.available_themes;
-  const themes = allowed ? STOREFRONT_THEMES.filter((theme) => allowed.includes(theme.id)) : STOREFRONT_THEMES;
+  const classicThemes = STOREFRONT_THEMES.filter((theme) => !theme.preset);
+  const themes = allowed ? classicThemes.filter((theme) => allowed.includes(theme.id)) : classicThemes;
 
   if (!checkIsSuperAdmin(user?.role)) {
     return (
@@ -38,7 +39,7 @@ export function StorefrontThemePicker({ store }: { store: AdminStoreDetail }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Theme</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Classic accent themes</p>
       <div role="group" aria-label="Storefront theme" className="flex flex-wrap gap-3">
         {themes.map((theme) => {
           const selected = theme.id === current.id;

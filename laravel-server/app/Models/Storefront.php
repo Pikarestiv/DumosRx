@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * @property string|null $theme
+ * @property string|null $locale
+ * @property array<int, string>|null $enabled_locales
+ * @property string|null $logo_url
+ */
 class Storefront extends Model
 {
     use HasFactory;
@@ -25,16 +31,36 @@ class Storefront extends Model
         'headline',
         'about',
         'theme',
+        'locale',
+        'owner_style_enabled',
+        'enabled_locales',
+        'accent',
+        'tagline',
+        'whatsapp',
+        'pickup_minutes',
+        'payment_instructions',
+        'delivery_available',
+        'delivery_note',
+        'pay_on_delivery',
+        'opening_hours',
         'primary_store_id',
         'logo_url',
         'banner_url',
         'social_links',
         'is_active',
+        'style_dirty_at',
     ];
 
     protected $casts = [
         'social_links' => 'array',
+        'opening_hours' => 'array',
+        'enabled_locales' => 'array',
+        'pickup_minutes' => 'integer',
         'is_active' => 'boolean',
+        'owner_style_enabled' => 'boolean',
+        'delivery_available' => 'boolean',
+        'pay_on_delivery' => 'boolean',
+        'style_dirty_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -57,16 +83,25 @@ class Storefront extends Model
         });
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * @return BelongsTo<Store, $this>
+     */
     public function primaryStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'primary_store_id');
     }
 
+    /**
+     * @return HasMany<Store, $this>
+     */
     public function stores(): HasMany
     {
         return $this->hasMany(Store::class, 'user_id', 'user_id');
@@ -76,5 +111,12 @@ class Storefront extends Model
     {
         return $this->stores()->where('online_store_enabled', true);
     }
-}
 
+    public static function clearStyleDirty(?\DateTimeInterface $cutoff = null): int
+    {
+        return static::query()
+            ->whereNotNull('style_dirty_at')
+            ->when($cutoff, fn ($q) => $q->where('style_dirty_at', '<=', $cutoff))
+            ->update(['style_dirty_at' => null]);
+    }
+}

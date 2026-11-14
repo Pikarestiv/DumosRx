@@ -1,4 +1,4 @@
-import { BaseApiClient } from "./base-client";
+import { StorefrontApiClient } from "./client-storefront";
 import type { StoreOption, FleetStore, FleetStorePayload, FleetStats, WidgetSnapshotResponse } from "@/lib/types/store";
 import type { OnlineOrder } from "@/lib/types/online-order";
 import type {
@@ -12,15 +12,10 @@ import type {
 
 // Fleet (multi-store management), subscription/billing, notifications, online orders, and account-deletion endpoints — split out from ApiClien…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#api-client-fleet-billing-ts-L13
-export class FleetBillingApiClient extends BaseApiClient {
+export class FleetBillingApiClient extends StorefrontApiClient {
   // Stores
   async getStores() {
     return this.request<StoreOption[]>("/stores");
-  }
-
-  async checkStoreSlug(slug: string, ignoreId?: string) {
-    const url = `/stores/check-slug?slug=${encodeURIComponent(slug)}${ignoreId ? `&ignore_id=${ignoreId}` : ""}`;
-    return this.request<{ available: boolean; slug: string }>(url);
   }
 
   async getPaymentBanks(storeId: string, country: string) {
@@ -142,6 +137,10 @@ export class FleetBillingApiClient extends BaseApiClient {
   // Online Orders
   async getOnlineOrders() {
     return this.request<{ orders?: OnlineOrder[] }>("/app/online-orders");
+  }
+
+  async markOnlineOrderReady(id: string) {
+    return this.request<{ order: OnlineOrder; emailed: boolean }>(`/app/online-orders/${id}/ready`, { method: "POST" });
   }
 
   // payment_confirmed is explicit because the server no longer infers payment from fulfilment alone:

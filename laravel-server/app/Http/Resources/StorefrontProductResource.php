@@ -39,6 +39,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'selling_price', type: 'number'),
         new OA\Property(property: 'requires_prescription', type: 'boolean'),
         new OA\Property(property: 'in_stock', type: 'boolean'),
+        new OA\Property(property: 'stock_quantity', type: 'number', description: 'Units on hand at the selected branch, before pending online orders; absent for a response that predates it'),
         new OA\Property(property: 'image', type: 'string', nullable: true),
         new OA\Property(property: 'category', type: 'string', nullable: true),
     ],
@@ -64,10 +65,17 @@ class StorefrontProductResource extends JsonResource
             'unit_of_measure' => $product->unit_of_measure,
             'selling_price' => $product->selling_price,
             'requires_prescription' => (bool) $product->requires_prescription,
+            'stock_quantity' => $this->stockQuantity(),
+            'in_stock' => $this->stockQuantity() > 0,
             'category' => $this->whenLoaded('category', fn () => $product->category
                 ? ['id' => $product->category->id, 'name' => $product->category->name]
                 : null),
         ];
+    }
+
+    private function stockQuantity(): float
+    {
+        return (float) ($this->product()->getAttributes()['stock_quantity'] ?? 0);
     }
 
     private function product(): Product

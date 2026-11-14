@@ -71,6 +71,20 @@ export function OnlineOrdersModal() {
     gaps: OnlineOrderStockGap[];
   } | null>(null);
   const [checkingStockFor, setCheckingStockFor] = useState<string | null>(null);
+  const [notifyingId, setNotifyingId] = useState<string | null>(null);
+
+  const notifyReady = async (order: OnlineOrder) => {
+    setNotifyingId(order.id);
+    try {
+      const { emailed } = await apiClient.markOnlineOrderReady(order.id);
+      toast.success(emailed ? "Customer emailed that their order is ready" : `Marked ready. No customer email, so call ${order.customer_phone ?? "the customer"}.`);
+      await fetchOrders();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not mark the order ready");
+    } finally {
+      setNotifyingId(null);
+    }
+  };
 
   const fulfill = (order: OnlineOrder) => {
     fulfillOrderMutation.mutate(
@@ -132,13 +146,17 @@ export function OnlineOrdersModal() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-semibold text-lg">{order.customer_name}</h3>
-                      <p className="text-sm text-muted-foreground">{order.customer_phone} • {order.customer_address || "In-store pickup"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {order.customer_phone}
+                        {order.customer_email ? ` • ${order.customer_email}` : ""} • {order.fulfilment_method === "delivery" ? `Delivery: ${order.customer_address ?? ""}` : order.customer_address || "In-store pickup"}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-1">{new Date(order.created_at).toLocaleString()}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <Badge variant={order.order_status === 'fulfilled' ? "default" : "secondary"}>
                         {order.order_status.toUpperCase()}
                       </Badge>
+                      {order.order_status === "pending" && order.ready_at ? <Badge className="text-xs uppercase">Ready</Badge> : null}
                       <Badge variant="outline" className="text-xs uppercase">
                         {order.payment_method}
                       </Badge>
@@ -168,6 +186,16 @@ export function OnlineOrdersModal() {
 
                   {order.order_status === 'pending' && (
                     <div className="flex justify-end gap-2 pt-2">
+                      {!order.ready_at && (
+                        <Button
+                          variant="outline"
+                          onClick={() => void notifyReady(order)}
+                          disabled={notifyingId === order.id}
+                        >
+                          {notifyingId === order.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {order.customer_email ? "Email customer: ready" : "Mark ready"}
+                        </Button>
+                      )}
                       <Button 
                         variant="default" 
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"

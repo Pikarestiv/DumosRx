@@ -11,7 +11,6 @@ import {
   StoreProfileCard,
   StoreSubscriptionCard,
 } from "@/components/admin/stores/details/store-detail-sections";
-import { StoreStorefrontCard } from "@/components/admin/stores/details/store-storefront-card";
 import {
   StoreBusinessMetricsCard,
   StoreOperationalMetricsCard,
@@ -31,7 +30,6 @@ export function StoreOverviewTab({ store }: { store: AdminStoreDetail }) {
         <StoreStaffList storeId={store.id} />
       </DetailCard>
       <AccountManagerCard store={store} />
-      <StoreStorefrontCard store={store} />
       <StorePaymentsCard store={store} />
     </div>
   );

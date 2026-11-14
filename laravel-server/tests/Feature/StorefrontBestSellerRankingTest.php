@@ -227,7 +227,7 @@ class StorefrontBestSellerRankingTest extends TestCase
         $this->assertSame(['Zinc', 'Aspirin'], array_column($products, 'name'));
         $this->assertSame([
             'id', 'name', 'generic_name', 'description', 'dosage_form', 'strength', 'pack_size',
-            'unit_of_measure', 'selling_price', 'requires_prescription', 'category',
+            'unit_of_measure', 'selling_price', 'requires_prescription', 'stock_quantity', 'in_stock', 'category',
         ], array_keys($products[0]));
     }
 

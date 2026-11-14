@@ -17,7 +17,7 @@ describe("storefront cart drawer", () => {
 
   function openCart() {
     render(<StorefrontCart storeSlug="cutis" currency="NGN" />);
-    fireEvent.click(screen.getByRole("button", { name: /open cart/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^cart/i }));
     return screen.getByRole("dialog");
   }
 

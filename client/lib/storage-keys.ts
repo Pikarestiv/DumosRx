@@ -36,6 +36,7 @@ export const STORAGE_KEYS = {
   recentDownloads: "drx_recent_downloads",
   exportColumns: "drx_export_columns",
   chunkReloadGuard: "chunk-error-reload-attempted",
+  productImageConfig: "drx_product_image_config",
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

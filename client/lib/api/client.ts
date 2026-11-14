@@ -2,6 +2,7 @@ import { FleetBillingApiClient } from "./client-fleet-billing";
 import type { Broadcast } from "@/lib/types/broadcast";
 import type { SyncChange } from "@/lib/types/sync";
 import type { CurrentUser, Session } from "@/lib/types/user";
+import type { ProductImagePresign, ProductImageResult, ProductImageServerConfig } from "@/lib/product-images/types";
 import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";
 import { getStoredActiveStoreId, getStoredUser } from "@/lib/storage-keys";
@@ -288,6 +289,33 @@ class ApiClient extends FleetBillingApiClient {
   async getSystemConfig<T = unknown>(key: string) {
     const response = await this.request<{ data: T }>(`/system-configs/${key}`);
     return response.data;
+  }
+
+  async getProductImageConfig() {
+    return this.request<ProductImageServerConfig>("/app/product-images/config", { headers: syncHeaders() });
+  }
+
+  async presignProductImage(productId: string, contentType: string, contentLength: number) {
+    return this.request<ProductImagePresign>(`/app/products/${encodeURIComponent(productId)}/image/presign`, {
+      method: "POST",
+      headers: syncHeaders(),
+      body: JSON.stringify({ content_type: contentType, content_length: contentLength }),
+    });
+  }
+
+  async confirmProductImage(productId: string, key: string) {
+    return this.request<ProductImageResult>(`/app/products/${encodeURIComponent(productId)}/image/confirm`, {
+      method: "POST",
+      headers: syncHeaders(),
+      body: JSON.stringify({ key }),
+    });
+  }
+
+  async deleteProductImage(productId: string) {
+    return this.request<ProductImageResult>(`/app/products/${encodeURIComponent(productId)}/image`, {
+      method: "DELETE",
+      headers: syncHeaders(),
+    });
   }
 
 }

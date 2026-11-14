@@ -7714,3 +7714,15 @@ Currency amount inputs use `step="any"`. The arrow keys still move by 1 (a hundr
 
 
 
+
+## Product images (2026-11-14)
+
+Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rules in `laravel-server/AGENTS.md`, "Product images".
+
+- **Visibility comes from the server.** `lib/product-images/config-store.ts` holds `GET /app/product-images/config`, fetched once per session (first `useProductImageConfig()` mount, online and signed in) and cached in `localStorage` (`STORAGE_KEYS.productImageConfig`) keyed by the API base URL, so images render offline and a server switch does not inherit another server's CDN. Disabled means: no Image section, no row thumbnails, no settings toggle, and POS tiles render exactly as before.
+- **`products.image_key` is written locally only by `useProductImageUpload`**, with a raw `execute()` that does not queue a push: the server owns the column and strips it from every push, and the next pull brings the same value. Do not route it through `update()`.
+- **`<ProductImage>`** (`components/products/product-image.tsx`) is the one renderer: CDN URL from config + key, fixed box, `loading="lazy"`, `crossOrigin="anonymous"` (the service worker needs a CORS response to cache it), category icon on no key, disabled feature, `showImage={false}` or a load error. A new key retries after a failed one.
+- **The upload path** (`lib/hooks/use-product-image-upload.ts`): `compressProductImage()` (`lib/product-images/compress.ts`: non-image or >5 MB rejected, fit in 512x512, WebP stepping quality down to <=120 KB, JPEG when the browser cannot encode WebP, refused above the server's `max_bytes`) → presign → `PUT` to the upload URL → confirm → local write. Offline it refuses before any request with `OFFLINE_IMAGE_MESSAGE`; product saving never depends on it.
+- **Service worker:** product image requests (destination `image`, path `/stores/*/products/*/*.{webp,jpg,png}` on any origin) are cache-first in `dumosrx-product-images-v1`, trimmed to the newest 500, and exempt from `activate()`'s cache cleanup. Keys are immutable (a replacement gets a new key), so there is no revalidation. `CACHE_VERSION` was deliberately not bumped: the shell's strategy is unchanged. Tauri does not run the service worker and relies on the webview HTTP cache.
+- **`stores.pos_show_product_images`** (default 1) is the Register Configs toggle "Show product images in POS grid"; it is only listed while the feature is enabled. The POS tile reads it from `storeProfile` directly.
+- **The catalog detail panel now shows the live list row** (`product-database.tsx` resolves the selected product by id from the current list), so an image change, or any other edit, shows without reselecting.

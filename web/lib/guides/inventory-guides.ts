@@ -156,4 +156,24 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Only staff with both 'View Cost & Margin Fields' and 'Edit Product Cost Price' see the pencil. Make sure other tills have synced before you edit, so two people do not correct the same batch at once.",
     videoPlaceholderText: "Video Walkthrough: Correcting a batch cost price from the product's Batches tab",
   },
+  {
+    id: "product-images",
+    title: "Product Images: Add a Photo to Every Product",
+    category: "Inventory",
+    badge: "New",
+    readTime: "2 min read",
+    videoDuration: "1:30",
+    summary:
+      "Give each product one photo. It shows in your catalog, on the POS product tiles so cashiers find items faster, and on your online store's product cards.",
+    steps: [
+      "Open Inventory > Catalog and select the product.",
+      "In the Image section at the top of the details panel, tap 'Upload image' and pick a photo, or take one with your phone or tablet camera.",
+      "The photo is shrunk on your device before it uploads, so even a large camera photo uploads quickly. You need an internet connection; offline, the buttons are disabled and the rest of the product still saves as normal.",
+      "Use 'Replace image' to change the photo, or 'Remove image' to go back to the category icon. Every till picks up the change on its next sync, and your online store on its next refresh.",
+      "On a slower till, turn off 'Show product images in POS grid' in Settings > Register Configs. The POS then shows the category icon instead.",
+    ],
+    proTip:
+      "Photograph the product on a plain, light background, straight on and filling the frame. Square photos work best: tiles and store cards crop to a square.",
+    videoPlaceholderText: "Video Walkthrough: Adding, replacing and removing a product photo",
+  },
 ];

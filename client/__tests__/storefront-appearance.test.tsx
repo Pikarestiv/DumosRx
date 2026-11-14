@@ -183,7 +183,7 @@ describe("StorefrontAppearance", () => {
     getSettings.mockResolvedValue({ allowed: false });
     renderAppearance();
 
-    expect(await screen.findByText(/contact your account manager/i)).toBeTruthy();
+    expect(await screen.findByText(/account manager can change them/i)).toBeTruthy();
     expect(screen.queryByRole("radio")).toBeNull();
     expect(screen.queryByRole("button", { name: "Save look & details" })).toBeNull();
   });
@@ -192,7 +192,7 @@ describe("StorefrontAppearance", () => {
     getSettings.mockRejectedValue(new Error("offline"));
     renderAppearance();
 
-    expect(await screen.findByText(/contact your account manager/i, {}, { timeout: 4000 })).toBeTruthy();
+    expect(await screen.findByText(/account manager can change them/i, {}, { timeout: 4000 })).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

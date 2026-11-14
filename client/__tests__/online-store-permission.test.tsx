@@ -114,7 +114,8 @@ describe("manage_online_store", () => {
 
     expect(screen.getByText(/isn't switched on yet/i)).toBeTruthy();
     expect(screen.getByText("https://shop.example/my-store")).toBeTruthy();
-    expect(screen.getByText(/contact your account manager/i)).toBeTruthy();
+    expect(screen.getAllByText(/contact your account manager/i)).toHaveLength(1);
+    expect(screen.queryByText("storefront-appearance")).toBeNull();
     expect(screen.queryByRole("link", { name: "Open your online store" })).toBeNull();
   });
 
@@ -127,12 +128,13 @@ describe("manage_online_store", () => {
     expect(screen.queryByRole("button", { name: "Copy storefront link" })).toBeNull();
   });
 
-  it("embeds the look controls only for a store that has an address", () => {
-    const withAddress = render(<OnlineStorefrontCard {...storefrontProps} />);
+  it("embeds the look controls only once the store is live, so the contact message is never shown twice", () => {
+    const live = render(<OnlineStorefrontCard {...storefrontProps} />);
     expect(screen.getByText("storefront-appearance")).toBeTruthy();
-    withAddress.unmount();
+    expect(screen.queryByText(/contact your account manager/i)).toBeNull();
+    live.unmount();
 
-    render(<OnlineStorefrontCard {...storefrontProps} localStoreSlug="" />);
+    render(<OnlineStorefrontCard {...storefrontProps} onlineStoreEnabled={false} />);
     expect(screen.queryByText("storefront-appearance")).toBeNull();
   });
 

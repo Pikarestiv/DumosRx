@@ -19,8 +19,9 @@ interface OnlineStorefrontCardProps {
   onlineStoreEnabled?: boolean;
 }
 
-const CONTACT_ADMIN =
+const CONTACT_TO_SET_UP =
   "Contact your account manager and they will set it up for you.";
+const CONTACT_TO_SWITCH_ON = "Contact your account manager to switch it on.";
 
 export function OnlineStorefrontCard({
   localStoreSlug,
@@ -54,7 +55,7 @@ export function OnlineStorefrontCard({
       <CardContent className="space-y-4">
         {!url ? (
           <p className="text-sm">
-            Your online store isn&apos;t set up yet. {CONTACT_ADMIN}
+            Your online store isn&apos;t set up yet. {CONTACT_TO_SET_UP}
           </p>
         ) : (
           <>
@@ -99,12 +100,15 @@ export function OnlineStorefrontCard({
                 ) : null}
               </div>
             </div>
-            {!live ? (
-              <p className="text-xs text-muted-foreground">{CONTACT_ADMIN}</p>
-            ) : null}
-            <div className="border-t pt-4">
-              <StorefrontAppearance />
-            </div>
+            {live ? (
+              <div className="border-t pt-4">
+                <StorefrontAppearance />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {CONTACT_TO_SWITCH_ON}
+              </p>
+            )}
           </>
         )}
       </CardContent>

@@ -70,8 +70,8 @@ export function StorefrontAppearance() {
   if (query.isError || !query.data || !query.data.allowed) {
     return (
       <p className="text-xs text-muted-foreground">
-        Want a different look, language or opening hours on your storefront?
-        Contact your account manager and they will set it up for you.
+        Want a different look, language or opening hours? Your account manager
+        can change them for you.
       </p>
     );
   }

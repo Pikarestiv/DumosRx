@@ -21,6 +21,7 @@ export interface StorefrontSettingsInput {
   whatsapp?: string | null;
   pickup_minutes?: number | null;
   opening_hours?: Record<string, { open: string; close: string } | null> | null;
+  owner_style_enabled?: boolean;
   locale?: string | null;
   enabled_locales?: string[] | null;
 }

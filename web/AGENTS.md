@@ -391,10 +391,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   **Rebuild storefronts now** (`StorefrontRebuildButton`, behind a
   `ConfirmDialog`, `POST /admin/storefront/rebuild`), which redeploys every
   storefront. The preview shows sample products, since the detail payload
-  carries none. Store owners now also have style controls in the till (Settings > Business
-  Info > Online Storefront card, `PUT /app/storefront-settings`; see
-  `client/AGENTS.md`). An owner's change queues the debounced automatic rebuild,
-  a super admin's waits for the manual button.
+  carries none. Store owners can also change the look from the till, but only for a store where a super admin ticks "Let the store owner change the look themselves" in this tab (`owner_style_enabled`, off by default, because each owner save queues a full automatic rebuild); otherwise the till tells them to contact their account manager. A super admin's own change waits for the manual button.
 - **Storefront Header Branch Selector:** `StoreBranchSelector`, wrapped in
   `<Suspense fallback={null}>`. When multiple branches exist under the owner,
   users can switch branches (`?branch=<id>`), with a confirmation modal

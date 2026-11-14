@@ -227,7 +227,12 @@ without updating that.
   `style_dirty_at` up to the dispatch time; without one it clears them at once.
   **Owner control (2026-11-14): `GET/PUT /app/storefront-settings`**
   (`Api\App\StorefrontSettingsController`, inside the `subscription` group; the
-  PUT also needs `subscription:custom_branding`). Owner only: a user with a
+  PUT also needs `subscription:custom_branding`). **Off per store by default:**
+  `storefronts.owner_style_enabled` is switched on by a super admin (admin settings
+  endpoint, Storefront tab checkbox) because every owner save queues a full
+  automatic rebuild. While off, GET answers `{allowed: false}` and PUT 403s with
+  a message to contact the account manager; an owner can never set the flag.
+  Owner only: a user with a
   `store_id` (staff) gets 403. It serves the owner's first slugged store, accepts
   `theme` only from `StorefrontThemes::OWNER_IDS` (the three presets) plus every
   field above and `locale` / `enabled_locales` (`StorefrontLocales::IDS`, pinned

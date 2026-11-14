@@ -5,6 +5,7 @@ export type StorefrontWeekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | 
 export type StorefrontOpeningHours = Partial<Record<StorefrontWeekday, { open: string; close: string } | null>>;
 
 export interface StorefrontSettings {
+  allowed: true;
   theme: string;
   available_themes: StorefrontPresetId[];
   accent: string | null;
@@ -17,6 +18,8 @@ export interface StorefrontSettings {
   available_locales: StorefrontLocaleId[];
   store_type: string | null;
 }
+
+export type StorefrontSettingsResponse = StorefrontSettings | { allowed: false };
 
 export type StorefrontSettingsUpdate = Partial<
   Pick<StorefrontSettings, "accent" | "tagline" | "whatsapp" | "pickup_minutes" | "opening_hours" | "locale" | "enabled_locales">

@@ -26,6 +26,7 @@ class Storefront extends Model
         'about',
         'theme',
         'locale',
+        'owner_style_enabled',
         'enabled_locales',
         'accent',
         'tagline',
@@ -46,6 +47,7 @@ class Storefront extends Model
         'enabled_locales' => 'array',
         'pickup_minutes' => 'integer',
         'is_active' => 'boolean',
+        'owner_style_enabled' => 'boolean',
         'style_dirty_at' => 'datetime',
     ];
 

@@ -4696,7 +4696,9 @@ behaviour without it, so no caller had to change at once.
 - **Storefront look and details (owner controls, 2026-11-14).** The Online
   Storefront card also embeds `StorefrontAppearance`
   (`components/settings/store/storefront-appearance.tsx`), shown once the store
-  has a slug: a style (Workshop, Clinic or Studio, defaulting to Clinic for a
+  has a slug and a super admin has allowed it for the store (the GET answers
+  `{allowed: false}` otherwise, and a failed load behaves the same: a note to
+  contact the account manager, never an error): a style (Workshop, Clinic or Studio, defaulting to Clinic for a
   pharmacy and Workshop otherwise while the store is still on a classic theme),
   an accent colour with a contrast warning, tagline, WhatsApp number, pickup
   minutes, opening hours by day, and the default language plus a "let customers
@@ -4706,7 +4708,8 @@ behaviour without it, so no caller had to change at once.
   offline message and retry when the load fails. The plan gate is
   `useFeatureGate().canCustomizeTheme` (`custom_branding`), enforced again by
   the server's `subscription:custom_branding` on the PUT; a locked plan sees the
-  upgrade message and disabled fields. The server accepts only the store owner
+  upgrade message and disabled fields. `theme` is sent only if the owner actually clicked a style, so saving a detail
+  never silently replaces an existing classic theme. The server accepts only the store owner
   (a staff login gets 403 with an explanation) and only the three presets.
   `lib/utils/storefront-accent.ts` mirrors `web/lib/storefront-accent.ts` (the
   two apps share no code). It has its own Save, separate from the card's slug

@@ -120,6 +120,7 @@ describe("StoreStorefrontTab", () => {
           pickup_minutes: 20,
           opening_hours: { mon: { open: "08:00", close: "18:00" } },
           locale: "en",
+          owner_style_enabled: false,
           enabled_locales: ["en"],
         },
       },
@@ -137,7 +138,7 @@ describe("StoreStorefrontTab", () => {
 
     await waitFor(() => expect(settingsCall()).toBeTruthy());
     expect(settingsCall()?.[1].body).toEqual({
-      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", enabled_locales: ["en"],
+      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", owner_style_enabled: false, enabled_locales: ["en"],
     });
   });
 
@@ -221,5 +222,23 @@ describe("StoreStorefrontTab", () => {
 
     expect((screen.getByLabelText("Default language") as HTMLSelectElement).value).toBe("fr");
     expect((screen.getByLabelText("Let visitors switch language") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("lets a super admin allow the owner to style their own storefront, off by default", async () => {
+    renderTab(storeWith());
+    const allow = screen.getByLabelText(/let the store owner change the look/i) as HTMLInputElement;
+    expect(allow.checked).toBe(false);
+
+    await userEvent.click(allow);
+    await userEvent.click(screen.getByRole("button", { name: "Save storefront settings" }));
+
+    await waitFor(() => expect(settingsCall()).toBeTruthy());
+    expect(settingsCall()?.[1].body).toMatchObject({ owner_style_enabled: true });
+  });
+
+  it("shows when the owner has already been given access", () => {
+    renderTab(storeWith({ owner_style_enabled: true }));
+
+    expect((screen.getByLabelText(/let the store owner change the look/i) as HTMLInputElement).checked).toBe(true);
   });
 });

@@ -112,6 +112,7 @@ export interface AdminStoreDetail {
     dirty_since: string | null;
     theme?: string;
     available_themes?: string[];
+    owner_style_enabled?: boolean;
     locale?: string | null;
     enabled_locales?: string[] | null;
     accent?: string | null;

@@ -25,6 +25,7 @@ import { StorefrontAppearance } from "@/components/settings/store/storefront-app
 import type { StorefrontSettings } from "@/lib/types/storefront-settings";
 
 const settingsWith = (overrides: Partial<StorefrontSettings> = {}): StorefrontSettings => ({
+  allowed: true,
   theme: "emerald",
   available_themes: ["workshop", "clinic", "studio"],
   accent: null,
@@ -178,13 +179,31 @@ describe("StorefrontAppearance", () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("Only the store owner can change the storefront's look."));
   });
 
-  it("asks the owner to reconnect when the settings cannot be loaded, and recovers on retry", async () => {
+  it("shows only a note to contact the account manager while the super admin has not allowed styling", async () => {
+    getSettings.mockResolvedValue({ allowed: false });
+    renderAppearance();
+
+    expect(await screen.findByText(/contact your account manager/i)).toBeTruthy();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save look & details" })).toBeNull();
+  });
+
+  it("falls back to the same note, not an error, when the settings cannot be loaded", async () => {
     getSettings.mockRejectedValue(new Error("offline"));
     renderAppearance();
 
-    expect((await screen.findByRole("alert", {}, { timeout: 4000 })).textContent).toMatch(/connect to the internet/i);
-    getSettings.mockResolvedValue(settingsWith());
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByRole("radio", { name: /Workshop/ })).toBeTruthy();
+    expect(await screen.findByText(/contact your account manager/i, {}, { timeout: 4000 })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("leaves a classic theme alone when the owner only changes a detail, so the look is not silently replaced", async () => {
+    getSettings.mockResolvedValue(settingsWith({ theme: "emerald" }));
+    renderAppearance();
+    fireEvent.change(await screen.findByLabelText("WhatsApp number"), { target: { value: "+237 6 00 00 00 00" } });
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(updateSettings).toHaveBeenCalled());
+    expect(updateSettings.mock.calls[0][0]).not.toHaveProperty("theme");
+    expect(updateSettings.mock.calls[0][0]).toMatchObject({ whatsapp: "+237 6 00 00 00 00" });
   });
 });

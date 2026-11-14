@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,31 +65,14 @@ export function StorefrontAppearance() {
   const { canCustomizeTheme, getUpgradeMessage } = useFeatureGate();
   const query = useStorefrontSettings(true);
 
-  if (query.isLoading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Loading your storefront's
-        look…
-      </div>
-    );
-  }
+  if (query.isLoading) return null;
 
-  if (query.isError || !query.data) {
+  if (query.isError || !query.data || !query.data.allowed) {
     return (
-      <div role="alert" className="space-y-2 rounded-lg border p-4 text-sm">
-        <p>
-          We couldn&apos;t load your storefront settings. Connect to the
-          internet and try again.
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => void query.refetch()}
-        >
-          Try again
-        </Button>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Want a different look, language or opening hours on your storefront?
+        Contact your account manager and they will set it up for you.
+      </p>
     );
   }
 
@@ -117,7 +100,8 @@ function AppearanceForm({
   lockedMessage,
 }: AppearanceFormProps) {
   const save = useUpdateStorefrontSettings();
-  const [preset, setPreset] = useState<StorefrontPresetId>(presetFor(settings));
+  const [chosenPreset, setPreset] = useState<StorefrontPresetId | null>(null);
+  const preset = chosenPreset ?? presetFor(settings);
   const [accent, setAccent] = useState(settings.accent ?? "");
   const [tagline, setTagline] = useState(settings.tagline ?? "");
   const [whatsapp, setWhatsapp] = useState(settings.whatsapp ?? "");
@@ -148,7 +132,7 @@ function AppearanceForm({
   const submit = () =>
     save.mutate(
       {
-        theme: preset,
+        ...(chosenPreset ? { theme: chosenPreset } : {}),
         accent: accent === "" ? null : accent.toUpperCase(),
         tagline: tagline.trim() || null,
         whatsapp: whatsapp.trim() || null,

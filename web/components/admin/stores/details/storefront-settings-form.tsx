@@ -33,6 +33,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
   const [pickup, setPickup] = useState(storefront.pickup_minutes ? String(storefront.pickup_minutes) : "");
   const [hours, setHours] = useState<OpeningHours>(storefront.opening_hours ?? {});
   const [locale, setLocale] = useState<StorefrontLocale>(resolveLocale(storefront.locale));
+  const [ownerStyle, setOwnerStyle] = useState(Boolean(storefront.owner_style_enabled));
   const [allowSwitch, setAllowSwitch] = useState(resolveEnabledLocales(resolveLocale(storefront.locale), storefront.enabled_locales).length > 1);
 
   const accentValid = accent === "" || isHexColour(accent);
@@ -53,6 +54,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
           pickup_minutes: pickup === "" ? null : Number(pickup),
           opening_hours: anyOpenDay ? hours : null,
           locale,
+          owner_style_enabled: ownerStyle,
           enabled_locales: allowSwitch ? [locale, ...STOREFRONT_LOCALES.filter((code) => code !== locale)] : [locale],
         },
       },
@@ -188,6 +190,25 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
             onChange={(event) => setAllowSwitch(event.target.checked)}
           />
           Let visitors switch language
+        </label>
+      </fieldset>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">Owner access</legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={ownerStyle}
+            disabled={!editable}
+            onChange={(event) => setOwnerStyle(event.target.checked)}
+          />
+          <span>
+            Let the store owner change the look themselves from the till
+            <span className="block text-xs text-muted-foreground">
+              Off by default. Each change the owner saves queues an automatic rebuild of every storefront, which costs a deploy.
+            </span>
+          </span>
         </label>
       </fieldset>
 

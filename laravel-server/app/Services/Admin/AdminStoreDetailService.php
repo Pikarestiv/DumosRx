@@ -94,6 +94,7 @@ class AdminStoreDetailService
                 'dirty_since' => ($store->storefront_dirty_at ?? $storefront?->style_dirty_at)?->diffForHumans(),
                 'theme' => $storefront?->theme ?? StorefrontThemes::DEFAULT,
                 'available_themes' => StorefrontThemes::IDS,
+                'owner_style_enabled' => (bool) $storefront?->owner_style_enabled,
                 'locale' => $storefront?->locale ?? StorefrontLocales::DEFAULT,
                 'enabled_locales' => $storefront?->enabled_locales ?? [$storefront?->locale ?? StorefrontLocales::DEFAULT],
                 'accent' => $storefront?->accent,

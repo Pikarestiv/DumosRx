@@ -99,6 +99,15 @@ describe("manage_online_store", () => {
     expect(container.textContent).toBe("");
   });
 
+  it("embeds the look controls only for a store that has an address", () => {
+    const withAddress = render(<OnlineStorefrontCard {...storefrontProps} />);
+    expect(screen.getByText("storefront-appearance")).toBeTruthy();
+    withAddress.unmount();
+
+    render(<OnlineStorefrontCard {...storefrontProps} localStoreSlug="" />);
+    expect(screen.queryByText("storefront-appearance")).toBeNull();
+  });
+
   it("has its own edit and save, so the storefront can be saved without opening Business Information", () => {
     const handleSaveProfile = vi.fn();
     render(<OnlineStorefrontCard {...storefrontProps} handleSaveProfile={handleSaveProfile} />);

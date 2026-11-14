@@ -48,7 +48,7 @@ class StorefrontOwnerSettingsTest extends TestCase
     /**
      * @return array{0: User, 1: Store}
      */
-    private function makeOwner(string $slug, string $plan): array
+    private function makeOwner(string $slug, string $plan, bool $allowed = true): array
     {
         $owner = User::create([
             'first_name' => 'Owner', 'last_name' => ucfirst($slug),
@@ -58,6 +58,12 @@ class StorefrontOwnerSettingsTest extends TestCase
             'user_id' => $owner->id, 'name' => ucfirst($slug), 'store_slug' => $slug,
             'device_id' => "DEV-{$slug}", 'status' => 'Active', 'online_store_enabled' => true, 'store_type' => 'retail',
         ]);
+        if ($allowed) {
+            Storefront::create([
+                'user_id' => $owner->id, 'slug' => $slug, 'name' => $store->name,
+                'primary_store_id' => $store->id, 'owner_style_enabled' => true,
+            ]);
+        }
         Subscription::create([
             'user_id' => $owner->id, 'plan_name' => $plan, 'status' => 'active', 'license_key' => 'LIC-'.uniqid(),
             'start_date' => now()->subMonth(), 'end_date' => now()->addMonth(),
@@ -75,6 +81,7 @@ class StorefrontOwnerSettingsTest extends TestCase
     {
         $this->actingAs($this->owner)->getJson(self::URL)
             ->assertOk()
+            ->assertJsonPath('allowed', true)
             ->assertJsonPath('theme', 'emerald')
             ->assertJsonPath('available_themes', ['workshop', 'clinic', 'studio'])
             ->assertJsonPath('locale', 'en')
@@ -160,7 +167,7 @@ class StorefrontOwnerSettingsTest extends TestCase
             'password' => bcrypt('password'), 'role' => 'cashier', 'store_id' => $this->store->id,
         ]);
 
-        $this->actingAs($staff)->getJson(self::URL)->assertForbidden();
+        $this->actingAs($staff)->getJson(self::URL)->assertOk()->assertExactJson(['allowed' => false]);
         $this->actingAs($staff)->putJson(self::URL, ['tagline' => 'Nope'])->assertForbidden();
 
         $this->assertNull($this->storefront($this->owner)?->tagline);
@@ -176,14 +183,6 @@ class StorefrontOwnerSettingsTest extends TestCase
         $this->assertNull($this->storefront($this->owner)?->tagline);
         $this->assertNull(DB::table('stores')->where('id', $this->store->id)->value('storefront_dirty_at'));
         $this->assertNotNull($rivalStore->refresh()->storefront_dirty_at);
-    }
-
-    public function test_a_store_with_no_address_is_asked_to_set_one_first(): void
-    {
-        $this->store->update(['store_slug' => null]);
-
-        $this->actingAs($this->owner)->getJson(self::URL)->assertStatus(422);
-        $this->actingAs($this->owner)->putJson(self::URL, ['tagline' => 'Hi'])->assertStatus(422);
     }
 
     public function test_it_requires_a_signed_in_user(): void
@@ -208,5 +207,40 @@ class StorefrontOwnerSettingsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('storefront.locale', 'en')
             ->assertJsonPath('storefront.enabled_locales', ['en']);
+    }
+
+    public function test_a_store_whose_super_admin_has_not_switched_it_on_sees_nothing_and_cannot_save(): void
+    {
+        [$locked] = $this->makeOwner('locked-shop', 'enterprise', allowed: false);
+        Storefront::create(['user_id' => $locked->id, 'slug' => 'locked-shop', 'name' => 'Locked', 'tagline' => 'Admin set']);
+        Store::query()->update(['storefront_dirty_at' => null]);
+
+        $this->actingAs($locked)->getJson(self::URL)->assertOk()->assertExactJson(['allowed' => false]);
+        $this->actingAs($locked)->putJson(self::URL, ['tagline' => 'Mine'])
+            ->assertForbidden()->assertJsonPath('message', fn ($m) => str_contains($m, 'account manager'));
+
+        $this->assertSame('Admin set', $this->storefront($locked)->tagline);
+        $this->assertSame(0, Store::whereNotNull('storefront_dirty_at')->count());
+    }
+
+    public function test_an_owner_with_no_storefront_yet_is_not_allowed(): void
+    {
+        [$fresh] = $this->makeOwner('fresh-shop', 'enterprise', allowed: false);
+
+        $this->actingAs($fresh)->getJson(self::URL)->assertOk()->assertExactJson(['allowed' => false]);
+        $this->actingAs($fresh)->putJson(self::URL, ['tagline' => 'Hi'])->assertForbidden();
+        $this->assertNull($this->storefront($fresh));
+    }
+
+    public function test_an_owner_cannot_switch_the_permission_on_for_themselves(): void
+    {
+        [$locked] = $this->makeOwner('self-grant', 'enterprise', allowed: false);
+        Storefront::create(['user_id' => $locked->id, 'slug' => 'self-grant', 'name' => 'Self']);
+
+        $this->actingAs($locked)->putJson(self::URL, ['owner_style_enabled' => true, 'tagline' => 'Mine'])->assertForbidden();
+        $this->assertFalse((bool) $this->storefront($locked)->owner_style_enabled);
+
+        $this->actingAs($this->owner)->putJson(self::URL, ['owner_style_enabled' => false])->assertOk();
+        $this->assertTrue((bool) $this->storefront($this->owner)->owner_style_enabled);
     }
 }

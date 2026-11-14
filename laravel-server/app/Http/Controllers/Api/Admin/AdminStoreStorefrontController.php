@@ -141,6 +141,7 @@ class AdminStoreStorefrontController extends AdminBaseController
             new OA\Property(property: 'opening_hours', type: 'object', nullable: true),
             new OA\Property(property: 'locale', type: 'string', nullable: true, enum: ['en', 'fr']),
             new OA\Property(property: 'enabled_locales', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
+            new OA\Property(property: 'owner_style_enabled', type: 'boolean', description: 'Let the store owner change the look themselves from the till. Off by default; an owner change queues a full automatic rebuild.'),
         ])),
         responses: [
             new OA\Response(response: 200, description: 'Saved', content: new OA\JsonContent(properties: [new OA\Property(property: 'message', type: 'string')])),
@@ -151,7 +152,10 @@ class AdminStoreStorefrontController extends AdminBaseController
     )]
     public function updateSettings(Request $request, string $id)
     {
-        $validated = StorefrontSettingsRules::normalise($request->validate(StorefrontSettingsRules::rules()));
+        $validated = StorefrontSettingsRules::normalise($request->validate([
+            ...StorefrontSettingsRules::rules(),
+            'owner_style_enabled' => ['sometimes', 'boolean'],
+        ]));
 
         return $this->withErrorResponse('Storefront Settings', 'Failed to update the storefront settings', function () use ($id, $validated) {
             try {

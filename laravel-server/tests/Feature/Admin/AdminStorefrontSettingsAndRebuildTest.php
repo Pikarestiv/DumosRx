@@ -117,6 +117,22 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
     }
 
     #[Test]
+    public function a_super_admin_decides_whether_the_owner_may_change_the_look(): void
+    {
+        $this->actingAs($this->admin())
+            ->getJson("/api/v1/admin/stores/{$this->store->id}")
+            ->assertJsonPath('storefront.owner_style_enabled', false);
+
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['owner_style_enabled' => true])->assertOk();
+
+        $this->assertTrue((bool) $this->storefront()->owner_style_enabled);
+        $this->actingAs($this->admin())
+            ->getJson("/api/v1/admin/stores/{$this->store->id}")
+            ->assertJsonPath('storefront.owner_style_enabled', true);
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['owner_style_enabled' => 'maybe'])->assertStatus(422);
+    }
+
+    #[Test]
     public function the_store_detail_payload_carries_the_settings_and_the_pending_flag(): void
     {
         $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['tagline' => 'Hello'])->assertOk();

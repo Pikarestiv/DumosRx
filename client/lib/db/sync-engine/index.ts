@@ -6,11 +6,7 @@ import {
   restorePullWindows,
 } from "./pull-window";
 import { SyncResult, PullResponse } from "./types";
-import {
-  recordSyncOutcome,
-  READ_ONLY_TAB_MESSAGE,
-  SYNC_IN_PROGRESS_ERROR,
-} from "./sync-outcome";
+import { recordSyncOutcome, READ_ONLY_TAB_MESSAGE, SYNC_IN_PROGRESS_ERROR, pushBatchesFailedError } from "./sync-outcome";
 import { resolveSyncRun } from "./sync-run";
 import { refusedRound } from "./store-refusal";
 import { refreshPendingCount } from "./pending-count-refresh";
@@ -224,7 +220,7 @@ async function runSync(
         success: false,
         pushed: pushResult.pushed,
         pulled: pullResult.pulled,
-        error: `${pushResult.failedBatches} batch(es) failed to push; will retry automatically`,
+        error: pushBatchesFailedError(pushResult.failedBatches),
       };
     }
 

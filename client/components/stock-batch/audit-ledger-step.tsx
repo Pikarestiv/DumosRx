@@ -12,7 +12,7 @@ import { AUDIT_LEDGER_GRID_COLS as GRID_COLS } from "./audit-ledger-format";
 import { AuditLedgerRowCells } from "./audit-ledger-row-cells";
 import { AuditLedgerTotalsRow } from "./audit-ledger-totals-row";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
-import type { PreAuditSync } from "@/lib/hooks/use-pre-audit-sync";
+import { isBlockedBySync, type PreAuditSync } from "@/lib/hooks/use-pre-audit-sync";
 import { AuditPresyncPanel } from "./audit-presync-panel";
 
 const ALL_CATEGORIES = "__all__";
@@ -104,7 +104,7 @@ export function AuditLedgerStep({
   );
 
   const { sortKey, direction, toggleSort } = sort;
-  const blockedBySync = presync.state === "syncing" || presync.state === "failed";
+  const blockedBySync = isBlockedBySync(presync);
 
   const rowsContainerRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -131,9 +131,8 @@ export function AuditLedgerStep({
         Counted Qty starts empty: type what you actually counted, or tick a
         row whose count matched the system. Each entry is checked against
         stock as it stands at that moment.{" "}
-        {presync.state === "syncing"
-          ? "Syncing latest stock levels…"
-          : `(${items.length} of ${totalItems} item${totalItems === 1 ? "" : "s"} shown, ${countedCount} counted)`}
+        {!blockedBySync &&
+          `(${items.length} of ${totalItems} item${totalItems === 1 ? "" : "s"} shown, ${countedCount} counted)`}
       </div>
 
       <div className="flex items-center gap-2 flex-wrap mb-4">
@@ -173,7 +172,7 @@ export function AuditLedgerStep({
         </div>
       </div>
 
-      <AuditPresyncPanel presync={presync} />
+      <AuditPresyncPanel presync={presync} isReadOnly={isReadOnly} />
 
       {isLoading && !blockedBySync && (
         <div className="text-center p-8 text-muted-foreground">

@@ -53,7 +53,7 @@ describe("AuditLedgerStep virtualized rows", () => {
   const baseProps = {
     totalItems: 3,
     isLoading: false,
-    presync: { state: "ready" as const, error: null, retry: vi.fn(), countAnyway: vi.fn() },
+    presync: { state: "ready" as const, error: null, notice: null, retry: vi.fn(), countAnyway: vi.fn() },
     onUpdateItem: vi.fn(),
     onCountRow: vi.fn(),
     onClearCount: vi.fn(),

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { sync, isSyncing, SYNC_IN_PROGRESS_ERROR } from "@/lib/db/sync-engine";
-import { READ_ONLY_TAB_MESSAGE } from "@/lib/db/sync-engine/sync-outcome";
+import { READ_ONLY_TAB_MESSAGE, isPushBatchesFailedError } from "@/lib/db/sync-engine/sync-outcome";
 import { SYNC_DISABLED_IMPERSONATION_MESSAGE } from "@/lib/utils/impersonation";
 import { isExpectedPlanRestriction } from "@/lib/utils/error-logger";
 import { getAuthToken } from "@/lib/storage-keys";
@@ -12,16 +12,37 @@ export type PreAuditSyncState = "syncing" | "ready" | "stale" | "failed";
 export interface PreAuditSync {
   state: PreAuditSyncState;
   error: string | null;
+  notice: string | null;
   retry: () => void;
   countAnyway: () => void;
 }
 
+interface PreAuditOutcome {
+  state: Exclude<PreAuditSyncState, "syncing">;
+  error: string | null;
+  notice: string | null;
+}
+
+export const PRE_COUNT_PULL_DEADLINE_MS = 25_000;
+const IN_FLIGHT_WAIT_CAP_MS = 8_000;
 const IN_FLIGHT_POLL_MS = 250;
 const MAX_ATTEMPTS = 3;
 const NO_PULL_POSSIBLE = new Set([READ_ONLY_TAB_MESSAGE, SYNC_DISABLED_IMPERSONATION_MESSAGE]);
+const PUSH_FAILED_NOTICE =
+  "The latest stock is in, but some changes from this till didn't upload yet. They retry automatically.";
+const DEADLINE_ERROR = "Syncing is taking too long.";
 
-async function waitForInFlightSync(): Promise<void> {
-  while (isSyncing()) await new Promise((resolve) => setTimeout(resolve, IN_FLIGHT_POLL_MS));
+const outcome = (state: PreAuditOutcome["state"], error: string | null = null, notice: string | null = null) => ({
+  state,
+  error,
+  notice,
+});
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function waitForInFlightSync(isCancelled: () => boolean): Promise<void> {
+  const deadline = Date.now() + IN_FLIGHT_WAIT_CAP_MS;
+  while (isSyncing() && !isCancelled() && Date.now() < deadline) await pause(IN_FLIGHT_POLL_MS);
 }
 
 async function attemptSync(): Promise<{ success: boolean; error: string | null }> {
@@ -33,49 +54,74 @@ async function attemptSync(): Promise<{ success: boolean; error: string | null }
   }
 }
 
-export async function pullBeforeCount(): Promise<{ state: Exclude<PreAuditSyncState, "syncing">; error: string | null }> {
-  if (!navigator.onLine) return { state: "stale", error: null };
-  if (!getAuthToken()) return { state: "ready", error: null };
+export async function pullBeforeCount(isCancelled: () => boolean = () => false): Promise<PreAuditOutcome | null> {
+  if (!navigator.onLine) return outcome("stale");
+  if (!getAuthToken()) return outcome("ready");
+
+  await Promise.resolve();
+  if (isCancelled()) return null;
 
   let result = await attemptSync();
   for (let attempt = 1; attempt < MAX_ATTEMPTS && result.error === SYNC_IN_PROGRESS_ERROR; attempt++) {
-    await waitForInFlightSync();
+    await waitForInFlightSync(isCancelled);
+    if (isCancelled()) return null;
     result = await attemptSync();
   }
 
-  if (result.success) return { state: "ready", error: null };
-  if (!navigator.onLine || NO_PULL_POSSIBLE.has(result.error ?? "") || isExpectedPlanRestriction(result.error)) {
-    return { state: "stale", error: null };
-  }
-  return { state: "failed", error: result.error ?? "Sync failed" };
+  if (result.success) return outcome("ready");
+  if (isPushBatchesFailedError(result.error)) return outcome("ready", null, PUSH_FAILED_NOTICE);
+  if (isExpectedPlanRestriction(result.error)) return outcome("ready");
+  if (!navigator.onLine || NO_PULL_POSSIBLE.has(result.error ?? "")) return outcome("stale");
+  return outcome("failed", result.error ?? "Sync failed");
+}
+
+function withDeadline(pull: Promise<PreAuditOutcome | null>): Promise<PreAuditOutcome | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expiry = new Promise<PreAuditOutcome>((resolve) => {
+    timer = setTimeout(() => resolve(outcome("failed", DEADLINE_ERROR)), PRE_COUNT_PULL_DEADLINE_MS);
+  });
+  return Promise.race([pull, expiry]).finally(() => clearTimeout(timer));
+}
+
+export function isBlockedBySync(presync: Pick<PreAuditSync, "state">): boolean {
+  return presync.state === "syncing" || presync.state === "failed";
 }
 
 export function usePreAuditSync(): PreAuditSync {
   const queryClient = useQueryClient();
   const [state, setState] = useState<PreAuditSyncState>("syncing");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const generationRef = useRef(0);
 
-  const applyOutcome = useCallback(
-    async (outcome: Awaited<ReturnType<typeof pullBeforeCount>>) => {
-      if (outcome.state === "ready") {
+  const run = useCallback(() => {
+    const generation = ++generationRef.current;
+    let stopped = false;
+    const isCancelled = () => stopped || generation !== generationRef.current;
+    void withDeadline(pullBeforeCount(isCancelled)).then(async (result) => {
+      if (!result || isCancelled()) return;
+      if (result.state === "ready") {
         await queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
       }
-      setError(outcome.error);
-      setState(outcome.state);
-    },
-    [queryClient],
-  );
+      if (isCancelled()) return;
+      setError(result.error);
+      setNotice(result.notice);
+      setState(result.state);
+    });
+    return () => {
+      stopped = true;
+    };
+  }, [queryClient]);
 
-  useEffect(() => {
-    void pullBeforeCount().then(applyOutcome);
-  }, [applyOutcome]);
+  useEffect(() => run(), [run]);
 
   return {
     state,
     error,
+    notice,
     retry: () => {
       setState("syncing");
-      void pullBeforeCount().then(applyOutcome);
+      run();
     },
     countAnyway: () => setState("stale"),
   };

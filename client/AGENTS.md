@@ -920,8 +920,9 @@ reach for if the call sites keep drifting.
   that don't get full sync, so plan changes/suspensions still land.
 
 Call `sync(true)` before any workflow where stale local data would be
-actively misleading (e.g. `StockAudits` syncs on mount before showing
-counts, see `components/stock-batch/stock-audits.tsx`).
+actively misleading (e.g. Cycle Count pulls before any row can be counted:
+`usePreAuditSync()` in `lib/hooks/use-pre-audit-sync.ts`, gated by
+`isBlockedBySync()`; see "Counting on a device that is behind sync").
 
 #### Queue collapsing (`addToSyncQueue`, A-203)
 
@@ -2010,21 +2011,30 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   to count. Do not turn this into a refusal.
 - **Cycle Count pulls before it lets anyone count** (2026-11-14, a mitigation
   of A-211, not its fix). `usePreAuditSync()` (`lib/hooks/use-pre-audit-sync.ts`)
-  runs `sync(true)` when the screen opens and `useAuditSheetSource()` neither
-  builds the sheet nor `AuditLedgerStep` renders countable rows until it
-  settles; `AuditPresyncPanel` shows "Syncing the latest stock before you
-  count...". Outcomes: success (or an unlinked till, which has no cloud to
-  pull) refetches products and proceeds; offline, a read-only tab,
-  impersonation or a plan restriction proceeds with a notice that counts are
-  measured against the till's last sync; any other failure while online
-  blocks with Retry and a "Count anyway" that goes through `ConfirmDialog`
-  explaining the risk. A sync already in flight (instant sync, the
-  indicator) answers `SYNC_IN_PROGRESS_ERROR`; the hook polls `isSyncing()`
-  until it ends and pulls once more, at most three attempts, so it never
-  runs a second sync alongside it. A resumed draft with counted rows is
-  never rebuilt (`shouldRebuildAuditSheet`), so its baselines stay; the pull
-  only means rows counted from here re-baseline against fresher stock.
-  Offline counting still works: never turn the offline case into a block.
+  runs `sync(true)` when the screen opens; while `isBlockedBySync()` is true
+  `useAuditSheetSource()` builds no sheet, `AuditLedgerStep` renders no
+  countable rows and Review & submit is disabled, and `AuditPresyncPanel`
+  shows "Syncing the latest stock before you count…" (the only syncing text
+  on screen). Outcomes:
+  - success, an unlinked till (no cloud to pull) or a plan without cloud sync
+    proceeds with no notice;
+  - a push batch rejected after the pull completed (`isPushBatchesFailedError`,
+    from `sync-outcome.ts`) proceeds with a notice that this till's changes
+    have not uploaded yet: the pull is what the count needs;
+  - offline, a read-only tab or impersonation proceeds with a notice that
+    counts are measured against the till's last sync;
+  - any other failure while online, or no answer within
+    `PRE_COUNT_PULL_DEADLINE_MS` (25s), blocks with Retry and a "Count
+    anyway" that goes through `ConfirmDialog`. A read-only viewer of another
+    till's cloud session gets Retry only.
+  A sync already in flight answers `SYNC_IN_PROGRESS_ERROR`; the hook polls
+  `isSyncing()` (capped at 8s, like `auth-login.ts`) and pulls once more, at
+  most three attempts, never alongside it. The pull starts a microtask after
+  the effect and every run carries its own cancel flag, so StrictMode's double
+  effect pulls once and closing the screen stops the outcome being applied.
+  A resumed draft with counted rows is never rebuilt
+  (`shouldRebuildAuditSheet`), so its baselines stay. Offline counting still
+  works: never turn the offline case into a block.
 - **`COUNT_STALE_AFTER_MINUTES` is 60** (`lib/utils/count-freshness.ts`). The
   auto-sync setting offers instant/5/15/30/60/360 minutes; below 60 the
   warning would be permanent on a store set to 30, and 360 would call a

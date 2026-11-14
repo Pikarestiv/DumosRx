@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { StrictMode } from "react";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import type { SyncResult } from "@/lib/db/sync-engine/types";
@@ -44,7 +45,7 @@ vi.mock("@/lib/api/client", () => ({ apiClient: { getBaseURL: () => "https://api
 import { StockAudits } from "@/components/stock-batch/stock-audits";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
 
-const SYNCING_TEXT = "Syncing the latest stock before you count...";
+const SYNCING_TEXT = "Syncing the latest stock before you count…";
 const countBox = () => screen.queryByRole("checkbox", { name: /Mark Amoxil as counted/ });
 const originalOnLine = Object.getOwnPropertyDescriptor(navigator, "onLine");
 
@@ -52,13 +53,25 @@ function setOnline(value: boolean) {
   Object.defineProperty(navigator, "onLine", { value, configurable: true });
 }
 
-function renderAudit() {
-  render(
+function renderAudit({ strict = false } = {}) {
+  const tree = (
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <StockAudits onClose={vi.fn()} />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  return render(strict ? <StrictMode>{tree}</StrictMode> : tree);
 }
+
+function cloudSessionHeldBy(tillId: string) {
+  const session = { id: "S1", store_id: "store-1", status: "in_progress", active_till_id: tillId, lease_version: 1, submitted_stock_audit_id: null, items: [] };
+  global.fetch = vi.fn(() =>
+    Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ success: true, session }) }),
+  ) as unknown as typeof fetch;
+}
+
+const RESUMED: AuditItem[] = [
+  { id: "a", name: "Amoxil", sku: "A-1", category: "c", systemQty: 9, baselineQty: 9, countedQty: 7, counted: true },
+];
 
 describe("Cycle Count pulls the latest stock before counting starts", () => {
   beforeEach(() => {
@@ -75,6 +88,7 @@ describe("Cycle Count pulls the latest stock before counting starts", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     if (originalOnLine) Object.defineProperty(navigator, "onLine", originalOnLine);
     localStorage.clear();
   });
@@ -166,5 +180,85 @@ describe("Cycle Count pulls the latest stock before counting starts", () => {
     const [row] = useStockAuditDraftStore.getState().items;
     expect(row).toMatchObject({ systemQty: 9, baselineQty: 9, countedQty: 7, counted: true });
     expect(useStockAuditDraftStore.getState().items).toHaveLength(1);
+  });
+
+  it("builds no sheet from local stock while the pull is still running", async () => {
+    syncMock.mockReturnValue(new Promise(() => {}));
+    const { getProductsWithDetails } = await import("@/lib/db/queries/products");
+    renderAudit();
+
+    await waitFor(() => expect(getProductsWithDetails).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(useStockAuditDraftStore.getState().items).toEqual([]);
+    expect(screen.getAllByText(/Syncing/)).toHaveLength(1);
+  });
+
+  it("lets counting start when the pull landed but this till's own push batch was rejected", async () => {
+    syncMock.mockResolvedValue({ success: false, pushed: 0, pulled: 1, error: "1 batch(es) failed to push; will retry automatically" });
+    renderAudit();
+
+    await waitFor(() => expect(countBox()).not.toBeNull());
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("note").textContent).toContain("didn't upload");
+  });
+
+  it("gives up waiting on a pull that never answers, and offers Retry and Count anyway", async () => {
+    vi.useFakeTimers();
+    syncMock.mockReturnValue(new Promise(() => {}));
+    renderAudit();
+    expect(screen.getByText(SYNCING_TEXT)).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(within(alert).getByRole("button", { name: "Retry" })).toBeTruthy();
+    expect(within(alert).getByRole("button", { name: "Count anyway" })).toBeTruthy();
+  });
+
+  it("does not show the stale notice for a store whose plan has no cloud sync", async () => {
+    syncMock.mockResolvedValue({ success: false, pushed: 0, pulled: 0, error: "Cloud sync is disabled on your current plan" });
+    renderAudit();
+
+    await waitFor(() => expect(countBox()).not.toBeNull());
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("keeps Review & submit shut on a resumed draft until the pull has settled", async () => {
+    useStockAuditDraftStore.setState({ items: RESUMED });
+    syncMock.mockResolvedValue({ success: false, pushed: 0, pulled: 0, error: "Server unreachable" });
+    renderAudit();
+
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button", { name: /Review & submit/ }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("offers a read-only viewer of another till's count Retry but never Count anyway", async () => {
+    useStockAuditDraftStore.setState({ items: RESUMED });
+    cloudSessionHeldBy("TILL-B");
+    syncMock.mockResolvedValue({ success: false, pushed: 0, pulled: 0, error: "Server unreachable" });
+    renderAudit();
+
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(within(alert).queryByRole("button", { name: "Count anyway" })).toBeNull());
+    expect(within(alert).getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
+
+  it("pulls once under StrictMode's double effect, and never once the screen has closed", async () => {
+    syncMock.mockResolvedValue({ success: true, pushed: 0, pulled: 0 });
+    renderAudit({ strict: true });
+    await waitFor(() => expect(countBox()).not.toBeNull());
+    expect(syncMock).toHaveBeenCalledTimes(1);
+
+    syncMock.mockClear();
+    renderAudit().unmount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(syncMock).not.toHaveBeenCalled();
   });
 });

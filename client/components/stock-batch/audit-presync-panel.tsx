@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { PreAuditSync } from "@/lib/hooks/use-pre-audit-sync";
 
-export function AuditPresyncPanel({ presync }: { presync: PreAuditSync }) {
+export function AuditPresyncPanel({ presync, isReadOnly = false }: { presync: PreAuditSync; isReadOnly?: boolean }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (presync.state === "syncing") {
     return (
       <div role="status" className="flex flex-col items-center gap-2 p-8 text-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
-        <div className="text-[13px] font-medium">Syncing the latest stock before you count...</div>
+        <div className="text-[13px] font-medium">Syncing the latest stock before you count…</div>
       </div>
     );
   }
@@ -28,6 +28,15 @@ export function AuditPresyncPanel({ presync }: { presync: PreAuditSync }) {
     );
   }
 
+  if (presync.state === "ready" && presync.notice) {
+    return (
+      <div role="note" className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-[12.5px] text-amber-800 dark:text-amber-400">
+        <CloudOff className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>{presync.notice}</span>
+      </div>
+    );
+  }
+
   if (presync.state !== "failed") return null;
 
   return (
@@ -39,7 +48,11 @@ export function AuditPresyncPanel({ presync }: { presync: PreAuditSync }) {
       </div>
       <div className="flex gap-2">
         <Button onClick={presync.retry}>Retry</Button>
-        <Button variant="outline" onClick={() => setConfirmOpen(true)}>Count anyway</Button>
+        {!isReadOnly && (
+          <Button variant="outline" onClick={() => setConfirmOpen(true)}>
+            Count anyway
+          </Button>
+        )}
       </div>
       <ConfirmDialog
         open={confirmOpen}

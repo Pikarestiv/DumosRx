@@ -91,8 +91,12 @@ export type ReportId = keyof typeof REPORT_CONFIG;
 
 /** The column order a report's rows are presented in - shared by the CSV,
  * the PDF and the on-screen view so all three read the same. */
-export function getReportHeaders(reportId: ReportId): string[] {
-  return REPORT_CONFIG[reportId].headers as unknown as string[];
+export function getReportHeaders(reportId: ReportId, canViewCost = true): string[] {
+  const headers = REPORT_CONFIG[reportId].headers as unknown as string[];
+  if (reportId === "stock_batches" && !canViewCost) {
+    return headers.filter((h) => h !== "Cost Price" && h !== "Stock Value");
+  }
+  return headers;
 }
 
 // Whether a report's query takes dateFrom/dateTo at all - Inventory Valuation and Customer Loyalty are point-in-time snapshots, so the report…
@@ -184,17 +188,31 @@ function saveToRecent(name: string, type: string, bytes: number) {
   return entry;
 }
 
-export function useReportExport() {
+export interface UseReportExportOptions {
+  canViewCost?: boolean;
+}
+
+export function useReportExport(options?: UseReportExportOptions) {
   const { storeProfile } = useStore();
+  const canViewCost = options?.canViewCost ?? true;
 
   const getRows = useCallback(
     async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
-      const rows = await (config.takesSalesFilters
+      let rows = await (config.takesSalesFilters
         ? (config.fetch as (from?: string, to?: string, filters?: SalesFilters) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo, filters)
         : config.takesDateRange
           ? (config.fetch as (from?: string, to?: string) => Promise<Record<string, unknown>[]>)(dateFrom, dateTo)
           : (config.fetch as () => Promise<Record<string, unknown>[]>)());
+
+      if (reportId === "stock_batches" && !canViewCost) {
+        rows = rows.map((row) => {
+          const sanitized = { ...row };
+          delete sanitized["Cost Price"];
+          delete sanitized["Stock Value"];
+          return sanitized;
+        });
+      }
 
       const dateColumns = config.dateColumns as readonly string[];
       // CSV/PDF are plain text/data, not CSS-stylable HTML, so the store's
@@ -224,15 +242,16 @@ export function useReportExport() {
         return formatted;
       });
     },
-    [storeProfile?.uppercase_display_enabled],
+    [storeProfile?.uppercase_display_enabled, canViewCost],
   );
 
   const exportReportCsv = useCallback(
     async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
       const rows = await getRows(reportId, dateFrom, dateTo, filters);
+      const headers = getReportHeaders(reportId, canViewCost);
       const csv = formatCsv(
-        config.headers as unknown as string[],
+        headers,
         rows,
         getReportNote(reportId, filters),
       );
@@ -241,13 +260,14 @@ export function useReportExport() {
       const bytes = triggerCsvDownload(csv, filename);
       saveToRecent(filename, config.label, bytes);
     },
-    [getRows],
+    [getRows, canViewCost],
   );
 
   const buildReportPdfBlob = useCallback(
     async (reportId: ReportId, dateFrom?: string, dateTo?: string, filters?: SalesFilters) => {
       const config = REPORT_CONFIG[reportId];
       const rows = await getRows(reportId, dateFrom, dateTo, filters);
+      const headers = getReportHeaders(reportId, canViewCost);
       // Reports configured takesDateRange:
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-report-export-ts-L256
       const subtitle =
@@ -261,12 +281,12 @@ export function useReportExport() {
         // Sits under the subtitle in the PDF's header block - same mechanism, a second line, so a caveat about the figures travels with the exported d…
         // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-report-export-ts-L269
         note: getReportNote(reportId, filters),
-        headers: config.headers as unknown as string[],
+        headers,
         rows,
         columnFlex: (config as { columnFlex?: number[] }).columnFlex,
       });
     },
-    [getRows, storeProfile?.name],
+    [getRows, storeProfile?.name, canViewCost],
   );
 
   const downloadReportPdf = useCallback(

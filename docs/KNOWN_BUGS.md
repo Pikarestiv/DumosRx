@@ -71,12 +71,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts` always offers "Cost Price" (the batch average from `lib/db/queries/product-export.ts`), and the toolbar (`components/stock-batch/import-export-toolbar.tsx`) gates the export on `export_product_list` only.
 - **Fix:** drop the `costPrice` column from the column picker and the file when the user lacks `view_cost_fields`.
 
-#### A-383. `client/` — the Inventory Valuation report export carries Cost Price for anyone with report access
-
-- **Found:** 2026-11-13, same review; pre-existing.
-- **What's wrong:** the `stock_batches` report in `client/lib/hooks/use-report-export.ts` always exports "Cost Price" (and "Stock Value", which is derived from it). The Report Center gates it on `export_reports` / `view_financial_reports`, not `view_cost_fields`.
-- **Fix:** omit the cost columns, or hide the report, when `view_cost_fields` is withheld.
-
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.

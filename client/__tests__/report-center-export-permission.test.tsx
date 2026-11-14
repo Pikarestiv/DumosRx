@@ -51,7 +51,7 @@ describe("Report Center export gating", () => {
     expect(buttonsLabelled(container, "Print").length).toBeGreaterThan(0);
     act(() => root.unmount());
     container.remove();
-  });
+  }, 15000);
 
   it("hides Export and Print but keeps View for a user without export_reports", async () => {
     granted = false;

@@ -38,6 +38,7 @@ import { toast } from "sonner";
 export function ReportCenter() {
   const canExportReports = useHasPermission("export_reports");
   const canViewFinancialReports = useHasPermission("view_financial_reports");
+  const canViewCost = useHasPermission("view_cost_fields");
   const [filters, setFilters] = useState<ReportFiltersValue>({
     dateRange: {
       from: format(subDays(new Date(), 30), "yyyy-MM-dd"),
@@ -56,7 +57,7 @@ export function ReportCenter() {
   const saleDrilldown = useSaleDrilldown();
 
   const { getRows, exportReportCsv, downloadReportPdf, printReport, getRecentDownloads } =
-    useReportExport();
+    useReportExport({ canViewCost });
 
   const refreshRecent = useCallback(() => {
     setRecentDownloads(getRecentDownloads());
@@ -141,8 +142,10 @@ export function ReportCenter() {
     },
     {
       id: "stock_batches",
-      title: "Inventory Valuation",
-      description: "Current stock levels, cost value, and potential selling value.",
+      title: canViewCost ? "Inventory Valuation" : "Stock Levels",
+      description: canViewCost
+        ? "Current stock levels, cost value, and potential selling value."
+        : "Current stock levels and potential selling value.",
       icon: ClipboardList,
       category: "Operations",
     },
@@ -257,7 +260,7 @@ export function ReportCenter() {
           initialFilters={filters}
           onFiltersChange={(next) => void loadViewRows(viewing.id, next)}
           rows={viewRows}
-          headers={getReportHeaders(viewing.id)}
+          headers={getReportHeaders(viewing.id, canViewCost)}
           isLoading={isViewLoading}
           isExporting={loadingReport === viewing.id}
           canExport={canExportReports}

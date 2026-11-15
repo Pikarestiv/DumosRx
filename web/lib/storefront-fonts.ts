@@ -21,6 +21,9 @@ const PRESET_FONTS: Record<StorefrontPresetId, { display: FontKey; faces: FontKe
   workshop: { display: "archivo", faces: ["archivo", "plexSans", "plexMono"] },
   clinic: { display: "figtree", faces: ["figtree"] },
   studio: { display: "fraunces", faces: ["fraunces", "dmSans"] },
+  market: { display: "archivo", faces: ["archivo", "figtree"] },
+  boutique: { display: "fraunces", faces: ["fraunces", "figtree"] },
+  grove: { display: "dmSans", faces: ["dmSans"] },
 };
 
 const fontUrl = ({ file }: FontFile) => `/store-fonts/${file}`;

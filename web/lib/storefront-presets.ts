@@ -1,4 +1,4 @@
-export type StorefrontPresetId = "workshop" | "clinic" | "studio";
+export type StorefrontPresetId = "workshop" | "clinic" | "studio" | "market" | "boutique" | "grove";
 export type StorefrontHeroVariant = "band" | "tint" | "centered";
 export type StorefrontButtonShape = "square" | "pill" | "pill-outline";
 export type StorefrontAddButton = "accent" | "outline";
@@ -70,6 +70,54 @@ export const STOREFRONT_PRESETS: readonly StorefrontPreset[] = [
     bodyFont: `"DM Sans", ${SANS_FALLBACK}`,
     priceFont: `"DM Sans", ${SANS_FALLBACK}`,
     priceWeight: 500,
+  },
+  {
+    id: "market",
+    label: "Market",
+    page: "#F4F7FB",
+    ink: "#0B1F3A",
+    accent: "#1D4ED8",
+    hero: "band",
+    button: "pill",
+    addButton: "accent",
+    cardRadius: "12px",
+    displayFont: `"Archivo", ${SANS_FALLBACK}`,
+    displayWeight: 700,
+    bodyFont: `"Figtree", ${SANS_FALLBACK}`,
+    priceFont: `"Figtree", ${SANS_FALLBACK}`,
+    priceWeight: 800,
+  },
+  {
+    id: "boutique",
+    label: "Boutique",
+    page: "#FBF4F6",
+    ink: "#2A1520",
+    accent: "#B4235A",
+    hero: "centered",
+    button: "square",
+    addButton: "outline",
+    cardRadius: "0px",
+    displayFont: `"Fraunces", Georgia, serif`,
+    displayWeight: 600,
+    bodyFont: `"Figtree", ${SANS_FALLBACK}`,
+    priceFont: `"Figtree", ${SANS_FALLBACK}`,
+    priceWeight: 600,
+  },
+  {
+    id: "grove",
+    label: "Grove",
+    page: "#F3F7F1",
+    ink: "#16241A",
+    accent: "#2F7D3A",
+    hero: "tint",
+    button: "pill",
+    addButton: "accent",
+    cardRadius: "20px",
+    displayFont: `"DM Sans", ${SANS_FALLBACK}`,
+    displayWeight: 700,
+    bodyFont: `"DM Sans", ${SANS_FALLBACK}`,
+    priceFont: `"DM Sans", ${SANS_FALLBACK}`,
+    priceWeight: 700,
   },
 ];
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\SuperAdminAlertMail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class AdminAlertService
@@ -31,6 +32,23 @@ class AdminAlertService
             return;
         }
 
-        Mail::to($validEmails)->send(new SuperAdminAlertMail($title, $messageLines));
+        try {
+            Mail::to($validEmails)->send(new SuperAdminAlertMail($title, $messageLines));
+        } catch (\Throwable $e) {
+            self::sendIndividually($validEmails, $title, $messageLines, $e);
+        }
+    }
+
+    private static function sendIndividually(array $emails, $title, $messageLines, \Throwable $bulkFailure): void
+    {
+        Log::warning('Admin alert to all recipients failed, retrying one by one: '.$bulkFailure->getMessage());
+
+        foreach ($emails as $email) {
+            try {
+                Mail::to($email)->send(new SuperAdminAlertMail($title, $messageLines));
+            } catch (\Throwable $e) {
+                Log::error("Admin alert to {$email} failed: ".$e->getMessage());
+            }
+        }
     }
 }

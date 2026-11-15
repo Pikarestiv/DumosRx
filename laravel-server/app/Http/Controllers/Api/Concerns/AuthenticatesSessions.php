@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Concerns;
 use App\Http\Controllers\Concerns\ManagesAdminSessionCookie;
 use App\Mail\NewDeviceLoginEmail;
 use App\Models\User;
+use App\Services\Auth\TillTokenRotator;
 use App\Services\SubscriptionService;
 use App\Support\TokenLifetime;
 use Exception;
@@ -82,7 +83,7 @@ trait AuthenticatesSessions
         $ipAddress = $request->ip();
         $userAgent = $request->userAgent();
 
-        $priorTokensCount = $user->tokens()->count();
+        $priorTokensCount = $user->tokens()->where('name', '!=', TillTokenRotator::ROTATED_NAME)->count();
         $isNewDevice = false;
 
         if ($priorTokensCount > 1) {
@@ -143,7 +144,9 @@ trait AuthenticatesSessions
     )]
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $current = $request->user()->currentAccessToken();
+        app(TillTokenRotator::class)->endLineage($current);
+        $current->delete();
 
         $refreshTokenRaw = $request->cookie('drx_admin_session');
         if ($refreshTokenRaw) {
@@ -158,7 +161,7 @@ trait AuthenticatesSessions
     #[OA\Post(
         path: '/refresh',
         summary: 'Rotate the current access token',
-        description: "Deletes the current token and issues a new one. This is client/'s bearer-token-only flow (see token-manager.ts's refreshTokenSilently) — it does not touch the drx_admin_session cookie; that belongs entirely to /admin/session/refresh's separate, ability-scoped refresh-cookie flow.",
+        description: "Issues a new token carrying the device id, IP and user agent, and keeps the current one valid for `sanctum.till_rotation_grace_minutes` (default 30) so a response lost in transit does not strand the till. This is client/'s bearer-token-only flow (see token-manager.ts's refreshTokenSilently) — it does not touch the drx_admin_session cookie; that belongs entirely to /admin/session/refresh's separate, ability-scoped refresh-cookie flow.",
         tags: ['Auth'],
         security: [['sanctum' => []]],
         responses: [
@@ -172,8 +175,7 @@ trait AuthenticatesSessions
     public function refresh(Request $request)
     {
         $user = $request->user();
-        $user->currentAccessToken()->delete();
-        $token = $user->createToken('web', ['*'], TokenLifetime::forUser($user))->plainTextToken;
+        $token = app(TillTokenRotator::class)->rotate($user, $user->currentAccessToken(), $request);
 
         return response()->json([
             'token' => $token,

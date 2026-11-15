@@ -10,8 +10,8 @@ export interface CartItem {
 
 /**
  * Carts are partitioned per storefront slug. A single global `items` array
- * (the pre-2026-09 shape) meant items added at /store/pharmacy-a were still
- * in the cart at /store/pharmacy-b and were submitted to *that* store's
+ * (the pre-2026-09 shape) meant items added at /s/pharmacy-a were still
+ * in the cart at /s/pharmacy-b and were submitted to *that* store's
  * /storefront/<slug>/checkout with foreign product_ids. Every action is
  * therefore scoped by `storeSlug`; prefer the `useCart(storeSlug)` hook
  * below over touching `carts` directly.
@@ -22,6 +22,8 @@ interface CartStore {
   removeItem: (storeSlug: string, id: string) => void;
   updateQuantity: (storeSlug: string, id: string, quantity: number) => void;
   clearCart: (storeSlug: string) => void;
+  /** Carry a cart to another scope when that scope is still empty (a brand cart becoming its main branch's cart). */
+  moveCart: (from: string, to: string) => void;
   /**
    * Reconcile locally cached prices against the live catalog. `prices` maps
    * product_id -> current selling price; any cart item missing from the map
@@ -65,6 +67,11 @@ export const useCartStore = create<CartStore>()(
       clearCart: (storeSlug) => set((state) => ({
         carts: { ...state.carts, [storeSlug]: [] },
       })),
+      moveCart: (from, to) => set((state) => {
+        const items = state.carts[from] ?? [];
+        if (items.length === 0 || (state.carts[to] ?? []).length > 0) return state;
+        return { carts: { ...state.carts, [from]: [], [to]: items } };
+      }),
       reconcilePrices: (storeSlug, prices) => set((state) => ({
         carts: {
           ...state.carts,

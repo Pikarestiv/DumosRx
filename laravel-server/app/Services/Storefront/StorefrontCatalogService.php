@@ -29,6 +29,7 @@ class StorefrontCatalogService
 
     public function __construct(
         private readonly SubscriptionService $subscriptionService,
+        private readonly StorefrontBranchSlugs $branchSlugs,
     ) {}
 
     public function storefrontEnabled(Store $store): bool
@@ -97,6 +98,7 @@ class StorefrontCatalogService
         Storefront $storefront,
         ?string $branchId = null,
         ?string $requestedSlug = null,
+        bool $requireExplicitMatch = false,
     ): ?Store {
         $branches = $this->getStorefrontBranches($storefront);
         if ($branches->isEmpty()) {
@@ -105,7 +107,13 @@ class StorefrontCatalogService
 
         if ($branchId) {
             $matched = $branches->firstWhere('id', $branchId);
-            if ($matched) {
+
+            if (! $matched) {
+                $slugs = $this->branchSlugs->forBranches($branches);
+                $matched = $branches->first(fn (Store $branch) => $slugs[$branch->id] === $branchId || $branch->store_slug === $branchId);
+            }
+
+            if ($matched || $requireExplicitMatch) {
                 return $matched;
             }
         }
@@ -190,12 +198,31 @@ class StorefrontCatalogService
     /**
      * @return array<string, mixed>
      */
+    /**
+     * @param  Collection<int, Store>  $branches
+     * @return array<int, array<string, mixed>>
+     */
+    public function branchSummaries(Storefront $storefront, Collection $branches, bool $detailed = true): array
+    {
+        $slugs = $this->branchSlugs->forBranches($branches);
+
+        return $branches->map(fn (Store $b) => [
+            'id' => $b->id,
+            'name' => $b->name,
+            'slug' => $slugs[$b->id],
+            'location' => $b->location,
+            ...($detailed ? ['address' => $b->address, 'phone' => $b->phone] : []),
+            'is_primary' => $b->id === $storefront->primary_store_id,
+        ])->values()->all();
+    }
+
     public function branchPayload(Store $branch, string $currency): array
     {
         return [
             'id' => $branch->id,
             'name' => $branch->name,
             'store_slug' => $branch->store_slug,
+            'branch_slug' => $this->branchSlugs->ensure($branch),
             'location' => $branch->location,
             'address' => $branch->address,
             'phone' => $branch->phone,

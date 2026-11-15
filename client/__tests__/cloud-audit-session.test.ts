@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   toCloudItem,
+  unsyncedItems,
   mergeCloudItemsIntoLocal,
 } from "@/lib/hooks/use-cloud-audit-session";
 import {
@@ -58,6 +59,7 @@ describe("Cloud Audit Session Helpers", () => {
     const cloud = toCloudItem(item);
     expect(cloud.product_id).toBe("prod-1");
     expect(cloud.system_quantity).toBe(50);
+    expect(cloud.baseline_quantity).toBe(50);
     expect(cloud.counted_quantity).toBe(52);
     expect(cloud.counted).toBe(true);
     expect(cloud.cost_price).toBe(100);
@@ -65,6 +67,9 @@ describe("Cloud Audit Session Helpers", () => {
     expect(cloud.selling_price).toBe(150);
     expect(cloud.counted_selling_price).toBe(160);
     expect(cloud.notes).toBe("Surplus found");
+
+    const noBaseline = toCloudItem({ ...item, baselineQty: undefined });
+    expect(noBaseline.baseline_quantity).toBeNull();
   });
 
   it("mergeCloudItemsIntoLocal merges remote counts into local sheet", () => {
@@ -106,6 +111,59 @@ describe("Cloud Audit Session Helpers", () => {
 
     expect(merged[1].counted).toBe(true);
     expect(merged[1].countedQty).toBe(95);
+  });
+
+  it("preserves baseline_quantity from remote count across till takeover (A-378)", () => {
+    // Till B opens sheet or takes over session after Till A counted prod-1 at baseline 50
+    const localItemsOnTillB: AuditItem[] = [
+      {
+        id: "prod-1",
+        name: "Amoxil",
+        sku: "AMX",
+        category: "Antibiotics",
+        systemQty: 48, // Live stock on Till B at takeover time (2 were sold in interim)
+        counted: false,
+      },
+    ];
+
+    const cloudItemsFromTillA = [
+      {
+        product_id: "prod-1",
+        counted: true,
+        counted_quantity: 50,
+        baseline_quantity: 50, // Recorded on Till A at count time
+        counted_at: new Date().toISOString(),
+      },
+    ];
+
+    const merged = mergeCloudItemsIntoLocal(localItemsOnTillB, cloudItemsFromTillA);
+    expect(merged[0].counted).toBe(true);
+    expect(merged[0].countedQty).toBe(50);
+    expect(merged[0].baselineQty).toBe(50);
+
+    // If remote baseline_quantity is null (e.g. from older client), keep local baselineQty
+    const olderCloudItems = [
+      {
+        product_id: "prod-1",
+        counted: true,
+        counted_quantity: 49,
+        baseline_quantity: null,
+        counted_at: new Date().toISOString(),
+      },
+    ];
+    const localWithExistingBaseline: AuditItem[] = [
+      {
+        id: "prod-1",
+        name: "Amoxil",
+        sku: "AMX",
+        category: "Antibiotics",
+        systemQty: 48,
+        baselineQty: 48,
+        counted: false,
+      },
+    ];
+    const mergedFallback = mergeCloudItemsIntoLocal(localWithExistingBaseline, olderCloudItems);
+    expect(mergedFallback[0].baselineQty).toBe(48);
   });
 });
 
@@ -252,3 +310,22 @@ describe("Cloud Audit Session API Client", () => {
   });
 });
 
+
+describe("unsyncedItems", () => {
+  const item = (productId: string, counted: number) => ({ product_id: productId, counted_quantity: counted, counted: true }) as ReturnType<typeof toCloudItem>;
+
+  it("sends only items that are new or changed since they were last sent", () => {
+    const sent = new Map([
+      ["a", JSON.stringify(item("a", 5))],
+      ["b", JSON.stringify(item("b", 2))],
+    ]);
+
+    const toSend = unsyncedItems(sent, [item("a", 5), item("b", 3), item("c", 1)]);
+
+    expect(toSend.map((i) => i.product_id)).toEqual(["b", "c"]);
+  });
+
+  it("sends everything when nothing has been sent yet", () => {
+    expect(unsyncedItems(new Map(), [item("a", 1), item("b", 2)])).toHaveLength(2);
+  });
+});

@@ -49,4 +49,26 @@ class AdminAlertServiceTest extends TestCase
 
         Mail::assertNothingSent();
     }
+
+    public function test_a_rejected_address_does_not_stop_the_other_admins_getting_the_alert(): void
+    {
+        config(['dumos.admin_emails' => ['gone@dumosrx.com', 'real@dumosrx.com']]);
+        $delivered = [];
+        Mail::shouldReceive('to')->andReturnUsing(function ($to) use (&$delivered) {
+            $pending = \Mockery::mock();
+            $pending->shouldReceive('send')->andReturnUsing(function () use ($to, &$delivered) {
+                $recipients = (array) $to;
+                if (count($recipients) > 1 || $recipients[0] === 'gone@dumosrx.com') {
+                    throw new \RuntimeException('550 No Such User Here');
+                }
+                $delivered[] = $recipients[0];
+            });
+
+            return $pending;
+        });
+
+        AdminAlertService::send('Test Alert', ['A line.']);
+
+        $this->assertSame(['real@dumosrx.com'], $delivered);
+    }
 }

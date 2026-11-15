@@ -31,6 +31,7 @@ final class StorefrontSettingsRules
             'delivery_available' => ['sometimes', 'boolean'],
             'delivery_note' => ['sometimes', 'nullable', 'string', 'max:255'],
             'pay_on_delivery' => ['sometimes', 'boolean'],
+            'show_services' => ['sometimes', 'boolean'],
             'locale' => ['sometimes', 'nullable', 'string', Rule::in(StorefrontLocales::IDS)],
             'enabled_locales' => ['sometimes', 'nullable', 'array', 'max:'.count(StorefrontLocales::IDS)],
             'enabled_locales.*' => ['string', 'distinct', Rule::in(StorefrontLocales::IDS)],

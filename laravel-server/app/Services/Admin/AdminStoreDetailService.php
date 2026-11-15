@@ -90,6 +90,8 @@ class AdminStoreDetailService
             'storefront' => [
                 'online_store_enabled' => (bool) $store->online_store_enabled,
                 'store_slug' => $store->store_slug,
+                'brand_slug' => $storefront?->slug,
+                'branch_slug' => app(\App\Services\Storefront\StorefrontBranchSlugs::class)->existing($store),
                 'pending_rebuild' => $store->storefront_dirty_at !== null || $storefront?->style_dirty_at !== null,
                 'dirty_since' => ($store->storefront_dirty_at ?? $storefront?->style_dirty_at)?->diffForHumans(),
                 'theme' => $storefront->theme ?? StorefrontThemes::DEFAULT,
@@ -105,6 +107,7 @@ class AdminStoreDetailService
                 'delivery_available' => (bool) $storefront?->delivery_available,
                 'delivery_note' => $storefront?->delivery_note,
                 'pay_on_delivery' => (bool) $storefront?->pay_on_delivery,
+                'show_services' => (bool) $storefront?->show_services,
                 'opening_hours' => $storefront?->opening_hours,
                 'logo_url' => $storefront->logo_url ?? $store->logo_url,
             ],

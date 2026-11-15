@@ -37,7 +37,7 @@ export function StorefrontHeader({ storeSlug, store, storefront, branches, selec
   const typeKey = store?.store_type ? TYPE_KEYS.get(store.store_type) : undefined;
   const typeLabel = typeKey ? t(typeKey) : store?.store_type ? store.store_type.charAt(0).toUpperCase() + store.store_type.slice(1) : null;
   const subtitle = [typeLabel, store?.location?.trim()].filter(Boolean).join(" · ");
-  const home = `/store/${storeSlug}`;
+  const home = `/s/${storeSlug}`;
   const hasBranches = Boolean(branches && branches.length > 1);
   const branchSelector = (
     <Suspense fallback={null}>

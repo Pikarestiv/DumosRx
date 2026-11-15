@@ -24,6 +24,7 @@ export interface StorefrontSettingsInput {
   delivery_available?: boolean;
   delivery_note?: string | null;
   pay_on_delivery?: boolean;
+  show_services?: boolean;
   opening_hours?: Record<string, { open: string; close: string } | null> | null;
   owner_style_enabled?: boolean;
   locale?: string | null;

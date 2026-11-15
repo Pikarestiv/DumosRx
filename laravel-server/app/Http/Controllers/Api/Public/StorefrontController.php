@@ -8,6 +8,7 @@ use App\Support\StorefrontCheckoutRules;
 use App\Support\StorefrontLocales;
 use App\Models\Store;
 use App\Services\Payment\PaymentService;
+use App\Services\Storefront\StorefrontBranchDirectory;
 use App\Services\Storefront\StorefrontCatalogService;
 use App\Services\Storefront\StorefrontCheckoutService;
 use App\Services\Storefront\StorefrontInteractionService;
@@ -36,8 +37,11 @@ class StorefrontController extends Controller
     )]
     public function slugs()
     {
+        $slugs = $this->catalogService->getPublishedSlugs();
+
         return response()->json([
-            'slugs' => $this->catalogService->getPublishedSlugs(),
+            'slugs' => $slugs,
+            'branches' => (object) app(StorefrontBranchDirectory::class)->forStorefronts($slugs),
         ]);
     }
 
@@ -109,18 +113,12 @@ class StorefrontController extends Controller
                 'delivery_available' => (bool) $storefront->delivery_available,
                 'delivery_note' => $storefront->delivery_note,
                 'pay_on_delivery' => (bool) $storefront->pay_on_delivery,
+                'show_services' => (bool) $storefront->show_services,
                 'opening_hours' => $storefront->opening_hours,
                 'logo_url' => $storefront->logo_url ?? $branch->logo_url,
                 'banner_url' => $storefront->banner_url,
             ],
-            'branches' => $branches->map(fn (Store $b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-                'location' => $b->location,
-                'address' => $b->address,
-                'phone' => $b->phone,
-                'is_primary' => $b->id === $storefront->primary_store_id,
-            ])->values()->all(),
+            'branches' => $this->catalogService->branchSummaries($storefront, $branches),
             'selected_branch' => $branchData,
             'store' => $branchData,
             'products' => StorefrontProductResource::collection($products),
@@ -194,12 +192,7 @@ class StorefrontController extends Controller
             'categories' => $categories,
             'store' => $branchData,
             'selected_branch' => $branchData,
-            'branches' => $branches->map(fn (Store $b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-                'location' => $b->location,
-                'is_primary' => $b->id === $storefront->primary_store_id,
-            ])->values()->all(),
+            'branches' => $this->catalogService->branchSummaries($storefront, $branches, detailed: false),
         ]);
     }
 
@@ -236,10 +229,11 @@ class StorefrontController extends Controller
             $storefront,
             $request->input('branch_id') ?? $request->input('branch'),
             $store_slug,
+            requireExplicitMatch: true,
         );
 
         if (! $branch) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+            return $this->branchNotFound($request);
         }
 
         if ($branch->isSuspended()) {
@@ -303,10 +297,11 @@ class StorefrontController extends Controller
             $storefront,
             $request->input('branch_id') ?? $request->input('branch'),
             $store_slug,
+            requireExplicitMatch: true,
         );
 
         if (! $branch) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+            return $this->branchNotFound($request);
         }
 
         if ($branch->isSuspended()) {
@@ -342,5 +337,14 @@ class StorefrontController extends Controller
     public function uploadPrescription($store_slug, Request $request)
     {
         return $this->interactionService->uploadPrescription($store_slug, $request);
+    }
+
+    private function branchNotFound(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $named = $request->input('branch_id') ?? $request->input('branch');
+
+        return $named
+            ? response()->json(['message' => 'That branch is no longer available. Reload the page and choose a branch again.'], 422)
+            : response()->json(['error' => 'Store unavailable'], 404);
     }
 }

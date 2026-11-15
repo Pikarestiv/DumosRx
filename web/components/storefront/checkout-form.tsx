@@ -18,6 +18,7 @@ import {
 import { CheckoutContactFields, type FulfilmentMethod } from "@/components/storefront/checkout-contact-fields";
 import { CheckoutPaymentMethod } from "@/components/storefront/checkout-payment-method";
 import { availablePaymentMethods } from "@/lib/storefront-checkout";
+import { parseStorefrontScope } from "@/lib/storefront-scope";
 import { readSavedCheckoutDetails, saveCheckoutDetails } from "@/lib/use-saved-checkout-details";
 
 interface CheckoutFormProps {
@@ -58,6 +59,8 @@ const wasRefunded = (error: unknown): boolean => {
 export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable = false, deliveryNote, payOnDelivery = false }: CheckoutFormProps) {
   const { t, money } = useStorefrontI18n();
   const cart = useCart(storeSlug);
+  const { slug: apiSlug, branch } = parseStorefrontScope(storeSlug);
+  const branchField = branch ? { branch_id: branch } : {};
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -116,8 +119,9 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
   const confirmPaidCheckout = async (reference: string, pending: PendingCheckout) => {
     setLoading(true);
     try {
-      const { data } = await apiClient.post<{ order: { id: string } }>(`/storefront/${storeSlug}/checkout`, {
+      const { data } = await apiClient.post<{ order: { id: string } }>(`/storefront/${apiSlug}/checkout`, {
         ...orderFields(pending.formData),
+        ...branchField,
         items: pending.items,
         payment_method: 'paystack',
         paystack_reference: reference,
@@ -218,8 +222,8 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
       if (submitted.payment_method === 'paystack') {
         sessionStorage.setItem(pendingStorageKey, JSON.stringify({ formData: submitted, items }));
         const { data } = await apiClient.post<{ payment_url: string }>(
-          `/storefront/${storeSlug}/checkout/initialize`,
-          { customer_email: formData.customer_email, items },
+          `/storefront/${apiSlug}/checkout/initialize`,
+          { customer_email: formData.customer_email, items, ...branchField },
         );
         redirectStarted = true;
         setRedirecting(true);
@@ -227,8 +231,9 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
         return;
       }
 
-      const { data } = await apiClient.post<{ order: { id: string } }>(`/storefront/${storeSlug}/checkout`, {
+      const { data } = await apiClient.post<{ order: { id: string } }>(`/storefront/${apiSlug}/checkout`, {
         ...orderFields(submitted),
+        ...branchField,
         items,
       });
 

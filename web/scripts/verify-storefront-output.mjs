@@ -18,6 +18,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 
+const NO_BRANCH_PLACEHOLDER = "_none";
 const OUT_STORE_DIR = join(process.cwd(), "out", "s");
 
 function fail(message) {
@@ -34,7 +35,7 @@ async function listBuiltSlugs() {
   }
   const slugs = [];
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() || entry.name === NO_BRANCH_PLACEHOLDER) continue;
     try {
       await stat(join(OUT_STORE_DIR, entry.name, "index.html"));
       slugs.push(entry.name);

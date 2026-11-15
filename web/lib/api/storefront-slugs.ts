@@ -64,3 +64,20 @@ export async function getStorefrontSlugs(): Promise<{ store_slug: string }[]> {
   if (!slugs?.length) return DEMO_FALLBACK;
   return slugs.map((store_slug) => ({ store_slug }));
 }
+
+export const NO_BRANCH_PLACEHOLDER = "_none";
+
+/**
+ * Build-time pairs for the `[store_slug]/[branch]` routes. `output: export`
+ * refuses an empty list, so a build with no multi-branch storefront emits one
+ * placeholder pair that the route turns into a 404 (the demo pair in sandbox
+ * builds, so branch pages can be reviewed locally).
+ */
+export async function getStorefrontBranchParams(): Promise<{ store_slug: string; branch: string }[]> {
+  if (allowEmpty()) return [{ store_slug: "demo", branch: "demo" }];
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+  const res = await fetch(`${apiUrl}/storefront-slugs`);
+  const { branches } = res.ok ? ((await res.json()) as { branches?: Record<string, string[]> }) : { branches: undefined };
+  const pairs = Object.entries(branches ?? {}).flatMap(([store_slug, slugs]) => slugs.map((branch) => ({ store_slug, branch })));
+  return pairs.length > 0 ? pairs : [{ store_slug: NO_BRANCH_PLACEHOLDER, branch: NO_BRANCH_PLACEHOLDER }];
+}

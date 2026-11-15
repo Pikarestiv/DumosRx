@@ -107,7 +107,7 @@ class StorefrontPaymentService
                     'store_id' => $store->id,
                     'store_slug' => $store->store_slug,
                 ],
-                config('app.frontend_url')."/store/{$store->store_slug}/checkout",
+                config('app.frontend_url')."/s/{$store->store_slug}/checkout",
                 $store->paystack_subaccount_code,
                 $currency,
             );

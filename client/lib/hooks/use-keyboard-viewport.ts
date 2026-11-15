@@ -22,7 +22,12 @@ export function useKeyboardViewport() {
     const revealFocusedField = (event: FocusEvent) => {
       const target = event.target;
       if (!(target instanceof HTMLElement) || !target.matches(FIELD_SELECTOR)) return;
-      window.setTimeout(() => target.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
+      if (target.closest("[data-vaul-drawer]")) return;
+      window.setTimeout(() => {
+        const { top, bottom } = target.getBoundingClientRect();
+        const isCovered = bottom > viewport.offsetTop + viewport.height - 8 || top < viewport.offsetTop;
+        if (isCovered) target.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 300);
     };
 
     publish();

@@ -7846,6 +7846,9 @@ their own default (an offline checkout was checked and completes).
   `.fixed-visual-viewport` class so they track the visible area, and pad their
   scroll area by `var(--kb-inset)` so the last field clears the keyboard.
   iOS Safari does not resize the layout viewport; do not rely on `100dvh`.
+  Do not set the viewport `interactiveWidget` to `resizes-content`: it stacks
+  with vaul's own input repositioning (the assistant drawer) and leaves the
+  drawer shifted with a blank gap under the input.
 - `ResponsiveModal` takes `swipeToDismiss={false}` for forms: drag only from
   the grab handle, outside tap blocked; X and Esc still close.
 - A PO due date drives `getPayableDueState` (`lib/utils/payables.ts`): overdue

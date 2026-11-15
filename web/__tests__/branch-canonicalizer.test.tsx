@@ -24,6 +24,14 @@ describe("branch canonicalizer", () => {
     expect(replace).toHaveBeenCalledWith("/s/nestpharmacy/nest-amawbia/catalog/?q=panadol");
   });
 
+  it("follows an old ?branch= link to the branch it names and drops the query", () => {
+    nav.pathname = "/s/nestpharmacy/catalog/";
+    window.history.replaceState({}, "", "/s/nestpharmacy/catalog/?branch=2&q=panadol");
+    render(<BranchCanonicalizer storeSlug="nestpharmacy" branches={branches} />);
+
+    expect(replace).toHaveBeenCalledWith("/s/nestpharmacy/nest-agidi/catalog/?q=panadol");
+  });
+
   it("leaves a branch page alone", () => {
     nav.pathname = "/s/nestpharmacy/nest-agidi/catalog/";
     render(<BranchCanonicalizer storeSlug="nestpharmacy" branches={branches} />);

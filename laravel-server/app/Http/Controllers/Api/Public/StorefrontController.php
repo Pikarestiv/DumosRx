@@ -229,6 +229,7 @@ class StorefrontController extends Controller
             $storefront,
             $request->input('branch_id') ?? $request->input('branch'),
             $store_slug,
+            requireExplicitMatch: true,
         );
 
         if (! $branch) {
@@ -296,6 +297,7 @@ class StorefrontController extends Controller
             $storefront,
             $request->input('branch_id') ?? $request->input('branch'),
             $store_slug,
+            requireExplicitMatch: true,
         );
 
         if (! $branch) {

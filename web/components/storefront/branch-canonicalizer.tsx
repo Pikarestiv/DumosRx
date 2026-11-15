@@ -15,12 +15,19 @@ export function BranchCanonicalizer({ storeSlug, branches }: BranchCanonicalizer
   const pathname = usePathname();
   const router = useRouter();
   const primary = branches?.find((branch) => branch.is_primary) ?? branches?.[0];
-  const primarySlug = (branches?.length ?? 0) > 1 ? primary?.slug : undefined;
+  const multiBranch = (branches?.length ?? 0) > 1;
 
   useEffect(() => {
-    const target = primarySlug ? canonicalBranchPath(pathname ?? "", storeSlug, primarySlug) : null;
-    if (target) router.replace(target + window.location.search + window.location.hash);
-  }, [pathname, router, storeSlug, primarySlug]);
+    if (!multiBranch || !primary?.slug) return;
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("branch");
+    const wanted = branches?.find((branch) => branch.id === requested || branch.slug === requested) ?? primary;
+    const target = canonicalBranchPath(pathname ?? "", storeSlug, wanted.slug ?? primary.slug);
+    if (!target) return;
+    params.delete("branch");
+    const search = params.toString();
+    router.replace(target + (search ? `?${search}` : "") + window.location.hash);
+  }, [pathname, router, storeSlug, multiBranch, primary, branches]);
 
   return null;
 }

@@ -16,6 +16,8 @@ class StorefrontBranchSlugs
 
     private const MAX_BASE_LENGTH = 40;
 
+    private const CREATE_ATTEMPTS = 3;
+
     private ?bool $tableReady = null;
 
     public function existing(Store $store): ?string
@@ -26,7 +28,7 @@ class StorefrontBranchSlugs
     public function ensure(Store $store): string
     {
         if (! $this->tableReady()) {
-            return Str::limit(Str::slug($store->name), self::MAX_BASE_LENGTH, '') ?: 'branch';
+            return $this->baseSlug($store);
         }
 
         $existing = StorefrontBranch::where('store_id', $store->id)->value('slug');
@@ -35,23 +37,31 @@ class StorefrontBranchSlugs
             return $existing;
         }
 
-        try {
-            return StorefrontBranch::create([
-                'store_id' => $store->id,
-                'user_id' => $store->user_id,
-                'slug' => $this->uniqueSlug($store),
-            ])->slug;
-        } catch (UniqueConstraintViolationException) {
-            return StorefrontBranch::where('store_id', $store->id)->valueOrFail('slug');
+        for ($attempt = 1; $attempt <= self::CREATE_ATTEMPTS; $attempt++) {
+            try {
+                return StorefrontBranch::create([
+                    'store_id' => $store->id,
+                    'user_id' => $store->user_id,
+                    'slug' => $attempt < self::CREATE_ATTEMPTS ? $this->uniqueSlug($store) : $this->baseSlug($store).'-'.substr($store->id, 0, 6),
+                ])->slug;
+            } catch (UniqueConstraintViolationException) {
+                $existing = StorefrontBranch::where('store_id', $store->id)->value('slug');
+                if ($existing) {
+                    return $existing;
+                }
+            }
         }
+
+        return StorefrontBranch::where('store_id', $store->id)->value('slug') ?? throw new \RuntimeException("Could not allocate a branch slug for store {$store->id}.");
     }
 
-    public function checkoutPath(Store $store): string
+    public function checkoutPath(Store $store, ?string $cameFromBranch = null): string
     {
         $brand = Storefront::where('user_id', $store->user_id)->value('slug') ?: $store->store_slug;
-        $liveBranches = Store::where('user_id', $store->user_id)->where('online_store_enabled', true)->count();
 
-        return $liveBranches >= 2 ? "/s/{$brand}/{$this->ensure($store)}/checkout" : "/s/{$brand}/checkout";
+        return $cameFromBranch !== null && $cameFromBranch === $this->existing($store)
+            ? "/s/{$brand}/{$cameFromBranch}/checkout"
+            : "/s/{$brand}/checkout";
     }
 
     /**
@@ -63,6 +73,11 @@ class StorefrontBranchSlugs
         return $branches->mapWithKeys(fn (Store $branch) => [$branch->id => $this->ensure($branch)])->all();
     }
 
+    private function baseSlug(Store $store): string
+    {
+        return Str::limit(Str::slug($store->name), self::MAX_BASE_LENGTH, '') ?: 'branch';
+    }
+
     private function tableReady(): bool
     {
         return $this->tableReady ??= Schema::hasTable('storefront_branches');
@@ -70,7 +85,7 @@ class StorefrontBranchSlugs
 
     private function uniqueSlug(Store $store): string
     {
-        $base = Str::limit(Str::slug($store->name), self::MAX_BASE_LENGTH, '') ?: 'branch';
+        $base = $this->baseSlug($store);
         $taken = StorefrontBranch::where('user_id', $store->user_id)->pluck('slug')->all();
         $slug = $base;
 

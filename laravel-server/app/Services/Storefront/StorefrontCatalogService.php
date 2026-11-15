@@ -98,6 +98,7 @@ class StorefrontCatalogService
         Storefront $storefront,
         ?string $branchId = null,
         ?string $requestedSlug = null,
+        bool $requireExplicitMatch = false,
     ): ?Store {
         $branches = $this->getStorefrontBranches($storefront);
         if ($branches->isEmpty()) {
@@ -114,6 +115,10 @@ class StorefrontCatalogService
             $matched = $branches->first(fn (Store $branch) => $slugs[$branch->id] === $branchId);
             if ($matched) {
                 return $matched;
+            }
+
+            if ($requireExplicitMatch) {
+                return null;
             }
         }
 

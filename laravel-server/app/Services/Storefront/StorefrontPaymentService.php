@@ -108,7 +108,7 @@ class StorefrontPaymentService
                     'store_id' => $store->id,
                     'store_slug' => $store->store_slug,
                 ],
-                config('app.frontend_url').$this->branchSlugs->checkoutPath($store),
+                config('app.frontend_url').$this->branchSlugs->checkoutPath($store, $validated['branch_id'] ?? null),
                 $store->paystack_subaccount_code,
                 $currency,
             );

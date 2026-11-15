@@ -100,19 +100,33 @@ class StorefrontBranchSlugsTest extends TestCase
         $this->getJson('/api/v1/storefront-slugs')->assertOk()->assertJsonPath('branches.nestpharmacy', fn ($slugs) => collect($slugs)->sort()->values()->all() === ['nest-agidi', 'nest-amawbia']);
     }
 
-    public function test_a_single_branch_storefront_returns_payers_to_the_brand_checkout(): void
-    {
-        $this->assertSame('/s/nestpharmacy/checkout', app(\App\Services\Storefront\StorefrontBranchSlugs::class)->checkoutPath($this->primary));
-    }
-
-    public function test_paystack_returns_a_branch_payer_to_that_branchs_checkout_even_without_a_store_address(): void
+    public function test_paystack_returns_a_payer_to_the_page_they_started_from(): void
     {
         $agidi = $this->enableBranch('Nest Agidi');
-
         $slugs = app(\App\Services\Storefront\StorefrontBranchSlugs::class);
 
-        $this->assertSame('/s/nestpharmacy/nest-agidi/checkout', $slugs->checkoutPath($agidi));
-        $this->assertSame('/s/nestpharmacy/nest-amawbia/checkout', $slugs->checkoutPath($this->primary));
+        $this->assertSame('/s/nestpharmacy/checkout', $slugs->checkoutPath($this->primary));
+        $this->assertSame('/s/nestpharmacy/nest-agidi/checkout', $slugs->checkoutPath($agidi, 'nest-agidi'));
+        $this->assertSame('/s/nestpharmacy/checkout', $slugs->checkoutPath($agidi, 'someone-elses-slug'));
+        $this->assertSame('/s/nestpharmacy/checkout', $slugs->checkoutPath($agidi, 'nest-amawbia'));
+    }
+
+    public function test_checkout_refuses_a_branch_that_does_not_exist_instead_of_charging_the_primary(): void
+    {
+        $this->enableBranch('Nest Agidi');
+        $payload = ['customer_name' => 'A', 'customer_phone' => '1', 'payment_method' => 'in_store', 'items' => [['product_id' => 'x', 'quantity' => 1]]];
+
+        $this->postJson('/api/v1/storefront/nestpharmacy/checkout', $payload + ['branch_id' => 'old-branch'])->assertNotFound();
+        $this->postJson('/api/v1/storefront/nestpharmacy/checkout/initialize', ['customer_email' => 'a@b.test', 'items' => $payload['items'], 'branch_id' => 'old-branch'])->assertNotFound();
+    }
+
+    public function test_two_stores_with_the_same_name_get_different_slugs(): void
+    {
+        $first = $this->enableBranch('Main');
+        $second = $this->enableBranch('Main');
+
+        $slugs = app(\App\Services\Storefront\StorefrontBranchSlugs::class);
+        $this->assertNotSame($slugs->ensure($first), $slugs->ensure($second));
     }
 
     public function test_a_release_whose_migration_has_not_run_yet_does_not_break_the_public_storefront(): void

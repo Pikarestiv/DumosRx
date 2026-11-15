@@ -11,6 +11,15 @@ class TillTokenRotator
 {
     public const ROTATED_NAME = 'till-rotated';
 
+    public function forgetPredecessors(PersonalAccessToken $token): void
+    {
+        PersonalAccessToken::where('tokenable_type', $token->tokenable_type)
+            ->where('tokenable_id', $token->tokenable_id)
+            ->where('name', self::ROTATED_NAME)
+            ->where('device_id', $token->device_id)
+            ->delete();
+    }
+
     public function rotate(User $user, mixed $current, Request $request): string
     {
         if (! $current instanceof PersonalAccessToken) {
@@ -25,10 +34,12 @@ class TillTokenRotator
             'user_agent' => $request->userAgent(),
         ])->save();
 
-        $current->forceFill([
-            'name' => self::ROTATED_NAME,
-            'expires_at' => now()->addMinutes((int) config('sanctum.till_rotation_grace_minutes')),
-        ])->save();
+        if ($current->name !== self::ROTATED_NAME) {
+            $current->forceFill([
+                'name' => self::ROTATED_NAME,
+                'expires_at' => now()->addMinutes((int) config('sanctum.till_rotation_grace_minutes')),
+            ])->save();
+        }
 
         PersonalAccessToken::where('tokenable_type', $user::class)
             ->where('tokenable_id', $user->getKey())

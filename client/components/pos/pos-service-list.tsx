@@ -88,7 +88,7 @@ export function POSServiceList({
     <div className="flex flex-col gap-4 flex-1 overflow-hidden">
       {/* Mobile-only Search Bar (Desktop uses top header search) */}
       {onSearchChange && (
-        <div className="relative sm:hidden shrink-0">
+        <div className="relative sm:hidden shrink-0 mx-1 mt-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={searchTerm}

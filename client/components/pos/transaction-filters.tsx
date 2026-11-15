@@ -49,7 +49,7 @@ export function TransactionFilters({
 }: TransactionFiltersProps) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative">
+      <div className="relative ml-1">
         <label
           htmlFor="transaction-search-input"
           className="absolute left-3 top-1/2 -translate-y-1/2 cursor-text"

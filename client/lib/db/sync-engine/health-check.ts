@@ -78,9 +78,7 @@ export async function checkSyncHealth(): Promise<void> {
 
     const healOutcome = await healStockIntegrity();
 
-    // A skipped heal (e.g. movement log mid-stream during multi-round catchup) must NOT burn
-    // the 24-hour window, so the device retries on the next sync round or app open rather
-    // than waiting another full day (A-238).
+    // A skipped heal (movement log still mid-stream) must not burn the 24-hour window (A-238).
     if (!healOutcome.skipped) {
       localStorage.setItem(LAST_CHECK_KEY, String(Date.now()));
     }

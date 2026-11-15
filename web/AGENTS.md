@@ -329,6 +329,12 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   no multi-branch storefront emits one `_none/_none` pair that the route turns into a 404;
   `verify-storefront-output.mjs` skips that directory. Carts are per branch, so switching branch
   no longer clears the cart.
+  A multi-branch storefront's brand-level home, catalog, checkout and order pages redirect in the
+  browser (`BranchCanonicalizer`, in the shared layout) to the main branch's page, so a customer always
+  has one per-branch cart; static pages cannot redirect on the server. The branch switcher keeps the
+  catalog page when you switch. Paystack's return address is the branch's own checkout
+  (`StorefrontBranchSlugs::checkoutPath`), otherwise the return would land on the main branch with
+  the wrong cart.
 - **Services (2026-11-16).** When `storefront.show_services` is set (baked at build),
   `StorefrontServices` fetches `/storefront/{slug}/services` in the browser and renders
   nothing if the list is empty. Each card links to WhatsApp to enquire; there is no cart.

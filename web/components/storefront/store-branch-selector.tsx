@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Check, ChevronDown, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { StorefrontBranch } from "@/lib/api/storefront-data";
-import { branchHref } from "@/lib/storefront-scope";
+import { branchHref, pageOfPathname } from "@/lib/storefront-scope";
 
 interface StoreBranchSelectorProps {
   branches: StorefrontBranch[];
@@ -27,6 +27,7 @@ export function StoreBranchSelector({
   storeSlug,
 }: StoreBranchSelectorProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   if (!branches || branches.length <= 1) {
     return null;
@@ -36,7 +37,7 @@ export function StoreBranchSelector({
     branches.find((b) => b.id === selectedBranchId) || branches[0];
 
   const handleSelectBranch = (branch: StorefrontBranch) => {
-    if (branch.id !== currentBranch.id) router.push(branchHref(storeSlug, branch));
+    if (branch.id !== currentBranch.id) router.push(branchHref(storeSlug, branch, pageOfPathname(pathname)));
   };
 
   return (

@@ -1,3 +1,4 @@
+import { BranchCanonicalizer } from "@/components/storefront/branch-canonicalizer";
 import { MobileCartBar } from "@/components/storefront/mobile-cart-bar";
 import { StorefrontI18nProvider } from "@/components/storefront/storefront-i18n-provider";
 import { getStorefrontData } from "@/lib/api/storefront-data";
@@ -37,6 +38,7 @@ export default async function StorefrontLayout({ children, params }: StorefrontL
     >
       <style>{storefrontFontFaceCss([preset.id]) + storefrontThemeCss() + storefrontPresetCss() + storefrontAccentCss(data?.storefront?.accent, preset)}</style>
       <StorefrontI18nProvider defaultLocale={defaultLocale} enabledLocales={enabledLocales}>
+        <BranchCanonicalizer storeSlug={store_slug} branches={data?.branches} />
         {children}
         <MobileCartBar storeSlug={store_slug} currency={data?.store?.currency} />
       </StorefrontI18nProvider>

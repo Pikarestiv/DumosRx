@@ -3,6 +3,7 @@
 namespace App\Services\Storefront;
 
 use App\Models\Store;
+use App\Models\Storefront;
 use App\Models\StorefrontBranch;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
@@ -31,6 +32,14 @@ class StorefrontBranchSlugs
         } catch (UniqueConstraintViolationException) {
             return StorefrontBranch::where('store_id', $store->id)->valueOrFail('slug');
         }
+    }
+
+    public function checkoutPath(Store $store): string
+    {
+        $brand = Storefront::where('user_id', $store->user_id)->value('slug') ?: $store->store_slug;
+        $liveBranches = Store::where('user_id', $store->user_id)->where('online_store_enabled', true)->count();
+
+        return $liveBranches >= 2 ? "/s/{$brand}/{$this->ensure($store)}/checkout" : "/s/{$brand}/checkout";
     }
 
     /**

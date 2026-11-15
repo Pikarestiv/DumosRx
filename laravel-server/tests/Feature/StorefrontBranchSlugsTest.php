@@ -99,4 +99,19 @@ class StorefrontBranchSlugsTest extends TestCase
 
         $this->getJson('/api/v1/storefront-slugs')->assertOk()->assertJsonPath('branches.nestpharmacy', fn ($slugs) => collect($slugs)->sort()->values()->all() === ['nest-agidi', 'nest-amawbia']);
     }
+
+    public function test_a_single_branch_storefront_returns_payers_to_the_brand_checkout(): void
+    {
+        $this->assertSame('/s/nestpharmacy/checkout', app(\App\Services\Storefront\StorefrontBranchSlugs::class)->checkoutPath($this->primary));
+    }
+
+    public function test_paystack_returns_a_branch_payer_to_that_branchs_checkout_even_without_a_store_address(): void
+    {
+        $agidi = $this->enableBranch('Nest Agidi');
+
+        $slugs = app(\App\Services\Storefront\StorefrontBranchSlugs::class);
+
+        $this->assertSame('/s/nestpharmacy/nest-agidi/checkout', $slugs->checkoutPath($agidi));
+        $this->assertSame('/s/nestpharmacy/nest-amawbia/checkout', $slugs->checkoutPath($this->primary));
+    }
 }

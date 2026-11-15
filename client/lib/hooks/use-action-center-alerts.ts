@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { pluralize } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
+import { usePayablesDue } from "@/lib/hooks/use-payables-due";
+import { buildPayableAlerts } from "@/lib/hooks/payable-alerts";
 
 export type AlertPriority = "critical" | "warning" | "info" | "success";
 
@@ -52,6 +54,7 @@ export function useActionCenterAlerts(
   const { storeProfile } = useStore();
   const isStoreOwner = user?.role === "store_owner";
   const { showWidgetPrompt, promptPinWidget } = useWidgetPinPrompt();
+  const payablesDue = usePayablesDue();
 
   const { data: staffCountData } = useQuery({
     ...queryKeys.staff.count(),
@@ -235,6 +238,8 @@ export function useActionCenterAlerts(
         });
       }
 
+      items.push(...buildPayableAlerts(payablesDue, storeProfile?.currency));
+
       if (missingExpiryCount > 0) {
         items.push({
           id: "missing-expiry",
@@ -302,6 +307,7 @@ export function useActionCenterAlerts(
     oversoldProduct,
     owedCount,
     owedProduct,
+    payablesDue,
     licenseStatus,
     licenseCheckedAt,
     showWidgetPrompt,

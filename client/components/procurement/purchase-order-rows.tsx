@@ -1,5 +1,7 @@
 import {
+  AlertTriangle,
   ArrowRight,
+  CalendarClock,
   CheckCircle2,
   ClipboardList,
   Clock,
@@ -11,9 +13,25 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { type PurchaseOrder } from "@/lib/db/procurement";
+import { getPayableDueState } from "@/lib/utils/payables";
+import { getLocalTodayDate } from "@/lib/utils";
 
 function formatPONumber(id: string) {
   return `PO-${id.split("-")[0].toUpperCase()}`;
+}
+
+export function PayableDueBadge({ order }: { order: PurchaseOrder }) {
+  const state = getPayableDueState(order, getLocalTodayDate());
+  if (!state) return null;
+  return state === "overdue" ? (
+    <Badge className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20">
+      <AlertTriangle className="w-3 h-3 mr-1" /> Overdue
+    </Badge>
+  ) : (
+    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20">
+      <CalendarClock className="w-3 h-3 mr-1" /> Due soon
+    </Badge>
+  );
 }
 
 export function getStatusBadge(status: string) {
@@ -119,6 +137,7 @@ export function PurchaseOrderMobileRow({
           {formatCurrency(order.total_amount)}
         </span>
         {getStatusBadge(order.status)}
+        <PayableDueBadge order={order} />
       </div>
     </div>
   );
@@ -153,7 +172,12 @@ export function PurchaseOrderRow({
       <TableCell className="font-bold text-[13px] text-foreground py-2.5">
         {formatCurrency(order.total_amount)}
       </TableCell>
-      <TableCell className="py-2.5">{getStatusBadge(order.status)}</TableCell>
+      <TableCell className="py-2.5">
+        <div className="flex flex-wrap items-center gap-1">
+          {getStatusBadge(order.status)}
+          <PayableDueBadge order={order} />
+        </div>
+      </TableCell>
     </TableRow>
   );
 }

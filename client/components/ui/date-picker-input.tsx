@@ -122,24 +122,30 @@ export function DatePickerInput({
     if (digits.length === 8) {
       const parsedDate = parse(formatted, "dd/MM/yyyy", new Date());
       if (isValid(parsedDate)) {
+        const emitted = format(parsedDate, "yyyy-MM-dd");
         setDate(parsedDate);
-        onChange?.(format(parsedDate, "yyyy-MM-dd"));
+        setSyncedValue(emitted);
+        onChange?.(emitted);
         return;
       }
     }
     // Incomplete or invalid so far: clear the external value but keep
     // their typing on screen.
+    setSyncedValue("");
     onChange?.("");
   };
 
   const handleSelect = (selectedDate: Date | undefined) => {
     setDate(selectedDate);
     if (selectedDate && isValid(selectedDate)) {
+      const emitted = format(selectedDate, "yyyy-MM-dd");
       setInputValue(format(selectedDate, "dd/MM/yyyy"));
-      onChange?.(format(selectedDate, "yyyy-MM-dd"));
+      setSyncedValue(emitted);
+      onChange?.(emitted);
       setIsOpen(false);
     } else {
       setInputValue("");
+      setSyncedValue("");
       onChange?.("");
     }
   };

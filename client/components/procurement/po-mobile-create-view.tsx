@@ -43,6 +43,7 @@ interface POMobileCreateViewProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  canEditProducts?: boolean;
   onOpenAddSupplier: () => void;
   items: POLineItemDraft[];
   onItemsChange: (items: POLineItemDraft[]) => void;
@@ -77,6 +78,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
     onOpenAddProduct,
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed,
+    canEditProducts,
     onOpenAddSupplier,
     items,
     onItemsChange,
@@ -183,6 +185,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
               onOpenAddProduct={onOpenAddProduct}
               newlyCreatedProductId={newlyCreatedProductId}
               onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+              canEditProducts={canEditProducts}
             />
           </div>
 

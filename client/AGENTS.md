@@ -7813,3 +7813,27 @@ default because it would keep retrying API queries while offline. Mutations keep
 their own default (an offline checkout was checked and completes).
 `__tests__/query-client-offline-first.test.ts` pins both behaviours.
 
+
+## Purchase order list visibility and line edits (2026-11-15)
+
+- The Orders tab shows every PO to anyone holding `view_activity_log`,
+  `manage_purchase_orders` or `receive_purchase_orders`; only holders of none of
+  them see just their own (`ordered_by`). The filter used to key on
+  `view_activity_log` alone, which managers and custom stock roles lack.
+- `createPurchaseOrder` and `createImmediatePurchaseOrder` now stamp
+  `ordered_by` with the signed-in user. Before this, no client ever wrote it, so
+  the own-orders filter matched nothing and POs older than this change keep a
+  NULL `ordered_by`. Those stay visible only to the all-orders roles above;
+  drop that caveat once no store has NULL `ordered_by` rows.
+- A pencil beside each PO line's name opens the catalog's product edit modal
+  (`POEditProductDialog`, reusing `useAddProduct`); a rename is copied onto the
+  draft's lines for that product. Lot/Batch sits after Expiry in the ledger.
+- `app/globals.css` floors text fields at 16px on iOS (`-webkit-touch-callout`
+  guard): sub-16px inputs such as `text-[13px]` made iPhone Safari zoom in on
+  focus. Pinch-zoom itself stays enabled (WCAG 1.4.4).
+- New lines are prepended, so the row just added is always in view.
+- The edit screen's "Save changes" button appears only while the draft differs
+  from its last-saved snapshot and keeps the user on the page; "Save" still
+  saves and returns to the order.
+- `DatePickerInput` records the value it last emitted, so a parent echoing `""`
+  for an incomplete date no longer wipes the half-typed text.

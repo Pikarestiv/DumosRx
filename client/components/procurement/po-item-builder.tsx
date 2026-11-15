@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ProductCombobox, SelectedProduct } from "@/components/ui/product-combobox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { POItemLedgerTable, type POLineItemDraft, type POItemRow } from "./po-item-ledger-table";
+import { POEditProductDialog } from "./po-edit-product-dialog";
 import { POItemCardList } from "./po-item-card-list";
 import { addOrMergeLineItem } from "./po-line-item-math";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -38,6 +39,7 @@ export function POItemBuilder({
   const displayName = useDisplayName();
   const [searchValue, setSearchValue] = useState("");
   const [itemFilter, setItemFilter] = useState("");
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +136,14 @@ export function POItemBuilder({
     [updateItems],
   );
 
+  const handleProductRenamed = useCallback(
+    (productId: string, name: string) =>
+      updateItems((current) =>
+        current.map((item) => (item.product_id === productId ? { ...item, product_name: name } : item)),
+      ),
+    [updateItems],
+  );
+
   const handleRemoveItem = useCallback(
     (index: number) => {
       const removed = itemsRef.current[index];
@@ -202,6 +212,7 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
+          onEditProduct={setEditingProductId}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
         />
@@ -212,8 +223,17 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
+          onEditProduct={setEditingProductId}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
+        />
+      )}
+
+      {editingProductId && (
+        <POEditProductDialog
+          productId={editingProductId}
+          onClose={() => setEditingProductId(null)}
+          onRenamed={handleProductRenamed}
         />
       )}
     </div>

@@ -3,7 +3,7 @@
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 import React, { useMemo } from "react";
-import { Trash2, Search } from "lucide-react";
+import { Trash2, Search, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -44,12 +44,13 @@ interface POItemLedgerTableProps {
   products: POProduct[];
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
+  onEditProduct: (productId: string) => void;
   onFocusSearch?: () => void;
   isFiltered?: boolean;
 }
 
 const STANDARD_GRID_COLS = "grid-cols-[minmax(220px,1fr)_110px_130px_130px_36px]";
-const IMMEDIATE_GRID_COLS = "grid-cols-[minmax(220px,1fr)_90px_100px_110px_120px_120px_130px_120px_130px_36px]";
+const IMMEDIATE_GRID_COLS = "grid-cols-[minmax(220px,1fr)_90px_100px_110px_120px_130px_130px_120px_130px_36px]";
 
 /** Keyed by product id once per render instead of a products.find() per row:
  * that scan was O(rows x catalog) on every keystroke in any row's input. */
@@ -67,6 +68,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   gridCols,
   onUpdateItem,
   onRemoveItem,
+  onEditProduct,
 }: {
   item: POLineItemDraft;
   index: number;
@@ -75,6 +77,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   gridCols: string;
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
+  onEditProduct: (productId: string) => void;
 }) {
   const formatCurrency = useFormatCurrency();
   const currentCost = product?.cost_price ?? 0;
@@ -85,11 +88,23 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   return (
     <div role="row" className={`grid ${gridCols} items-center`}>
       <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
-        <ProductName
-          name={item.product_name}
-          tooltipSuffix={`${item.bulk_unit}(s)`}
-          className="font-semibold text-foreground"
-        />
+        <div className="flex items-center gap-1">
+          <ProductName
+            name={item.product_name}
+            tooltipSuffix={`${item.bulk_unit}(s)`}
+            className="font-semibold text-foreground"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Edit ${item.product_name}`}
+            className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={() => onEditProduct(item.product_id)}
+          >
+            <Pencil className="w-3 h-3" />
+          </Button>
+        </div>
         <div className="text-[11px] text-muted-foreground/70">{item.bulk_unit}(s)</div>
       </div>
 
@@ -148,15 +163,6 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
       {poType === "immediate" && (
         <>
           <div role="cell" className="px-3 py-2">
-            <Input
-              className="min-w-24"
-              aria-label={`Lot or batch number for ${item.product_name}`}
-              placeholder="e.g. BATCH-123"
-              value={item.lot_number || ""}
-              onChange={(e) => onUpdateItem(index, { lot_number: e.target.value })}
-            />
-          </div>
-          <div role="cell" className="px-3 py-2">
             <DatePickerInput
               value={item.expiry_date}
               onChange={(val) => onUpdateItem(index, { expiry_date: val })}
@@ -165,6 +171,15 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
               disablePast
               fromYear={new Date().getFullYear()}
               toYear={new Date().getFullYear() + 15}
+            />
+          </div>
+          <div role="cell" className="px-3 py-2">
+            <Input
+              className="min-w-24"
+              aria-label={`Lot or batch number for ${item.product_name}`}
+              placeholder="e.g. BATCH-123"
+              value={item.lot_number || ""}
+              onChange={(e) => onUpdateItem(index, { lot_number: e.target.value })}
             />
           </div>
         </>
@@ -214,6 +229,7 @@ export function POItemLedgerTable({
   products,
   onUpdateItem,
   onRemoveItem,
+  onEditProduct,
   onFocusSearch,
   isFiltered,
 }: POItemLedgerTableProps) {
@@ -258,8 +274,8 @@ export function POItemLedgerTable({
             </div>
             {poType === "immediate" && (
               <>
-                <div role="columnheader" className="text-left px-3 py-2">Lot/Batch</div>
                 <div role="columnheader" className="text-left px-3 py-2">Expiry</div>
+                <div role="columnheader" className="text-left px-3 py-2">Lot/Batch</div>
               </>
             )}
             <div role="columnheader" className="text-right px-3 py-2">
@@ -289,6 +305,7 @@ export function POItemLedgerTable({
               gridCols={gridCols}
               onUpdateItem={onUpdateItem}
               onRemoveItem={onRemoveItem}
+              onEditProduct={onEditProduct}
             />
           ))}
           {rows.length === 0 && (

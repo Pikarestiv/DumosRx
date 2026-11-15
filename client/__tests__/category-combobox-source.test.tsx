@@ -8,6 +8,10 @@ vi.mock("@/lib/db/queries/categories", () => ({
   getCategoryList: () => getCategoryList(),
 }));
 
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
+}));
+
 import { CategoryCombobox } from "@/components/ui/category-combobox";
 
 function renderCombobox(value = "") {

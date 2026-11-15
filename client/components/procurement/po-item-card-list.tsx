@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Trash2, Search } from "lucide-react";
+import { Trash2, Search, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ interface POItemCardListProps {
   products: POProduct[];
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
+  onEditProduct: (productId: string) => void;
   onFocusSearch?: () => void;
   isFiltered?: boolean;
 }
@@ -36,6 +37,7 @@ const POItemCard = React.memo(function POItemCard({
   poType,
   onUpdateItem,
   onRemoveItem,
+  onEditProduct,
 }: {
   item: POLineItemDraft;
   index: number;
@@ -43,6 +45,7 @@ const POItemCard = React.memo(function POItemCard({
   poType: "standard" | "immediate";
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
+  onEditProduct: (productId: string) => void;
 }) {
   const formatCurrency = useFormatCurrency();
   const currentCost = product?.cost_price ?? 0;
@@ -54,10 +57,22 @@ const POItemCard = React.memo(function POItemCard({
     <div className="p-4 space-y-3">
       <div className="flex justify-between items-start gap-2">
         <div className="min-w-0">
-          <ProductName
-            name={item.product_name}
-            className="font-semibold text-[14px]"
-          />
+          <div className="flex items-center gap-1">
+            <ProductName
+              name={item.product_name}
+              className="font-semibold text-[14px]"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`Edit ${item.product_name}`}
+              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={() => onEditProduct(item.product_id)}
+            >
+              <Pencil className="w-3 h-3" />
+            </Button>
+          </div>
           {poType === "immediate" && (
             <p className="text-[12px] text-muted-foreground">
               Stock: {stock} ·{" "}
@@ -188,6 +203,7 @@ export function POItemCardList({
   products,
   onUpdateItem,
   onRemoveItem,
+  onEditProduct,
   onFocusSearch,
   isFiltered,
 }: POItemCardListProps) {
@@ -225,6 +241,7 @@ export function POItemCardList({
           poType={poType}
           onUpdateItem={onUpdateItem}
           onRemoveItem={onRemoveItem}
+          onEditProduct={onEditProduct}
         />
       ))}
     </div>

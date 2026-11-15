@@ -22,6 +22,8 @@ interface POMobileEditViewProps {
   onNewlyCreatedProductConsumed: () => void;
   isSubmitting: boolean;
   handleSubmit: () => void;
+  onSaveChanges?: () => void;
+  isDirty?: boolean;
   onOpenEditDetails: () => void;
   paymentStatus?: string;
   dueDate?: string;
@@ -42,6 +44,8 @@ export function POMobileEditView({
   onNewlyCreatedProductConsumed,
   isSubmitting,
   handleSubmit,
+  onSaveChanges,
+  isDirty,
   onOpenEditDetails,
   paymentStatus,
   dueDate,
@@ -72,9 +76,20 @@ export function POMobileEditView({
             {items.length} {items.length === 1 ? "item" : "items"}
           </div>
         </div>
+        {isDirty && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto h-9 px-3 rounded-[10px] text-[12.5px] font-semibold shrink-0"
+            onClick={onSaveChanges}
+            disabled={isSubmitting || items.length === 0}
+          >
+            Save changes
+          </Button>
+        )}
         <Button
           size="sm"
-          className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
+          className={`${isDirty ? "" : "ml-auto "}h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0`}
           onClick={handleSubmit}
           disabled={isSubmitting || items.length === 0}
         >

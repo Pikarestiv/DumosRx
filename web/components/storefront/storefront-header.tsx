@@ -37,7 +37,7 @@ export function StorefrontHeader({ storeSlug, store, storefront, branches, selec
   const typeKey = store?.store_type ? TYPE_KEYS.get(store.store_type) : undefined;
   const typeLabel = typeKey ? t(typeKey) : store?.store_type ? store.store_type.charAt(0).toUpperCase() + store.store_type.slice(1) : null;
   const subtitle = [typeLabel, store?.location?.trim()].filter(Boolean).join(" · ");
-  const home = `/store/${storeSlug}`;
+  const home = `/s/${storeSlug}`;
   const hasBranches = Boolean(branches && branches.length > 1);
   const branchSelector = (
     <Suspense fallback={null}>
@@ -53,7 +53,7 @@ export function StorefrontHeader({ storeSlug, store, storefront, branches, selec
       >
         {t("skip.toContent")}
       </a>
-      <StorefrontUtilityBar />
+      <StorefrontUtilityBar deliveryAvailable={storefront?.delivery_available} />
       <header className="sticky top-0 z-40 border-b border-black/10 bg-white/95 backdrop-blur-sm">
         <div className="mx-auto flex min-h-16 max-w-7xl items-center gap-3 px-4 py-2 sm:gap-6 sm:px-6 lg:px-8">
           <Link href={home} title={brandName} className={`flex min-w-0 items-center gap-3 ${FOCUS_RING}`}>

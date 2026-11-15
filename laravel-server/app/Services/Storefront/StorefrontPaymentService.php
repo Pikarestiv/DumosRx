@@ -14,6 +14,7 @@ class StorefrontPaymentService
 {
     public function __construct(
         private readonly StorefrontCatalogService $catalogService,
+        private readonly StorefrontBranchSlugs $branchSlugs,
     ) {}
 
     /**
@@ -107,7 +108,7 @@ class StorefrontPaymentService
                     'store_id' => $store->id,
                     'store_slug' => $store->store_slug,
                 ],
-                config('app.frontend_url')."/store/{$store->store_slug}/checkout",
+                config('app.frontend_url').$this->branchSlugs->checkoutPath($store),
                 $store->paystack_subaccount_code,
                 $currency,
             );

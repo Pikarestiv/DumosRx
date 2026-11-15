@@ -11,7 +11,10 @@ export interface OnlineOrder {
   id: string;
   customer_name?: string;
   customer_phone?: string;
+  customer_email?: string | null;
   customer_address?: string;
+  fulfilment_method?: "pickup" | "delivery";
+  ready_at?: string | null;
   total_amount: number;
   payment_method: string;
   order_status: "pending" | "fulfilled" | string;

@@ -15,7 +15,7 @@ describe("StorefrontHeader store name", () => {
     render(<StorefrontHeader storeSlug="cutis" store={{ id: "s1", name: LONG_NAME }} />);
 
     const homeLink = screen.getByRole("link", { name: LONG_NAME });
-    expect(homeLink.getAttribute("href")).toBe("/store/cutis");
+    expect(homeLink.getAttribute("href")).toBe("/s/cutis");
     expect(homeLink.getAttribute("title")).toBe(LONG_NAME);
 
     const name = screen.getByText(LONG_NAME);
@@ -48,7 +48,7 @@ describe("StorefrontHeader store name", () => {
     render(<StorefrontHeader storeSlug="grace" store={{ id: "s1", name: "Grace" }} />);
 
     const form = screen.getByRole("search");
-    expect(form.getAttribute("action")).toBe("/store/grace/catalog");
+    expect(form.getAttribute("action")).toBe("/s/grace/catalog");
     expect(form.getAttribute("method")).toBe("get");
     expect(screen.getAllByRole("searchbox", { name: "Search products" })[0].getAttribute("name")).toBe("q");
   });
@@ -81,5 +81,15 @@ describe("StorefrontHeader store name", () => {
     );
 
     expect(screen.getByText("Supermarché")).toBeTruthy();
+  });
+
+  it("advertises local delivery in the top bar only when the store delivers", () => {
+    const without = render(<StorefrontHeader storeSlug="g" store={{ id: "s1", name: "G" }} storefront={{ id: "f", slug: "g", name: "G", delivery_available: false }} />);
+    expect(screen.getByText("Store pickup")).toBeTruthy();
+    expect(screen.queryByText(/local delivery/i)).toBeNull();
+    without.unmount();
+
+    render(<StorefrontHeader storeSlug="g" store={{ id: "s1", name: "G" }} storefront={{ id: "f", slug: "g", name: "G", delivery_available: true }} />);
+    expect(screen.getByText("Store pickup · Local delivery")).toBeTruthy();
   });
 });

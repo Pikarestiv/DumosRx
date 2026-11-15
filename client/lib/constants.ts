@@ -12,7 +12,7 @@ export const BUILD_SHA = (process.env.NEXT_PUBLIC_BUILD_SHA || "").slice(0, 8) |
 
 export const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || "https://dumosrx.com";
 export const GUIDES_URL = `${WEB_APP_URL}/guides`;
-export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/store";
+export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/s";
 export const SYSTEM_EMAIL = "system-logs@dumosrx.com";
 export const SUPPORT_EMAIL = "support@dumosrx.com";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";

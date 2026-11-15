@@ -47,6 +47,7 @@ class AdminStoreStorefrontController extends AdminBaseController
                 new OA\Property(property: 'store_slug', type: 'string', nullable: true),
             ])),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Missing the manage_account_status permission'),
+            new OA\Response(response: 404, description: 'No store with that id'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Enabling a store that has no storefront slug, or a slug that is malformed, taken, or inside the change cooldown'),
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
@@ -65,6 +66,8 @@ class AdminStoreStorefrontController extends AdminBaseController
                     (bool) $validated['enabled'],
                     $validated['store_slug'] ?? null,
                 );
+            } catch (ModelNotFoundException) {
+                return response()->json(['message' => 'Store not found'], 404);
             } catch (StoreActionBlockedException $e) {
                 // `message`, not the admin controllers' usual `error` key:
                 // base-client.ts only lifts `data.message` onto the thrown
@@ -179,8 +182,7 @@ class AdminStoreStorefrontController extends AdminBaseController
         responses: [
             new OA\Response(response: 202, description: 'Rebuild requested', content: new OA\JsonContent(properties: [new OA\Property(property: 'message', type: 'string')])),
             new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Not a super admin'),
-            new OA\Response(response: 502, description: 'GitHub refused or could not be reached'),
-            new OA\Response(response: 503, description: 'GITHUB_TOKEN / GITHUB_REPO are not configured on this server'),
+            new OA\Response(response: 422, description: 'GitHub refused or could not be reached, or GITHUB_TOKEN / GITHUB_REPO are not configured on this server. 422 rather than 5xx so the admin panel shows the reason instead of its generic server-fault text.'),
         ],
     )]
     public function rebuild()
@@ -188,11 +190,11 @@ class AdminStoreStorefrontController extends AdminBaseController
         $failure = $this->rebuildService->rebuildNow();
 
         if ($failure === StorefrontRebuildDispatcher::NOT_CONFIGURED) {
-            return response()->json(['message' => 'Rebuilds are not configured on this server (GITHUB_TOKEN and GITHUB_REPO).'], 503);
+            return response()->json(['message' => 'Rebuilds are not configured on this server (GITHUB_TOKEN and GITHUB_REPO).'], 422);
         }
 
         if ($failure !== null) {
-            return response()->json(['message' => "GitHub did not accept the rebuild request. {$failure}"], 502);
+            return response()->json(['message' => "GitHub did not accept the rebuild request. {$failure}"], 422);
         }
 
         return response()->json(['message' => 'Rebuild requested. Storefronts update once the deploy finishes.'], 202);

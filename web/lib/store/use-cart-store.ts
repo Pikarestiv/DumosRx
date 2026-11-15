@@ -10,8 +10,8 @@ export interface CartItem {
 
 /**
  * Carts are partitioned per storefront slug. A single global `items` array
- * (the pre-2026-09 shape) meant items added at /store/pharmacy-a were still
- * in the cart at /store/pharmacy-b and were submitted to *that* store's
+ * (the pre-2026-09 shape) meant items added at /s/pharmacy-a were still
+ * in the cart at /s/pharmacy-b and were submitted to *that* store's
  * /storefront/<slug>/checkout with foreign product_ids. Every action is
  * therefore scoped by `storeSlug`; prefer the `useCart(storeSlug)` hook
  * below over touching `carts` directly.

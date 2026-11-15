@@ -7,7 +7,7 @@ import { StorePrescriptionForm } from "@/components/storefront/store-prescriptio
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
-  usePathname: () => "/store/demo",
+  usePathname: () => "/s/demo",
   useSearchParams: () => new URLSearchParams(),
 }));
 

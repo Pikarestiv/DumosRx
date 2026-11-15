@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StorefrontCheckoutRequest;
 use App\Http\Resources\StorefrontProductResource;
+use App\Support\StorefrontCheckoutRules;
 use App\Support\StorefrontLocales;
 use App\Models\Store;
 use App\Services\Payment\PaymentService;
+use App\Services\Storefront\StorefrontBranchDirectory;
 use App\Services\Storefront\StorefrontCatalogService;
 use App\Services\Storefront\StorefrontCheckoutService;
 use App\Services\Storefront\StorefrontInteractionService;
@@ -36,8 +37,11 @@ class StorefrontController extends Controller
     )]
     public function slugs()
     {
+        $slugs = $this->catalogService->getPublishedSlugs();
+
         return response()->json([
-            'slugs' => $this->catalogService->getPublishedSlugs(),
+            'slugs' => $slugs,
+            'branches' => (object) app(StorefrontBranchDirectory::class)->forStorefronts($slugs),
         ]);
     }
 
@@ -105,18 +109,16 @@ class StorefrontController extends Controller
                 'tagline' => $storefront->tagline,
                 'whatsapp' => $storefront->whatsapp,
                 'pickup_minutes' => $storefront->pickup_minutes,
+                'payment_instructions' => $storefront->payment_instructions,
+                'delivery_available' => (bool) $storefront->delivery_available,
+                'delivery_note' => $storefront->delivery_note,
+                'pay_on_delivery' => (bool) $storefront->pay_on_delivery,
+                'show_services' => (bool) $storefront->show_services,
                 'opening_hours' => $storefront->opening_hours,
                 'logo_url' => $storefront->logo_url ?? $branch->logo_url,
                 'banner_url' => $storefront->banner_url,
             ],
-            'branches' => $branches->map(fn (Store $b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-                'location' => $b->location,
-                'address' => $b->address,
-                'phone' => $b->phone,
-                'is_primary' => $b->id === $storefront->primary_store_id,
-            ])->values()->all(),
+            'branches' => $this->catalogService->branchSummaries($storefront, $branches),
             'selected_branch' => $branchData,
             'store' => $branchData,
             'products' => StorefrontProductResource::collection($products),
@@ -190,12 +192,7 @@ class StorefrontController extends Controller
             'categories' => $categories,
             'store' => $branchData,
             'selected_branch' => $branchData,
-            'branches' => $branches->map(fn (Store $b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-                'location' => $b->location,
-                'is_primary' => $b->id === $storefront->primary_store_id,
-            ])->values()->all(),
+            'branches' => $this->catalogService->branchSummaries($storefront, $branches, detailed: false),
         ]);
     }
 
@@ -313,22 +310,15 @@ class StorefrontController extends Controller
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
-        $validated = $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:50',
-            'customer_address' => 'nullable|string|max:1000',
-            'payment_method' => 'required|in:paystack,transfer,in_store',
-            'paystack_reference' => [
-                'required_if:payment_method,paystack',
-                'nullable',
-                'string',
-                'prohibited_unless:payment_method,paystack',
-            ],
-            'branch_id' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|uuid|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-        ]);
+        $validated = $request->validate(StorefrontCheckoutRules::rules());
+
+        if (($validated['fulfilment_method'] ?? 'pickup') === 'delivery' && ! $storefront->delivery_available) {
+            return response()->json(['message' => 'This store does not offer delivery.'], 422);
+        }
+
+        if (($validated['fulfilment_method'] ?? 'pickup') === 'delivery' && $validated['payment_method'] === 'in_store' && ! $storefront->pay_on_delivery) {
+            return response()->json(['message' => 'This store does not accept payment on delivery. Pay by transfer or online.'], 422);
+        }
 
         return $this->checkoutService->placeOrder(
             $branch,

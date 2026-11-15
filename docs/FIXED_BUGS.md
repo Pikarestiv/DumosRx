@@ -1,3 +1,10 @@
+### A-371 — PUT /admin/stores/{id}/storefront answered 500, not 404, for a store id that does not exist
+- **Fixed:** 2026-11-14, server only, TDD. Found adding the storefront theme endpoint beside it.
+- **Was:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail($id)`, but `AdminStoreStorefrontController::update()` did not catch `ModelNotFoundException` (unlike `updateTheme()` and `updateSettings()`). `AdminBaseController::withErrorResponse()` caught it as a generic exception, logging an error and returning HTTP 500 "Failed to update the storefront".
+- **Now:** `AdminStoreStorefrontController::update()` catches `ModelNotFoundException` and returns 404 `{"message": "Store not found"}`, matching `updateTheme()` and OpenAPI documentation.
+- **Coverage:** `laravel-server/tests/Feature/Admin/AdminStoreStorefrontToggleTest.php` (`toggling_storefront_for_non_existent_store_answers_404`).
+- **Compat:** bug fix; no schema or request payload change.
+
 ### A-238 — a skipped auto-heal burned the whole 24-hour window, so a device returning from a break took days to fold
 - **Fixed:** 2026-11-14, client only, TDD. Found 2026-10-11; pre-existing.
 - **Was:** `checkSyncHealth()` in `client/lib/db/sync-engine/health-check.ts` unconditionally stamped `dumos_last_sync_health_check` into `localStorage` before `await healStockIntegrity()` ran. When a device returning from an offline break pulled a large backlog spanning multiple rounds, `healStockIntegrity()` skipped the fold with `healSkipped: "movement-log-incomplete"` because its `stock_movements` cursor was mid-stream. Because the 24-hour clock was already stamped, the skip delayed the auto-heal by an entire 24-hour interval instead of retrying on the next round once the backlog drained.

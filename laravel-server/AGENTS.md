@@ -250,6 +250,48 @@ without updating that.
   callback that finds no recorded request time clears nothing (one extra rebuild
   beats a lost change). Flipping `owner_style_enabled` alone does not stamp
   `style_dirty_at`, since nothing visible changed.
+  **Services (2026-11-16).** `storefronts.show_services` (default false, super admin
+  only) makes `GET /storefront/{slug}/services` return the branch's active `services`
+  rows (name, description, category, price); off returns an empty list. It is
+  display-only: the cart, checkout and `online_order_items` are keyed to products, so a
+  service cannot be ordered online. `services` has no `show_online` column, so every
+  active service shows once the switch is on. The admin rebuild answers 422, not 5xx,
+  when GitHub is not configured or refuses, because the admin client replaces every 5xx
+  message with a generic one.
+  **Checkout details (2026-11-15).** `storefronts.payment_instructions` (text, how to
+  pay by transfer or mobile money), `delivery_available`, `delivery_note` and
+  `pay_on_delivery` are set by a super admin and returned by the public `show`
+  payload; `online_orders` gains `customer_email` and `fulfilment_method`
+  (`pickup`|`delivery`). The checkout rules live in `StorefrontCheckoutRules`:
+  `customer_email` optional, an address required for delivery, delivery refused
+  when the store does not deliver, and an `in_store` payment refused for a
+  delivery order unless `pay_on_delivery` (old bundles never send delivery, so
+  this cannot affect them). A transfer order is **not** refused when the store
+  has no instructions (old bundles still offer it); the new UI simply hides it.
+  `StorefrontOrderNotifier` emails the owner and the store address (once if they
+  match) and the customer if they gave an email, synchronously like the other
+  mail here, with a failure only logged: an order is never lost to a mail
+  error. The customer email says to expect a possible phone call, not a
+  "ready" message: **no SMS or WhatsApp is sent**. `OnlineOrder::code()` (the
+  first 8 characters of the id, upper case) is the order number customers see;
+  the public order lookup returns it with the fulfilment method, the payment
+  instructions (transfer orders only), the store phone and WhatsApp.
+  **Order lifecycle (2026-11-15).** An unpaid `transfer` or `in_store` (pay at pickup or on
+  delivery) order is held 24 hours by default (a transfer cannot be confirmed
+  by the system before handover, so a short hold would cancel orders customers
+  have already paid)
+  (`dumos.storefront.unpaid_hold_minutes`, env `STOREFRONT_TRANSFER_HOLD_MINUTES`
+  and `STOREFRONT_PICKUP_HOLD_MINUTES`, `0` switches that method's expiry off).
+  `storefront:expire-unpaid-orders` (every 5 minutes, scheduled) cancels what
+  outlived its hold with `cancel_reason = 'expired'`, which frees the stock
+  because availability only counts pending orders; it never touches a paid
+  order or one with `ready_at` set. Expiry notifies store staff in-app and the
+  customer by email. `POST /app/online-orders/{id}/ready` (the POS "Email
+  customer: ready" / "Mark ready" button) stamps `ready_at` once and emails the
+  customer if they gave an address; it is idempotent (no second email) and a
+  ready order stops expiring. A manual cancel from the till stamps
+  `cancel_reason = 'store'` and emails the customer too. Fulfilling sends no
+  email. There is still no SMS or WhatsApp.
   `storefronts.locale` (default `en`) and `enabled_locales` are returned by the
   public `show` payload and the admin detail.
   `storefronts` also carries `accent` (a `#RRGGBB`), `tagline`, `whatsapp`,
@@ -838,6 +880,63 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 - `login()`, `register()`, and `consumeRelinkCode()` store `X-Device-Id` (or `device_id`) on the minted token. If omitted (e.g. web browser), a persistent `DRX-WEB-...` (or `DRX-...`) identifier is generated.
 - `GET /sessions` (`SessionController::index`) returns `device_id` alongside `id`, `name`, `ip_address`, `user_agent`, `last_used_at`, `created_at`, `is_current`.
 - Legacy rows without a `device_id` were backfilled in migration; `SessionController` also falls back to `UserDevice` where unambiguous.
+
+### Audit item sync writes in bulk (2026-11-16)
+
+`AuditSessionService::syncBatchItems` upserts items in chunks of 200 on the unique
+`(audit_session_id, product_id)` key instead of one `updateOrCreate` per item. The till
+used to re-send every counted item on each debounced sync, so a large audit made each
+request run thousands of queries inside one transaction; overlapping requests then hit
+`Lock wait timeout exceeded` (372 on 2026-11-14) and tied up PHP workers. The till now
+sends only items that changed since the last successful sync (`unsyncedItems`), but the
+server still accepts the full list so older builds keep working.
+
+### Admin alerts and deleted-user suffixes (2026-11-16)
+
+`AdminAlertService::send()` still makes one SMTP call for all `dumos.admin_emails`, but a
+single rejected address (a `550 No Such User Here` mailbox) fails the whole message, so on
+failure it retries one recipient at a time and logs the ones that fail. Keep `ADMIN_EMAILS`
+pointing at mailboxes that exist anyway. `User::deletedSuffix()` builds the `_del_<ms>`
+suffix for soft-deleted users and is strictly increasing within a process, so two users
+deleted in the same instant cannot collide on `users_email_unique`; the till strips it
+with `/_del_\d+$/`, so keep the suffix digits-only.
+
+### JSON responses are compressed in `public/.htaccess` (2026-11-16)
+
+The production log showed about 66 sync responses that arrived as a 200 with an unreadable
+body, 45 of them `POST /app/sync/pull`: a large response cut off on a slow connection.
+`public/.htaccess` now compresses `application/json` with `mod_deflate`, which cuts a
+sync page several-fold. It is a no-op where the host already compresses. Verify after a
+deploy with `curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' <api url>` and look for
+`content-encoding: gzip`. Pull pages are already bounded (`PullPager`, 500 rows per table,
+`docs/SYNC_PULL_PAGINATION.md`); shrink them only if compression is not enough.
+
+### Storefront branches get a path segment (2026-11-17)
+
+An account has one storefront (`/s/<brand>`); each online-enabled store is a branch of
+it. `storefront_branches` (server-only, deliberately not on the synced `stores` table so no
+client schema change) gives every branch a `slug` from its name, unique per account and never
+one of `StorefrontBranchSlugs::RESERVED` (`catalog`, `checkout`, ... the page names that share
+the URL level). Slugs are created when a store is published and lazily on first read.
+`resolveBranch()` accepts a branch id, a branch slug, or the legacy store slug, so
+`?branch=<slug>`, `branch_id=<slug>` on checkout and `?branch=` on services all work.
+Publishing a second store no longer needs its own `store_slug` while a sibling store has one.
+`GET /storefront-slugs` adds `branches: {<brand slug>: [<branch slug>, ...]}` for storefronts
+with two or more live branches; the web build makes branch pages from it. The primary branch
+is the brand's front door, so it has a slug but its canonical URL is the brand root.
+
+### Till token rotation grace (2026-11-16)
+
+`POST /refresh` no longer deletes the token it was called with. `TillTokenRotator` issues the
+new token (copying `device_id` and recording the request's IP and user agent, which the old
+refresh dropped), renames the old one `till-rotated` and expires it after
+`sanctum.till_rotation_grace_minutes` (default 30, `SANCTUM_TILL_ROTATION_GRACE_MINUTES`).
+Why: the server rotated before responding, so a till whose refresh response was lost kept a
+deleted token and unlinked on its next request. A rotated token can itself refresh again,
+which is how a till recovers. Rotated tokens are pruned on the next refresh and are excluded
+from the admin active-session count and the sessions list. Anything that counts or lists
+`personal_access_tokens` must exclude `TillTokenRotator::ROTATED_NAME`. The client's refresh
+timeout is 20 s (`REFRESH_TIMEOUT_MS`).
 
 ### Till re-link codes (2026-10-23, A-311)
 
@@ -1567,7 +1666,7 @@ extending or relying on any of this):
   `created` when `show_online`, `updated` on
   `name`/`selling_price`/`show_online`/`is_active`, and `deleted` when
   `show_online`. Keep those two field lists in step with
-  `web/app/store/[store_slug]/page.tsx` and `StorefrontProductResource` — a
+  `web/app/s/[store_slug]/page.tsx` and `StorefrontProductResource` — a
   column the page renders but neither list names is a silently-stale page.
   Both write via raw `DB::table()->update()`, never `->save()` (a save would
   re-fire model events), and `Product`'s is narrowed to stores with
@@ -3990,6 +4089,7 @@ curls it right after the FTP sync and **fails the job** with a `::error::`
 pointing at Admin → Maintenance when it is anything but `true`. The red X on
 the commit is the alert; nobody should meet a pending migration as a 500.
 
+- **Dev gets the same gate (2026-11-17).** `deploy-dev.yml` runs the same `schema_current` check against `api.dev.dumosrx.com` after its FTP sync, and its frontend job `needs` the backend job. Before that, a merge that added a migration let dev's frontend build start while the API was mid-release and 500ing, so a static build failed with `API returned HTTP 500` for the demo storefront. Now a pending migration stops the dev release at the backend job with a pointer to Admin > Maintenance; run the migration there and re-run the workflow. Code that depends on a brand-new table should also degrade while it is missing (`StorefrontBranchSlugs` does), so the window between the file sync and the migration is not a public 500.
 - **The deploy deliberately does not apply migrations.** An unattended
   `migrate --force` from CI against shared hosting, with no snapshot step and
   only a syntactic destructive-pattern scan, is a blast radius the founder

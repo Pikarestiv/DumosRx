@@ -94,7 +94,7 @@ describe("401 recovery guard", () => {
     expect(shouldRecoverFromUnauthorized("/admin", "/alerts")).toBe(true);
     expect(shouldRecoverFromUnauthorized("/downloads/", "downloads/manifest")).toBe(false);
     expect(shouldRecoverFromUnauthorized("/", "/system-configs/landing")).toBe(false);
-    expect(shouldRecoverFromUnauthorized("/store/acme/checkout", "/storefront/acme")).toBe(
+    expect(shouldRecoverFromUnauthorized("/s/acme/checkout", "/storefront/acme")).toBe(
       false,
     );
   });

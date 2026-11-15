@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -12,7 +12,7 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 
 vi.mock("@/lib/api/client", () => ({ webApiClient: { request } }));
 
-const ALL_THEMES = ["emerald", "forest", "navy", "rose", "amber", "slate", "violet", "workshop", "clinic", "studio"];
+const ALL_THEMES = ["emerald", "forest", "navy", "rose", "amber", "slate", "violet", "workshop", "clinic", "studio", "market", "boutique", "grove"];
 
 const storeWith = (storefront: Partial<AdminStoreDetail["storefront"]> = {}) =>
   ({
@@ -121,6 +121,11 @@ describe("StoreStorefrontTab", () => {
           opening_hours: { mon: { open: "08:00", close: "18:00" } },
           locale: "en",
           owner_style_enabled: false,
+          payment_instructions: null,
+          delivery_available: false,
+          delivery_note: null,
+          pay_on_delivery: false,
+          show_services: false,
           enabled_locales: ["en"],
         },
       },
@@ -138,7 +143,7 @@ describe("StoreStorefrontTab", () => {
 
     await waitFor(() => expect(settingsCall()).toBeTruthy());
     expect(settingsCall()?.[1].body).toEqual({
-      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", owner_style_enabled: false, enabled_locales: ["en"],
+      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", owner_style_enabled: false, payment_instructions: null, delivery_available: false, delivery_note: null, pay_on_delivery: false, show_services: false, enabled_locales: ["en"],
     });
   });
 
@@ -200,7 +205,7 @@ describe("StoreStorefrontTab", () => {
 
   it("links to the live storefront only while it is published", () => {
     const published = renderTab(storeWith());
-    expect(screen.getByRole("link", { name: /preview storefront/i }).getAttribute("href")).toBe(`${WEB_APP_URL}/store/corner`);
+    expect(screen.getByRole("link", { name: /preview storefront/i }).getAttribute("href")).toBe(`${WEB_APP_URL}/s/corner`);
     published.unmount();
 
     renderTab(storeWith({ online_store_enabled: false }));
@@ -241,5 +246,33 @@ describe("StoreStorefrontTab", () => {
     renderTab(storeWith({ owner_style_enabled: true }));
 
     expect((screen.getByLabelText(/let the store owner change the look/i) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("saves how to pay and whether the store delivers, and hides the delivery note until delivery is on", async () => {
+    renderTab(storeWith());
+    expect(screen.queryByLabelText("Delivery note")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/how to pay by transfer/i), { target: { value: "MTN MoMo 677 000 000" } });
+    await userEvent.click(screen.getByLabelText("This store delivers"));
+    fireEvent.change(screen.getByLabelText("Delivery note"), { target: { value: "Douala only" } });
+    await userEvent.click(screen.getByLabelText(/customers can pay when the order is delivered/i));
+    await userEvent.click(screen.getByRole("button", { name: "Save storefront settings" }));
+
+    await waitFor(() => expect(settingsCall()).toBeTruthy());
+    expect(settingsCall()?.[1].body).toMatchObject({
+      payment_instructions: "MTN MoMo 677 000 000",
+      delivery_available: true,
+      delivery_note: "Douala only",
+      pay_on_delivery: true,
+    });
+  });
+
+  it("clears the delivery note when delivery is switched off, so a stale fee is not shown", async () => {
+    renderTab(storeWith({ delivery_available: true, delivery_note: "Douala only", pay_on_delivery: true }));
+    await userEvent.click(screen.getByLabelText("This store delivers"));
+    await userEvent.click(screen.getByRole("button", { name: "Save storefront settings" }));
+
+    await waitFor(() => expect(settingsCall()).toBeTruthy());
+    expect(settingsCall()?.[1].body).toMatchObject({ delivery_available: false, delivery_note: null, pay_on_delivery: false });
   });
 });

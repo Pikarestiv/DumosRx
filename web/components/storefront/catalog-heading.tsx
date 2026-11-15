@@ -12,7 +12,7 @@ export function CatalogHeading({ storeSlug, storeName }: { storeSlug: string; st
   return (
     <>
       <nav aria-label={t("shop.breadcrumb")} className="flex items-center gap-1.5 text-xs opacity-80">
-        <Link href={`/store/${storeSlug}`} className="underline-offset-4 hover:underline">
+        <Link href={`/s/${storeSlug}`} className="underline-offset-4 hover:underline">
           {storeName}
         </Link>
         <ChevronRight className="h-3 w-3" />

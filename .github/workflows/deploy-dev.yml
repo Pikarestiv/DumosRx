@@ -18,7 +18,7 @@ jobs:
   # run) would otherwise race that job's own FTP-Deploy-Action state file.
   deploy-web:
     name: Build & Deploy Frontend (Dev)
-    needs: checks
+    needs: [checks, deploy-backend]
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-dev-web-${{ github.ref }}
@@ -177,3 +177,19 @@ jobs:
             **/storage/*.key
             .env.example
             .env
+
+      - name: 🧬 Check the deployed schema against the deployed code
+        run: |
+          url="https://api.dev.dumosrx.com/api/v1/health?schema=1"
+          body=$(curl -fsS --max-time 30 "$url" || true)
+          echo "$body"
+          case "$body" in
+            *'"schema_current":true'*)
+              echo "Schema matches this release." ;;
+            *'"schema_current":false'*)
+              echo "::error::The files are deployed but the dev database is behind this release. Open Admin > Maintenance > Pending migrations on dev and run them, then re-run this workflow; the deploy does not run migrations."
+              exit 1 ;;
+            *)
+              echo "::error::Could not read schema_current from $url after deploying. Check Admin > Operations > Database schema on dev by hand."
+              exit 1 ;;
+          esac

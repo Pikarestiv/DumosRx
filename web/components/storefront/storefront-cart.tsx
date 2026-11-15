@@ -46,7 +46,7 @@ export function StorefrontCart({ storeSlug, currency }: StorefrontCartProps) {
 
   const handleCheckout = () => {
     setIsOpen(false);
-    router.push(`/store/${storeSlug}/checkout`);
+    router.push(`/s/${storeSlug}/checkout`);
   };
 
   return (

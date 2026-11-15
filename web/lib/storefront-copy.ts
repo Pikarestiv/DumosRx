@@ -25,7 +25,7 @@ export interface StorefrontCopy {
 
 const PAYMENTS_FAQ: StorefrontFaq = {
   q: "What payment methods are supported?",
-  a: "Depending on your selected branch, we accept secure online card payments via Paystack, direct bank transfers, or payment on pickup (cash/POS at the counter).",
+  a: "Depending on the store, you can pay online (where the store offers it), by transfer or mobile money using the details shown at checkout, or when you collect your order.",
 };
 
 const BRANCHES_FAQ: StorefrontFaq = {
@@ -43,7 +43,7 @@ const PHARMACY_COPY: StorefrontCopy = {
   faqs: [
     {
       q: "How does in-store pickup work?",
-      a: "Once you place your order online, our dispensary prepares your items immediately. You will receive an SMS/WhatsApp or email confirmation when your package is ready for pickup at your selected branch.",
+      a: "Once you place your order online, our dispensary prepares your items immediately. The team may contact you on the phone number you gave to confirm it, and you can collect it at your selected branch.",
     },
     PAYMENTS_FAQ,
     {
@@ -77,7 +77,7 @@ const RETAIL_COPY: StorefrontCopy = {
   faqs: [
     {
       q: "How does in-store pickup work?",
-      a: "Once you place your order online, the store prepares your items. You will receive an SMS/WhatsApp or email confirmation when your order is ready for pickup at your selected branch.",
+      a: "Once you place your order online, the store prepares your items. The store may contact you on the phone number you gave to confirm it, and you can collect it at your selected branch.",
     },
     PAYMENTS_FAQ,
     BRANCHES_FAQ,

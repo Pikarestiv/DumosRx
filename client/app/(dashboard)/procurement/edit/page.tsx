@@ -168,7 +168,8 @@ function EditOrderContent() {
   const totalAmount = getOrderTotal(items, poType);
 
   const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();
-  const isSubmitting = updatePurchaseOrderMutation.isPending;
+  const [isReloading, setIsReloading] = useState(false);
+  const isSubmitting = updatePurchaseOrderMutation.isPending || isReloading;
 
   const handleSubmit = (stayOnPage = false) => {
     if (!id) {
@@ -207,9 +208,14 @@ function EditOrderContent() {
             router.push(`/procurement?selected=${id}`);
             return;
           }
+          setIsReloading(true);
           void getPurchaseOrderById(id)
             .then((fresh) => fresh && seedFromPo(fresh))
-            .catch((error) => console.error("Failed to reload PO after save:", error));
+            .catch((error) => {
+              console.error("Failed to reload PO after save:", error);
+              router.push(`/procurement?selected=${id}`);
+            })
+            .finally(() => setIsReloading(false));
         },
         onError: (error) => {
           console.error("Failed to update PO:", error);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { useAddProduct } from "@/components/products/use-add-product";
 import { transformProduct } from "@/components/products/types";
@@ -22,8 +22,9 @@ export function POEditProductDialog({ productId, onClose, onRenamed }: POEditPro
     ?.map(transformProduct)
     .find((p) => p.id === productId);
 
+  const queryClient = useQueryClient();
   const { handleAddProduct, isSaving } = useAddProduct({
-    refetch: () => {},
+    refetch: () => void queryClient.invalidateQueries(queryKeys.procurement.productsForPO()),
     setShowAddDialog: (open) => !open && onClose(),
   });
 

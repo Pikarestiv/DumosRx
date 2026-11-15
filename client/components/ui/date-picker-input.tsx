@@ -85,7 +85,7 @@ export function DatePickerInput({
   const [isOpen, setIsOpen] = useState(false);
   const [syncedValue, setSyncedValue] = useState<typeof value | null>(null);
 
-  if (syncedValue !== value) {
+  if ((syncedValue ?? "") !== (value ?? "")) {
     setSyncedValue(value);
     if (value) {
       const parsedDate = new Date(value);

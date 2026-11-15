@@ -20,6 +20,8 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
   const canManage = checkHasPermission(user, "manage_account_status");
   const enabled = store.storefront.online_store_enabled;
   const slug = store.storefront.store_slug;
+  const { brand_slug: brandSlug, branch_slug: branchSlug } = store.storefront;
+  const isBranch = !slug && Boolean(brandSlug);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -93,7 +95,7 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
           }
         />
         <Field
-          label="Slug"
+          label={isBranch ? "Branch page" : "Slug"}
           mono={!editing}
           value={
             editing ? (
@@ -117,6 +119,8 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
                   </Button>
                 </span>
               </span>
+            ) : isBranch ? (
+              <span className="font-mono text-xs">/s/{brandSlug}/{branchSlug ?? "…"}</span>
             ) : (
               <span className="inline-flex items-center gap-2">
                 {slug ?? "—"}

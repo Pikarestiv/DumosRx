@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { apiClient } from "@/lib/api/base-client";
+import { parseStorefrontScope } from "@/lib/storefront-scope";
 import { useCartStore } from "@/lib/store/use-cart-store";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
@@ -42,8 +43,9 @@ export function useCartRepricing(storeSlug: string) {
 
       try {
         const asked = items.slice(0, MAX_REPRICED_ITEMS);
-        const { data } = await apiClient.get<CatalogResponse>(`/storefront/${storeSlug}/products`, {
-          params: { ids: asked.map((item) => item.id).join(","), per_page: MAX_REPRICED_ITEMS },
+        const { slug, branch } = parseStorefrontScope(storeSlug);
+        const { data } = await apiClient.get<CatalogResponse>(`/storefront/${slug}/products`, {
+          params: { ids: asked.map((item) => item.id).join(","), per_page: MAX_REPRICED_ITEMS, ...(branch ? { branch } : {}) },
         });
         if (cancelled) return;
 

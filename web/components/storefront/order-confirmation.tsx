@@ -1,5 +1,6 @@
 "use client";
 
+import { parseStorefrontScope } from "@/lib/storefront-scope";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -52,7 +53,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
     if (!orderId) return;
     let cancelled = false;
     apiClient
-      .get<{ order: TrackedOrder }>(`/storefront/${storeSlug}/orders/${encodeURIComponent(orderId)}`)
+      .get<{ order: TrackedOrder }>(`/storefront/${parseStorefrontScope(storeSlug).slug}/orders/${encodeURIComponent(orderId)}`)
       .then(({ data }) => !cancelled && setState({ status: "ready", order: data.order }))
       .catch(() => !cancelled && setState({ status: "missing" }));
     return () => {

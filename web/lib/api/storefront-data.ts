@@ -1,4 +1,5 @@
 import { DEMO_STOREFRONT_DATA, demoCatalog } from "@/lib/api/storefront-demo-data";
+import { parseStorefrontScope } from "@/lib/storefront-scope";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 export interface StorefrontStore {
@@ -19,6 +20,7 @@ export interface StorefrontStore {
 export interface StorefrontBranch {
   id: string;
   name: string;
+  slug?: string;
   location?: string | null;
   address?: string | null;
   phone?: string | null;
@@ -73,9 +75,11 @@ export class StorefrontFetchError extends Error {}
  * `notFound()`; anything else throws.
  */
 export async function getStorefrontData(
-  store_slug: string,
+  scope: string,
   branchId?: string,
 ): Promise<StorefrontData | null> {
+  const { slug: store_slug, branch: scopedBranch } = parseStorefrontScope(scope);
+  const branchParam = branchId ?? scopedBranch;
   if ((process.env.STOREFRONT_ALLOW_EMPTY === "1" || process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1") && store_slug === "demo") {
     return DEMO_STOREFRONT_DATA;
   }
@@ -83,7 +87,7 @@ export async function getStorefrontData(
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
 
-  const queryStr = branchId ? `?branch=${encodeURIComponent(branchId)}` : "";
+  const queryStr = branchParam ? `?branch=${encodeURIComponent(branchParam)}` : "";
 
   let res: Response;
   try {
@@ -152,9 +156,11 @@ export interface PaginatedStorefrontProducts {
 }
 
 export async function getStorefrontProducts(
-  store_slug: string,
+  scope: string,
   options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string; ids?: string[] },
 ): Promise<PaginatedStorefrontProducts | null> {
+  const { slug: store_slug, branch: scopedBranch } = parseStorefrontScope(scope);
+  const branch = options?.branch ?? scopedBranch;
   if (process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1" && store_slug === "demo") {
     return demoCatalog(options);
   }
@@ -167,7 +173,7 @@ export async function getStorefrontProducts(
   if (options?.q) params.set("q", options.q);
   if (options?.category) params.set("category", options.category);
   if (options?.per_page) params.set("per_page", String(options.per_page));
-  if (options?.branch) params.set("branch", options.branch);
+  if (branch) params.set("branch", branch);
   if (options?.ids?.length) params.set("ids", options.ids.join(","));
 
   const queryStr = params.toString() ? `?${params.toString()}` : "";

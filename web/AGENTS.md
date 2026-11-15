@@ -316,6 +316,19 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   hydration). Product names, categories and the owner's tagline are never
   translated. To add a language: a messages file, `STOREFRONT_LOCALES`,
   `LOCALE_NAMES`, the PHP list, and a plural rule if it is not one/other.
+- **Branch paths (2026-11-17).** Branch pages live at `/s/<brand>/<branch>/...` (home, catalog,
+  checkout, order); about, FAQ, locations, track and prescription stay brand-level. The trick that
+  keeps the diff small: the whole storefront already threads one `storeSlug` prop, so a branch
+  page passes `"<brand>/<branch>"` (a *scope*, `lib/storefront-scope.ts`) and every link and the
+  cart key come out per branch for free. API helpers (`getStorefrontData`, `getStorefrontProducts`,
+  services, repricing, checkout) split the scope with `parseStorefrontScope` and send the branch
+  as `?branch=` / `branch_id`. The `[branch]` routes are thin wrappers (`lib/storefront-branch-route.ts`)
+  that call the brand page with the scope. `MobileCartBar` sits in the shared layout, so it reads
+  the scope from the pathname (`scopeFromPathname`, which treats any second segment that is not a
+  page name as a branch). `output: export` refuses an empty `generateStaticParams`, so a build with
+  no multi-branch storefront emits one `_none/_none` pair that the route turns into a 404;
+  `verify-storefront-output.mjs` skips that directory. Carts are per branch, so switching branch
+  no longer clears the cart.
 - **Services (2026-11-16).** When `storefront.show_services` is set (baked at build),
   `StorefrontServices` fetches `/storefront/{slug}/services` in the browser and renders
   nothing if the list is empty. Each card links to WhatsApp to enquire; there is no cart.

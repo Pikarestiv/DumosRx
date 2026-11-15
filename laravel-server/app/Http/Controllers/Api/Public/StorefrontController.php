@@ -229,10 +229,11 @@ class StorefrontController extends Controller
             $storefront,
             $request->input('branch_id') ?? $request->input('branch'),
             $store_slug,
+            requireExplicitMatch: true,
         );
 
         if (! $branch) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+            return $this->branchNotFound($request);
         }
 
         if ($branch->isSuspended()) {
@@ -296,10 +297,11 @@ class StorefrontController extends Controller
             $storefront,
             $request->input('branch_id') ?? $request->input('branch'),
             $store_slug,
+            requireExplicitMatch: true,
         );
 
         if (! $branch) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+            return $this->branchNotFound($request);
         }
 
         if ($branch->isSuspended()) {
@@ -335,5 +337,14 @@ class StorefrontController extends Controller
     public function uploadPrescription($store_slug, Request $request)
     {
         return $this->interactionService->uploadPrescription($store_slug, $request);
+    }
+
+    private function branchNotFound(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $named = $request->input('branch_id') ?? $request->input('branch');
+
+        return $named
+            ? response()->json(['message' => 'That branch is no longer available. Reload the page and choose a branch again.'], 422)
+            : response()->json(['error' => 'Store unavailable'], 404);
     }
 }

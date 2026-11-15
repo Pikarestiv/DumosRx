@@ -79,7 +79,7 @@ export async function getStorefrontData(
   branchId?: string,
 ): Promise<StorefrontData | null> {
   const { slug: store_slug, branch: scopedBranch } = parseStorefrontScope(scope);
-  const branchParam = branchId ?? scopedBranch;
+  const branchParam = scopedBranch ?? branchId;
   if ((process.env.STOREFRONT_ALLOW_EMPTY === "1" || process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1") && store_slug === "demo") {
     return DEMO_STOREFRONT_DATA;
   }
@@ -160,7 +160,7 @@ export async function getStorefrontProducts(
   options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string; ids?: string[] },
 ): Promise<PaginatedStorefrontProducts | null> {
   const { slug: store_slug, branch: scopedBranch } = parseStorefrontScope(scope);
-  const branch = options?.branch ?? scopedBranch;
+  const branch = scopedBranch ?? options?.branch;
   if (process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1" && store_slug === "demo") {
     return demoCatalog(options);
   }

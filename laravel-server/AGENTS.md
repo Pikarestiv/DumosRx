@@ -921,6 +921,7 @@ the URL level). Slugs are created when a store is published and lazily on first 
 `resolveBranch()` accepts a branch id, a branch slug, or the legacy store slug, so
 `?branch=<slug>`, `branch_id=<slug>` on checkout and `?branch=` on services all work.
 Publishing a second store no longer needs its own `store_slug` while a sibling store has one.
+Checkout and checkout/initialize use `resolveBranch(..., requireExplicitMatch: true)`: a named branch (id, branch slug or legacy `store_slug`) that matches nothing answers 422 "That branch is no longer available" so the customer sees why, never a silent fall back to the main branch, because that would charge the wrong store. Paystack returns the payer to the page they started from: `checkoutPath($store, $branch_id)` uses the branch path only when the client's `branch_id` is that store's own branch slug, else the brand checkout (so the return page always exists in the built site).
 `GET /storefront-slugs` adds `branches: {<brand slug>: [<branch slug>, ...]}` for storefronts
 with two or more live branches; the web build makes branch pages from it. The primary branch
 is the brand's front door, so it has a slug but its canonical URL is the brand root.
@@ -933,7 +934,7 @@ refresh dropped), renames the old one `till-rotated` and expires it after
 `sanctum.till_rotation_grace_minutes` (default 30, `SANCTUM_TILL_ROTATION_GRACE_MINUTES`).
 Why: the server rotated before responding, so a till whose refresh response was lost kept a
 deleted token and unlinked on its next request. A rotated token can itself refresh again,
-which is how a till recovers. Rotated tokens are pruned on the next refresh and are excluded
+which is how a till recovers. Refreshing from an already-rotated token does not extend it (a stolen old token cannot be kept alive) and first revokes the successors it already issued, so a device never has more than one live successor. Logout (`endLineage`) deletes the rotated predecessors AND, when called with a rotated token, its successors, matching the device by `device_id` or, when there is none, by user agent. Rotated tokens are pruned on the next refresh and are excluded
 from the admin active-session count and the sessions list. Anything that counts or lists
 `personal_access_tokens` must exclude `TillTokenRotator::ROTATED_NAME`. The client's refresh
 timeout is 20 s (`REFRESH_TIMEOUT_MS`).

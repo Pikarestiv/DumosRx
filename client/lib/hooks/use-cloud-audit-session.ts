@@ -189,7 +189,8 @@ export function useCloudAuditSession(storeId: string | null) {
     syncTimerRef.current = setTimeout(() => {
       void (async () => {
         try {
-          if (sentItemsRef.current.sessionId !== cur.id) sentItemsRef.current = { sessionId: cur.id, byProduct: new Map() };
+          const syncKey = `${cur.id}:${cur.lease_version}`;
+          if (sentItemsRef.current.sessionId !== syncKey) sentItemsRef.current = { sessionId: syncKey, byProduct: new Map() };
           const dirtyItems = unsyncedItems(sentItemsRef.current.byProduct, items.filter((i) => i.counted === true).map(toCloudItem));
 
           if (dirtyItems.length === 0) return;

@@ -52,7 +52,7 @@ const PRESETS: {
   },
 ];
 
-const ADMIN_ONLY_PRESETS: Record<string, string> = { market: "Market", boutique: "Boutique", grove: "Grove" };
+const ADMIN_ONLY_PRESETS = new Map([["market", "Market"], ["boutique", "Boutique"], ["grove", "Grove"]]);
 
 const LANGUAGE_NAMES = { en: "English", fr: "Français" } as const;
 const WHATSAPP_PATTERN = /^\+[0-9 ()-]{6,31}$/;
@@ -104,7 +104,7 @@ function AppearanceForm({
   const save = useUpdateStorefrontSettings();
   const [chosenPreset, setPreset] = useState<StorefrontPresetId | null>(null);
   const preset = chosenPreset ?? presetFor(settings);
-  const adminPresetLabel = chosenPreset ? undefined : ADMIN_ONLY_PRESETS[settings.theme];
+  const adminPresetLabel = chosenPreset ? undefined : ADMIN_ONLY_PRESETS.get(settings.theme);
   const [accent, setAccent] = useState(settings.accent ?? "");
   const [tagline, setTagline] = useState(settings.tagline ?? "");
   const [whatsapp, setWhatsapp] = useState(settings.whatsapp ?? "");

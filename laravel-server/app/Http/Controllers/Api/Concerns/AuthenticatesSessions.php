@@ -83,7 +83,7 @@ trait AuthenticatesSessions
         $ipAddress = $request->ip();
         $userAgent = $request->userAgent();
 
-        $priorTokensCount = $user->tokens()->count();
+        $priorTokensCount = $user->tokens()->where('name', '!=', TillTokenRotator::ROTATED_NAME)->count();
         $isNewDevice = false;
 
         if ($priorTokensCount > 1) {
@@ -144,7 +144,9 @@ trait AuthenticatesSessions
     )]
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $current = $request->user()->currentAccessToken();
+        app(TillTokenRotator::class)->endLineage($current);
+        $current->delete();
 
         $refreshTokenRaw = $request->cookie('drx_admin_session');
         if ($refreshTokenRaw) {

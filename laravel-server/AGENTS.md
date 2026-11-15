@@ -891,6 +891,16 @@ request run thousands of queries inside one transaction; overlapping requests th
 sends only items that changed since the last successful sync (`unsyncedItems`), but the
 server still accepts the full list so older builds keep working.
 
+### Admin alerts and deleted-user suffixes (2026-11-16)
+
+`AdminAlertService::send()` still makes one SMTP call for all `dumos.admin_emails`, but a
+single rejected address (a `550 No Such User Here` mailbox) fails the whole message, so on
+failure it retries one recipient at a time and logs the ones that fail. Keep `ADMIN_EMAILS`
+pointing at mailboxes that exist anyway. `User::deletedSuffix()` builds the `_del_<ms>`
+suffix for soft-deleted users and is strictly increasing within a process, so two users
+deleted in the same instant cannot collide on `users_email_unique`; the till strips it
+with `/_del_\d+$/`, so keep the suffix digits-only.
+
 ### Till token rotation grace (2026-11-16)
 
 `POST /refresh` no longer deletes the token it was called with. `TillTokenRotator` issues the

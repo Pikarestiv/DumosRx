@@ -256,6 +256,17 @@ class AdminStoreStorefrontToggleTest extends TestCase
         $this->assertFalse((bool) $this->store->refresh()->online_store_enabled);
     }
 
+    #[Test]
+    public function toggling_storefront_for_non_existent_store_answers_404(): void
+    {
+        $nonExistentId = (string) \Illuminate\Support\Str::uuid();
+
+        $this->actingAs($this->userWithRole('platform_admin'))
+            ->putJson("/api/v1/admin/stores/{$nonExistentId}/storefront", ['enabled' => true])
+            ->assertStatus(404)
+            ->assertJson(['message' => 'Store not found']);
+    }
+
     private function userWithRole(string $roleSlug): User
     {
         $role = Role::where('slug', $roleSlug)->firstOrFail();

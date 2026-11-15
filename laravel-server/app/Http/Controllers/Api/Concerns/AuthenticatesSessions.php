@@ -145,9 +145,7 @@ trait AuthenticatesSessions
     public function logout(Request $request)
     {
         $current = $request->user()->currentAccessToken();
-        if ($current->device_id) {
-            app(TillTokenRotator::class)->forgetPredecessors($current);
-        }
+        app(TillTokenRotator::class)->endLineage($current);
         $current->delete();
 
         $refreshTokenRaw = $request->cookie('drx_admin_session');

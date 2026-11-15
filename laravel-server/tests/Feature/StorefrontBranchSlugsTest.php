@@ -111,13 +111,13 @@ class StorefrontBranchSlugsTest extends TestCase
         $this->assertSame('/s/nestpharmacy/checkout', $slugs->checkoutPath($agidi, 'nest-amawbia'));
     }
 
-    public function test_checkout_refuses_a_branch_that_does_not_exist_instead_of_charging_the_primary(): void
+    public function test_checkout_refuses_a_branch_that_does_not_exist_with_a_clear_message_instead_of_charging_the_primary(): void
     {
         $this->enableBranch('Nest Agidi');
         $payload = ['customer_name' => 'A', 'customer_phone' => '1', 'payment_method' => 'in_store', 'items' => [['product_id' => 'x', 'quantity' => 1]]];
 
-        $this->postJson('/api/v1/storefront/nestpharmacy/checkout', $payload + ['branch_id' => 'old-branch'])->assertNotFound();
-        $this->postJson('/api/v1/storefront/nestpharmacy/checkout/initialize', ['customer_email' => 'a@b.test', 'items' => $payload['items'], 'branch_id' => 'old-branch'])->assertNotFound();
+        $this->postJson('/api/v1/storefront/nestpharmacy/checkout', $payload + ['branch_id' => 'old-branch'])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'no longer available'));
+        $this->postJson('/api/v1/storefront/nestpharmacy/checkout/initialize', ['customer_email' => 'a@b.test', 'items' => $payload['items'], 'branch_id' => 'old-branch'])->assertStatus(422);
     }
 
     public function test_two_stores_with_the_same_name_get_different_slugs(): void
@@ -144,5 +144,33 @@ class StorefrontBranchSlugsTest extends TestCase
         preg_match_all("/'([a-z]+)'/", $found[1], $names);
 
         $this->assertEqualsCanonicalizing(\App\Services\Storefront\StorefrontBranchSlugs::RESERVED, $names[1]);
+    }
+
+    public function test_a_slug_collision_during_allocation_is_retried_with_a_fresh_slug(): void
+    {
+        $first = $this->enableBranch('Main');
+        $second = Store::create(['user_id' => $this->owner->id, 'name' => 'Main', 'device_id' => 'DEV-M2']);
+
+        $racing = new class(app(\App\Services\Storefront\StorefrontBranchSlugs::class)) extends \App\Services\Storefront\StorefrontBranchSlugs
+        {
+            private int $calls = 0;
+
+            public function __construct(private \App\Services\Storefront\StorefrontBranchSlugs $real) {}
+
+            protected function uniqueSlug(Store $store): string
+            {
+                return $this->calls++ === 0 ? 'main' : parent::uniqueSlug($store);
+            }
+        };
+
+        $this->assertSame('main-2', $racing->ensure($second));
+        $this->assertSame('main', app(\App\Services\Storefront\StorefrontBranchSlugs::class)->ensure($first));
+    }
+
+    public function test_a_branch_store_slug_alias_still_resolves_when_sent_as_the_branch_id(): void
+    {
+        $alias = Store::create(['user_id' => $this->owner->id, 'name' => 'Alias', 'store_slug' => 'alias-store', 'device_id' => 'DEV-A', 'online_store_enabled' => true]);
+
+        $this->getJson('/api/v1/storefront/nestpharmacy?branch=alias-store')->assertOk()->assertJsonPath('selected_branch.id', $alias->id);
     }
 }

@@ -125,4 +125,37 @@ class TillTokenRotationTest extends TestCase
 
         $this->assertSame(0, PersonalAccessToken::count());
     }
+
+    public function test_logging_out_from_the_old_token_also_ends_the_token_that_replaced_it(): void
+    {
+        $old = $this->tillToken();
+        $this->asTill('POST', '/api/v1/refresh', $old)->assertOk();
+
+        $this->asTill('POST', '/api/v1/logout', $old)->assertOk();
+
+        $this->assertSame(0, PersonalAccessToken::count());
+    }
+
+    public function test_repeated_refreshes_from_the_old_token_leave_one_live_successor(): void
+    {
+        $old = $this->tillToken();
+        foreach (range(1, 4) as $_) {
+            $latest = $this->asTill('POST', '/api/v1/refresh', $old)->assertOk()->json('token');
+        }
+
+        $this->assertSame(1, PersonalAccessToken::where('name', '!=', TillTokenRotator::ROTATED_NAME)->count());
+        $this->asTill('GET', '/api/v1/user', $latest)->assertOk();
+    }
+
+    public function test_a_till_with_no_device_id_still_has_its_lineage_ended_on_logout(): void
+    {
+        $issued = $this->owner->createToken('desktop');
+        $issued->accessToken->forceFill(['user_agent' => 'Till/1.0'])->save();
+        $old = $issued->plainTextToken;
+        $new = $this->asTill('POST', '/api/v1/refresh', $old)->json('token');
+
+        $this->asTill('POST', '/api/v1/logout', $new)->assertOk();
+
+        $this->assertSame(0, PersonalAccessToken::count());
+    }
 }

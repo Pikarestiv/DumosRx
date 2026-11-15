@@ -21,6 +21,7 @@ export function BranchCanonicalizer({ storeSlug, branches }: BranchCanonicalizer
   useEffect(() => {
     if (!multiBranch || !primary?.slug) return;
     const params = new URLSearchParams(window.location.search);
+    if (params.has("reference") || params.has("trxref")) return;
     const requested = params.get("branch");
     const wanted = branches?.find((branch) => branch.id === requested || branch.slug === requested) ?? primary;
     const target = canonicalBranchPath(pathname ?? "", storeSlug, wanted.slug ?? primary.slug);

@@ -55,6 +55,14 @@ describe("branch canonicalizer", () => {
     expect(useCartStore.getState().carts["nestpharmacy/nest-amawbia"][0].id).toBe("p2");
   });
 
+  it("never moves a customer returning from Paystack, so their pending checkout is still found", () => {
+    nav.pathname = "/s/nestpharmacy/checkout/";
+    window.history.replaceState({}, "", "/s/nestpharmacy/checkout/?reference=T123&trxref=T123");
+    render(<BranchCanonicalizer storeSlug="nestpharmacy" branches={branches} />);
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("leaves a branch page alone", () => {
     nav.pathname = "/s/nestpharmacy/nest-agidi/catalog/";
     render(<BranchCanonicalizer storeSlug="nestpharmacy" branches={branches} />);

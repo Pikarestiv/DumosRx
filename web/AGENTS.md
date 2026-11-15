@@ -344,7 +344,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   PR that removes it. Related housekeeping: the `_none/_none` placeholder is excluded from both web FTP
   syncs, the reserved branch names are pinned equal to the server's list by `storefront-scope.test.ts` and
   `StorefrontBranchSlugsTest`, and a cart saved under the brand slug is carried to the main branch's scope
-  by `BranchCanonicalizer` (`moveCart`) when the storefront gains a second branch.
+  by `BranchCanonicalizer` (`moveCart`) when the storefront gains a second branch. The canonicalizer never redirects a URL carrying `?reference=` or `?trxref=` (a Paystack return), because the pending checkout is stored under the scope the payment started in and a redirect would make the form look under another key and show the orphan-reference state for a customer who has already paid.
 - **Services (2026-11-16).** When `storefront.show_services` is set (baked at build),
   `StorefrontServices` fetches `/storefront/{slug}/services` in the browser and renders
   nothing if the list is empty. Each card links to WhatsApp to enquire; there is no cart.

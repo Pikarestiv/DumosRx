@@ -7,6 +7,7 @@ use App\Models\Storefront;
 use App\Models\StorefrontBranch;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -39,11 +40,9 @@ class StorefrontBranchSlugs
 
         for ($attempt = 1; $attempt <= self::CREATE_ATTEMPTS; $attempt++) {
             try {
-                return StorefrontBranch::create([
-                    'store_id' => $store->id,
-                    'user_id' => $store->user_id,
-                    'slug' => $attempt < self::CREATE_ATTEMPTS ? $this->uniqueSlug($store) : $this->baseSlug($store).'-'.substr($store->id, 0, 6),
-                ])->slug;
+                $slug = $attempt < self::CREATE_ATTEMPTS ? $this->uniqueSlug($store) : $this->baseSlug($store).'-'.substr($store->id, 0, 6);
+
+                return DB::transaction(fn () => StorefrontBranch::create(['store_id' => $store->id, 'user_id' => $store->user_id, 'slug' => $slug]))->slug;
             } catch (UniqueConstraintViolationException) {
                 $existing = StorefrontBranch::where('store_id', $store->id)->value('slug');
                 if ($existing) {
@@ -83,7 +82,7 @@ class StorefrontBranchSlugs
         return $this->tableReady ??= Schema::hasTable('storefront_branches');
     }
 
-    private function uniqueSlug(Store $store): string
+    protected function uniqueSlug(Store $store): string
     {
         $base = $this->baseSlug($store);
         $taken = StorefrontBranch::where('user_id', $store->user_id)->pluck('slug')->all();

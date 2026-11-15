@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import type { StorefrontBranch } from "@/lib/api/storefront-data";
 import { canonicalBranchPath } from "@/lib/storefront-scope";
+import { useCartStore } from "@/lib/store/use-cart-store";
 
 interface BranchCanonicalizerProps {
   storeSlug: string;
@@ -24,6 +25,7 @@ export function BranchCanonicalizer({ storeSlug, branches }: BranchCanonicalizer
     const wanted = branches?.find((branch) => branch.id === requested || branch.slug === requested) ?? primary;
     const target = canonicalBranchPath(pathname ?? "", storeSlug, wanted.slug ?? primary.slug);
     if (!target) return;
+    useCartStore.getState().moveCart(storeSlug, `${storeSlug}/${wanted.slug ?? primary.slug}`);
     params.delete("branch");
     const search = params.toString();
     router.replace(target + (search ? `?${search}` : "") + window.location.hash);

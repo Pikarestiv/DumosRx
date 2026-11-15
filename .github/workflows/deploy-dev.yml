@@ -70,6 +70,8 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/_none/**
+            **/_none
 
   deploy-client:
     name: Build & Deploy Client App (Dev)

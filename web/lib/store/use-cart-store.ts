@@ -22,6 +22,8 @@ interface CartStore {
   removeItem: (storeSlug: string, id: string) => void;
   updateQuantity: (storeSlug: string, id: string, quantity: number) => void;
   clearCart: (storeSlug: string) => void;
+  /** Carry a cart to another scope when that scope is still empty (a brand cart becoming its main branch's cart). */
+  moveCart: (from: string, to: string) => void;
   /**
    * Reconcile locally cached prices against the live catalog. `prices` maps
    * product_id -> current selling price; any cart item missing from the map
@@ -65,6 +67,11 @@ export const useCartStore = create<CartStore>()(
       clearCart: (storeSlug) => set((state) => ({
         carts: { ...state.carts, [storeSlug]: [] },
       })),
+      moveCart: (from, to) => set((state) => {
+        const items = state.carts[from] ?? [];
+        if (items.length === 0 || (state.carts[to] ?? []).length > 0) return state;
+        return { carts: { ...state.carts, [from]: [], [to]: items } };
+      }),
       reconcilePrices: (storeSlug, prices) => set((state) => ({
         carts: {
           ...state.carts,

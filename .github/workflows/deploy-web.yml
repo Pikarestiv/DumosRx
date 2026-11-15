@@ -82,6 +82,8 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/_none/**
+            **/_none
 
       # Tells the API the rebuild it asked for actually shipped, so
       # RebuildStorefrontIfDirty can clear storefront_dirty_at on SUCCESS

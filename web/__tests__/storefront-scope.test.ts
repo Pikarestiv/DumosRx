@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { branchHref, canonicalBranchPath, pageOfPathname, parseStorefrontScope, scopeFromPathname, storefrontScope } from "@/lib/storefront-scope";
+import { RESERVED_BRANCH_SEGMENTS, branchHref, canonicalBranchPath, pageOfPathname, parseStorefrontScope, scopeFromPathname, storefrontScope } from "@/lib/storefront-scope";
 
 describe("storefront scope", () => {
   it("joins and splits a brand and a branch", () => {
@@ -52,4 +54,11 @@ describe("storefront scope", () => {
       expect(canonicalBranchPath(pathname, "nestpharmacy", "amawbia")).toBeNull();
     },
   );
+
+  it("reserves exactly the page names the server refuses as branch slugs", () => {
+    const php = readFileSync(resolve(__dirname, "..", "..", "laravel-server/app/Services/Storefront/StorefrontBranchSlugs.php"), "utf8");
+    const serverList = [...(/public const RESERVED = \[([^\]]*)\]/.exec(php)?.[1] ?? "").matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
+
+    expect([...RESERVED_BRANCH_SEGMENTS].sort()).toEqual(serverList.sort());
+  });
 });

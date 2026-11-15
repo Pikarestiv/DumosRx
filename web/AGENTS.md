@@ -335,6 +335,16 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   catalog page when you switch. Paystack's return address is the branch's own checkout
   (`StorefrontBranchSlugs::checkoutPath`), otherwise the return would land on the main branch with
   the wrong cart.
+- **Old `/store/` links (2026-11-17).** `app/store/[store_slug]/[[...rest]]` is a static redirect page
+  (`LegacyStoreRedirect`) for every old brand-level path (`LEGACY_STORE_PAGES`), keeping the query string
+  and hash, so a till that still shows `dumosrx.com/store/<slug>`, a shared link, or a Paystack return
+  (`?reference=`) started before the rename still lands on `/s/...`. It needs no host configuration (an
+  `.htaccess` rule would, and the host's current file is not in the repo). Remove it once no till build
+  older than 2026-11-17 is in the field and no pre-rename Paystack payment can still return; say so in the
+  PR that removes it. Related housekeeping: the `_none/_none` placeholder is excluded from both web FTP
+  syncs, the reserved branch names are pinned equal to the server's list by `storefront-scope.test.ts` and
+  `StorefrontBranchSlugsTest`, and a cart saved under the brand slug is carried to the main branch's scope
+  by `BranchCanonicalizer` (`moveCart`) when the storefront gains a second branch.
 - **Services (2026-11-16).** When `storefront.show_services` is set (baked at build),
   `StorefrontServices` fetches `/storefront/{slug}/services` in the browser and renders
   nothing if the list is empty. Each card links to WhatsApp to enquire; there is no cart.

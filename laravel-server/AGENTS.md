@@ -901,6 +901,16 @@ suffix for soft-deleted users and is strictly increasing within a process, so tw
 deleted in the same instant cannot collide on `users_email_unique`; the till strips it
 with `/_del_\d+$/`, so keep the suffix digits-only.
 
+### JSON responses are compressed in `public/.htaccess` (2026-11-16)
+
+The production log showed about 66 sync responses that arrived as a 200 with an unreadable
+body, 45 of them `POST /app/sync/pull`: a large response cut off on a slow connection.
+`public/.htaccess` now compresses `application/json` with `mod_deflate`, which cuts a
+sync page several-fold. It is a no-op where the host already compresses. Verify after a
+deploy with `curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' <api url>` and look for
+`content-encoding: gzip`. Pull pages are already bounded (`PullPager`, 500 rows per table,
+`docs/SYNC_PULL_PAGINATION.md`); shrink them only if compression is not enough.
+
 ### Till token rotation grace (2026-11-16)
 
 `POST /refresh` no longer deletes the token it was called with. `TillTokenRotator` issues the

@@ -22,6 +22,7 @@ const state = {
   showWidgetPrompt: false,
   isTauri: true,
   isStandalonePwa: false,
+  payables: { overdueCount: 0, overdueTotal: 0, dueSoonCount: 0, dueSoonTotal: 0 },
 };
 
 vi.mock("@/lib/context/auth-context", () => ({
@@ -34,6 +35,10 @@ vi.mock("@/lib/context/auth-context", () => ({
 
 vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: state.storeProfile }),
+}));
+
+vi.mock("@/lib/db/queries/payables", () => ({
+  getPayablesDueSummary: vi.fn(() => Promise.resolve(state.payables)),
 }));
 
 vi.mock("@/lib/db/queries/auth", () => ({
@@ -91,6 +96,7 @@ describe("useActionCenterAlerts", () => {
       showWidgetPrompt: false,
       isTauri: true,
       isStandalonePwa: false,
+      payables: { overdueCount: 0, overdueTotal: 0, dueSoonCount: 0, dueSoonTotal: 0 },
     });
     promptPinWidget.mockClear();
   });
@@ -142,6 +148,24 @@ describe("useActionCenterAlerts", () => {
     state.isAdmin = false;
     const result = await alerts({ expiring: 9, lowStock: 9, oversold: 9, missingExpiry: 9 });
     expect(result.current).toEqual([]);
+  });
+
+  it("raises a critical alert for overdue supplier payments and a warning for ones due soon", async () => {
+    state.payables = { overdueCount: 2, overdueTotal: 50000, dueSoonCount: 1, dueSoonTotal: 8000 };
+    const result = await alerts();
+    await waitFor(() => expect(ids(result.current)).toContain("payables-overdue"));
+    const overdue = result.current.find((a) => a.id === "payables-overdue");
+    const dueSoon = result.current.find((a) => a.id === "payables-due-soon");
+    expect(overdue?.priority).toBe("critical");
+    expect(overdue?.title).toBe("2 Supplier Payments Overdue");
+    expect(dueSoon?.priority).toBe("warning");
+    expect(dueSoon?.actionRoute).toBe("/procurement");
+  });
+
+  it("stays quiet about supplier payments when none are due", async () => {
+    const result = await alerts();
+    expect(ids(result.current)).not.toContain("payables-overdue");
+    expect(ids(result.current)).not.toContain("payables-due-soon");
   });
 
   it("keeps a warning up while units are owed to customers, pointing at the deliveries to receive", async () => {

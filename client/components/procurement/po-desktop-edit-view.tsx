@@ -23,7 +23,6 @@ interface PODesktopEditViewProps {
   canEditProducts?: boolean;
   isSubmitting: boolean;
   handleSubmit: () => void;
-  onSaveChanges?: () => void;
   isDirty?: boolean;
   onOpenEditDetails: () => void;
   paymentStatus?: string;
@@ -46,7 +45,6 @@ export function PODesktopEditView({
   canEditProducts,
   isSubmitting,
   handleSubmit,
-  onSaveChanges,
   isDirty,
   onOpenEditDetails,
   paymentStatus,
@@ -62,7 +60,7 @@ export function PODesktopEditView({
         className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
       >
-        <POBackButton itemCount={items.length} />
+        <POBackButton itemCount={isDirty === false ? 0 : items.length} />
         <div>
           <div className="text-[17px] font-serif font-bold leading-tight">
             Edit Purchase Order
@@ -83,23 +81,15 @@ export function PODesktopEditView({
               {formatCurrency(totalAmount)}
             </div>
           </div>
-          {isDirty && (
+          {isDirty !== false && (
             <Button
-              variant="outline"
               className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-              onClick={onSaveChanges}
+              onClick={handleSubmit}
               disabled={isSubmitting || items.length === 0}
             >
-              Save changes
+              {isSubmitting ? "Saving..." : "Save"}
             </Button>
           )}
-          <Button
-            className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-            onClick={handleSubmit}
-            disabled={isSubmitting || items.length === 0}
-          >
-            {isSubmitting ? "Saving..." : "Save Purchase Order"}
-          </Button>
         </div>
       </div>
 

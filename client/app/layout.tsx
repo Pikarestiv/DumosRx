@@ -64,6 +64,7 @@ export const viewport = {
   // No maximumScale/userScalable: blocking pinch-zoom is a WCAG 1.4.4 (Resize
   // Text) failure. Nothing in the app depends on a fixed viewport scale.
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "white" },
     { media: "(prefers-color-scheme: dark)", color: "black" },

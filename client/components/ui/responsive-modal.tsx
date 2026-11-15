@@ -83,10 +83,17 @@ export function ResponsiveModal({
       open={open}
       onOpenChange={onOpenChange}
       handleOnly={!swipeToDismiss}
-      repositionInputs={swipeToDismiss}
+      repositionInputs={false}
     >
       <DrawerContent
         className={cn("max-h-[90vh] flex flex-col px-4", className)}
+        style={{
+          bottom: "var(--kb-inset, 0px)",
+          maxHeight: "calc(var(--vv-height, 100dvh) * 0.95)",
+        }}
+        onInteractOutside={
+          swipeToDismiss ? undefined : (event) => event.preventDefault()
+        }
       >
         <DrawerHeader
           className={cn(

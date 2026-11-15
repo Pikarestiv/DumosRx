@@ -832,3 +832,9 @@ html[dir="rtl"] [data-sonner-toast]::after,
     }
   }
 }
+
+.fixed-visual-viewport {
+  top: var(--vv-top, 0px);
+  bottom: auto;
+  height: var(--vv-height, 100dvh);
+}

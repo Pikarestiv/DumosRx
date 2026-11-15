@@ -112,8 +112,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
 
   return (
     <div
-      className="fixed inset-0 z-40 bg-background flex flex-col"
-      style={{ height: "100dvh" }}
+      className="fixed inset-0 z-40 bg-background flex flex-col fixed-visual-viewport"
     >
       <div
         className="flex items-center gap-3 px-4 border-b border-border bg-card shrink-0"
@@ -169,7 +168,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
             className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
             style={{
               paddingBottom:
-                "calc(7rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+                "calc(7rem + var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
             }}
           >
             <PODetailsSummaryBar
@@ -203,7 +202,10 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
         </>
       ) : (
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto px-4 pt-4">
+          <div
+            className="flex-1 overflow-y-auto px-4 pt-4"
+            style={{ paddingBottom: "calc(1.5rem + var(--kb-inset, 0px))" }}
+          >
             <PODetailsFields {...detailsFieldsProps} />
           </div>
           <div className="border-t border-border bg-card p-4 shrink-0">

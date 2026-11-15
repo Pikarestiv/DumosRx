@@ -27,7 +27,7 @@ export function addOrMergeLineItem(
       {
         product_id: product.id,
         product_name: product.name,
-        bulk_unit: product.bulk_unit || "Carton",
+        bulk_unit: product.bulk_unit || product.base_unit || "Units",
         bulk_quantity: 1,
         units_per_bulk: unitsPerBulk,
         unit_cost: unitCost,

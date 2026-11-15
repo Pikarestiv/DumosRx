@@ -171,7 +171,7 @@ function EditOrderContent() {
   const [isReloading, setIsReloading] = useState(false);
   const isSubmitting = updatePurchaseOrderMutation.isPending || isReloading;
 
-  const handleSubmit = (stayOnPage = false) => {
+  const handleSubmit = () => {
     if (!id) {
       toast.error("Purchase order ID is missing");
       return;
@@ -204,10 +204,6 @@ function EditOrderContent() {
         onSuccess: () => {
           toast.success("Purchase Order updated successfully");
           notifySellingPriceUpdates(priceOverrideCount);
-          if (!stayOnPage) {
-            router.push(`/procurement?selected=${id}`);
-            return;
-          }
           setIsReloading(true);
           void getPurchaseOrderById(id)
             .then((fresh) => fresh && seedFromPo(fresh))
@@ -247,8 +243,7 @@ function EditOrderContent() {
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
     isSubmitting,
-    handleSubmit: () => handleSubmit(),
-    onSaveChanges: () => handleSubmit(true),
+    handleSubmit,
     isDirty,
     onOpenEditDetails: () => setIsEditDetailsOpen(true),
     paymentStatus,

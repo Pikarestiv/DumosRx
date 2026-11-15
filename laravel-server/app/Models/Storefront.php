@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
+/**
+ * @property string|null $theme
+ * @property string|null $locale
+ * @property array<int, string>|null $enabled_locales
+ * @property string|null $logo_url
+ */
 class Storefront extends Model
 {
     use HasFactory;
@@ -36,6 +42,7 @@ class Storefront extends Model
         'delivery_available',
         'delivery_note',
         'pay_on_delivery',
+        'show_services',
         'opening_hours',
         'primary_store_id',
         'logo_url',
@@ -54,6 +61,7 @@ class Storefront extends Model
         'owner_style_enabled' => 'boolean',
         'delivery_available' => 'boolean',
         'pay_on_delivery' => 'boolean',
+        'show_services' => 'boolean',
         'style_dirty_at' => 'datetime',
     ];
 
@@ -77,16 +85,25 @@ class Storefront extends Model
         });
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    /**
+     * @return BelongsTo<Store, $this>
+     */
     public function primaryStore(): BelongsTo
     {
         return $this->belongsTo(Store::class, 'primary_store_id');
     }
 
+    /**
+     * @return HasMany<Store, $this>
+     */
     public function stores(): HasMany
     {
         return $this->hasMany(Store::class, 'user_id', 'user_id');

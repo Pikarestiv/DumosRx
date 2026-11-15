@@ -38,7 +38,7 @@ export const setAppURL = (url: string) => {
     localStorage.removeItem(APP_URL_STORAGE_KEY);
   }
 };
-export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/store";
+export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/s";
 export const SYSTEM_EMAIL = "system-logs@dumosrx.com";
 export const SUPPORT_EMAIL = "support@dumosrx.com";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";

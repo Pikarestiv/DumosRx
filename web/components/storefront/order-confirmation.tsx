@@ -1,5 +1,6 @@
 "use client";
 
+import { parseStorefrontScope } from "@/lib/storefront-scope";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -17,6 +18,8 @@ interface TrackedOrder {
   payment_status: string;
   payment_method: "paystack" | "transfer" | "in_store";
   fulfilment_method: "pickup" | "delivery";
+  ready: boolean;
+  cancel_reason: string | null;
   payment_instructions: string | null;
   total_amount: string | number;
   currency: string;
@@ -31,11 +34,18 @@ const subscribeToLocation = (notify: () => void) => {
   return () => window.removeEventListener("popstate", notify);
 };
 
+const statusKey = (order: TrackedOrder) => {
+  if (order.order_status === "cancelled" && order.cancel_reason === "expired") return "order.status.expired" as const;
+  if (order.order_status === "pending" && order.ready) return "order.status.ready" as const;
+  return `order.status.${order.order_status}` as const;
+};
+
 type LoadState = { status: "loading" } | { status: "missing" } | { status: "ready"; order: TrackedOrder };
 
 export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
   const { t, money } = useStorefrontI18n();
   const search = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
+  const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
   const orderId = new URLSearchParams(search).get("id");
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
@@ -43,7 +53,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
     if (!orderId) return;
     let cancelled = false;
     apiClient
-      .get<{ order: TrackedOrder }>(`/storefront/${storeSlug}/orders/${encodeURIComponent(orderId)}`)
+      .get<{ order: TrackedOrder }>(`/storefront/${parseStorefrontScope(storeSlug).slug}/orders/${encodeURIComponent(orderId)}`)
       .then(({ data }) => !cancelled && setState({ status: "ready", order: data.order }))
       .catch(() => !cancelled && setState({ status: "missing" }));
     return () => {
@@ -51,7 +61,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
     };
   }, [storeSlug, orderId]);
 
-  const noOrderInLink = search !== "" && !orderId;
+  const noOrderInLink = hydrated && !orderId;
 
   if (state.status === "loading" && !noOrderInLink) return <p className="py-12 text-center opacity-75">{t("order.loading")}</p>;
 
@@ -59,7 +69,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
     return (
       <div className="space-y-4 py-12 text-center">
         <p>{t("order.notFound")}</p>
-        <Link href={`/store/${storeSlug}`} className={SECONDARY_BUTTON}>
+        <Link href={`/s/${storeSlug}`} className={SECONDARY_BUTTON}>
           {t("order.backToStore")}
         </Link>
       </div>
@@ -87,7 +97,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
         <p className="text-lg">
           {t("order.code")}: <span className="font-semibold [font-family:var(--sf-font-price)]">{order.code}</span>
         </p>
-        <p className="opacity-80">{t(`order.status.${order.order_status}`)}</p>
+        <p className="opacity-80">{t(statusKey(order))}</p>
       </div>
 
       <section aria-label={t("order.items")} className="space-y-3 rounded-[var(--sf-card-radius)] border border-black/10 bg-white p-5">
@@ -126,7 +136,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
             {t("order.whatsapp")}
           </a>
         ) : null}
-        <Link href={`/store/${storeSlug}`} className={SECONDARY_BUTTON}>
+        <Link href={`/s/${storeSlug}`} className={SECONDARY_BUTTON}>
           {t("order.backToStore")}
         </Link>
       </div>

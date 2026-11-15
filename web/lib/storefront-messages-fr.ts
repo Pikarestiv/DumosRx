@@ -61,6 +61,11 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "stock.low": "Plus que {count}",
   "stock.out": "Rupture de stock",
 
+  "services.heading": "Services",
+  "services.subtitle": "Écrivez à la boutique pour réserver ou vous renseigner.",
+  "services.enquire": "Se renseigner sur WhatsApp",
+  "services.enquireMessage": "Bonjour, je souhaite me renseigner sur {name}.",
+
   "steps.heading": "Comment commander",
   "steps.choose.title": "Choisissez",
   "steps.choose.body.pharmacy": "Ajoutez vos produits au panier. Les médicaments sur ordonnance exigent une ordonnance valide au retrait.",
@@ -153,6 +158,8 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "order.title": "Merci, votre commande est enregistrée",
   "order.code": "Code de commande",
   "order.status.pending": "La boutique a reçu votre commande et va la préparer.",
+  "order.status.ready": "La boutique indique que votre commande est prête.",
+  "order.status.expired": "Cette commande a été annulée faute de paiement à temps. Passez une nouvelle commande si vous la souhaitez encore.",
   "order.status.fulfilled": "Cette commande est terminée.",
   "order.status.cancelled": "Cette commande a été annulée.",
   "order.items": "Vos articles",

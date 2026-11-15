@@ -14,6 +14,8 @@ const order = (overrides: Record<string, unknown> = {}) => ({
   payment_status: "pending",
   payment_method: "in_store",
   fulfilment_method: "pickup",
+  ready: false,
+  cancel_reason: null,
   payment_instructions: null,
   total_amount: "3000.00",
   currency: "XAF",
@@ -27,7 +29,7 @@ const order = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const open = (query = "?id=0f3a9c1e-1111-2222-3333-444455556666") => window.history.replaceState({}, "", `/store/divamax/order/${query}`);
+const open = (query = "?id=0f3a9c1e-1111-2222-3333-444455556666") => window.history.replaceState({}, "", `/s/divamax/order/${query}`);
 
 describe("order confirmation", () => {
   beforeEach(() => {
@@ -91,6 +93,20 @@ describe("order confirmation", () => {
     expect(screen.getByRole("link", { name: "Back to the store" })).toBeTruthy();
   });
 
+  it("says when the store has marked the order ready", async () => {
+    getMock.mockResolvedValue({ data: { order: order({ ready: true }) } });
+    render(<OrderConfirmation storeSlug="divamax" />);
+
+    expect(await screen.findByText("The store says your order is ready.")).toBeTruthy();
+  });
+
+  it("says an unpaid order expired, so the customer knows to order again", async () => {
+    getMock.mockResolvedValue({ data: { order: order({ order_status: "cancelled", cancel_reason: "expired" }) } });
+    render(<OrderConfirmation storeSlug="divamax" />);
+
+    expect(await screen.findByText(/not paid in time/)).toBeTruthy();
+  });
+
   it("is honest that no text message is sent, and mentions the phone and the optional email", async () => {
     getMock.mockResolvedValue({ data: { order: order() } });
     render(<OrderConfirmation storeSlug="divamax" />);
@@ -99,6 +115,14 @@ describe("order confirmation", () => {
     expect(screen.getByText(/We do not send text messages/)).toBeTruthy();
     expect(screen.getByText(/If you entered an email address/)).toBeTruthy();
     expect(screen.getByText(/699000000/)).toBeTruthy();
+  });
+
+  it("does not load forever on a link with no query string at all", async () => {
+    open("");
+    render(<OrderConfirmation storeSlug="divamax" />);
+
+    expect(await screen.findByText(/couldn't find that order/i)).toBeTruthy();
+    expect(getMock).not.toHaveBeenCalled();
   });
 
   it("says the order was not found for an unknown order, and for a link with no order in it", async () => {

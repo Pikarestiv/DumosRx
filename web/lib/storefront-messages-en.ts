@@ -59,6 +59,11 @@ export const EN_MESSAGES = {
   "stock.low": "Only {count} left",
   "stock.out": "Out of stock",
 
+  "services.heading": "Services",
+  "services.subtitle": "Message the store to book or ask about any of these.",
+  "services.enquire": "Enquire on WhatsApp",
+  "services.enquireMessage": "Hi, I would like to ask about {name}.",
+
   "steps.heading": "How ordering works",
   "steps.choose.title": "Choose",
   "steps.choose.body.pharmacy": "Add products to your cart. Prescription items need a valid prescription at pickup.",
@@ -151,6 +156,8 @@ export const EN_MESSAGES = {
   "order.title": "Thank you, your order is in",
   "order.code": "Order code",
   "order.status.pending": "The store has your order and will prepare it.",
+  "order.status.ready": "The store says your order is ready.",
+  "order.status.expired": "This order was cancelled because it was not paid in time. Place a new order if you still want it.",
   "order.status.fulfilled": "This order has been completed.",
   "order.status.cancelled": "This order was cancelled.",
   "order.items": "Your items",

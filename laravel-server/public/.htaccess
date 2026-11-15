@@ -6,6 +6,10 @@
   AddHandler application/x-httpd-alt-php82___lsphp .php .php8 .phtml
 </IfModule>
 
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

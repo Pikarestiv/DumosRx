@@ -14,7 +14,7 @@ class OnlineOrder extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'store_id', 'customer_name', 'customer_phone', 'customer_email', 'customer_address', 'fulfilment_method',
+        'store_id', 'customer_name', 'customer_phone', 'customer_email', 'customer_address', 'fulfilment_method', 'ready_at', 'cancel_reason',
         'total_amount', 'payment_method', 'payment_status', 'order_status',
         'paystack_reference', 'synced_at',
     ];
@@ -22,6 +22,7 @@ class OnlineOrder extends Model
     protected $casts = [
         'total_amount' => 'decimal:2',
         'synced_at' => 'datetime',
+        'ready_at' => 'datetime',
     ];
 
     /**

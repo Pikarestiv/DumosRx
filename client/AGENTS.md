@@ -7148,7 +7148,7 @@ npm run release           # scripts/release.ts: version bump + release flow
 
 ## Online storefront orders (`components/pos/online-orders-modal.tsx`)
 
-Orders placed on the public storefront (`web/app/store/[store_slug]/`) are
+Orders placed on the public storefront (`web/app/s/[store_slug]/`) are
 fetched from the API, never synced into local SQLite — there is no
 `online_orders` table in `lib/db/schema.ts`. Fulfilling one is what turns it
 into local data.

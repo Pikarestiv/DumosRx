@@ -498,11 +498,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
 - **Fix:** point the link at the `web/` register page via a constant (§4, no hardcoded URL) and forward `ref` from `use-register-form.ts` beside `agent_ref`.
 
-#### A-371. `laravel-server/` — `PUT /admin/stores/{id}/storefront` answers 500, not 404, for a store id that does not exist
-- **Found:** 2026-11-13, adding the storefront theme endpoint beside it.
-- **What's wrong:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail()`, and `AdminBaseController::withErrorResponse()` catches every `\Exception` except a validation one, so the `ModelNotFoundException` is logged as an error and returned as a generic 500 "Failed to update the storefront". The new theme endpoint catches it and answers 404.
-- **Fix:** catch `ModelNotFoundException` in `AdminStoreStorefrontController::update()` the way `updateTheme()` does, or let `withErrorResponse()` rethrow it so Laravel renders the 404 for every admin controller.
-
 #### A-361. `client/` + `laravel-server/` — `schema-migrations.ts` and `SyncController.php` are far over the 350-line rule
 - **Found:** 2026-11-13, review of `feat/service-pos`; pre-existing (main already had 857 and ~840 lines), the services work added a little to each.
 - **What's wrong:** `client/lib/db/schema-migrations.ts` is 925 lines and `laravel-server/app/Http/Controllers/Api/App/SyncController.php` 846, against `.agents/AGENTS.md` §4.
@@ -770,6 +765,7 @@ These describe the current state of known architectural tradeoffs and performanc
 
 ### Files over 350 lines touched by a fix
 Logged per the 2026-10-25 rule: each file a fix edits that was already over the 350-line limit, or that it pushes over, with its size after the change. None of these were split inside a bug fix.
+- `laravel-server/routes/api.php` (a routes file, 381 lines), `laravel-server/tests/Feature/Admin/AdminStorefrontSettingsAndRebuildTest.php` (about 380) and `web/__tests__/storefront-home.test.tsx` (about 400): pushed over by the storefront redesign (2026-11-15), not split inside the feature. The two test files should be split by concern (settings vs rebuild; home vs live stock vs French) next time they are touched.
 - `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal, A-217 added the up-front batch lock and push-inbound map). What is left in it is listed under Architecture below.
 - `laravel-server/app/Services/Web/DashboardService.php`: 707 lines, already over (the recent-transaction line query moved out to `RecentTransactionLines`, so it shrank).
 - `client/lib/db/local-database.ts`: 500 lines, already over (`forceSyncAllData()` gained the three services tables on one line).

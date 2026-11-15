@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { FeaturedProducts } from "@/components/storefront/featured-products";
+import { StorefrontServices } from "@/components/storefront/storefront-services";
 import { StoreClosedNotice } from "@/components/storefront/store-closed-notice";
 import { OrderingSteps } from "@/components/storefront/ordering-steps";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
@@ -45,7 +46,7 @@ export default async function StorefrontPage({
 
   const { store, products, storefront, branches, product_count } = data;
   const preset = resolveStorefrontPreset(storefront?.theme, store.store_type);
-  const catalogHref = `/store/${store_slug}/catalog`;
+  const catalogHref = `/s/${store_slug}/catalog`;
   const tagline = storefront?.tagline?.trim() || storefront?.headline?.trim();
   const whatsapp = storefront?.whatsapp;
 
@@ -80,6 +81,7 @@ export default async function StorefrontPage({
           whatsapp={whatsapp}
           catalogHref={catalogHref}
         />
+        {storefront?.show_services ? <StorefrontServices storeSlug={store_slug} currency={store.currency} whatsapp={whatsapp} /> : null}
         <OrderingSteps isPharmacy={isPharmacyStore(store)} />
       </main>
 

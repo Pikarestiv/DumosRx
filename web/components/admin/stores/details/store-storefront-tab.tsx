@@ -38,7 +38,7 @@ export function StoreStorefrontTab({ store }: { store: AdminStoreDetail }) {
           <div className="flex flex-wrap gap-2">
             {slug && published ? (
               <a
-                href={`${WEB_APP_URL}/store/${slug}`}
+                href={`${WEB_APP_URL}/s/${slug}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(buttonVariants({ variant: "outline" }))}

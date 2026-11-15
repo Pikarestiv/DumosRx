@@ -52,6 +52,8 @@ const PRESETS: {
   },
 ];
 
+const ADMIN_ONLY_PRESETS: Record<string, string> = { market: "Market", boutique: "Boutique", grove: "Grove" };
+
 const LANGUAGE_NAMES = { en: "English", fr: "Français" } as const;
 const WHATSAPP_PATTERN = /^\+[0-9 ()-]{6,31}$/;
 
@@ -102,6 +104,7 @@ function AppearanceForm({
   const save = useUpdateStorefrontSettings();
   const [chosenPreset, setPreset] = useState<StorefrontPresetId | null>(null);
   const preset = chosenPreset ?? presetFor(settings);
+  const adminPresetLabel = chosenPreset ? undefined : ADMIN_ONLY_PRESETS[settings.theme];
   const [accent, setAccent] = useState(settings.accent ?? "");
   const [tagline, setTagline] = useState(settings.tagline ?? "");
   const [whatsapp, setWhatsapp] = useState(settings.whatsapp ?? "");
@@ -182,6 +185,7 @@ function AppearanceForm({
       ) : null}
 
       <fieldset disabled={locked} className="space-y-6 disabled:opacity-60">
+        {adminPresetLabel ? <p className="rounded-lg border bg-muted/40 p-3 text-sm">Your storefront uses the {adminPresetLabel} style, set by your account manager. Choosing a style below replaces it.</p> : null}
         <div
           role="radiogroup"
           aria-label="Storefront style"
@@ -192,11 +196,11 @@ function AppearanceForm({
               key={option.id}
               type="button"
               role="radio"
-              aria-checked={preset === option.id}
+              aria-checked={!adminPresetLabel && preset === option.id}
               onClick={() => setPreset(option.id)}
               className={cn(
                 "space-y-1 rounded-lg border p-3 text-left text-sm",
-                preset === option.id && "ring-2 ring-primary",
+                !adminPresetLabel && preset === option.id && "ring-2 ring-primary",
               )}
             >
               <span className="block font-medium">{option.label}</span>

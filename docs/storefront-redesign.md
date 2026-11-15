@@ -44,8 +44,14 @@
   with an order code, payment details and a WhatsApp button, customer details saved
   with the order and in the browser, and confirmation emails to the owner and, if
   given, the customer. No SMS or WhatsApp is sent; the copy says so.
+- **Order holds and customer emails (2026-11-15):** an unpaid transfer or
+  pay-at-pickup/delivery order is held 24 hours by default (configurable per method; a
+  transfer cannot be confirmed in the system, so a 30-minute hold cancelled paid orders), then
+  cancelled so the stock is released; staff can email the customer that an order is ready from
+  the till's Online Orders; the customer is emailed on a cancellation or expiry.
+  The delivery note stays a plain text note (no fee or zone logic) by decision.
 - **Local preview:** the till's slug field prefix comes from
-  `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/store`), so set it in
+  `NEXT_PUBLIC_STOREFRONT_BASE_URL` (default `dumosrx.com/s`), so set it in
   `client/.env.local` (e.g. `localhost:3000/store`) to see a local link.
 
 Phases 1 (foundation), 2 (home page and product card), 3 (catalog), 4 (admin tab) and 5 (polish) are built; the mobile performance target is not yet met (see `docs/KNOWN_BUGS.md`). Phase 2 also moved the header to logo + search + cart (no nav links) and added `stock_quantity`/`in_stock` to the product payload.
@@ -60,7 +66,7 @@ Save this file in the repo as `docs/storefront-redesign.md`. Put the design scre
 
 Start a session in the repo and paste:
 
-> Read `docs/storefront-redesign.md` and look at every image in `docs/storefront-redesign/`. Then explore how the public storefront (`/store/[slug]` and `/store/[slug]/catalog`) and the storefront settings screen are built today: routes, components, data fetching, the current theme setting and how it is stored. Before writing any code, give me a plan that says which files change, what the data model changes are, and how existing stores move over without breaking. Wait for me to approve the plan. Then build it in the phases in the brief, one phase at a time, and stop after each phase so I can check it.
+> Read `docs/storefront-redesign.md` and look at every image in `docs/storefront-redesign/`. Then explore how the public storefront (`/s/[slug]` and `/s/[slug]/catalog`) and the storefront settings screen are built today: routes, components, data fetching, the current theme setting and how it is stored. Before writing any code, give me a plan that says which files change, what the data model changes are, and how existing stores move over without breaking. Wait for me to approve the plan. Then build it in the phases in the brief, one phase at a time, and stop after each phase so I can check it.
 
 ---
 
@@ -74,7 +80,7 @@ What we want: each store looks like its own business, the page works on a phone,
 
 A store's look is made of:
 
-- **Preset**: sets the structure and personality (fonts, corner radius, hero layout, card style, how dense things are). Ships with three: `workshop`, `clinic`, `studio`.
+- **Preset**: sets the structure and personality (fonts, corner radius, hero layout, card style, how dense things are). Ships with six: `workshop`, `clinic`, `studio`, plus the admin-only `market`, `boutique` and `grove`, which reuse the same self-hosted fonts.
 - **Accent colour**: one colour the owner picks. Keep the current swatches and add a custom hex input.
 - **Logo**: optional upload.
 - **Store details**: tagline, address, opening hours, phone, WhatsApp number, pickup time estimate.
@@ -102,7 +108,7 @@ Load fonts with `next/font`, or self-host them, and load only the active preset'
 
 Accent colour rule: if the accent is too light for white text (contrast below 4.5:1), use ink-coloured text on accent buttons instead. Work this out automatically.
 
-## 3. Home page structure (`/store/[slug]`)
+## 3. Home page structure (`/s/[slug]`)
 
 Top to bottom:
 
@@ -133,13 +139,13 @@ Only mention branches ("your nearest branch") when the store has more than one.
 - **Price is 0 or missing:** show "Price on request" with an "Ask" button that opens WhatsApp with a ready-made message ("Hi, how much is {product}?"). Never show ₦0.
 - Fix the category labels: Title Case for display, and fix typos where they come from our own seed data (e.g. "busicuit").
 
-## 5. Catalog page (`/store/[slug]/catalog`)
+## 5. Catalog page (`/s/[slug]/catalog`)
 
 - **Render products on the server** (SSR/SSG with revalidation). Right now the page sends "Loading products…" to search engines and link previews.
 - Search filters as the user types. Remove the separate Search button.
 - Categories: a sticky sidebar on desktop, a horizontal scrolling chip row on mobile.
 - 53 products don't need pagination. Show them all, or load more as the user scrolls past 60.
-- Every product gets its own URL (`/store/[slug]/p/[productSlug]`) with Open Graph tags (name, price, store name, and the category tile rendered as an OG image) so owners can share single products on WhatsApp.
+- Every product gets its own URL (`/s/[slug]/p/[productSlug]`) with Open Graph tags (name, price, store name, and the category tile rendered as an OG image) so owners can share single products on WhatsApp.
 
 ## 6. Mobile (most shoppers are on phones)
 

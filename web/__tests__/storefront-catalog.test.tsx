@@ -49,7 +49,7 @@ async function settle() {
 describe("StorefrontCatalogView", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    window.history.replaceState({}, "", "/store/grace/catalog/");
+    window.history.replaceState({}, "", "/s/grace/catalog/");
     localStorage.clear();
     respond = () => initial;
     fetchMock = vi.fn((url: string) => {
@@ -112,7 +112,7 @@ describe("StorefrontCatalogView", () => {
   });
 
   it("opens with the term from the header search box already applied", async () => {
-    window.history.replaceState({}, "", "/store/grace/catalog/?q=amox");
+    window.history.replaceState({}, "", "/s/grace/catalog/?q=amox");
     respond = (params) => (params.get("q") === "amox" ? page([AMOXIL], 1, 1, 1) : initial);
     renderCatalog();
     await settle();

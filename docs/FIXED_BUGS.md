@@ -1,3 +1,10 @@
+### A-371 — PUT /admin/stores/{id}/storefront answered 500, not 404, for a store id that does not exist
+- **Fixed:** 2026-11-14, server only, TDD. Found adding the storefront theme endpoint beside it.
+- **Was:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail($id)`, but `AdminStoreStorefrontController::update()` did not catch `ModelNotFoundException` (unlike `updateTheme()` and `updateSettings()`). `AdminBaseController::withErrorResponse()` caught it as a generic exception, logging an error and returning HTTP 500 "Failed to update the storefront".
+- **Now:** `AdminStoreStorefrontController::update()` catches `ModelNotFoundException` and returns 404 `{"message": "Store not found"}`, matching `updateTheme()` and OpenAPI documentation.
+- **Coverage:** `laravel-server/tests/Feature/Admin/AdminStoreStorefrontToggleTest.php` (`toggling_storefront_for_non_existent_store_answers_404`).
+- **Compat:** bug fix; no schema or request payload change.
+
 ### A-378 — a row taken over from another till's cloud audit session had no baseline, so submit measured against stock at submit time
 - **Fixed:** 2026-11-14, client and server, TDD. Found alongside A-376.
 - **Was:** `audit_session_items` stored `system_quantity` but not `baseline_quantity`. `toCloudItem()` sent no baseline and `mergeCloudItemsIntoLocal()` filled the count without setting `baselineQty`. When Till B took over a count from Till A, Till B's `submitStockAudit()` had no recorded baseline for those items and measured discrepancy against live stock at submit time, adding back as phantom inventory any sales made between Till A's count and Till B's submit.

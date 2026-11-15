@@ -62,7 +62,7 @@ export default async function StorefrontPrescriptionPage({
           className="flex items-center gap-1.5 text-xs text-muted-foreground"
         >
           <Link
-            href={`/store/${store_slug}`}
+            href={`/s/${store_slug}`}
             className="hover:text-foreground transition-colors"
           >
             {businessName}

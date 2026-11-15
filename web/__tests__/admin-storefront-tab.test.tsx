@@ -12,7 +12,7 @@ const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 
 vi.mock("@/lib/api/client", () => ({ webApiClient: { request } }));
 
-const ALL_THEMES = ["emerald", "forest", "navy", "rose", "amber", "slate", "violet", "workshop", "clinic", "studio"];
+const ALL_THEMES = ["emerald", "forest", "navy", "rose", "amber", "slate", "violet", "workshop", "clinic", "studio", "market", "boutique", "grove"];
 
 const storeWith = (storefront: Partial<AdminStoreDetail["storefront"]> = {}) =>
   ({
@@ -125,6 +125,7 @@ describe("StoreStorefrontTab", () => {
           delivery_available: false,
           delivery_note: null,
           pay_on_delivery: false,
+          show_services: false,
           enabled_locales: ["en"],
         },
       },
@@ -142,7 +143,7 @@ describe("StoreStorefrontTab", () => {
 
     await waitFor(() => expect(settingsCall()).toBeTruthy());
     expect(settingsCall()?.[1].body).toEqual({
-      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", owner_style_enabled: false, payment_instructions: null, delivery_available: false, delivery_note: null, pay_on_delivery: false, enabled_locales: ["en"],
+      accent: null, tagline: null, whatsapp: null, pickup_minutes: null, opening_hours: null, locale: "en", owner_style_enabled: false, payment_instructions: null, delivery_available: false, delivery_note: null, pay_on_delivery: false, show_services: false, enabled_locales: ["en"],
     });
   });
 
@@ -204,7 +205,7 @@ describe("StoreStorefrontTab", () => {
 
   it("links to the live storefront only while it is published", () => {
     const published = renderTab(storeWith());
-    expect(screen.getByRole("link", { name: /preview storefront/i }).getAttribute("href")).toBe(`${WEB_APP_URL}/store/corner`);
+    expect(screen.getByRole("link", { name: /preview storefront/i }).getAttribute("href")).toBe(`${WEB_APP_URL}/s/corner`);
     published.unmount();
 
     renderTab(storeWith({ online_store_enabled: false }));

@@ -247,4 +247,23 @@ class StorefrontCheckoutDetailsTest extends TestCase
         $this->assertMatchesRegularExpression('/^[0-9A-F]{8}$/', $code);
         $this->assertSame($code, OnlineOrder::find($id)->code());
     }
+
+    public function test_an_old_bundle_checkout_with_no_fulfilment_method_is_a_pickup_and_still_reserves_stock(): void
+    {
+        Mail::fake();
+
+        $this->place(['customer_address' => '12 Rue Joss'])->assertCreated();
+
+        $order = OnlineOrder::firstOrFail();
+        $this->assertSame('pickup', $order->fulfilment_method);
+        $this->assertSame(48.0, app(\App\Services\Storefront\StorefrontCheckoutService::class)->availableQuantity($this->store, $this->product->id));
+    }
+
+    public function test_a_transfer_order_for_a_store_with_no_instructions_is_still_accepted_for_old_bundles(): void
+    {
+        Mail::fake();
+        $this->storefront->update(['payment_instructions' => null]);
+
+        $this->place(['payment_method' => 'transfer'])->assertCreated();
+    }
 }

@@ -139,6 +139,10 @@ export class FleetBillingApiClient extends StorefrontApiClient {
     return this.request<{ orders?: OnlineOrder[] }>("/app/online-orders");
   }
 
+  async markOnlineOrderReady(id: string) {
+    return this.request<{ order: OnlineOrder; emailed: boolean }>(`/app/online-orders/${id}/ready`, { method: "POST" });
+  }
+
   // payment_confirmed is explicit because the server no longer infers payment from fulfilment alone:
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-client-fleet-billing-ts-L147
   async fulfillOnlineOrder(id: string) {

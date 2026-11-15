@@ -6,6 +6,7 @@ use App\Exceptions\StoreActionBlockedException;
 use App\Models\ActivityLog;
 use App\Models\Store;
 use App\Models\Storefront;
+use App\Services\Storefront\StorefrontBranchSlugs;
 use App\Services\Storefront\StorefrontCatalogService;
 use App\Services\Storefront\StorefrontStyleService;
 use App\Support\SyncRowStamp;
@@ -30,6 +31,7 @@ class AdminStoreStorefrontService
     public function __construct(
         private StorefrontCatalogService $catalogService,
         private StorefrontStyleService $styleService,
+        private StorefrontBranchSlugs $branchSlugs,
     ) {}
 
     /**
@@ -98,7 +100,7 @@ class AdminStoreStorefrontService
                 $slugChangedFrom = $this->applySlug($store, $requestedSlug);
             }
 
-            if ($enabled && blank($store->store_slug)) {
+            if ($enabled && blank($store->store_slug) && ! $this->isBranchOfAddressedStorefront($store)) {
                 throw new StoreActionBlockedException(
                     'This store has no storefront slug yet, so publishing it would produce no reachable page. Set the slug with the toggle, or the owner sets it in the app.',
                 );
@@ -107,6 +109,10 @@ class AdminStoreStorefrontService
             $store->online_store_enabled = $enabled;
             $store->save();
             SyncRowStamp::bump($store);
+
+            if ($enabled) {
+                $this->branchSlugs->ensure($store);
+            }
 
             ActivityLog::create([
                 'user_id' => Auth::id(),
@@ -120,6 +126,15 @@ class AdminStoreStorefrontService
 
             return $store->refresh();
         });
+    }
+
+    private function isBranchOfAddressedStorefront(Store $store): bool
+    {
+        return Store::where('user_id', $store->user_id)
+            ->where('id', '!=', $store->id)
+            ->whereNotNull('store_slug')
+            ->where('store_slug', '!=', '')
+            ->exists();
     }
 
     /**

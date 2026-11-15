@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { apiClient } from "../lib/api/client";
-import { setToken, clearToken, getToken } from "../lib/api/token-manager";
+import { setToken, clearToken, getToken, REFRESH_RETRY_DELAY_MS } from "../lib/api/token-manager";
 
 // Regression coverage for base-client.ts's 401 handler clearing the auth token on a network blip during the refresh-and-re…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-base-client-401-refresh-test-ts-L5
@@ -90,9 +90,19 @@ describe("BaseApiClient 401 handling", () => {
         status: 401,
         json: () => Promise.resolve({ message: "Invalid refresh token" }),
         text: () => Promise.resolve(JSON.stringify({ message: "Invalid refresh token" })),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ message: "Invalid refresh token" }),
+        text: () => Promise.resolve(JSON.stringify({ message: "Invalid refresh token" })),
       });
 
-    await expect(apiClient.getProfile()).rejects.toThrow();
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    const rejected = expect(apiClient.getProfile()).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(REFRESH_RETRY_DELAY_MS);
+    await rejected;
+    vi.useRealTimers();
 
     expect(getToken()).toBeNull();
   });

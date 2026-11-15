@@ -147,6 +147,17 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
     }
 
     #[Test]
+    public function a_super_admin_can_show_the_stores_services_on_its_storefront(): void
+    {
+        $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['show_services' => true])->assertOk();
+
+        $this->assertTrue((bool) $this->storefront()->show_services);
+        $this->actingAs($this->admin())
+            ->getJson("/api/v1/admin/stores/{$this->store->id}")
+            ->assertJsonPath('storefront.show_services', true);
+    }
+
+    #[Test]
     public function a_super_admin_sets_how_customers_pay_and_whether_the_store_delivers(): void
     {
         $this->actingAs($this->admin())->putJson($this->settingsUrl(), [
@@ -348,7 +359,7 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
         Http::fake(['api.github.com/*' => Http::response(['message' => 'Bad credentials'], 401)]);
         $this->actingAs($this->admin())->putJson($this->settingsUrl(), ['tagline' => 'Ship me'])->assertOk();
 
-        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(502);
+        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(422);
 
         $this->assertNotNull($this->storefront()->style_dirty_at);
         $this->assertFalse(ActivityLog::where('action', 'STOREFRONT_REBUILD_REQUESTED')->exists());
@@ -360,7 +371,7 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
         config(['dumos.github.token' => null]);
         Http::fake();
 
-        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(503);
+        $this->actingAs($this->admin())->postJson('/api/v1/admin/storefront/rebuild')->assertStatus(422);
 
         Http::assertNothingSent();
     }

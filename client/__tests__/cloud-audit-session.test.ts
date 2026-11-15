@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   toCloudItem,
+  unsyncedItems,
   mergeCloudItemsIntoLocal,
 } from "@/lib/hooks/use-cloud-audit-session";
 import {
@@ -309,3 +310,22 @@ describe("Cloud Audit Session API Client", () => {
   });
 });
 
+
+describe("unsyncedItems", () => {
+  const item = (productId: string, counted: number) => ({ product_id: productId, counted_quantity: counted, counted: true }) as ReturnType<typeof toCloudItem>;
+
+  it("sends only items that are new or changed since they were last sent", () => {
+    const sent = new Map([
+      ["a", JSON.stringify(item("a", 5))],
+      ["b", JSON.stringify(item("b", 2))],
+    ]);
+
+    const toSend = unsyncedItems(sent, [item("a", 5), item("b", 3), item("c", 1)]);
+
+    expect(toSend.map((i) => i.product_id)).toEqual(["b", "c"]);
+  });
+
+  it("sends everything when nothing has been sent yet", () => {
+    expect(unsyncedItems(new Map(), [item("a", 1), item("b", 2)])).toHaveLength(2);
+  });
+});

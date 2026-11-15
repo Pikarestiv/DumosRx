@@ -26,6 +26,10 @@ import { toast } from "sonner";
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const SYNC_DEBOUNCE_MS = 1_500;
 
+export function unsyncedItems(sent: ReadonlyMap<string, string>, items: CloudAuditSessionItem[]): CloudAuditSessionItem[] {
+  return items.filter((item) => sent.get(item.product_id) !== JSON.stringify(item));
+}
+
 export function toCloudItem(item: AuditItem): CloudAuditSessionItem {
   return {
     product_id: item.id,
@@ -115,6 +119,7 @@ export function useCloudAuditSession(storeId: string | null) {
     sessionRef.current = session;
   }, [session]);
 
+  const sentItemsRef = useRef<{ sessionId: string; byProduct: Map<string, string> }>({ sessionId: "", byProduct: new Map() });
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -184,9 +189,8 @@ export function useCloudAuditSession(storeId: string | null) {
     syncTimerRef.current = setTimeout(() => {
       void (async () => {
         try {
-          const dirtyItems = items
-            .filter((i) => i.counted === true)
-            .map(toCloudItem);
+          if (sentItemsRef.current.sessionId !== cur.id) sentItemsRef.current = { sessionId: cur.id, byProduct: new Map() };
+          const dirtyItems = unsyncedItems(sentItemsRef.current.byProduct, items.filter((i) => i.counted === true).map(toCloudItem));
 
           if (dirtyItems.length === 0) return;
 
@@ -195,6 +199,7 @@ export function useCloudAuditSession(storeId: string | null) {
             cur.lease_version,
             dirtyItems
           );
+          dirtyItems.forEach((item) => sentItemsRef.current.byProduct.set(item.product_id, JSON.stringify(item)));
           setLastSyncedAt(res.last_synced_at);
         } catch (err) {
           if (err instanceof AuditSessionConflictError) {

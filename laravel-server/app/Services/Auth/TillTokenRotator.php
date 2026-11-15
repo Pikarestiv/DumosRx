@@ -11,8 +11,12 @@ class TillTokenRotator
 {
     public const ROTATED_NAME = 'till-rotated';
 
-    public function rotate(User $user, PersonalAccessToken $current, Request $request): string
+    public function rotate(User $user, mixed $current, Request $request): string
     {
+        if (! $current instanceof PersonalAccessToken) {
+            return $user->createToken('web', ['*'], TokenLifetime::forUser($user))->plainTextToken;
+        }
+
         $issued = $user->createToken('web', ['*'], TokenLifetime::forUser($user));
 
         $issued->accessToken->forceFill([

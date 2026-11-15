@@ -95,4 +95,10 @@ class TillTokenRotationTest extends TestCase
 
         $this->assertSame(1, PersonalAccessToken::where('name', TillTokenRotator::ROTATED_NAME)->count());
     }
+
+    public function test_a_session_authenticated_refresh_without_a_bearer_token_still_issues_a_token(): void
+    {
+        $this->withoutMiddleware([\App\Http\Middleware\EnsureEmailIsVerified::class, \App\Http\Middleware\CheckAccountStatus::class, \App\Http\Middleware\CheckSubscription::class]);
+        $this->actingAs($this->owner)->postJson('/api/v1/refresh')->assertOk()->assertJsonStructure(['token']);
+    }
 }

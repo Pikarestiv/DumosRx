@@ -881,6 +881,19 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 - `GET /sessions` (`SessionController::index`) returns `device_id` alongside `id`, `name`, `ip_address`, `user_agent`, `last_used_at`, `created_at`, `is_current`.
 - Legacy rows without a `device_id` were backfilled in migration; `SessionController` also falls back to `UserDevice` where unambiguous.
 
+### Till token rotation grace (2026-11-16)
+
+`POST /refresh` no longer deletes the token it was called with. `TillTokenRotator` issues the
+new token (copying `device_id` and recording the request's IP and user agent, which the old
+refresh dropped), renames the old one `till-rotated` and expires it after
+`sanctum.till_rotation_grace_minutes` (default 30, `SANCTUM_TILL_ROTATION_GRACE_MINUTES`).
+Why: the server rotated before responding, so a till whose refresh response was lost kept a
+deleted token and unlinked on its next request. A rotated token can itself refresh again,
+which is how a till recovers. Rotated tokens are pruned on the next refresh and are excluded
+from the admin active-session count and the sessions list. Anything that counts or lists
+`personal_access_tokens` must exclude `TillTokenRotator::ROTATED_NAME`. The client's refresh
+timeout is 20 s (`REFRESH_TIMEOUT_MS`).
+
 ### Till re-link codes (2026-10-23, A-311)
 
 An unlinked till can be re-linked without anyone typing the owner's password

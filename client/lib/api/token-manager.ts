@@ -15,6 +15,7 @@ export type RefreshOutcome = "refreshed" | "confirmed-invalid" | "unconfirmed";
 let token: string | null = null;
 let refreshPromise: Promise<RefreshOutcome> | null = null;
 const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const REFRESH_TIMEOUT_MS = 20_000;
 
 if (typeof window !== "undefined") {
   token = readAuthToken();
@@ -64,7 +65,7 @@ export const refreshTokenSilently = async (baseURL: string): Promise<RefreshOutc
       // base-client.ts awaits this before every API request once the token is stale, so an un-timed fetch here blocks every request behind it - the…
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-token-manager-ts-L64
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
       const response = await fetch(url, {
         method: "POST",
         headers: {

@@ -5740,6 +5740,12 @@ than Chrome before it rejects" issue already fixed in
 license-guard.tsx's sync call and the service worker's navigate
 handler, just left open here.
 
+The limit is 20 s, not 5 s: the server rotates the token before it responds, so a
+client that gives up early on a slow connection used to keep a token the server had
+already deleted and unlink on its next request. The server now also keeps the
+rotated-out token valid for `sanctum.till_rotation_grace_minutes` (30), so a lost
+response recovers on the next refresh instead.
+
 ### line-api-token-manager-ts-L90
 
 `client/lib/api/token-manager.ts:87`

@@ -9,6 +9,7 @@ use App\Models\StockAudit;
 use App\Models\Store;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class AuditSessionService
@@ -16,6 +17,8 @@ class AuditSessionService
     public const LEASE_DURATION_SECONDS = 300;
 
     private const ITEM_UPSERT_CHUNK = 200;
+
+    private ?bool $baselineColumn = null;
 
     public const PENDING_SYNC_GRACE_HOURS = 24;
 
@@ -93,7 +96,7 @@ class AuditSessionService
                         'audit_session_id' => $session->id,
                         'product_id' => $item['product_id'],
                         'system_quantity' => $item['system_quantity'] ?? 0,
-                        'baseline_quantity' => $item['baseline_quantity'] ?? null,
+                        ...($this->hasBaselineColumn() ? ['baseline_quantity' => $item['baseline_quantity'] ?? null] : []),
                         'counted_quantity' => $item['counted_quantity'] ?? null,
                         'cost_price' => $item['cost_price'] ?? null,
                         'counted_cost_price' => $item['counted_cost_price'] ?? null,
@@ -114,6 +117,11 @@ class AuditSessionService
 
             return $session->load('items');
         });
+    }
+
+    private function hasBaselineColumn(): bool
+    {
+        return $this->baselineColumn ??= Schema::hasColumn('audit_session_items', 'baseline_quantity');
     }
 
     public function getActiveSession(string $storeId, bool $includeItems = false): ?AuditSession
@@ -209,7 +217,7 @@ class AuditSessionService
                     'updated_at' => $now,
                 ];
 
-                if (isset($item['baseline_quantity'])) {
+                if (isset($item['baseline_quantity']) && $this->hasBaselineColumn()) {
                     $withBaseline[] = $row + ['baseline_quantity' => $item['baseline_quantity']];
                 } else {
                     $withoutBaseline[] = $row;

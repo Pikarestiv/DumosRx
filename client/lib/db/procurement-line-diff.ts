@@ -91,7 +91,7 @@ export async function reconcilePurchaseOrderLines(
 
   for (const line of inserts) {
     await insert("purchase_order_items", {
-      id: line.id || generateId(),
+      id: generateId(),
       po_id: poId,
       product_id: line.product_id,
       bulk_quantity: line.bulk_quantity,

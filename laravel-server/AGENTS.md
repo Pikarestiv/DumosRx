@@ -890,6 +890,7 @@ request run thousands of queries inside one transaction; overlapping requests th
 `Lock wait timeout exceeded` (372 on 2026-11-14) and tied up PHP workers. The till now
 sends only items that changed since the last successful sync (`unsyncedItems`), but the
 server still accepts the full list so older builds keep working.
+`baseline_quantity` is written only when the column exists (`hasBaselineColumn`) and only for items that carry one, so audits still start and sync in the window between the FTP deploy and the migration, and an older till re-sending without it cannot erase a recorded baseline.
 
 ### Admin alerts and deleted-user suffixes (2026-11-16)
 

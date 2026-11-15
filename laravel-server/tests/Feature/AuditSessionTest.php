@@ -402,4 +402,21 @@ class AuditSessionTest extends TestCase
         $this->assertEquals(10, $item->baseline_quantity);
         $this->assertEquals(9, $item->counted_quantity);
     }
+
+    public function test_audits_still_start_and_sync_before_the_baseline_migration_has_run(): void
+    {
+        \Illuminate\Support\Facades\Schema::dropColumns('audit_session_items', ['baseline_quantity']);
+
+        $sessionId = $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id, 'X-Device-Id' => 'TILL-01'])
+            ->postJson('/api/v1/app/audit-sessions', ['items' => [['product_id' => $this->productA->id, 'system_quantity' => 10, 'baseline_quantity' => 10, 'counted' => false]]])
+            ->assertSuccessful()->json('session.id');
+
+        $this->actingAs($this->owner)
+            ->withHeaders(['X-Store-Id' => $this->store->id])
+            ->postJson("/api/v1/app/audit-sessions/{$sessionId}/sync-items", [
+                'till_id' => 'TILL-01', 'lease_version' => 1,
+                'items' => [['product_id' => $this->productA->id, 'system_quantity' => 10, 'baseline_quantity' => 10, 'counted_quantity' => 8, 'counted' => true]],
+            ])->assertOk()->assertJsonPath('counted_items_count', 1);
+    }
 }

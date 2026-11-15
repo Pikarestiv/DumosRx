@@ -285,6 +285,26 @@ describe("procurement.ts order writes", () => {
     });
   });
 
+  describe("editing after another device removed a line", () => {
+    it("saves a line whose old id points at a soft-deleted row instead of failing on the primary key", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+      const poId = await createPurchaseOrder(null, "", [
+        { product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 },
+      ]);
+      const oldId = db.exec(`SELECT id FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0][0] as string;
+      db.run(`UPDATE purchase_order_items SET _deleted = 1 WHERE id = '${oldId}'`);
+
+      await updatePurchaseOrder(poId, null, "", [
+        { id: oldId, product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 4, units_per_bulk: 100, unit_cost: 500, subtotal: 2000 },
+      ]);
+
+      const live = db.exec(`SELECT id, bulk_quantity FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0`)[0].values;
+      expect(live).toHaveLength(1);
+      expect(live[0][1]).toBe(4);
+      expect(live[0][0]).not.toBe(oldId);
+    });
+  });
+
   describe("deletePurchaseOrder", () => {
     it("soft-deletes the order's lines with it, so neither side is left holding a line under a deleted order (A-296)", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Coartem', 'Tablet', 'Carton', 24)`);

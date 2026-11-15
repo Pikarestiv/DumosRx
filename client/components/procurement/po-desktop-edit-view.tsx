@@ -20,6 +20,7 @@ interface PODesktopEditViewProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  canEditProducts?: boolean;
   isSubmitting: boolean;
   handleSubmit: () => void;
   onSaveChanges?: () => void;
@@ -42,6 +43,7 @@ export function PODesktopEditView({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  canEditProducts,
   isSubmitting,
   handleSubmit,
   onSaveChanges,
@@ -117,6 +119,7 @@ export function PODesktopEditView({
           onOpenAddProduct={onOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+          canEditProducts={canEditProducts}
         />
       </div>
     </div>

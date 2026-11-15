@@ -23,6 +23,7 @@ interface POItemBuilderProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId?: string | null;
   onNewlyCreatedProductConsumed?: () => void;
+  canEditProducts?: boolean;
 }
 
 // Search-to-add-a-row bulk item entry, replacing the old one-at-a-time POAddItemForm + separate cart summary.
@@ -35,6 +36,7 @@ export function POItemBuilder({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  canEditProducts,
 }: POItemBuilderProps) {
   const displayName = useDisplayName();
   const [searchValue, setSearchValue] = useState("");
@@ -212,7 +214,7 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
-          onEditProduct={setEditingProductId}
+          onEditProduct={canEditProducts ? setEditingProductId : undefined}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
         />
@@ -223,7 +225,7 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
-          onEditProduct={setEditingProductId}
+          onEditProduct={canEditProducts ? setEditingProductId : undefined}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
         />

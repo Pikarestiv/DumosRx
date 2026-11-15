@@ -23,7 +23,7 @@ interface POItemCardListProps {
   products: POProduct[];
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
-  onEditProduct: (productId: string) => void;
+  onEditProduct?: (productId: string) => void;
   onFocusSearch?: () => void;
   isFiltered?: boolean;
 }
@@ -45,7 +45,7 @@ const POItemCard = React.memo(function POItemCard({
   poType: "standard" | "immediate";
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
-  onEditProduct: (productId: string) => void;
+  onEditProduct?: (productId: string) => void;
 }) {
   const formatCurrency = useFormatCurrency();
   const currentCost = product?.cost_price ?? 0;
@@ -62,16 +62,18 @@ const POItemCard = React.memo(function POItemCard({
               name={item.product_name}
               className="font-semibold text-[14px]"
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Edit ${item.product_name}`}
-              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={() => onEditProduct(item.product_id)}
-            >
-              <Pencil className="w-3 h-3" />
-            </Button>
+            {onEditProduct && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Edit ${item.product_name}`}
+                className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => onEditProduct(item.product_id)}
+              >
+                <Pencil className="w-3 h-3" />
+              </Button>
+            )}
           </div>
           {poType === "immediate" && (
             <p className="text-[12px] text-muted-foreground">
@@ -234,7 +236,7 @@ export function POItemCardList({
     <div className="border border-border rounded-xl divide-y divide-border">
       {rows.map(({ item, index }) => (
         <POItemCard
-          key={`${item.product_id}_${index}`}
+          key={item.id ?? item.product_id}
           item={item}
           index={index}
           product={productMap.get(item.product_id)}

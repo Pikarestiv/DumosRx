@@ -20,6 +20,7 @@ interface POMobileEditViewProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  canEditProducts?: boolean;
   isSubmitting: boolean;
   handleSubmit: () => void;
   onSaveChanges?: () => void;
@@ -42,6 +43,7 @@ export function POMobileEditView({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  canEditProducts,
   isSubmitting,
   handleSubmit,
   onSaveChanges,
@@ -119,6 +121,7 @@ export function POMobileEditView({
           onOpenAddProduct={onOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+          canEditProducts={canEditProducts}
         />
       </div>
 

@@ -18,6 +18,7 @@ import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { useCreateProductMutation } from "@/lib/hooks/use-product-mutations";
 import { useUpdatePurchaseOrderMutation } from "@/lib/hooks/use-purchase-order-mutations";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { RequireRole } from "@/components/auth/require-role";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -29,6 +30,7 @@ import type { SupplierPayload } from "@/lib/types/supplier";
 
 function EditOrderContent() {
   const router = useRouter();
+  const canEditProducts = useHasPermission("manage_products");
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const id = searchParams.get("id");
@@ -205,7 +207,9 @@ function EditOrderContent() {
             router.push(`/procurement?selected=${id}`);
             return;
           }
-          void getPurchaseOrderById(id).then((fresh) => fresh && seedFromPo(fresh));
+          void getPurchaseOrderById(id)
+            .then((fresh) => fresh && seedFromPo(fresh))
+            .catch((error) => console.error("Failed to reload PO after save:", error));
         },
         onError: (error) => {
           console.error("Failed to update PO:", error);
@@ -226,6 +230,7 @@ function EditOrderContent() {
   }, [suppliers, selectedSupplierId]);
 
   const editViewProps = {
+    canEditProducts,
     poId: id,
     selectedSupplierName,
     poType,

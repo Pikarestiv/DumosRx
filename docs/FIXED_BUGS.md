@@ -6,6 +6,14 @@
 - **Compat:** bug fix; no schema or request payload change.
 
 <<<<<<< HEAD
+### A-390 — editing a purchase order soft-deleted and re-inserted every line, churning the whole PO through sync
+- **Fixed:** 2026-11-14, client only, TDD. Found reviewing production lines on the Nest Amawbia store.
+- **Was:** `updatePurchaseOrder()` in `client/lib/db/procurement.ts` soft-deleted every existing live line of the PO and inserted the edited set with newly generated UUIDs. A save of an N-line PO wrote N tombstones and N inserts to `_sync_queue` even when a single quantity was edited, inflating `purchase_order_items` (observed ~59% soft-deleted on production), churning push/pull queues, and invalidating line IDs referenced by receiving progress or audit logs.
+- **Now:** `updatePurchaseOrder()` calls `reconcilePurchaseOrderLines()` (`client/lib/db/procurement-line-diff.ts`), matching incoming lines against existing ones first by line `id`, then by `product_id`. Matched lines are updated in place only if tracked fields changed; untouched lines produce zero writes or queue entries; removed lines are soft-deleted; newly added lines are inserted. Line IDs remain stable across edits.
+- **Coverage:** `client/__tests__/procurement-orders.test.ts` ("diffs edited lines in place to prevent sync churn and preserve line IDs (A-390)").
+- **Compat:** no schema or payload change; preserves line stability across edits.
+=======
+<<<<<<< HEAD
 ### A-378 — a row taken over from another till's cloud audit session had no baseline, so submit measured against stock at submit time
 - **Fixed:** 2026-11-14, client and server, TDD. Found alongside A-376.
 - **Was:** `audit_session_items` stored `system_quantity` but not `baseline_quantity`. `toCloudItem()` sent no baseline and `mergeCloudItemsIntoLocal()` filled the count without setting `baselineQty`. When Till B took over a count from Till A, Till B's `submitStockAudit()` had no recorded baseline for those items and measured discrepancy against live stock at submit time, adding back as phantom inventory any sales made between Till A's count and Till B's submit.
@@ -19,6 +27,7 @@
 - **Now:** `healStockIntegrity()` returns an outcome object describing `{ diverged, unreconstructable, folded, skipped }`. In `checkSyncHealth()`, `localStorage.setItem(LAST_CHECK_KEY, ...)` is stamped after `healStockIntegrity()` only when `!healOutcome.skipped`. If auto-heal skips (e.g. `movement-log-incomplete` or `inspection-session`), the 24-hour window is not burned, allowing the health check and auto-heal to run again as soon as the backlog completes on the next sync round or app open.
 - **Coverage:** `client/__tests__/sync-health-check-heal-skip-window.test.ts` (incomplete movement log skip leaves timestamp unstamped, inspection session leaves timestamp unstamped, subsequent round with complete log folds and stamps timestamp, subsequent immediate runs are throttled by 24h interval), `client/__tests__/stock-integrity-auto-heal.test.ts` (outcome return shape verified).
 - **Compat:** internal client sync-engine execution logic; no payload, schema or storage format changes.
+>>>>>>> dev
 >>>>>>> dev
 
 ### A-385 — the sync indicator stayed orange after a sync had finished, so users kept clicking it

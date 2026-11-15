@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ProductCombobox, SelectedProduct } from "@/components/ui/product-combobox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { POItemLedgerTable, type POLineItemDraft, type POItemRow } from "./po-item-ledger-table";
+import { POEditProductDialog } from "./po-edit-product-dialog";
 import { POItemCardList } from "./po-item-card-list";
 import { addOrMergeLineItem } from "./po-line-item-math";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -22,6 +23,7 @@ interface POItemBuilderProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId?: string | null;
   onNewlyCreatedProductConsumed?: () => void;
+  canEditProducts?: boolean;
 }
 
 // Search-to-add-a-row bulk item entry, replacing the old one-at-a-time POAddItemForm + separate cart summary.
@@ -34,10 +36,12 @@ export function POItemBuilder({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  canEditProducts,
 }: POItemBuilderProps) {
   const displayName = useDisplayName();
   const [searchValue, setSearchValue] = useState("");
   const [itemFilter, setItemFilter] = useState("");
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const isTabletUp = useMediaQuery("(min-width: 640px)");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +138,14 @@ export function POItemBuilder({
     [updateItems],
   );
 
+  const handleProductRenamed = useCallback(
+    (productId: string, name: string) =>
+      updateItems((current) =>
+        current.map((item) => (item.product_id === productId ? { ...item, product_name: name } : item)),
+      ),
+    [updateItems],
+  );
+
   const handleRemoveItem = useCallback(
     (index: number) => {
       const removed = itemsRef.current[index];
@@ -202,6 +214,7 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
+          onEditProduct={canEditProducts ? setEditingProductId : undefined}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
         />
@@ -212,8 +225,17 @@ export function POItemBuilder({
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
+          onEditProduct={canEditProducts ? setEditingProductId : undefined}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
+        />
+      )}
+
+      {editingProductId && (
+        <POEditProductDialog
+          productId={editingProductId}
+          onClose={() => setEditingProductId(null)}
+          onRenamed={handleProductRenamed}
         />
       )}
     </div>

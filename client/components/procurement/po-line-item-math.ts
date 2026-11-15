@@ -24,7 +24,6 @@ export function addOrMergeLineItem(
   const unitCost = product.cost_price ? product.cost_price * unitsPerBulk : 0;
   return {
     items: [
-      ...items,
       {
         product_id: product.id,
         product_name: product.name,
@@ -34,6 +33,7 @@ export function addOrMergeLineItem(
         unit_cost: unitCost,
         subtotal: unitCost,
       },
+      ...items,
     ],
     merged: false,
   };

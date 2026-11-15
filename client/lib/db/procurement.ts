@@ -2,6 +2,7 @@ import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
 import { reconcilePurchaseOrderLines } from "./procurement-line-diff";
+import { getStoredUser } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { clearImmediateOnlyFields, immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
@@ -221,6 +222,7 @@ export async function createPurchaseOrder(
       supplier_id: supplierId,
       status: "pending",
       type,
+      ordered_by: getStoredUser()?.id ?? null,
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,

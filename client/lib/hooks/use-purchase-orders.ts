@@ -65,7 +65,7 @@ export function usePurchaseOrders() {
   const [isMutatingPO, setIsMutatingPO] = useState(false);
   const { user } = useAuth();
   const { storeProfile } = useStore();
-  const viewerId = useHasPermission("view_activity_log") ? undefined : user?.id;
+  const viewerId = useHasPermission(["view_activity_log", "manage_purchase_orders", "receive_purchase_orders"]) ? undefined : user?.id;
 
   const {
     data: purchaseOrders = [],

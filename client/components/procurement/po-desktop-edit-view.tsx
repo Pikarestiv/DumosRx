@@ -20,8 +20,11 @@ interface PODesktopEditViewProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  canEditProducts?: boolean;
   isSubmitting: boolean;
   handleSubmit: () => void;
+  onSaveChanges?: () => void;
+  isDirty?: boolean;
   onOpenEditDetails: () => void;
   paymentStatus?: string;
   dueDate?: string;
@@ -40,8 +43,11 @@ export function PODesktopEditView({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  canEditProducts,
   isSubmitting,
   handleSubmit,
+  onSaveChanges,
+  isDirty,
   onOpenEditDetails,
   paymentStatus,
   dueDate,
@@ -77,6 +83,16 @@ export function PODesktopEditView({
               {formatCurrency(totalAmount)}
             </div>
           </div>
+          {isDirty && (
+            <Button
+              variant="outline"
+              className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
+              onClick={onSaveChanges}
+              disabled={isSubmitting || items.length === 0}
+            >
+              Save changes
+            </Button>
+          )}
           <Button
             className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
             onClick={handleSubmit}
@@ -103,6 +119,7 @@ export function PODesktopEditView({
           onOpenAddProduct={onOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+          canEditProducts={canEditProducts}
         />
       </div>
     </div>

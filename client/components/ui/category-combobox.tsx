@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { getCategoryList } from "@/lib/db/queries/categories";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -28,6 +29,7 @@ export function CategoryCombobox({
   disabled,
   className,
 }: CategoryComboboxProps) {
+  const capsClass = useUppercaseDisplayClass();
   const [open, setOpen] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(-1);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -102,7 +104,7 @@ export function CategoryCombobox({
         disabled={disabled}
         autoComplete="off"
         placeholder={placeholder}
-        className={cn("w-full", className)}
+        className={cn("w-full", capsClass, className)}
         onChange={(e) => {
           onValueChange(e.target.value);
           setOpen(true);
@@ -161,7 +163,7 @@ export function CategoryCombobox({
                 )}
               >
                 <Plus className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">Create &quot;{typed}&quot;</span>
+                <span className={cn("truncate", capsClass)}>Create &quot;{typed}&quot;</span>
               </div>
             )}
             {names.length === 0 && (
@@ -183,7 +185,7 @@ export function CategoryCombobox({
                   index === activeIndex && "bg-accent text-accent-foreground",
                 )}
               >
-                <span className="truncate">{name}</span>
+                <span className={cn("truncate", capsClass)}>{name}</span>
                 {name.toLowerCase() === typed.toLowerCase() && (
                   <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
                 )}

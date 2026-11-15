@@ -18,6 +18,7 @@ import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { useCreateProductMutation } from "@/lib/hooks/use-product-mutations";
 import { useUpdatePurchaseOrderMutation } from "@/lib/hooks/use-purchase-order-mutations";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { RequireRole } from "@/components/auth/require-role";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -29,6 +30,7 @@ import type { SupplierPayload } from "@/lib/types/supplier";
 
 function EditOrderContent() {
   const router = useRouter();
+  const canEditProducts = useHasPermission("manage_products");
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const id = searchParams.get("id");
@@ -65,23 +67,37 @@ function EditOrderContent() {
   const isLoading = !id || poQuery.isLoading;
 
   const [seededPoId, setSeededPoId] = useState<string | null>(null);
+  const [savedSnapshot, setSavedSnapshot] = useState("");
   const poData = poQuery.data;
-  if (id && !poQuery.isError && poData && seededPoId !== id) {
-    setSeededPoId(id);
-    if (poData.type === "immediate") setPoType("immediate");
-    setSelectedSupplierId(poData.supplier_id || SELF_PURCHASE_VENDOR_ID);
-    setNotes(poData.notes || "");
-    const seededItems = (poData.items || []).map((item) => ({
+
+  const seedFromPo = (po: NonNullable<typeof poData>) => {
+    const seededItems = (po.items || []).map((item) => ({
       ...item,
       selling_price:
-        poData.type === "immediate" ? (item.current_selling_price ?? item.selling_price) : item.selling_price,
+        po.type === "immediate" ? (item.current_selling_price ?? item.selling_price) : item.selling_price,
     }));
+    const supplierId = po.supplier_id || SELF_PURCHASE_VENDOR_ID;
+    setPoType(po.type === "immediate" ? "immediate" : "standard");
+    setSelectedSupplierId(supplierId);
+    setNotes(po.notes || "");
     setSeededPrices(new Map(seededItems.map((item) => [item.id, item.selling_price])));
     setItems(seededItems);
-    setPaymentStatus(poData.payment_status || "unpaid");
-    setAmountPaid(poData.amount_paid?.toString() || "");
-    setDueDate(poData.due_date || "");
+    setPaymentStatus(po.payment_status || "unpaid");
+    setAmountPaid(po.amount_paid?.toString() || "");
+    setDueDate(po.due_date || "");
+    setSavedSnapshot(
+      JSON.stringify([seededItems, supplierId, po.notes || "", po.payment_status || "unpaid", po.amount_paid?.toString() || "", po.due_date || ""]),
+    );
+  };
+
+  if (id && !poQuery.isError && poData && seededPoId !== id) {
+    setSeededPoId(id);
+    seedFromPo(poData);
   }
+
+  const isDirty =
+    savedSnapshot !== "" &&
+    JSON.stringify([items, selectedSupplierId, notes, paymentStatus, amountPaid, dueDate]) !== savedSnapshot;
 
   useEffect(() => {
     if (!id) return;
@@ -152,9 +168,10 @@ function EditOrderContent() {
   const totalAmount = getOrderTotal(items, poType);
 
   const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();
-  const isSubmitting = updatePurchaseOrderMutation.isPending;
+  const [isReloading, setIsReloading] = useState(false);
+  const isSubmitting = updatePurchaseOrderMutation.isPending || isReloading;
 
-  const handleSubmit = () => {
+  const handleSubmit = (stayOnPage = false) => {
     if (!id) {
       toast.error("Purchase order ID is missing");
       return;
@@ -187,7 +204,18 @@ function EditOrderContent() {
         onSuccess: () => {
           toast.success("Purchase Order updated successfully");
           notifySellingPriceUpdates(priceOverrideCount);
-          router.push(`/procurement?selected=${id}`);
+          if (!stayOnPage) {
+            router.push(`/procurement?selected=${id}`);
+            return;
+          }
+          setIsReloading(true);
+          void getPurchaseOrderById(id)
+            .then((fresh) => fresh && seedFromPo(fresh))
+            .catch((error) => {
+              console.error("Failed to reload PO after save:", error);
+              router.push(`/procurement?selected=${id}`);
+            })
+            .finally(() => setIsReloading(false));
         },
         onError: (error) => {
           console.error("Failed to update PO:", error);
@@ -208,6 +236,7 @@ function EditOrderContent() {
   }, [suppliers, selectedSupplierId]);
 
   const editViewProps = {
+    canEditProducts,
     poId: id,
     selectedSupplierName,
     poType,
@@ -218,7 +247,9 @@ function EditOrderContent() {
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
     isSubmitting,
-    handleSubmit,
+    handleSubmit: () => handleSubmit(),
+    onSaveChanges: () => handleSubmit(true),
+    isDirty,
     onOpenEditDetails: () => setIsEditDetailsOpen(true),
     paymentStatus,
     dueDate,

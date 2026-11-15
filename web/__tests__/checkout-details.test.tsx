@@ -154,7 +154,18 @@ describe("checkout details", () => {
     fillContact();
     await placeOrder();
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/store/store-1/order/?id=order-abc"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/s/store-1/order/?id=order-abc"));
+  });
+
+  it("posts to the brand's address with the branch named, and returns to the branch's own confirmation page", async () => {
+    render(<CheckoutForm storeSlug="store-1/agidi" />);
+    fillContact();
+    await placeOrder();
+
+    await waitFor(() => expect(postMock).toHaveBeenCalled());
+    expect(postMock.mock.calls[0][0]).toBe("/storefront/store-1/checkout");
+    expect(sentBody()).toMatchObject({ branch_id: "agidi" });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/s/store-1/agidi/order/?id=order-abc"));
   });
 
   it("remembers the customer's details for next time, and fills them in", async () => {

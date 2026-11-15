@@ -911,6 +911,20 @@ deploy with `curl -s -o /dev/null -D - -H 'Accept-Encoding: gzip' <api url>` and
 `content-encoding: gzip`. Pull pages are already bounded (`PullPager`, 500 rows per table,
 `docs/SYNC_PULL_PAGINATION.md`); shrink them only if compression is not enough.
 
+### Storefront branches get a path segment (2026-11-17)
+
+An account has one storefront (`/s/<brand>`); each online-enabled store is a branch of
+it. `storefront_branches` (server-only, deliberately not on the synced `stores` table so no
+client schema change) gives every branch a `slug` from its name, unique per account and never
+one of `StorefrontBranchSlugs::RESERVED` (`catalog`, `checkout`, ... the page names that share
+the URL level). Slugs are created when a store is published and lazily on first read.
+`resolveBranch()` accepts a branch id, a branch slug, or the legacy store slug, so
+`?branch=<slug>`, `branch_id=<slug>` on checkout and `?branch=` on services all work.
+Publishing a second store no longer needs its own `store_slug` while a sibling store has one.
+`GET /storefront-slugs` adds `branches: {<brand slug>: [<branch slug>, ...]}` for storefronts
+with two or more live branches; the web build makes branch pages from it. The primary branch
+is the brand's front door, so it has a slug but its canonical URL is the brand root.
+
 ### Till token rotation grace (2026-11-16)
 
 `POST /refresh` no longer deletes the token it was called with. `TillTokenRotator` issues the
@@ -1652,7 +1666,7 @@ extending or relying on any of this):
   `created` when `show_online`, `updated` on
   `name`/`selling_price`/`show_online`/`is_active`, and `deleted` when
   `show_online`. Keep those two field lists in step with
-  `web/app/store/[store_slug]/page.tsx` and `StorefrontProductResource` — a
+  `web/app/s/[store_slug]/page.tsx` and `StorefrontProductResource` — a
   column the page renders but neither list names is a silently-stale page.
   Both write via raw `DB::table()->update()`, never `->save()` (a save would
   re-fire model events), and `Product`'s is narrowed to stores with

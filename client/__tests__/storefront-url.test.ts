@@ -4,7 +4,7 @@ import { storefrontUrl } from "@/lib/utils/storefront-url";
 
 describe("storefrontUrl", () => {
   it("adds https to the production base, which is configured without a scheme", () => {
-    expect(storefrontUrl("dumosrx.com/store", "divamax")).toBe("https://dumosrx.com/store/divamax");
+    expect(storefrontUrl("dumosrx.com/s", "divamax")).toBe("https://dumosrx.com/s/divamax");
   });
 
   it("keeps a scheme that is already there and ignores a trailing slash", () => {

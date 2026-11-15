@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MobileCartBar } from "@/components/storefront/mobile-cart-bar";
 import { useCartStore } from "@/lib/store/use-cart-store";
 
-let pathname = "/store/grace";
+let pathname = "/s/grace";
 vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
 
 const fillCart = () =>
@@ -21,7 +21,7 @@ const fillCart = () =>
 
 describe("mobile cart bar", () => {
   beforeEach(() => {
-    pathname = "/store/grace";
+    pathname = "/s/grace";
     act(() => useCartStore.setState({ carts: {} }));
   });
   afterEach(() => vi.restoreAllMocks());
@@ -49,7 +49,7 @@ describe("mobile cart bar", () => {
   });
 
   it("is hidden on the checkout page", () => {
-    pathname = "/store/grace/checkout";
+    pathname = "/s/grace/checkout";
     render(<MobileCartBar storeSlug="grace" currency="NGN" />);
     fillCart();
 

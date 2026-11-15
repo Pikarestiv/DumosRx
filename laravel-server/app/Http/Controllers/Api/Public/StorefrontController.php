@@ -8,6 +8,7 @@ use App\Support\StorefrontCheckoutRules;
 use App\Support\StorefrontLocales;
 use App\Models\Store;
 use App\Services\Payment\PaymentService;
+use App\Services\Storefront\StorefrontBranchDirectory;
 use App\Services\Storefront\StorefrontCatalogService;
 use App\Services\Storefront\StorefrontCheckoutService;
 use App\Services\Storefront\StorefrontInteractionService;
@@ -36,8 +37,11 @@ class StorefrontController extends Controller
     )]
     public function slugs()
     {
+        $slugs = $this->catalogService->getPublishedSlugs();
+
         return response()->json([
-            'slugs' => $this->catalogService->getPublishedSlugs(),
+            'slugs' => $slugs,
+            'branches' => (object) app(StorefrontBranchDirectory::class)->forStorefronts($slugs),
         ]);
     }
 
@@ -114,14 +118,7 @@ class StorefrontController extends Controller
                 'logo_url' => $storefront->logo_url ?? $branch->logo_url,
                 'banner_url' => $storefront->banner_url,
             ],
-            'branches' => $branches->map(fn (Store $b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-                'location' => $b->location,
-                'address' => $b->address,
-                'phone' => $b->phone,
-                'is_primary' => $b->id === $storefront->primary_store_id,
-            ])->values()->all(),
+            'branches' => $this->catalogService->branchSummaries($storefront, $branches),
             'selected_branch' => $branchData,
             'store' => $branchData,
             'products' => StorefrontProductResource::collection($products),
@@ -195,12 +192,7 @@ class StorefrontController extends Controller
             'categories' => $categories,
             'store' => $branchData,
             'selected_branch' => $branchData,
-            'branches' => $branches->map(fn (Store $b) => [
-                'id' => $b->id,
-                'name' => $b->name,
-                'location' => $b->location,
-                'is_primary' => $b->id === $storefront->primary_store_id,
-            ])->values()->all(),
+            'branches' => $this->catalogService->branchSummaries($storefront, $branches, detailed: false),
         ]);
     }
 

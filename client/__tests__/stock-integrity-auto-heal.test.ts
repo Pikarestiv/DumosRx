@@ -82,9 +82,11 @@ describe("healStockIntegrity", () => {
     movement("mv-1", "batch-1", 80);
     movement("mv-2", "batch-1", -28);
 
-    await healStockIntegrity();
+    const outcome = await healStockIntegrity();
 
     expect(quantityOf("batch-1")).toBe(52);
+    expect(outcome.skipped).toBeNull();
+    expect(outcome.folded).toBe(1);
     expect(logCrash).toHaveBeenCalledTimes(1);
     expect(reportContext()).toMatchObject({
       area: "stock-autoheal",
@@ -146,9 +148,11 @@ describe("healStockIntegrity", () => {
     movement("mv-1", "batch-1", 80);
     movement("mv-2", "batch-1", -28);
 
-    await healStockIntegrity();
+    const outcome = await healStockIntegrity();
 
     expect(quantityOf("batch-1")).toBe(80);
+    expect(outcome.skipped).toBe("movement-log-incomplete");
+    expect(outcome.folded).toBe(0);
     expect(reportContext()).toMatchObject({ folded: 0, healSkipped: "movement-log-incomplete" });
   });
 
@@ -167,9 +171,11 @@ describe("healStockIntegrity", () => {
     movement("mv-1", "batch-1", 80);
     movement("mv-2", "batch-1", -28);
 
-    await healStockIntegrity();
+    const outcome = await healStockIntegrity();
 
     expect(quantityOf("batch-1")).toBe(80);
+    expect(outcome.skipped).toBe("inspection-session");
+    expect(outcome.folded).toBe(0);
     expect(reportContext()).toMatchObject({ folded: 0, healSkipped: "inspection-session" });
   });
 

@@ -59,6 +59,11 @@ export const EN_MESSAGES = {
   "stock.low": "Only {count} left",
   "stock.out": "Out of stock",
 
+  "services.heading": "Services",
+  "services.subtitle": "Message the store to book or ask about any of these.",
+  "services.enquire": "Enquire on WhatsApp",
+  "services.enquireMessage": "Hi, I would like to ask about {name}.",
+
   "steps.heading": "How ordering works",
   "steps.choose.title": "Choose",
   "steps.choose.body.pharmacy": "Add products to your cart. Prescription items need a valid prescription at pickup.",

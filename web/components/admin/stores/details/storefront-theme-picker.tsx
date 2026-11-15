@@ -53,7 +53,7 @@ export function StorefrontThemePicker({ store }: { store: AdminStoreDetail }) {
               onClick={() => choose(theme.id)}
               className={cn(
                 "flex flex-col items-center gap-1 rounded-xl p-1.5 text-xs transition-colors disabled:opacity-60",
-                selected ? "ring-2 ring-foreground" : "hover:bg-muted",
+                selected ? "ring-2 ring-foreground" : "hover:bg-slate-100 dark:hover:bg-slate-800",
               )}
             >
               <span

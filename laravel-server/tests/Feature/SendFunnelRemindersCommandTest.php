@@ -6,6 +6,7 @@ use App\Mail\FunnelSetupReminderEmail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -35,6 +36,20 @@ class SendFunnelRemindersCommandTest extends TestCase
     private function levelOf(User $user): int
     {
         return (int) DB::table('users')->where('id', $user->id)->value('setup_reminder_level');
+    }
+
+    public function test_a_user_with_no_email_is_skipped_instead_of_failing_every_day(): void
+    {
+        Mail::fake();
+        $user = $this->userAtLevel(0, null);
+        DB::table('users')->where('id', $user->id)->update(['email' => '']);
+        Log::spy();
+
+        $this->artisan('funnel:remind')->assertSuccessful();
+
+        Mail::assertNothingSent();
+        Log::shouldNotHaveReceived('error');
+        $this->assertSame(0, $this->levelOf($user));
     }
 
     public function test_second_reminder_is_sent_once_72_hours_have_passed(): void

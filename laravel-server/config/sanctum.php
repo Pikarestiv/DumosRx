@@ -49,6 +49,8 @@ return [
 
     'admin_token_lifetime_days' => (int) env('SANCTUM_ADMIN_TOKEN_LIFETIME_DAYS', 30),
 
+    'till_rotation_grace_minutes' => (int) env('SANCTUM_TILL_ROTATION_GRACE_MINUTES', 30),
+
     'till_token_lifetime_days' => (int) env('SANCTUM_TILL_TOKEN_LIFETIME_DAYS', 180),
 
     /*

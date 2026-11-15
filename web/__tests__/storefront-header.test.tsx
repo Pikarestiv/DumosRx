@@ -15,7 +15,7 @@ describe("StorefrontHeader store name", () => {
     render(<StorefrontHeader storeSlug="cutis" store={{ id: "s1", name: LONG_NAME }} />);
 
     const homeLink = screen.getByRole("link", { name: LONG_NAME });
-    expect(homeLink.getAttribute("href")).toBe("/store/cutis");
+    expect(homeLink.getAttribute("href")).toBe("/s/cutis");
     expect(homeLink.getAttribute("title")).toBe(LONG_NAME);
 
     const name = screen.getByText(LONG_NAME);
@@ -48,7 +48,7 @@ describe("StorefrontHeader store name", () => {
     render(<StorefrontHeader storeSlug="grace" store={{ id: "s1", name: "Grace" }} />);
 
     const form = screen.getByRole("search");
-    expect(form.getAttribute("action")).toBe("/store/grace/catalog");
+    expect(form.getAttribute("action")).toBe("/s/grace/catalog");
     expect(form.getAttribute("method")).toBe("get");
     expect(screen.getAllByRole("searchbox", { name: "Search products" })[0].getAttribute("name")).toBe("q");
   });

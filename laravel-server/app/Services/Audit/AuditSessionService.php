@@ -15,6 +15,8 @@ class AuditSessionService
 {
     public const LEASE_DURATION_SECONDS = 300;
 
+    private const ITEM_UPSERT_CHUNK = 200;
+
     public const PENDING_SYNC_GRACE_HOURS = 24;
 
     public function startSession(
@@ -186,24 +188,28 @@ class AuditSessionService
 
         return DB::transaction(function () use ($session, $items) {
             $now = now();
-            foreach ($items as $item) {
-                AuditSessionItem::updateOrCreate(
-                    [
-                        'audit_session_id' => $session->id,
-                        'product_id' => $item['product_id'],
-                    ],
-                    [
-                        'system_quantity' => $item['system_quantity'] ?? 0,
-                        'counted_quantity' => $item['counted_quantity'] ?? null,
-                        'cost_price' => $item['cost_price'] ?? null,
-                        'counted_cost_price' => $item['counted_cost_price'] ?? null,
-                        'selling_price' => $item['selling_price'] ?? null,
-                        'counted_selling_price' => $item['counted_selling_price'] ?? null,
-                        'counted' => (bool) ($item['counted'] ?? false),
-                        'notes' => $item['notes'] ?? null,
-                        'counted_at' => isset($item['counted_at']) ? Carbon::parse($item['counted_at']) : null,
-                    ]
-                );
+            $rows = collect($items)->keyBy('product_id')->map(fn (array $item) => [
+                'id' => (string) Str::uuid(),
+                'audit_session_id' => $session->id,
+                'product_id' => $item['product_id'],
+                'system_quantity' => $item['system_quantity'] ?? 0,
+                'counted_quantity' => $item['counted_quantity'] ?? null,
+                'cost_price' => $item['cost_price'] ?? null,
+                'counted_cost_price' => $item['counted_cost_price'] ?? null,
+                'selling_price' => $item['selling_price'] ?? null,
+                'counted_selling_price' => $item['counted_selling_price'] ?? null,
+                'counted' => (bool) ($item['counted'] ?? false),
+                'notes' => $item['notes'] ?? null,
+                'counted_at' => isset($item['counted_at']) ? Carbon::parse($item['counted_at'])->utc()->toDateTimeString() : null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->values();
+
+            foreach ($rows->chunk(self::ITEM_UPSERT_CHUNK) as $chunk) {
+                AuditSessionItem::upsert($chunk->all(), ['audit_session_id', 'product_id'], [
+                    'system_quantity', 'counted_quantity', 'cost_price', 'counted_cost_price', 'selling_price',
+                    'counted_selling_price', 'counted', 'notes', 'counted_at', 'updated_at',
+                ]);
             }
 
             $totalCount = AuditSessionItem::where('audit_session_id', $session->id)->count();

@@ -30,7 +30,7 @@ class SessionController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $tokens = $user->tokens()->orderBy('last_used_at', 'desc')->get();
+        $tokens = $user->tokens()->where('name', '!=', \App\Services\Auth\TillTokenRotator::ROTATED_NAME)->orderBy('last_used_at', 'desc')->get();
 
         $currentProvider = $user->currentAccessToken();
 

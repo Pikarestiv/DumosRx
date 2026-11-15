@@ -1,3 +1,10 @@
+### A-371 — PUT /admin/stores/{id}/storefront answered 500, not 404, for a store id that does not exist
+- **Fixed:** 2026-11-14, server only, TDD. Found adding the storefront theme endpoint beside it.
+- **Was:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail($id)`, but `AdminStoreStorefrontController::update()` did not catch `ModelNotFoundException` (unlike `updateTheme()` and `updateSettings()`). `AdminBaseController::withErrorResponse()` caught it as a generic exception, logging an error and returning HTTP 500 "Failed to update the storefront".
+- **Now:** `AdminStoreStorefrontController::update()` catches `ModelNotFoundException` and returns 404 `{"message": "Store not found"}`, matching `updateTheme()` and OpenAPI documentation.
+- **Coverage:** `laravel-server/tests/Feature/Admin/AdminStoreStorefrontToggleTest.php` (`toggling_storefront_for_non_existent_store_answers_404`).
+- **Compat:** bug fix; no schema or request payload change.
+
 ### A-390 — editing a purchase order soft-deleted and re-inserted every line, churning the whole PO through sync
 - **Fixed:** 2026-11-14, client only, TDD. Found reviewing production lines on the Nest Amawbia store.
 - **Was:** `updatePurchaseOrder()` in `client/lib/db/procurement.ts` soft-deleted every existing live line of the PO and inserted the edited set with newly generated UUIDs. A save of an N-line PO wrote N tombstones and N inserts to `_sync_queue` even when a single quantity was edited, inflating `purchase_order_items` (observed ~59% soft-deleted on production), churning push/pull queues, and invalidating line IDs referenced by receiving progress or audit logs.

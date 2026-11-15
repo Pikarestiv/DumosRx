@@ -68,6 +68,14 @@ describe("StorefrontAppearance", () => {
     expect((await screen.findByRole("radio", { name: /Workshop/ })).getAttribute("aria-checked")).toBe("true");
   });
 
+  it("says an admin-set style is the account manager's and selects none of the owner's styles", async () => {
+    getSettings.mockResolvedValue(settingsWith({ theme: "boutique" }));
+    renderAppearance();
+
+    expect(await screen.findByText(/uses the Boutique style, set by your account manager/)).toBeTruthy();
+    for (const radio of screen.getAllByRole("radio")) expect(radio.getAttribute("aria-checked")).toBe("false");
+  });
+
   it("selects Clinic for a pharmacy that has never chosen a preset", async () => {
     getSettings.mockResolvedValue(settingsWith({ store_type: "pharmacy" }));
     renderAppearance();

@@ -138,6 +138,7 @@ class AdminStoreOperationalMetricsService
             ->where('tokenable_type', User::class)
             ->whereIn('tokenable_id', $userIds)
             ->where('name', '!=', 'Impersonation Token')
+            ->where('name', '!=', \App\Services\Auth\TillTokenRotator::ROTATED_NAME)
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->count();
     }

@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 
 import { OPEN_CART_EVENT } from "@/components/storefront/storefront-cart";
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
+import { scopeFromPathname } from "@/lib/storefront-scope";
 import { useCart } from "@/lib/store/use-cart-store";
 
 interface MobileCartBarProps {
@@ -16,8 +17,8 @@ const subscribeNothing = () => () => {};
 
 export function MobileCartBar({ storeSlug, currency }: MobileCartBarProps) {
   const { t, money } = useStorefrontI18n();
-  const cart = useCart(storeSlug);
   const pathname = usePathname();
+  const cart = useCart(scopeFromPathname(pathname) ?? storeSlug);
   const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
   const count = cart.getItemCount();
 

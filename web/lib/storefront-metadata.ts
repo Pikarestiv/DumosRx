@@ -5,7 +5,7 @@ import type { StorefrontStore } from "@/lib/api/storefront-data";
 import { DEFAULT_STOREFRONT_LOCALE, translate, type StorefrontLocale } from "@/lib/storefront-i18n";
 
 export function storefrontUrl(store_slug: string): string {
-  return `${WEB_APP_URL}/store/${store_slug}/`;
+  return `${WEB_APP_URL}/s/${store_slug}/`;
 }
 
 function storefrontDescription(store: StorefrontStore, locale: StorefrontLocale): string {

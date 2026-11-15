@@ -46,6 +46,19 @@ describe("silent token refresh timeout", () => {
     expect(getToken()).toBe("new-token");
   });
 
+  it("keeps the token when the device goes offline during the retry", async () => {
+    vi.useFakeTimers();
+    setToken("till-token");
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response("{}", { status: 401 })).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = refreshTokenSilently("https://api.test");
+    await vi.advanceTimersByTimeAsync(REFRESH_RETRY_DELAY_MS);
+
+    expect(await outcome).toBe("unconfirmed");
+    expect(getToken()).toBe("till-token");
+  });
+
   it("unlinks only after the retry is also refused", async () => {
     vi.useFakeTimers();
     setToken("till-token");

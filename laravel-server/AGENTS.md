@@ -881,6 +881,16 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 - `GET /sessions` (`SessionController::index`) returns `device_id` alongside `id`, `name`, `ip_address`, `user_agent`, `last_used_at`, `created_at`, `is_current`.
 - Legacy rows without a `device_id` were backfilled in migration; `SessionController` also falls back to `UserDevice` where unambiguous.
 
+### Audit item sync writes in bulk (2026-11-16)
+
+`AuditSessionService::syncBatchItems` upserts items in chunks of 200 on the unique
+`(audit_session_id, product_id)` key instead of one `updateOrCreate` per item. The till
+used to re-send every counted item on each debounced sync, so a large audit made each
+request run thousands of queries inside one transaction; overlapping requests then hit
+`Lock wait timeout exceeded` (372 on 2026-11-14) and tied up PHP workers. The till now
+sends only items that changed since the last successful sync (`unsyncedItems`), but the
+server still accepts the full list so older builds keep working.
+
 ### Till token rotation grace (2026-11-16)
 
 `POST /refresh` no longer deletes the token it was called with. `TillTokenRotator` issues the

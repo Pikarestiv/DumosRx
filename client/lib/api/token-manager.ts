@@ -16,6 +16,7 @@ let token: string | null = null;
 let refreshPromise: Promise<RefreshOutcome> | null = null;
 const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export const REFRESH_TIMEOUT_MS = 20_000;
+export const REFRESH_RETRY_DELAY_MS = 2_000;
 
 if (typeof window !== "undefined") {
   token = readAuthToken();
@@ -62,19 +63,27 @@ export const refreshTokenSilently = async (baseURL: string): Promise<RefreshOutc
 
       if (!currentToken) return "unconfirmed";
 
-      // base-client.ts awaits this before every API request once the token is stale, so an un-timed fetch here blocks every request behind it - the…
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-token-manager-ts-L64
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `Bearer ${currentToken}`,
-        },
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timeout));
+      const attempt = () => {
+        // base-client.ts awaits this before every API request once the token is stale, so an un-timed fetch here blocks every request behind it - the…
+        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-api-token-manager-ts-L64
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+        return fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: `Bearer ${currentToken}`,
+          },
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeout));
+      };
+
+      let response = await attempt();
+      if (response.status === 401) {
+        await new Promise((resolve) => setTimeout(resolve, REFRESH_RETRY_DELAY_MS));
+        response = await attempt();
+      }
 
       if (response.ok) {
         const data = await response.json();

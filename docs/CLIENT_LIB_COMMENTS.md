@@ -5745,6 +5745,7 @@ client that gives up early on a slow connection used to keep a token the server 
 already deleted and unlink on its next request. The server now also keeps the
 rotated-out token valid for `sanctum.till_rotation_grace_minutes` (30), so a lost
 response recovers on the next refresh instead.
+A 401 is retried once after 2 s before the token is cleared, because clearing it unlinks the till.
 
 ### line-api-token-manager-ts-L90
 

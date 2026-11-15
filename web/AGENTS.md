@@ -195,7 +195,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 ## Storefront chrome and display conventions (storefront Phases 1–5, 2026-11-02; home refresh and themes 2026-11-13)
 
 - **Storefront routes (refreshed 2026-11-13):**
-  - Home (`app/store/[store_slug]/page.tsx`, redesigned 2026-11-14, storefront
+  - Home (`app/s/[store_slug]/page.tsx`, redesigned 2026-11-14, storefront
     redesign phase 2; see `docs/storefront-redesign.md`), top to bottom:
     utility bar ("Store pickup · Local delivery"), header, hero
     (`StorefrontHero`), **Products** (`FeaturedProducts`, a client component:
@@ -269,7 +269,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   - Checkout (`/checkout`): order confirmation and Paystack payment.
 - **The header has no nav links** (2026-11-14): logo (or the store's initial in
   the accent), name with "type · location" beneath, a search box that submits
-  `GET /store/<slug>/catalog?q=` (the shop view reads `q` on load), the branch
+  `GET /s/<slug>/catalog?q=` (the shop view reads `q` on load), the branch
   selector when there are several branches, and the cart. The old
   Home/Shop/Contact list (`lib/storefront-nav.ts`) is deleted; contact details
   live in the hero panel and footer.
@@ -330,7 +330,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   details), and Paystack when the store has a payout account; if none remain the
   form says so and blocks the order. The chosen method is whatever is actually
   offered, so switching to delivery cannot submit an option that vanished. On
-  success the customer lands on `/store/<slug>/order/?id=<order id>`
+  success the customer lands on `/s/<slug>/order/?id=<order id>`
   (`OrderConfirmation`, static page, id read from the URL, order fetched from the
   public lookup): order code, items, total, how it is received and paid, the
   store's payment details for a transfer, a prefilled **Send my order on
@@ -375,7 +375,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   see `docs/KNOWN_BUGS.md`, Engineering notes.
 - **Storefront themes** (`lib/storefront-themes.ts`). Each theme sets
   `--primary`, `--primary-foreground` and `--ring` for light and dark mode.
-  `app/store/[store_slug]/layout.tsx` is the one place a theme is applied
+  `app/s/[store_slug]/layout.tsx` is the one place a theme is applied
   for every storefront route: it renders a `display: contents` wrapper with
   `data-storefront-theme=<id>` and one `<style>` from `storefrontThemeCss()`,
   whose rules match `:root:has([data-storefront-theme=…])` so portalled UI
@@ -443,7 +443,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   sandbox environments without a live backend, `lib/api/storefront-data.ts` supplies
   the placeholders in `lib/api/storefront-demo-data.ts` (a storefront profile and
   12 sample products, so the home page and shop render something to look at) and
-  static export prerendering (`/store/demo`, `/about`, `/locations`, `/faq`,
+  static export prerendering (`/s/demo`, `/about`, `/locations`, `/faq`,
   `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds without a mock
   server. `next.config.ts` (which also sets `experimental.inlineCss`, so the CSS ships
   inside each page's HTML instead of as render-blocking stylesheets) republishes the flag to the browser as
@@ -1464,7 +1464,7 @@ disable rule above. Three things to know before changing it:
     truth for the cooldown rather than duplicating the 6-month rule here.
 - **Changing a live slug is confirmed; setting a first one is not.** Replacing
   an existing slug breaks every link already shared or printed, so the card
-  raises a `ConfirmDialog` naming the `/store/<slug>` URL that stops resolving
+  raises a `ConfirmDialog` naming the `/s/<slug>` URL that stops resolving
   and the 6-month limit. A store with no slug has no URL to break and nothing
   to warn about, so that path submits directly — a confirmation with no cost
   behind it is the kind users learn to click through, which is exactly how
@@ -1632,7 +1632,7 @@ npm run verify:storefront-output   # post-build storefront guard (see below)
 **`npm run build` now fails hard when the API is unreachable, on purpose.**
 `getStorefrontSlugs()` used to swallow every failure and return the single
 `demo` placeholder, which exited 0 and let the deploy's FTP *sync* delete
-every live `/store/<slug>/` directory from production (`SF-P0-1`). Two
+every live `/s/<slug>/` directory from production (`SF-P0-1`). Two
 deliberate escape routes exist, and nothing else:
 
 ```
@@ -1644,12 +1644,12 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8899/api/v1 npm run build   # build against
 `verify:storefront-output`. Use it when you genuinely don't care about the
 storefront routes; use the stub (below) when you're changing them.
 
-Historical note, since it comes up: the old "`/store/demo` fails to
+Historical note, since it comes up: the old "`/s/demo` fails to
 prerender offline" behaviour was a `ConnectTimeoutError` reaching
 `dumosrx.test:443`, nothing more. A pre-launch review speculated it was
 really the `params`-as-Promise bug in the two `[store_slug]` routes; it was
 not. That bug was real and is now fixed, but it failed *silently* — the
-build still exited 0 and emitted `/store/demo/index.html` as a rendered 404
+build still exited 0 and emitted `/s/demo/index.html` as a rendered 404
 page, because `params.store_slug` was `undefined`, the page fetched
 `/storefront/undefined`, and `getStorefrontData` turned the miss into
 `notFound()`. Two independent problems at the same URL. Neither now exits 0.
@@ -1664,11 +1664,11 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8899/api/v1 npm run build
 
 serving `GET /storefront-slugs` → `{"slugs":[...]}` and `GET
 /storefront/<slug>` → `{"store":{...},"products":[...]}`. Worth doing for
-any change to `app/store/[store_slug]/`: a typecheck cannot catch a params
+any change to `app/s/[store_slug]/`: a typecheck cannot catch a params
 regression here, since both routes declare their own local `params`
 interface rather than Next's generated `PageProps`.
 
-**Before changing anything under `app/store/[store_slug]/`, read
+**Before changing anything under `app/s/[store_slug]/`, read
 `docs/STOREFRONT_REVIEW.md`** (2026-09-26 audit of the whole storefront
 surface; 15 of its 16 findings were fixed the same day, and it carries a
 per-finding status). The storefront contract as it now stands:
@@ -1690,7 +1690,7 @@ per-finding status). The storefront contract as it now stands:
   overwritten with a rendered 404. **Don't "helpfully" catch either of these.**
 - **`verify:storefront-output` runs between the build and the FTP sync** in
   `deploy-web.yml`. It re-asks the API for the slug list and asserts each one
-  has an `out/store/<slug>/index.html`. Keep it before the sync step: the
+  has an `out/s/<slug>/index.html`. Keep it before the sync step: the
   whole point is to abort *before* anything is uploaded or deleted.
 - **Both routes have `generateMetadata`** (`lib/storefront-metadata.ts`), so a
   store's link previews as the store and not as DumosRx. It reuses the same
@@ -1746,7 +1746,7 @@ per-finding status). The storefront contract as it now stands:
   failed in CI (`⨯ useSearchParams() should be wrapped in a suspense
   boundary`, only surfaces at static-export prerender time). Any page-level
   component that calls `useSearchParams()` directly needs its own
-  `<Suspense>` wrapper in the page (see `app/store/[store_slug]/checkout/
+  `<Suspense>` wrapper in the page (see `app/s/[store_slug]/checkout/
   page.tsx`) — run a real `npm run build` (per the local-stub instructions
   above) whenever touching one, not just `tsc`/`vitest`.
 

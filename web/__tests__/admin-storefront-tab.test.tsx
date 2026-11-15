@@ -205,7 +205,7 @@ describe("StoreStorefrontTab", () => {
 
   it("links to the live storefront only while it is published", () => {
     const published = renderTab(storeWith());
-    expect(screen.getByRole("link", { name: /preview storefront/i }).getAttribute("href")).toBe(`${WEB_APP_URL}/store/corner`);
+    expect(screen.getByRole("link", { name: /preview storefront/i }).getAttribute("href")).toBe(`${WEB_APP_URL}/s/corner`);
     published.unmount();
 
     renderTab(storeWith({ online_store_enabled: false }));

@@ -1652,7 +1652,7 @@ extending or relying on any of this):
   `created` when `show_online`, `updated` on
   `name`/`selling_price`/`show_online`/`is_active`, and `deleted` when
   `show_online`. Keep those two field lists in step with
-  `web/app/store/[store_slug]/page.tsx` and `StorefrontProductResource` — a
+  `web/app/s/[store_slug]/page.tsx` and `StorefrontProductResource` — a
   column the page renders but neither list names is a silently-stale page.
   Both write via raw `DB::table()->update()`, never `->save()` (a save would
   re-fire model events), and `Product`'s is narrowed to stores with

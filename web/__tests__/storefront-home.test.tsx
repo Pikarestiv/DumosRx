@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 
-import StorefrontLayout from "@/app/store/[store_slug]/layout";
-import StorefrontPage from "@/app/store/[store_slug]/page";
+import StorefrontLayout from "@/app/s/[store_slug]/layout";
+import StorefrontPage from "@/app/s/[store_slug]/page";
 import type { StorefrontData } from "@/lib/api/storefront-data";
 
 
@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
   },
-  usePathname: () => "/store/grace",
+  usePathname: () => "/s/grace",
   useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -52,7 +52,7 @@ describe("storefront home page", () => {
 
     const featured = screen.getByRole("region", { name: "Products" });
     expect(within(featured).getAllByRole("button", { name: /^add to cart:/i })).toHaveLength(8);
-    expect(screen.getByRole("link", { name: /view all 20 products/i }).getAttribute("href")).toBe("/store/grace/catalog");
+    expect(screen.getByRole("link", { name: /view all 20 products/i }).getAttribute("href")).toBe("/s/grace/catalog");
   });
 
   it("filters the grid by category chip without leaving the page", async () => {

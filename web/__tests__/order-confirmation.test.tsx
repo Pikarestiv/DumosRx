@@ -29,7 +29,7 @@ const order = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const open = (query = "?id=0f3a9c1e-1111-2222-3333-444455556666") => window.history.replaceState({}, "", `/store/divamax/order/${query}`);
+const open = (query = "?id=0f3a9c1e-1111-2222-3333-444455556666") => window.history.replaceState({}, "", `/s/divamax/order/${query}`);
 
 describe("order confirmation", () => {
   beforeEach(() => {

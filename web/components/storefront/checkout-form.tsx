@@ -100,7 +100,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
 
   const goToConfirmation = (orderId: string, submitted: PendingCheckout["formData"] = formData) => {
     saveCheckoutDetails(submitted);
-    router.push(`/store/${storeSlug}/order/?id=${encodeURIComponent(orderId)}`);
+    router.push(`/s/${storeSlug}/order/?id=${encodeURIComponent(orderId)}`);
   };
 
   const readPendingCheckout = (): PendingCheckout | null => {
@@ -242,7 +242,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
     }
   };
 
-  const returnToStore = () => router.push(`/store/${storeSlug}`);
+  const returnToStore = () => router.push(`/s/${storeSlug}`);
 
   if (failedReference) {
     return (
@@ -267,7 +267,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
           {t("checkout.empty")}
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button onClick={() => router.push(`/store/${storeSlug}`)}>{t("checkout.returnToStore")}</Button>
+          <Button onClick={() => router.push(`/s/${storeSlug}`)}>{t("checkout.returnToStore")}</Button>
         </CardFooter>
       </Card>
     );

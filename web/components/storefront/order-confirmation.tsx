@@ -68,7 +68,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
     return (
       <div className="space-y-4 py-12 text-center">
         <p>{t("order.notFound")}</p>
-        <Link href={`/store/${storeSlug}`} className={SECONDARY_BUTTON}>
+        <Link href={`/s/${storeSlug}`} className={SECONDARY_BUTTON}>
           {t("order.backToStore")}
         </Link>
       </div>
@@ -135,7 +135,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
             {t("order.whatsapp")}
           </a>
         ) : null}
-        <Link href={`/store/${storeSlug}`} className={SECONDARY_BUTTON}>
+        <Link href={`/s/${storeSlug}`} className={SECONDARY_BUTTON}>
           {t("order.backToStore")}
         </Link>
       </div>

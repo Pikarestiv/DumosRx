@@ -67,7 +67,7 @@ export function StoreLocationsSection({ storeSlug, store, branches, headingAs }:
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               <Link
-                href={`/store/${storeSlug}/catalog?branch=${branch.id}`}
+                href={`/s/${storeSlug}/catalog?branch=${branch.id}`}
                 className="inline-flex items-center justify-center w-full rounded-full text-xs font-semibold h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors"
               >
                 Shop from this Branch &rarr;

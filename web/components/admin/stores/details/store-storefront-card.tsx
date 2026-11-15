@@ -147,7 +147,7 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
         open={confirmReplace}
         onOpenChange={setConfirmReplace}
         title="Change the storefront address?"
-        description={`Customers reach this store at /store/${slug}. That link will stop working as soon as the address changes, including anywhere the owner has shared or printed it. A store's address can only be changed once every 6 months.`}
+        description={`Customers reach this store at /s/${slug}. That link will stop working as soon as the address changes, including anywhere the owner has shared or printed it. A store's address can only be changed once every 6 months.`}
         confirmLabel="Change the address"
         onConfirm={() => submit(draft.trim())}
       />

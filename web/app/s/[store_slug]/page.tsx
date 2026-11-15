@@ -46,7 +46,7 @@ export default async function StorefrontPage({
 
   const { store, products, storefront, branches, product_count } = data;
   const preset = resolveStorefrontPreset(storefront?.theme, store.store_type);
-  const catalogHref = `/store/${store_slug}/catalog`;
+  const catalogHref = `/s/${store_slug}/catalog`;
   const tagline = storefront?.tagline?.trim() || storefront?.headline?.trim();
   const whatsapp = storefront?.whatsapp;
 

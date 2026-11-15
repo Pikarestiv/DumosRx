@@ -154,7 +154,7 @@ describe("checkout details", () => {
     fillContact();
     await placeOrder();
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/store/store-1/order/?id=order-abc"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/s/store-1/order/?id=order-abc"));
   });
 
   it("remembers the customer's details for next time, and fills them in", async () => {

@@ -3,14 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
-import { StoreLocationsSection } from "@/components/storefront/store-locations-section";
+import { StoreOrderTracker } from "@/components/storefront/store-order-tracker";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { getStorefrontData } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
 import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
 
-interface LocationsPageProps {
+interface TrackPageProps {
   params: Promise<{
     store_slug: string;
   }>;
@@ -22,21 +22,19 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({
   params,
-}: LocationsPageProps): Promise<Metadata> {
+}: TrackPageProps): Promise<Metadata> {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
   const base = buildStorefrontMetadata(store_slug, data?.store);
   return {
     ...base,
     title: data?.store?.name
-      ? `Our Locations | ${data.store.name}`
-      : "Locations",
+      ? `Track Order | ${data.store.name}`
+      : "Track Order",
   };
 }
 
-export default async function StorefrontLocationsPage({
-  params,
-}: LocationsPageProps) {
+export default async function StorefrontTrackPage({ params }: TrackPageProps) {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
 
@@ -56,22 +54,32 @@ export default async function StorefrontLocationsPage({
         branches={branches}
       />
 
-      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full space-y-8">
+      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto w-full space-y-6">
         <nav
           aria-label="Breadcrumb"
           className="flex items-center gap-1.5 text-xs text-muted-foreground"
         >
           <Link
-            href={`/store/${store_slug}`}
+            href={`/s/${store_slug}`}
             className="hover:text-foreground transition-colors"
           >
             {businessName}
           </Link>
           <ChevronRight className="h-3 w-3" />
-          <span className="text-foreground font-medium">Locations</span>
+          <span className="text-foreground font-medium">Track Order</span>
         </nav>
 
-        <StoreLocationsSection storeSlug={store_slug} store={store} branches={branches} headingAs="h1" />
+        <div className="space-y-2">
+          <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
+            Track Your Order
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Enter your Order Reference or Paystack transaction code to check
+            live fulfillment status.
+          </p>
+        </div>
+
+        <StoreOrderTracker storeSlug={store_slug} store={store} />
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

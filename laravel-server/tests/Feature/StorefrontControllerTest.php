@@ -69,9 +69,10 @@ class StorefrontControllerTest extends TestCase
         // initializeCheckout()'s new gate doesn't 422 before reaching it.
         Store::where('store_slug', $slug)->update(['paystack_subaccount_code' => 'ACCT_test']);
 
-        $this->mock(PaymentService::class, function ($mock) use ($reference) {
+        $this->mock(PaymentService::class, function ($mock) use ($reference, $slug) {
             $mock->shouldReceive('initializeStorefrontTransaction')
                 ->once()
+                ->withArgs(fn (...$args) => str_ends_with($args[3], "/s/{$slug}/checkout"))
                 ->andReturn([
                     'provider' => 'paystack',
                     'reference' => $reference,

@@ -18,7 +18,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 
-const OUT_STORE_DIR = join(process.cwd(), "out", "store");
+const OUT_STORE_DIR = join(process.cwd(), "out", "s");
 
 function fail(message) {
   console.error(`[verify-storefront-output] ${message}`);
@@ -39,7 +39,7 @@ async function listBuiltSlugs() {
       await stat(join(OUT_STORE_DIR, entry.name, "index.html"));
       slugs.push(entry.name);
     } catch {
-      fail(`out/store/${entry.name}/ has no index.html — the page did not render.`);
+      fail(`out/s/${entry.name}/ has no index.html — the page did not render.`);
     }
   }
   return slugs;
@@ -86,7 +86,7 @@ async function main() {
 
   if (missing.length > 0) {
     fail(
-      `${missing.length} live storefront(s) are missing from out/store/ ` +
+      `${missing.length} live storefront(s) are missing from out/s/ ` +
         `(${missing.join(", ")}). Deploying this build would delete them from ` +
         `production. Aborting before the FTP sync.`,
     );
@@ -94,7 +94,7 @@ async function main() {
 
   console.log(
     `[verify-storefront-output] OK — ${expected.length} live storefront(s) present ` +
-      `in out/store/ (${built.size} director${built.size === 1 ? "y" : "ies"} total).`,
+      `in out/s/ (${built.size} director${built.size === 1 ? "y" : "ies"} total).`,
   );
 }
 

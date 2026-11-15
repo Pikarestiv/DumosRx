@@ -23,7 +23,7 @@ function failOrFallback(reason: string): { store_slug: string }[] {
   throw new Error(
     `Could not fetch the storefront slug list (${reason}). Refusing to build a ` +
       `storefront-less site: the deploy's FTP sync would then delete every live ` +
-      `/store/<slug>/ directory from production. Set STOREFRONT_ALLOW_EMPTY=1 to ` +
+      `/s/<slug>/ directory from production. Set STOREFRONT_ALLOW_EMPTY=1 to ` +
       `build the demo placeholder only (offline/sandbox work).`,
   );
 }

@@ -90,7 +90,7 @@ export async function getStorefrontData(
     res = await fetch(`${apiUrl}/storefront/${store_slug}${queryStr}`);
   } catch (error) {
     throw new StorefrontFetchError(
-      `Could not reach the API for /store/${store_slug}: ` +
+      `Could not reach the API for /s/${store_slug}: ` +
         (error instanceof Error ? error.message : "network error"),
     );
   }
@@ -101,13 +101,13 @@ export async function getStorefrontData(
 
   if (!res.ok) {
     throw new StorefrontFetchError(
-      `API returned HTTP ${res.status} for /store/${store_slug}.`,
+      `API returned HTTP ${res.status} for /s/${store_slug}.`,
     );
   }
 
   if (!res.headers.get("content-type")?.includes("application/json")) {
     throw new StorefrontFetchError(
-      `API returned a non-JSON response for /store/${store_slug} ` +
+      `API returned a non-JSON response for /s/${store_slug} ` +
         `(${res.headers.get("content-type") ?? "no content-type"}).`,
     );
   }
@@ -116,7 +116,7 @@ export async function getStorefrontData(
     return (await res.json()) as StorefrontData;
   } catch (error) {
     throw new StorefrontFetchError(
-      `API returned unparseable JSON for /store/${store_slug}: ` +
+      `API returned unparseable JSON for /s/${store_slug}: ` +
         (error instanceof Error ? error.message : "parse error"),
     );
   }
@@ -179,7 +179,7 @@ export async function getStorefrontProducts(
     });
   } catch (error) {
     throw new StorefrontFetchError(
-      `Could not reach the API for /store/${store_slug}/products: ` +
+      `Could not reach the API for /s/${store_slug}/products: ` +
         (error instanceof Error ? error.message : "network error"),
     );
   }
@@ -190,7 +190,7 @@ export async function getStorefrontProducts(
 
   if (!res.ok) {
     throw new StorefrontFetchError(
-      `API returned HTTP ${res.status} for /store/${store_slug}/products.`,
+      `API returned HTTP ${res.status} for /s/${store_slug}/products.`,
     );
   }
 
@@ -198,7 +198,7 @@ export async function getStorefrontProducts(
     return (await res.json()) as PaginatedStorefrontProducts;
   } catch (error) {
     throw new StorefrontFetchError(
-      `API returned unparseable JSON for /store/${store_slug}/products: ` +
+      `API returned unparseable JSON for /s/${store_slug}/products: ` +
         (error instanceof Error ? error.message : "parse error"),
     );
   }

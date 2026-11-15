@@ -114,4 +114,12 @@ class StorefrontBranchSlugsTest extends TestCase
         $this->assertSame('/s/nestpharmacy/nest-agidi/checkout', $slugs->checkoutPath($agidi));
         $this->assertSame('/s/nestpharmacy/nest-amawbia/checkout', $slugs->checkoutPath($this->primary));
     }
+
+    public function test_a_release_whose_migration_has_not_run_yet_does_not_break_the_public_storefront(): void
+    {
+        \Illuminate\Support\Facades\Schema::drop('storefront_branches');
+
+        $this->getJson('/api/v1/storefront/nestpharmacy')->assertOk()->assertJsonPath('branches.0.slug', 'nest-amawbia');
+        $this->getJson('/api/v1/storefront-slugs')->assertOk();
+    }
 }

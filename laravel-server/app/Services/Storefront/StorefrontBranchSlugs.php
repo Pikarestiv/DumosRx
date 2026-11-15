@@ -7,6 +7,7 @@ use App\Models\Storefront;
 use App\Models\StorefrontBranch;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class StorefrontBranchSlugs
@@ -15,8 +16,19 @@ class StorefrontBranchSlugs
 
     private const MAX_BASE_LENGTH = 40;
 
+    private ?bool $tableReady = null;
+
+    public function existing(Store $store): ?string
+    {
+        return $this->tableReady() ? StorefrontBranch::where('store_id', $store->id)->value('slug') : null;
+    }
+
     public function ensure(Store $store): string
     {
+        if (! $this->tableReady()) {
+            return Str::limit(Str::slug($store->name), self::MAX_BASE_LENGTH, '') ?: 'branch';
+        }
+
         $existing = StorefrontBranch::where('store_id', $store->id)->value('slug');
 
         if ($existing) {
@@ -49,6 +61,11 @@ class StorefrontBranchSlugs
     public function forBranches(Collection $branches): array
     {
         return $branches->mapWithKeys(fn (Store $branch) => [$branch->id => $this->ensure($branch)])->all();
+    }
+
+    private function tableReady(): bool
+    {
+        return $this->tableReady ??= Schema::hasTable('storefront_branches');
     }
 
     private function uniqueSlug(Store $store): string

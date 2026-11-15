@@ -4089,6 +4089,7 @@ curls it right after the FTP sync and **fails the job** with a `::error::`
 pointing at Admin → Maintenance when it is anything but `true`. The red X on
 the commit is the alert; nobody should meet a pending migration as a 500.
 
+- **Dev gets the same gate (2026-11-17).** `deploy-dev.yml` runs the same `schema_current` check against `api.dev.dumosrx.com` after its FTP sync, and its frontend job `needs` the backend job. Before that, a merge that added a migration let dev's frontend build start while the API was mid-release and 500ing, so a static build failed with `API returned HTTP 500` for the demo storefront. Now a pending migration stops the dev release at the backend job with a pointer to Admin > Maintenance; run the migration there and re-run the workflow. Code that depends on a brand-new table should also degrade while it is missing (`StorefrontBranchSlugs` does), so the window between the file sync and the migration is not a public 500.
 - **The deploy deliberately does not apply migrations.** An unattended
   `migrate --force` from CI against shared hosting, with no snapshot step and
   only a syntactic destructive-pattern scan, is a blast radius the founder

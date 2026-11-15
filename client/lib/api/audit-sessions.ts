@@ -10,6 +10,7 @@ export interface CloudAuditSessionItem {
   audit_session_id?: string;
   product_id: string;
   system_quantity?: number | null;
+  baseline_quantity?: number | null;
   counted_quantity?: number | null;
   cost_price?: number | null;
   counted_cost_price?: number | null;

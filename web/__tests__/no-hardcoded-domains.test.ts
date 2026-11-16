@@ -2,9 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
-vi.mock("next/font/google", () => ({
-  Inter: () => ({ variable: "--font-sans" }),
-  Montserrat: () => ({ variable: "--font-heading" }),
+vi.mock("next/font/local", () => ({
+  default: ({ variable }: { variable: string }) => ({ variable }),
 }));
 
 import { DOWNLOAD_URL, WEB_APP_URL } from "@/lib/constants";

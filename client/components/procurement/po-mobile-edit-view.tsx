@@ -20,8 +20,10 @@ interface POMobileEditViewProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  canEditProducts?: boolean;
   isSubmitting: boolean;
   handleSubmit: () => void;
+  isDirty?: boolean;
   onOpenEditDetails: () => void;
   paymentStatus?: string;
   dueDate?: string;
@@ -40,8 +42,10 @@ export function POMobileEditView({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  canEditProducts,
   isSubmitting,
   handleSubmit,
+  isDirty,
   onOpenEditDetails,
   paymentStatus,
   dueDate,
@@ -51,8 +55,7 @@ export function POMobileEditView({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-background flex flex-col"
-      style={{ height: "100dvh" }}
+      className="fixed inset-0 z-50 bg-background flex flex-col fixed-visual-viewport"
     >
       <div
         className="flex items-center gap-3 px-4 border-b border-border bg-card shrink-0"
@@ -62,9 +65,9 @@ export function POMobileEditView({
           paddingBottom: "0.75rem",
         }}
       >
-        <POBackButton itemCount={items.length} />
+        <POBackButton itemCount={isDirty === false ? 0 : items.length} />
         <div className="min-w-0">
-          <div className="text-[15px] font-serif font-bold leading-tight">
+          <div className="text-[15px] font-serif font-bold leading-tight truncate">
             Edit Purchase Order
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
@@ -72,21 +75,23 @@ export function POMobileEditView({
             {items.length} {items.length === 1 ? "item" : "items"}
           </div>
         </div>
-        <Button
-          size="sm"
-          className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
-          onClick={handleSubmit}
-          disabled={isSubmitting || items.length === 0}
-        >
-          {isSubmitting ? "Saving..." : "Save"}
-        </Button>
+        {isDirty !== false && (
+          <Button
+            size="sm"
+            className="ml-auto h-9 px-4 rounded-[10px] text-[12.5px] font-semibold shrink-0"
+            onClick={handleSubmit}
+            disabled={isSubmitting || items.length === 0}
+          >
+            {isSubmitting ? "Saving..." : "Save"}
+          </Button>
+        )}
       </div>
 
       <div
         className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
         style={{
           paddingBottom:
-            "calc(7rem + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+            "calc(7rem + var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
         }}
       >
         <PODetailsSummaryBar
@@ -104,6 +109,7 @@ export function POMobileEditView({
           onOpenAddProduct={onOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+          canEditProducts={canEditProducts}
         />
       </div>
 

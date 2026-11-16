@@ -15,6 +15,7 @@ class AuditSessionItem extends Model
         'audit_session_id',
         'product_id',
         'system_quantity',
+        'baseline_quantity',
         'counted_quantity',
         'cost_price',
         'counted_cost_price',
@@ -27,6 +28,7 @@ class AuditSessionItem extends Model
 
     protected $casts = [
         'system_quantity' => 'decimal:2',
+        'baseline_quantity' => 'decimal:2',
         'counted_quantity' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'counted_cost_price' => 'decimal:2',

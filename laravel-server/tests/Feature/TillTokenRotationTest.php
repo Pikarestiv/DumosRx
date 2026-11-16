@@ -1,0 +1,161 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use App\Services\Auth\TillTokenRotator;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\PersonalAccessToken;
+use Tests\TestCase;
+
+class TillTokenRotationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $owner;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->owner = User::create([
+            'first_name' => 'Owner', 'last_name' => 'One', 'email' => 'owner@dumosrx.com',
+            'password' => bcrypt('password'), 'role' => 'store_owner',
+        ]);
+    }
+
+    private function tillToken(): string
+    {
+        $issued = $this->owner->createToken('desktop');
+        $issued->accessToken->forceFill(['device_id' => 'DRX-TILL-1'])->save();
+
+        return $issued->plainTextToken;
+    }
+
+    private function asTill(string $method, string $uri, string $token)
+    {
+        $this->app['auth']->forgetGuards();
+
+        return $this->withHeaders(['Authorization' => "Bearer {$token}", 'User-Agent' => 'Till/1.0'])->json($method, $uri);
+    }
+
+    public function test_the_old_token_keeps_working_during_the_grace_window_and_the_new_one_works(): void
+    {
+        $old = $this->tillToken();
+        $new = $this->asTill('POST', '/api/v1/refresh', $old)->assertOk()->json('token');
+
+        $this->asTill('GET', '/api/v1/user', $old)->assertOk();
+        $this->asTill('GET', '/api/v1/user', $new)->assertOk();
+    }
+
+    public function test_the_new_token_inherits_the_device_id_and_records_the_ip_and_user_agent(): void
+    {
+        $new = $this->asTill('POST', '/api/v1/refresh', $this->tillToken())->json('token');
+
+        $token = PersonalAccessToken::findToken($new);
+        $this->assertSame('DRX-TILL-1', $token->device_id);
+        $this->assertSame('Till/1.0', $token->user_agent);
+        $this->assertNotNull($token->ip_address);
+    }
+
+    public function test_the_old_token_stops_working_once_the_grace_window_passes(): void
+    {
+        $old = $this->tillToken();
+        $this->asTill('POST', '/api/v1/refresh', $old)->assertOk();
+
+        $this->travel(config('sanctum.till_rotation_grace_minutes') + 1)->minutes();
+
+        $this->asTill('GET', '/api/v1/user', $old)->assertUnauthorized();
+    }
+
+    public function test_a_till_that_lost_the_refresh_response_can_refresh_again_from_the_old_token(): void
+    {
+        $old = $this->tillToken();
+        $this->asTill('POST', '/api/v1/refresh', $old)->assertOk();
+
+        $recovered = $this->asTill('POST', '/api/v1/refresh', $old)->assertOk()->json('token');
+
+        $this->asTill('GET', '/api/v1/user', $recovered)->assertOk();
+    }
+
+    public function test_rotated_tokens_are_not_counted_as_active_sessions_or_listed(): void
+    {
+        $old = $this->tillToken();
+        $new = $this->asTill('POST', '/api/v1/refresh', $old)->json('token');
+
+        $this->assertSame(2, PersonalAccessToken::count());
+        $this->assertCount(1, $this->asTill('GET', '/api/v1/sessions', $new)->assertOk()->json());
+    }
+
+    public function test_expired_rotated_tokens_are_pruned_on_the_next_refresh(): void
+    {
+        $first = $this->asTill('POST', '/api/v1/refresh', $this->tillToken())->json('token');
+        $this->travel(config('sanctum.till_rotation_grace_minutes') + 1)->minutes();
+        $this->asTill('POST', '/api/v1/refresh', $first)->assertOk();
+
+        $this->assertSame(1, PersonalAccessToken::where('name', TillTokenRotator::ROTATED_NAME)->count());
+    }
+
+    public function test_a_session_authenticated_refresh_without_a_bearer_token_still_issues_a_token(): void
+    {
+        $this->withoutMiddleware([\App\Http\Middleware\EnsureEmailIsVerified::class, \App\Http\Middleware\CheckAccountStatus::class, \App\Http\Middleware\CheckSubscription::class]);
+        $this->actingAs($this->owner)->postJson('/api/v1/refresh')->assertOk()->assertJsonStructure(['token']);
+    }
+
+    public function test_refreshing_from_a_rotated_token_does_not_extend_it(): void
+    {
+        $old = $this->tillToken();
+        $this->asTill('POST', '/api/v1/refresh', $old)->assertOk();
+        $expiry = PersonalAccessToken::findToken($old)->expires_at->copy();
+
+        $this->travel(20)->minutes();
+        $this->asTill('POST', '/api/v1/refresh', $old)->assertOk();
+
+        $this->assertTrue(PersonalAccessToken::findToken($old)->expires_at->equalTo($expiry));
+        $this->travel(11)->minutes();
+        $this->asTill('GET', '/api/v1/user', $old)->assertUnauthorized();
+    }
+
+    public function test_logging_out_also_ends_the_tokens_this_one_replaced(): void
+    {
+        $old = $this->tillToken();
+        $new = $this->asTill('POST', '/api/v1/refresh', $old)->json('token');
+
+        $this->asTill('POST', '/api/v1/logout', $new)->assertOk();
+
+        $this->assertSame(0, PersonalAccessToken::count());
+    }
+
+    public function test_logging_out_from_the_old_token_also_ends_the_token_that_replaced_it(): void
+    {
+        $old = $this->tillToken();
+        $this->asTill('POST', '/api/v1/refresh', $old)->assertOk();
+
+        $this->asTill('POST', '/api/v1/logout', $old)->assertOk();
+
+        $this->assertSame(0, PersonalAccessToken::count());
+    }
+
+    public function test_repeated_refreshes_from_the_old_token_leave_one_live_successor(): void
+    {
+        $old = $this->tillToken();
+        foreach (range(1, 4) as $_) {
+            $latest = $this->asTill('POST', '/api/v1/refresh', $old)->assertOk()->json('token');
+        }
+
+        $this->assertSame(1, PersonalAccessToken::where('name', '!=', TillTokenRotator::ROTATED_NAME)->count());
+        $this->asTill('GET', '/api/v1/user', $latest)->assertOk();
+    }
+
+    public function test_a_till_with_no_device_id_still_has_its_lineage_ended_on_logout(): void
+    {
+        $issued = $this->owner->createToken('desktop');
+        $issued->accessToken->forceFill(['user_agent' => 'Till/1.0'])->save();
+        $old = $issued->plainTextToken;
+        $new = $this->asTill('POST', '/api/v1/refresh', $old)->json('token');
+
+        $this->asTill('POST', '/api/v1/logout', $new)->assertOk();
+
+        $this->assertSame(0, PersonalAccessToken::count());
+    }
+}

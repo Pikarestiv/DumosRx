@@ -345,8 +345,8 @@ class User extends Authenticatable
 
         static::deleting(function ($user) {
             if (! $user->isForceDeleting()) {
-                $suffix = '_del_'.time();
-                if ($user->email && ! str_contains($user->email, '_del_')) {
+                $suffix = self::deletedSuffix();
+                if (trim((string) $user->email) !== '' && ! str_contains($user->email, '_del_')) {
                     $user->email = $user->email.$suffix;
                 }
                 if ($user->username && ! str_contains($user->username, '_del_')) {
@@ -355,6 +355,15 @@ class User extends Authenticatable
                 $user->save();
             }
         });
+    }
+
+    private static int $lastDeletedStamp = 0;
+
+    public static function deletedSuffix(): string
+    {
+        self::$lastDeletedStamp = max((int) floor(microtime(true) * 1000), self::$lastDeletedStamp + 1);
+
+        return '_del_'.self::$lastDeletedStamp;
     }
 
     public static function generateUniqueReferralCode()

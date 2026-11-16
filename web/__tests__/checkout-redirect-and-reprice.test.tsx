@@ -11,8 +11,8 @@ const { mockToastError, mockToastInfo, mockReconcilePrices, catalog } =
     mockToastInfo: vi.fn(),
     mockReconcilePrices: vi.fn(),
     catalog: {
-      products: [] as { id: string; selling_price: number }[],
-      online_payment_available: true,
+      data: [] as { id: string; selling_price: number }[],
+      store: { online_payment_available: true },
     },
   }));
 
@@ -63,8 +63,8 @@ vi.mock("@/lib/store/use-cart-store", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  catalog.products = [];
-  catalog.online_payment_available = true;
+  catalog.data = [];
+  catalog.store.online_payment_available = true;
   Object.defineProperty(window, "location", {
     value: { assign: vi.fn(), href: "" },
     writable: true,
@@ -100,7 +100,7 @@ describe("Paystack redirect keeps the submit button locked (A-105)", () => {
 
 describe("reprice names the items it removes (A-106)", () => {
   it("names each dropped item instead of saying 'some items'", async () => {
-    catalog.products = [{ id: "p1", selling_price: 500 }];
+    catalog.data = [{ id: "p1", selling_price: 500 }];
 
     renderHook(() => useCartRepricing("store-1"));
 
@@ -112,7 +112,7 @@ describe("reprice names the items it removes (A-106)", () => {
   });
 
   it("still reports a plain price change without naming a removal", async () => {
-    catalog.products = [
+    catalog.data = [
       { id: "p1", selling_price: 600 },
       { id: "p2", selling_price: 300 },
     ];

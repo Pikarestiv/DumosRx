@@ -11,7 +11,7 @@ export const POS_GUIDES: GuideItem[] = [
     summary:
       "Never turn away a customer when an item is out of stock. Pick it up from a nearby shop or partner pharmacy and ring it up on the spot. DumosRx tracks your true profit margin and automatically reconciles your till cash drawer at Daily Close.",
     steps: [
-      "Tap any out-of-stock product tile, or click 'Source outside' on a cart line. The cart shows it only when the line is out of stock, short, or already holds all your shelf stock.",
+      "Tap any out-of-stock product tile, or click 'Source outside' on a cart line. The cart line shows it only when its quantity is more than you have in stock, which can only happen when the store allows sales beyond recorded stock; otherwise use the out-of-stock product tile.",
       "Enter the buying cost paid to the outside shop (sourcing cost) and your customer selling price to see your instant profit margin.",
       "Choose payment source: select 'Cash Drawer' if cash was taken from the register, or 'Owner Credit / Paid Externally' if paid on credit.",
       "Tap 'Add to Cart' and complete the sale as usual. DumosRx records the sourcing cost as the line's cost of goods and logs accurate profit without touching shelf batches.",

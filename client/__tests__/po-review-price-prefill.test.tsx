@@ -52,6 +52,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
           products: [productOverride],
           onUpdateItem: vi.fn(),
           onRemoveItem: vi.fn(),
+          onEditProduct: vi.fn(),
         }),
       );
     });
@@ -133,6 +134,7 @@ describe("POReviewPricePopover prefill via POItemLedgerTable", () => {
             products: [product],
             onUpdateItem,
             onRemoveItem: vi.fn(),
+            onEditProduct: vi.fn(),
           }),
         );
       });

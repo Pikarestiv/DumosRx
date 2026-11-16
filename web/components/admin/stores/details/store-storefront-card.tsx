@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DetailCard, Field } from "./store-detail-primitives";
-import { StorefrontThemePicker } from "./storefront-theme-picker";
 import { useSetStoreStorefrontMutation } from "@/lib/api/admin-hooks";
 import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import type { AdminStoreDetail } from "@/lib/types/admin";
@@ -21,6 +20,8 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
   const canManage = checkHasPermission(user, "manage_account_status");
   const enabled = store.storefront.online_store_enabled;
   const slug = store.storefront.store_slug;
+  const { brand_slug: brandSlug, branch_slug: branchSlug } = store.storefront;
+  const isBranch = !slug && Boolean(brandSlug);
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -94,7 +95,7 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
           }
         />
         <Field
-          label="Slug"
+          label={isBranch ? "Branch page" : "Slug"}
           mono={!editing}
           value={
             editing ? (
@@ -118,6 +119,8 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
                   </Button>
                 </span>
               </span>
+            ) : isBranch ? (
+              <span className="font-mono text-xs">/s/{brandSlug}/{branchSlug ?? "…"}</span>
             ) : (
               <span className="inline-flex items-center gap-2">
                 {slug ?? "—"}
@@ -139,7 +142,6 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
           }
         />
       </div>
-      <StorefrontThemePicker store={store} />
       {store.storefront.pending_rebuild ? (
         <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
           The published page is stale until the next full site rebuild.
@@ -149,7 +151,7 @@ export function StoreStorefrontCard({ store }: { store: AdminStoreDetail }) {
         open={confirmReplace}
         onOpenChange={setConfirmReplace}
         title="Change the storefront address?"
-        description={`Customers reach this store at /store/${slug}. That link will stop working as soon as the address changes, including anywhere the owner has shared or printed it. A store's address can only be changed once every 6 months.`}
+        description={`Customers reach this store at /s/${slug}. That link will stop working as soon as the address changes, including anywhere the owner has shared or printed it. A store's address can only be changed once every 6 months.`}
         confirmLabel="Change the address"
         onConfirm={() => submit(draft.trim())}
       />

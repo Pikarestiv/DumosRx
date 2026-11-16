@@ -10355,8 +10355,10 @@ without one. Read-only; never submitted.
 `client/lib/hooks/use-audit-sheet-source.ts` (moved out of `stock-audits.tsx`
 on 2026-10-23; the anchor name is kept so existing links resolve)
 
-Reconcile against the latest server state as soon as the count screen
-opens, otherwise a stale local snapshot could make an already-corrected
+Superseded on 2026-11-14 by `client/lib/hooks/use-pre-audit-sync.ts`, which
+now gates the sheet on that pull; see client/AGENTS.md, "Counting on a device
+that is behind sync". The original reason still holds: reconcile against the
+latest server state as soon as the count screen opens, otherwise a stale local snapshot could make an already-corrected
 discrepancy look like a fresh one, or hide a real one that happened
 elsewhere since this device last synced.
 

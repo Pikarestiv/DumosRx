@@ -106,7 +106,7 @@ class Store extends Model
 
     /**
      * Store columns the public storefront page actually renders (see
-     * web/app/store/[store_slug]/page.tsx). Changing any of them makes the
+     * web/app/s/[store_slug]/page.tsx). Changing any of them makes the
      * published static page wrong until the next rebuild, so each one dirties
      * the storefront.
      */
@@ -149,7 +149,7 @@ class Store extends Model
             // the client slugifies via checkSlug() before writing, but the
             // real write arrives through the sync engine's `stores` push,
             // which has no store_slug rule at all. An unslugified value here
-            // becomes a static-export output path in web/out/store/.
+            // becomes a static-export output path in web/out/s/.
             if (! empty($model->store_slug)) {
                 $normalized = Str::limit(Str::slug((string) $model->store_slug), 100, '');
 

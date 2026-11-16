@@ -43,21 +43,19 @@ describe("POS cart item spot-sourcing controls", () => {
   it.each([
     [{ stock: 10, quantity: 1 }],
     [{ stock: 10, quantity: 9 }],
-  ])("offers no 'Source outside' control while the cart holds less than the shelf stock (%j)", (overrides) => {
+    [{ stock: 3, quantity: 3 }],
+  ])("offers no 'Source outside' control while the store has enough stock for the line (%j)", (overrides) => {
     renderItem(overrides);
 
     expect(screen.queryByRole("button", { name: "Source outside" })).toBeNull();
     expect(screen.queryByText("Out of stock")).toBeNull();
   });
 
-  it("offers 'Source outside' with a neutral status once the cart holds all the shelf stock", () => {
-    renderItem({ stock: 3, quantity: 3 });
+  it("offers 'Source outside' once the quantity exceeds the stock by one", () => {
+    renderItem({ stock: 3, quantity: 4 });
 
-    const pill = screen.getByRole("button", { name: "Source outside" });
-    expectOneLine(pill);
-    const status = screen.getByText("All shelf stock used");
-    expect(pill.contains(status)).toBe(false);
-    expect(status.className).toContain("text-muted-foreground");
+    expect(screen.getByRole("button", { name: "Source outside" })).toBeTruthy();
+    expect(screen.getByText("1 short")).toBeTruthy();
   });
 
   it.each([

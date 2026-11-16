@@ -15,9 +15,8 @@ vi.mock("@/lib/api/base-client", () => ({
   apiClient: {
     get: vi.fn(() => Promise.resolve({
       data: {
-        products: [{ id: "p1", name: "Panadol", selling_price: 500 }],
-        online_payment_available: true,
-        store: { currency: catalogCurrency.value },
+        data: [{ id: "p1", name: "Panadol", selling_price: 500 }],
+        store: { currency: catalogCurrency.value, online_payment_available: true },
       },
     })),
     post: vi.fn(() => Promise.resolve({ data: { order: { id: "order-1" } } })),
@@ -51,7 +50,7 @@ describe("formatMoney", () => {
   it("uses the store's own currency when it isn't NGN", () => {
     expect(formatMoney(1000, "GHS")).toBe("GH\u20b51,000");
     // No widely-recognised narrow symbol -> the ISO code, never a naira sign.
-    expect(formatMoney(1000, "KES")).toBe("KES1,000");
+    expect(formatMoney(1000, "KES")).toBe("KES\u00a01,000");
   });
 
   it("falls back to NGN when no currency is known yet", () => {
@@ -59,7 +58,7 @@ describe("formatMoney", () => {
   });
 
   it("falls back to the raw code for an unrecognised currency", () => {
-    expect(formatMoney(1000, "ZZZ")).toBe("ZZZ1,000");
+    expect(formatMoney(1000, "ZZZ")).toBe("ZZZ\u00a01,000");
   });
 });
 
@@ -67,7 +66,7 @@ describe("CheckoutForm currency", () => {
   it("renders the store's own currency rather than a hardcoded naira sign", async () => {
     render(<CheckoutForm storeSlug="store-1" />);
 
-    await waitFor(() => expect(screen.getByRole("button", { name: /place order/i }).textContent).toContain("KES1,000"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /place order/i }).textContent).toContain("KES\u00a01,000"));
     expect(screen.queryByText(/₦/)).not.toBeInTheDocument();
   });
 

@@ -3,6 +3,13 @@ import { formatCurrency } from "@/lib/utils";
 export const AUDIT_LEDGER_GRID_COLS =
   "grid-cols-[minmax(220px,1fr)_100px_100px_90px_100px_110px_100px_110px_120px_110px_140px]";
 
+export const AUDIT_LEDGER_GRID_COLS_NO_COST =
+  "grid-cols-[minmax(220px,1fr)_100px_100px_90px_110px_120px_110px_140px]";
+
+export function getAuditLedgerGridCols(canViewCost: boolean) {
+  return canViewCost ? AUDIT_LEDGER_GRID_COLS : AUDIT_LEDGER_GRID_COLS_NO_COST;
+}
+
 export function formatDiffCurrency(amount: number) {
   return amount > 0 ? `+${formatCurrency(amount)}` : formatCurrency(amount);
 }

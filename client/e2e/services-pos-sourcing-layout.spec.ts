@@ -55,7 +55,7 @@ test.describe('POS cart sourcing controls at phone width', () => {
   test.setTimeout(120000);
 
   for (const theme of THEMES) {
-    test(`${theme}: a spot-sourced line keeps its labels on one line, and an in-stock line offers Source outside only once the cart holds all its stock`, async ({
+    test(`${theme}: a spot-sourced line keeps its labels on one line, and an in-stock line offers no Source outside even when the cart holds all its stock`, async ({
       page,
       browser,
       baseURL,
@@ -114,16 +114,12 @@ test.describe('POS cart sourcing controls at phone width', () => {
 
       await line.getByRole('spinbutton').fill('10');
       await line.getByRole('spinbutton').press('Enter');
-      const allUsed = line.getByText('All shelf stock used', { exact: true });
-      await expect(allUsed).toBeVisible();
-      const inStock = await expectOneLineClearOfStepper(page, IN_STOCK, sourceOutside);
-      expect(inStock.effectiveOpacity).toBe(1);
-      expect(inStock.clipped).toBe(false);
-      expect(inStock.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
-      expect((await measureLabel(allUsed)).contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+      await expect(line.getByRole('spinbutton')).toHaveValue('10');
+      await expect(line.getByText('₦12,000', { exact: true })).toBeVisible();
+      await expect(sourceOutside).toHaveCount(0);
     });
 
-    test(`${theme}: a backordered out-of-stock line keeps the "Source outside" pill on one line`, async ({
+    test(`${theme}: a backordered line offers "Source outside" on one line once its quantity exceeds the stock`, async ({
       page,
       browser,
       baseURL,
@@ -140,6 +136,15 @@ test.describe('POS cart sourcing controls at phone width', () => {
       const metrics = await expectOneLineClearOfStepper(page, OUT_OF_STOCK, pill);
       expect(metrics.clipped).toBe(false);
       expect(metrics.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
+
+      const inStockLine = cartLine(page, IN_STOCK);
+      await inStockLine.getByRole('spinbutton').fill('11');
+      await inStockLine.getByRole('spinbutton').press('Enter');
+      await expect(inStockLine.getByText('1 short', { exact: true })).toBeVisible();
+      const inStock = await expectOneLineClearOfStepper(page, IN_STOCK, inStockLine.getByRole('button', { name: 'Source outside' }));
+      expect(inStock.effectiveOpacity).toBe(1);
+      expect(inStock.clipped).toBe(false);
+      expect(inStock.contrast).toBeGreaterThanOrEqual(MIN_SMALL_TEXT_CONTRAST);
     });
   }
 });

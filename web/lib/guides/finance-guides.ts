@@ -58,5 +58,24 @@ export const FINANCE_GUIDES: GuideItem[] = [
       "The assistant runs entirely on your local store PC with zero external AI subscriptions, zero latency, and complete data privacy.",
     videoPlaceholderText: "Video Walkthrough: Interacting with the in-app assistant for instant reports and guidance",
   },
+  {
+    id: "supplier-payment-due-alerts",
+    title: "Supplier Payment Due Dates: Never Miss a Payable",
+    category: "Reports & Finance",
+    badge: "Cash Flow",
+    readTime: "2 min read",
+    videoDuration: "1:15",
+    summary:
+      "Set a due date on a purchase order and DumosRx warns you on the dashboard and in the notification bell before the supplier payment is late, then flags the order Overdue.",
+    steps: [
+      "When creating or editing a purchase order, set the payment status to Unpaid or Partial and pick a Due Date.",
+      "Three days before the due date the dashboard Action Center and the notification bell show a 'Supplier Payments Due Soon' alert with the amount outstanding.",
+      "Once the date passes, the alert turns red and the order shows an Overdue badge in the Orders list.",
+      "Record the payment on the order. When it is fully paid the alert and badge disappear.",
+    ],
+    proTip:
+      "Tap the alert to jump straight to your orders, then sort by the Overdue badge to pay the most urgent suppliers first.",
+    videoPlaceholderText: "Video Walkthrough: Setting a PO due date and clearing overdue supplier payments",
+  },
 ];
 

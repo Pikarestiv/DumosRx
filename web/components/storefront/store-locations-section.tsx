@@ -1,9 +1,11 @@
+import { branchHref } from "@/lib/storefront-scope";
 import Link from "next/link";
 import { MapPin, Phone, Store as StoreIcon } from "lucide-react";
 
 import { StoreSectionHeading } from "@/components/storefront/store-section-heading";
 import type { StorefrontBranch, StorefrontStore } from "@/lib/api/storefront-data";
 import { storeAddressLine } from "@/lib/storefront-display";
+import { storefrontCopy } from "@/lib/storefront-copy";
 
 interface StoreLocationsSectionProps {
   storeSlug: string;
@@ -24,7 +26,7 @@ export function StoreLocationsSection({ storeSlug, store, branches, headingAs }:
       <StoreSectionHeading
         as={headingAs}
         title="Our Branches & Locations"
-        subtitle="Visit our pharmacy locations for physical pickup, prescriptions, and healthcare inquiries."
+        subtitle={storefrontCopy(store).locationsSubtitle}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -66,7 +68,7 @@ export function StoreLocationsSection({ storeSlug, store, branches, headingAs }:
 
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               <Link
-                href={`/store/${storeSlug}/catalog?branch=${branch.id}`}
+                href={branchHref(storeSlug, branch, "catalog")}
                 className="inline-flex items-center justify-center w-full rounded-full text-xs font-semibold h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs transition-colors"
               >
                 Shop from this Branch &rarr;

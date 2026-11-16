@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/context/auth-context";
 import { hasPermission } from "@/lib/hooks/use-permissions";
 import { toast } from "sonner";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
-import { apiClient } from "@/lib/api/client";
 import { useSettingsForm } from "./use-settings-form";
 import { useSettingsSecurity } from "./use-settings-security";
 import { useSettingsSync } from "./use-settings-sync";
@@ -76,8 +75,6 @@ export function useSettings() {
     lowStockAlert,
     expiryAlert,
     expiryDays,
-    localStoreSlug,
-    setLocalStoreSlug,
     localAddress,
     localPhone,
     localEmail,
@@ -86,7 +83,6 @@ export function useSettings() {
     localTaxNumber,
     showRetailSuggestions,
     requirePaymentAccount,
-    onlineStoreEnabled,
     loyaltyProgramEnabled,
     enabledPaymentMethods,
     autoSyncEnabled,
@@ -135,35 +131,17 @@ export function useSettings() {
   };
 
   // Handlers
-  const handleSaveProfile = async () => {
-    let finalSlug = localStoreSlug;
-    if (localStoreSlug && localStoreSlug !== storeProfile?.store_slug) {
-      try {
-        const result = await apiClient.checkStoreSlug(localStoreSlug, storeProfile?.id);
-        if (!result.available) {
-          toast.error("That Store URL Slug is already taken. Please choose another.");
-          return;
-        }
-        finalSlug = result.slug;
-        setLocalStoreSlug(result.slug);
-      } catch {
-        toast.error("Failed to verify store URL. Please check your internet connection.");
-        return;
-      }
-    }
-
+  const handleSaveProfile = () => {
     void updateStoreProfile({
       name: localName,
       address: localAddress,
       phone: localPhone,
       email: localEmail,
-      store_slug: finalSlug,
       pcn_license: localPcn,
       registration_number: localRegistrationNumber,
       tax_number: localTaxNumber,
       show_retail_suggestions: showRetailSuggestions ? 1 : 0,
       require_payment_account: requirePaymentAccount ? 1 : 0,
-      online_store_enabled: onlineStoreEnabled ? 1 : 0,
       // Only meaningful (and shown) for Pro/Enterprise stores — see
       // canUseLoyaltyProgram — but persisted here regardless so the value
       // is preserved if the store later downgrades and re-upgrades.

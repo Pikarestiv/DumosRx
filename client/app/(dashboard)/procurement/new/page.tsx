@@ -11,6 +11,7 @@ import { PODesktopCreateView } from "@/components/procurement/po-desktop-create-
 import { POFormSkeleton } from "@/components/procurement/po-form-skeleton";
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import { getOrderTotal } from "@/components/procurement/po-line-item-math";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { RequireRole } from "@/components/auth/require-role";
 import { toast } from "sonner";
 import { errorDescription } from "@/lib/utils/error-description";
@@ -26,6 +27,7 @@ import type { SupplierPayload } from "@/lib/types/supplier";
 import { usePoSubmit } from "./use-po-submit";
 
 function CreateOrderContent() {
+  const canEditProducts = useHasPermission("manage_products");
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
@@ -182,6 +184,7 @@ function CreateOrderContent() {
   };
 
   const createViewProps = {
+    canEditProducts,
     ...detailsFieldsProps,
     products,
     items,

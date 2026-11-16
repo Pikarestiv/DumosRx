@@ -13,19 +13,11 @@ const PILL =
   "inline-flex items-center gap-1 whitespace-nowrap shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer";
 const ICON = "w-3 h-3 shrink-0";
 
-type ShelfStatus = { label: string; tone: "warning" | "neutral" };
-
-function shelfStatus(item: CartItem): ShelfStatus | null {
+function shelfStatus(item: CartItem): string | null {
   const stock = item.stock ?? 0;
-  if (stock <= 0) return { label: "Out of stock", tone: "warning" };
-  if (item.quantity > stock) return { label: `${item.quantity - stock} short`, tone: "warning" };
-  return item.quantity === stock ? { label: "All shelf stock used", tone: "neutral" } : null;
+  if (item.quantity <= stock) return null;
+  return stock <= 0 ? "Out of stock" : `${item.quantity - stock} short`;
 }
-
-const STATUS_TONE = {
-  warning: "text-amber-700 dark:text-amber-400",
-  neutral: "text-muted-foreground",
-} as const;
 
 export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureSpotSourcing }: Props) {
   if (item.is_spot_sourced) {
@@ -63,7 +55,7 @@ export function POSCartItemSourcing({ item, currencyCode, isLocked, onConfigureS
         <Share2 className={ICON} />
         Source outside
       </button>
-      <span className={`whitespace-nowrap text-[10px] font-medium ${STATUS_TONE[status.tone]}`}>{status.label}</span>
+      <span className="whitespace-nowrap text-[10px] font-medium text-amber-700 dark:text-amber-400">{status}</span>
     </div>
   );
 }

@@ -207,13 +207,23 @@ export const EXPORT_COLUMNS: { key: keyof ExportableProduct; label: string }[] =
   { key: "showOnline", label: "Show in Online Store" },
 ];
 
+export function getExportColumns(
+  canViewCost = true,
+): { key: keyof ExportableProduct; label: string }[] {
+  return canViewCost
+    ? EXPORT_COLUMNS
+    : EXPORT_COLUMNS.filter((c) => c.key !== "costPrice");
+}
+
 /** Column order always follows EXPORT_COLUMNS, regardless of the order the
  * caller passed `columns` in, so the file stays predictable to re-import. */
 export function buildExportRows(
   products: ExportableProduct[],
   columns: (keyof ExportableProduct)[],
+  canViewCost = true,
 ): { headers: string[]; rows: Record<string, unknown>[] } {
-  const selected = EXPORT_COLUMNS.filter((c) => columns.includes(c.key));
+  const allowed = getExportColumns(canViewCost);
+  const selected = allowed.filter((c) => columns.includes(c.key));
   const rows = products.map((product) => {
     const row: Record<string, unknown> = {};
     for (const col of selected) row[col.label] = product[col.key];
@@ -244,7 +254,8 @@ export async function buildExportBlob(
   products: ExportableProduct[],
   columns: (keyof ExportableProduct)[],
   format: "csv" | "xlsx",
+  canViewCost = true,
 ): Promise<Blob> {
-  const { headers, rows: data } = buildExportRows(products, columns);
+  const { headers, rows: data } = buildExportRows(products, columns, canViewCost);
   return buildBlobFromRows(headers, data, format, "Products");
 }

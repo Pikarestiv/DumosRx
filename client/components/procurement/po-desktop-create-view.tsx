@@ -42,6 +42,7 @@ interface PODesktopCreateViewProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  canEditProducts?: boolean;
   onOpenAddSupplier: () => void;
   items: POLineItemDraft[];
   onItemsChange: (items: POLineItemDraft[]) => void;
@@ -77,6 +78,7 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
     onOpenAddProduct,
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed,
+    canEditProducts,
     onOpenAddSupplier,
     items,
     onItemsChange,
@@ -178,6 +180,7 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
             onOpenAddProduct={onOpenAddProduct}
             newlyCreatedProductId={newlyCreatedProductId}
             onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+            canEditProducts={canEditProducts}
           />
         </div>
       ) : (

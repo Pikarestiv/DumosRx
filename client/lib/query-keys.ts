@@ -97,6 +97,9 @@ export const queryKeys = {
     droppedReceiptSignal: (id: string | null) =>
       resource(["purchase_order_dropped_receipt", id] as const, ["purchase_order_items"]),
   },
+  payables: {
+    dueSummary: () => resource(["payables_due_summary"] as const, ["purchase_orders"]),
+  },
   requestedProducts: {
     all: () => resource(["requested_products"] as const, ["requested_products"]),
   },
@@ -299,6 +302,10 @@ export const queryKeys = {
     // Remote API data, not a local table.
     stats: () => resource(["fleetStats"] as const, []),
     widgetSnapshot: () => resource(["widgetSnapshot"] as const, []),
+  },
+  storefrontSettings: {
+    // Remote API data, not a local table.
+    show: () => resource(["storefrontSettings"] as const, []),
   },
   accountManager: {
     // Remote API data, not a local table.

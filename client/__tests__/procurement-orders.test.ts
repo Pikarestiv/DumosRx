@@ -224,6 +224,85 @@ describe("procurement.ts order writes", () => {
       );
       expect(itemRows[0].values[0][0]).toBe(2000);
     });
+
+    it("diffs edited lines in place to prevent sync churn and preserve line IDs (A-390)", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod2', 'Amoxil', 'Capsule', 'Carton', 50)`);
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod3', 'Ibuprofen', 'Tablet', 'Carton', 20)`);
+
+      const poId = await createPurchaseOrder(null, "", [
+        { product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 },
+        { product_id: "prod2", product_name: "Amoxil", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 50, unit_cost: 800, subtotal: 800 },
+      ]);
+
+      const initialLines = db.exec(
+        `SELECT id, product_id, bulk_quantity FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0 ORDER BY product_id ASC`,
+      )[0].values;
+      const line1Id = initialLines[0][0] as string;
+      const line2Id = initialLines[1][0] as string;
+
+      // 1. One-line quantity change queues only 1 UPDATE, 0 INSERTs, 0 DELETEs
+      db.run(`DELETE FROM _sync_queue`);
+      await updatePurchaseOrder(poId, null, "", [
+        { id: line1Id, product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 100, unit_cost: 500, subtotal: 2500 },
+        { id: line2Id, product_id: "prod2", product_name: "Amoxil", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 50, unit_cost: 800, subtotal: 800 },
+      ]);
+
+      const queueOps1 = db.exec(
+        `SELECT operation, record_id FROM _sync_queue WHERE table_name = 'purchase_order_items'`,
+      )[0]?.values ?? [];
+      expect(queueOps1).toEqual([["UPDATE", line1Id]]);
+
+      // Verify line1 updated in place and retained its id
+      const updatedLine1 = db.exec(
+        `SELECT id, bulk_quantity FROM purchase_order_items WHERE id = '${line1Id}' AND _deleted = 0`,
+      )[0].values[0];
+      expect(updatedLine1).toEqual([line1Id, 5]);
+
+      // 2. Keeping line 1, removing line 2, and adding line 3 queues exactly 1 DELETE and 1 INSERT
+      db.run(`DELETE FROM _sync_queue`);
+      await updatePurchaseOrder(poId, null, "", [
+        { id: line1Id, product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 100, unit_cost: 500, subtotal: 2500 },
+        { product_id: "prod3", product_name: "Ibuprofen", bulk_unit: "Carton", bulk_quantity: 3, units_per_bulk: 20, unit_cost: 400, subtotal: 1200 },
+      ]);
+
+      const queueOps2 = db.exec(
+        `SELECT operation, record_id FROM _sync_queue WHERE table_name = 'purchase_order_items' ORDER BY operation ASC`,
+      )[0]?.values ?? [];
+      expect(queueOps2).toHaveLength(2);
+      expect(queueOps2[0][0]).toBe("DELETE");
+      expect(queueOps2[0][1]).toBe(line2Id);
+      expect(queueOps2[1][0]).toBe("INSERT");
+
+      // Verify line 1 is still live with same ID, line 2 is soft deleted, and line 3 is inserted
+      const liveItems = db.exec(
+        `SELECT id, product_id, bulk_quantity FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0 ORDER BY product_id ASC`,
+      )[0].values;
+      expect(liveItems).toHaveLength(2);
+      expect(liveItems[0]).toEqual([line1Id, "prod1", 5]);
+      expect(liveItems[1][1]).toBe("prod3");
+      expect(liveItems[1][2]).toBe(3);
+    });
+  });
+
+  describe("editing after another device removed a line", () => {
+    it("saves a line whose old id points at a soft-deleted row instead of failing on the primary key", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+      const poId = await createPurchaseOrder(null, "", [
+        { product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 },
+      ]);
+      const oldId = db.exec(`SELECT id FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0][0] as string;
+      db.run(`UPDATE purchase_order_items SET _deleted = 1 WHERE id = '${oldId}'`);
+
+      await updatePurchaseOrder(poId, null, "", [
+        { id: oldId, product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 4, units_per_bulk: 100, unit_cost: 500, subtotal: 2000 },
+      ]);
+
+      const live = db.exec(`SELECT id, bulk_quantity FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0`)[0].values;
+      expect(live).toHaveLength(1);
+      expect(live[0][1]).toBe(4);
+      expect(live[0][0]).not.toBe(oldId);
+    });
   });
 
   describe("deletePurchaseOrder", () => {

@@ -47,35 +47,7 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
 - **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
 
-#### A-378. `client/` — a row taken over from another till's cloud session has no baseline, so its submit measures against stock at submit time
 
-- **Found:** 2026-11-13, alongside A-376.
-- **What's wrong:** `audit_session_items` stores `system_quantity` (the sheet's opening figure) but not the `baselineQty` the counting till read when the row was counted. `mergeCloudItemsIntoLocal()` fills the count without a baseline, so after a takeover `submitStockAudit()` measures that row against live stock at submit, and any sale between the count and the submit is added back.
-- **Fix:** add a `baseline_quantity` column and payload field beside `system_quantity` (additive; old clients send none and keep today's behaviour), send `item.baselineQty`, and set `baselineQty` from it in the merge.
-
-#### A-380. `client/` — the Activity Log detail panel prints every logged field, batch cost included, to anyone with `view_activity_log`
-
-- **Found:** 2026-11-13, reviewing the batch cost correction (PR #308); pre-existing.
-- **What's wrong:** `client/components/activity-log/activity-log-detail-panel.tsx` parses an entry's `details` and lists every key. A `BATCH_COST_CORRECTED` row carries `cost_price` and `previous_cost_price`, and a `stock_batches` insert or update carries `cost_price`, so a role with `view_activity_log` but without `view_cost_fields` reads batch costs there. The product History tab hides them since A-379; this panel does not.
-- **Fix:** read `view_cost_fields` in the panel and drop cost keys (`cost_price`, `previous_cost_price`, `counted_cost_price`, `unit_cost`, `total_cost`) from the listed fields when it is withheld.
-
-#### A-381. `client/` — the Cycle Count ledger shows cost and cost difference to anyone who can count stock
-
-- **Found:** 2026-11-13, in the release review of #312–#314; pre-existing.
-- **What's wrong:** `client/components/stock-batch/audit-ledger-row-cells.tsx` renders the cost price, the counted cost (read-only text when `canEditProductCost` is false) and the cost difference for every row. Only editing is gated (`edit_product_cost`); seeing the figures needs nothing beyond `perform_stock_audit`, so a role without `view_cost_fields` reads every product's cost there.
-- **Fix:** read `view_cost_fields` in `audit-ledger-step.tsx` and hide the three cost cells and their headers when it is withheld.
-
-#### A-382. `client/` — the product export's Cost Price column ignores `view_cost_fields`
-
-- **Found:** 2026-11-13, same review; pre-existing.
-- **What's wrong:** `EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts` always offers "Cost Price" (the batch average from `lib/db/queries/product-export.ts`), and the toolbar (`components/stock-batch/import-export-toolbar.tsx`) gates the export on `export_product_list` only.
-- **Fix:** drop the `costPrice` column from the column picker and the file when the user lacks `view_cost_fields`.
-
-#### A-383. `client/` — the Inventory Valuation report export carries Cost Price for anyone with report access
-
-- **Found:** 2026-11-13, same review; pre-existing.
-- **What's wrong:** the `stock_batches` report in `client/lib/hooks/use-report-export.ts` always exports "Cost Price" (and "Stock Value", which is derived from it). The Report Center gates it on `export_reports` / `view_financial_reports`, not `view_cost_fields`.
-- **Fix:** omit the cost columns, or hide the report, when `view_cost_fields` is withheld.
 
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
@@ -93,6 +65,7 @@ suggested tackle order rather than a strict ranking.
 
 - **Found:** 2026-10-10, in review of the derived-stock-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`).
 - **Shipped so far (the cheap guard):** the cycle-count review step warns when this device has not completed a successful sync in the last 60 minutes, and when the server reports another till in the same store that has not synced in that window, and the submit button is held until the counter acknowledges it. See `docs/FIXED_BUGS.md` A-211. It is deliberately not a block — a till with no connectivity for two days must still be able to count.
+- **Mitigated further (2026-11-14), still open:** Cycle Count now pulls from the cloud when it opens and lets no row be counted until that pull settles (`client/lib/hooks/use-pre-audit-sync.ts`), so an online till starts the count from current stock. This narrows the stale-till case; it does not fix it. Sales made on other tills while the count is in progress, an offline count, and a confirmed "Count anyway" still produce the same delta error.
 - **What is still open:** `submitStockAudit()` (`client/lib/db/queries/inventory.ts:659`) still writes `countedQty - currentSystemQty`, a delta against this device's belief. A warned-and-acknowledged count on a stale device is still wrong by exactly the amount that has not arrived. The correct fix is to record the count as an **absolute observation** ("at this moment a human counted 8") and derive the correction from it; the honest difficulty, which must not be hand-waved, is that a count taken offline and a sale that arrives afterwards but is dated earlier are genuinely ambiguous, and this codebase already knows not to trust `created_at` for ordering (commit `24257592`). That belongs in its own design.
 - **Also still unwarned:** the other two callers of `submitStockAudit()` — the catalog quick edit (`components/products/catalog-list.tsx`) and the CSV product import (`lib/db/queries/product-import.ts`) — reconcile stock through the same delta with no freshness check at all.
 
@@ -101,7 +74,7 @@ suggested tackle order rather than a strict ranking.
 - **Found:** 2026-10-11, vetting what the A-214 repair does to each device. The biggest risk in this incident's tail and previously unlogged anywhere.
 - **Location:** `client/lib/db/sync-engine/reconcile-quantities.ts:28-56` (`storeReconciliationMovementLocally`) against `pull.ts:403-423`.
 - **What's wrong:** the asserting device seeded its own 144 `sync_reconciliation` rows locally with `_synced = 1` and **never applied their deltas** — correctly, since its own quantity was already the number it had asserted. Once its interrupted rebuild finished it therefore holds the true quantity against a movement log whose sum is zero. The repair's `sync_reconciliation_reversal` rows are new to that device, so they take the INSERT branch, which has no `movement_type` special-case, and their positive deltas land **on top of** a quantity that was never reduced.
-- **Consequence:** that one device goes to roughly **2× on 144 products (~+13,104 over the cloud)** after its next sync — the inverse of what the owner is watching for. Batches with a logged opening movement are `diverged` and fold back on the next health check; batches with no opening movement (the A-148 class) are `unreconstructable`, so they stay doubled with no automatic repair at all. Under A-238 the fold can be up to 48 hours away.
+- **Consequence:** that one device goes to roughly **2× on 144 products (~+13,104 over the cloud)** after its next sync — the inverse of what the owner is watching for. Batches with a logged opening movement are `diverged` and fold back on the next health check; batches with no opening movement (the A-148 class) are `unreconstructable`, so they stay doubled with no automatic repair at all. Before A-238 the fold could be up to 48 hours away.
 - **Confirmed live, 2026-10-11:** `DRX-ZKI5K81UG` reports **64,765 against a cloud of 50,977 on store `571582a9` — +13,788**, which is the incident's own 13,104 plus 684 of ordinary drift, in a report taken *after* the 10/10 17:58 repair. No other arithmetic produces that number: a device that was merely offline through the window pulls the −13,104 **and** the +13,104 and nets to zero, so only a device that took the reversals **without** the incident deltas can sit one incident-size above cloud. **Two mechanisms can leave it in that state and the fingerprint cannot tell them apart:** (a) it is the asserting device, which seeded its own incident rows `_synced = 1` and never applied them; or (b) it pulled the incident movements while their `stock_batches` rows had not yet arrived and the deferred deltas were then lost — the A-197/A-229 class, which is this repo's most frequent defect and must not be assumed away. Attribution needs the device's own `_pending_stock_deltas` and movement log, read in a support session; the remedy is the same either way. Every other device on that store reads within +23. Note the same device reads exactly 0 against store `68e4c0e5`, so the condition is per-store, not per-device. Verified against production 2026-10-11: cloud `571582a9` is 2,626 batches / 50,977 units, the 144 reversals total +13,104, and `device_stock_reports.reported_at` puts both `ZKI5K81UG` (09:03) and `8DY6G5XH8` (08:09) **after** the 10/10 17:58 apply — so `8DY6G5XH8`'s +18 is a genuine post-repair agreement and `ZKI5K81UG`'s +13,788 is a genuine post-repair doubling. The other three devices' fingerprints predate the incident entirely and say nothing about their current state; each will net to zero when it next syncs, because it pulls both halves.
 - **How to identify it in general:** after a sync, it is the device whose `device_stock_reports` row reads ~+13k **over** cloud while every other device reads ~0. Per A-214's own note it is the device on which a Force Full Resync was run minutes before Health Sync.
 - **Fix / handling:** nothing that pushes its figures up — Health Sync is already refused, which closes the obvious wrong move. Read `window.__verifyStockIntegrity()` in a support session to see how many of the 144 are `unreconstructable`, then `window.__foldStockQuantities()` for the rest; the refused ones need a physical count. A general fix belongs with Stage 4's `opening_quantity`, which dissolves the `unreconstructable` class.
@@ -237,13 +210,6 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 3 — sync reliability, observability, latent hazards
 
-#### A-390. `client/` — editing a purchase order soft-deletes and re-inserts every line, so each save churns the whole PO through sync
-- **Found:** 2026-11-14, reading a read-only production query on the Nest Amawbia store (31 POs): 2,358 `purchase_order_items` rows, only 967 live. Deleted lines clustered on edit days (122, 136, 274, 37, 727, 95); one 142-line PO carried 410 deleted rows (about three saves) and another 50 live / 122 deleted. Only 2 deleted lines had no live replacement for the same product on that PO, so no lines were lost; the ratio is the edit pattern, not data loss.
-- **Where:** `client/lib/db/procurement.ts` `updatePurchaseOrder` (~lines 254-322): it selects every live line of the PO, `softDelete`s each, then `insert`s the edited set with new ids.
-- **What's wrong:** a save of an N-line PO writes N tombstones and N inserts to `_sync_queue` even when one quantity changed, which inflates `purchase_order_items` (here about 59% soft-deleted), multiplies push and pull volume, and widens the window where a PO's lines can reach the cloud out of step with its header (the suspected shape of A-296). It also changes every line's id, so anything that referenced a line id (activity log rows, receive progress) points at a tombstone.
-- **Fix:** diff the edited lines against the live ones by product (or a stable line key): update changed lines in place, insert only new ones, soft-delete only removed ones, and keep line ids stable. Test with real sql.js: a one-line quantity change queues one update and no inserts or deletes; adding and removing a line queues one insert and one delete.
-- **Not an emergency:** no loss was observed. Logged only; deliberately not fixed here.
-
 #### A-332. `client/` — ten Playwright e2e specs fail on `dev` and on the base commit, so the e2e suite is not a regression gate
 
 - **Found:** 2026-10-24, by the overall vet of the lint and refactor change set. All ten fail identically at `2f626dac`, before any of that work.
@@ -319,15 +285,6 @@ suggested tackle order rather than a strict ranking.
 - **Location:** the `sync_failures` migration (`store_id`, `user_id`, `table_name`, `record_id`, `operation`, `reason`, `created_at`) and `AdminSyncHealthService::storeHealth()` (`:58`), which filters on `store_id` alone. `SyncFailureRecorder::recordFailures()` has the request in scope and already reads `X-Device-Id` elsewhere in the same push.
 - **Consequence:** the one view used to judge a store's sync health cannot attribute a refusal to a till, which is the first question anyone asks of it — and per §6 of `.agents/AGENTS.md` the id would have to be rendered with its `device_label` anyway, which `ResolvesDeviceLabels` already does for the queue report.
 - **Fix:** add a nullable `device_id` column, populate it in `recordFailures()`, and join the label through `ResolvesDeviceLabels` like `DeviceQueueReportService` does.
-
-#### A-238. `client/` — a skipped auto-heal burns the whole 24-hour window, so a device returning from a break may need two days to repair
-
-- **Found:** 2026-10-11, working out whether a device that had been off over a weekend would heal on its first use.
-- **Location:** `client/lib/db/sync-engine/health-check.ts:117-119` — `localStorage.setItem(LAST_CHECK_KEY, …)` is stamped **before** `await healStockIntegrity()`.
-- **What's wrong:** `healStockIntegrity()` refuses while the movement log is mid-window (`movementLogIsComplete()` requires `last_synced_at` set **and** `server_cursor` null). A device back after days off pulls a large backlog, and a large pull spans several rounds (`pull-resumes-across-rounds.test.ts`) — so a `sync()` that *succeeded* can still leave the window mid-stream, which is exactly the A-214 condition the refusal exists for. The 24-hour clock has already been stamped by then, so the skip costs the entire interval instead of retrying on the next round.
-- **Consequence:** the device most likely to be drifted — one returning from a break, with the biggest backlog — is the one whose repair is deferred a further 24 hours. It takes two days of use to fold, and the owner is told nothing either way.
-- **Fix:** stamp the clock after the heal, or stamp it only when the heal was not skipped. The row-count deficit path below it is separately gated and already tolerates re-running, and the existing comment at `:114-116` ("a failed attempt should retry on the next app open") states the intended rule — the heal simply sits on the wrong side of the stamp.
-- **Note:** the sibling of A-236. A skipped heal *does* log (`healSkipped`), so the two together mean the only unobservable state is "ran and was clean".
 
 #### A-236. `client/` — the stock auto-healer is silent when it finds nothing, so "working" and "never ran" look identical in Sentry
 
@@ -502,11 +459,6 @@ suggested tackle order rather than a strict ranking.
 - **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
 - **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
 - **Fix:** point the link at the `web/` register page via a constant (§4, no hardcoded URL) and forward `ref` from `use-register-form.ts` beside `agent_ref`.
-
-#### A-371. `laravel-server/` — `PUT /admin/stores/{id}/storefront` answers 500, not 404, for a store id that does not exist
-- **Found:** 2026-11-13, adding the storefront theme endpoint beside it.
-- **What's wrong:** `AdminStoreStorefrontService::setEnabled()` calls `Store::findOrFail()`, and `AdminBaseController::withErrorResponse()` catches every `\Exception` except a validation one, so the `ModelNotFoundException` is logged as an error and returned as a generic 500 "Failed to update the storefront". The new theme endpoint catches it and answers 404.
-- **Fix:** catch `ModelNotFoundException` in `AdminStoreStorefrontController::update()` the way `updateTheme()` does, or let `withErrorResponse()` rethrow it so Laravel renders the 404 for every admin controller.
 
 #### A-361. `client/` + `laravel-server/` — `schema-migrations.ts` and `SyncController.php` are far over the 350-line rule
 - **Found:** 2026-11-13, review of `feat/service-pos`; pre-existing (main already had 857 and ~840 lines), the services work added a little to each.
@@ -764,6 +716,9 @@ These describe the current state of known architectural tradeoffs and performanc
 - **Whole-catalog in-memory search:** `getProductsWithDetails()` loads the entire catalog and `product-database.tsx` fuzzy-searches it in memory (debounced). Fine to ~10k products; beyond that the transform+filter+sort chain is O(catalog) on the main thread every filter change.
 - **`validateSync()`'s per-request chain** (`SubscriptionService`, `SystemConfig::getVal`, `PermissionGroupSeeder::ensureSeeded`, `enforceStaffLimits`) adds roughly 10 queries to every push/pull before any data is touched.
 - **`getStockMovements()` with no window** loads the whole table when searching/filtering — a large result set in React state at scale, independent of indexing, since nothing narrows the predicate.
+- **Owner storefront styling can show an unlocked form on a plan the server refuses (2026-11-14):** the till's `canCustomizeTheme` falls back to `!isFree` when the plan config lacks `custom_branding`, while the server's `subscription:custom_branding` falls back to `false` and `config/plans.php` enables it for Enterprise only. A Pro owner on a store a super admin has allowed would see the form and get a 403 on save (the toast shows the server's upgrade message). Only reachable for stores with `owner_style_enabled` on. Align the fallback with the server when owner styling is first switched on for a real store.
+- **Opening hours cannot express overnight or 24-hour shops (2026-11-14):** each day needs open before close within the same day.
+- **Storefront mobile Lighthouse performance sits at 86, short of the 90 target (2026-11-14):** measured on a local static build of the demo store served with gzip, mobile preset, three runs per page: home and shop both 86 with LCP 4.1 s (the hero heading and the first product title), accessibility 100 and 98. Fonts are preloaded for the active preset only, CSS is inlined (`experimental.inlineCss`), nothing is flagged render-blocking, TBT is 10-20 ms and CLS 0.004, so the remaining time is the simulated slow-4G cost of the page's JS and the root layout's unused Inter/Montserrat preloads. Individual runs of earlier builds scored 97-99, so the number is noisy and a local run is not production. Re-measure against the deployed site before spending more time; levers if it is still short: stop preloading Inter and Montserrat on `/store/*`, and trim the roughly 25 KiB of unused JS in the shared chunk.
 
 ### Offline / sync
 
@@ -772,6 +727,7 @@ These describe the current state of known architectural tradeoffs and performanc
 
 ### Files over 350 lines touched by a fix
 Logged per the 2026-10-25 rule: each file a fix edits that was already over the 350-line limit, or that it pushes over, with its size after the change. None of these were split inside a bug fix.
+- `laravel-server/routes/api.php` (a routes file, 381 lines), `laravel-server/tests/Feature/Admin/AdminStorefrontSettingsAndRebuildTest.php` (about 380) and `web/__tests__/storefront-home.test.tsx` (about 400): pushed over by the storefront redesign (2026-11-15), not split inside the feature. The two test files should be split by concern (settings vs rebuild; home vs live stock vs French) next time they are touched.
 - `laravel-server/app/Http/Controllers/Api/App/SyncController.php`: 823 lines, already over (A-325 added the payload-key refusal, A-217 added the up-front batch lock and push-inbound map). What is left in it is listed under Architecture below.
 - `laravel-server/app/Services/Web/DashboardService.php`: 707 lines, already over (the recent-transaction line query moved out to `RecentTransactionLines`, so it shrank).
 - `client/lib/db/local-database.ts`: 500 lines, already over (`forceSyncAllData()` gained the three services tables on one line).

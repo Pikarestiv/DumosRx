@@ -101,7 +101,19 @@ All four write endpoints sit behind `throttle:product-images`
   stale. Tauri does not run the service worker and relies on the HTTP cache;
   an uncached image offline falls back to the icon.
 - The POS grid draws images only when `stores.pos_show_product_images` is on.
-- The storefront card uses a plain `<img>` (static export).
+- The storefront renders the photo through `CategoryTile` (`image` from `image_url`), contained on the
+  category tint so the whole product shows, and falls back to the category tile when the image fails.
+- **Zoom.** `ProductImage` takes `zoom="full"` (the whole image is a button, used in the catalog detail
+  panel) or `zoom="corner"` (a small magnifier, used on POS tiles, where the tile itself is the add-to-cart
+  button and a tap on the magnifier must not add the product). Both open `ProductImageLightbox`, which shows
+  the stored image (at most 512px) fitted to the screen. Escape and the close button dismiss it. No larger
+  copy is stored.
+- The icon fallback receives the product name as well as the category, so it uses the same matcher as
+  the POS and catalog (`getProductIcon`).
+- **Offline-created products.** Uploading needs the product to exist on the server, so an image cannot be
+  attached before the product has synced; the upload answers 404 and the panel says the product has not
+  finished syncing. A local-first pending upload (keep the blob on the device, upload and relink when
+  online) is not built.
 
 ## Failure modes
 

@@ -7,6 +7,7 @@ export const queryClient = new QueryClient({
       // Local SQLite is fast, but we don't want infinite refetching on window focus 
       // since sync engine handles data invalidation
       refetchOnWindowFocus: false,
+      networkMode: "offlineFirst",
       staleTime: 1000 * 60 * 5, // 5 minutes
       gcTime: 1000 * 60 * 15, // 15 minutes
     },

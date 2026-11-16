@@ -20,20 +20,23 @@ describe("storefront chrome", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("links Home, Shop and Contact, the store's contact details, and Powered by the platform site", () => {
-    render(<StorefrontFooter storeSlug="grace" store={store} storefront={{ id: "f1", slug: "grace", name: "Grace Pharmacy", about: "Family pharmacy since 1998." }} />);
+  it("shows the store's address and hours with the platform credit, and no promotional copy", () => {
+    render(
+      <StorefrontFooter
+        storeSlug="grace"
+        store={store}
+        storefront={{
+          id: "f1", slug: "grace", name: "Grace Pharmacy", about: "Family pharmacy since 1998.",
+          opening_hours: { mon: { open: "08:00", close: "18:00" } },
+        }}
+      />,
+    );
 
-    const footerNav = screen.getByRole("navigation", { name: "Footer" });
-    const quickLinks = Array.from(footerNav.querySelectorAll("a")).map((a) => [a.textContent, a.getAttribute("href")]);
-    expect(quickLinks).toEqual([
-      ["Home", "/store/grace"],
-      ["Shop", "/store/grace/catalog"],
-      ["Contact", "/store/grace#contact"],
-    ]);
-    expect(screen.getByText("Family pharmacy since 1998.")).toBeTruthy();
-    expect(screen.getByText("0801").closest("a")?.getAttribute("href")).toBe("tel:0801");
-    expect(screen.getByText("12 Allen Avenue, Ikeja")).toBeTruthy();
+    expect(screen.getByText(/12 Allen Avenue, Ikeja/)).toBeTruthy();
+    expect(screen.getByText(/Mon · 8:00 am – 6:00 pm/)).toBeTruthy();
+    expect(screen.queryByText("Family pharmacy since 1998.")).toBeNull();
     expect(screen.getByText(/Powered by/).closest("a")?.getAttribute("href")).toBe(WEB_APP_URL);
+    expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 
   it("never links the unlinked Track Order or prescription routes", () => {

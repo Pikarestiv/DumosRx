@@ -38,7 +38,7 @@ export function POSMobileSearch({
         cartLength={cartLength}
       />
       <div className="flex gap-2">
-        <div className="relative flex-1">
+        <div className="relative flex-1 ml-1">
           <label
             htmlFor="pos-mobile-search-input"
             className="absolute inset-y-0 left-0 pl-3.5 flex items-center cursor-text"

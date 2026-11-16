@@ -21,6 +21,7 @@ class StorefrontCheckoutService
     public function __construct(
         private readonly StorefrontCatalogService $catalogService,
         private readonly StorefrontPaymentService $paymentService,
+        private readonly StorefrontOrderNotifier $notifier,
     ) {}
 
     public function availableQuantity(Store $store, string $productId): float
@@ -183,7 +184,9 @@ class StorefrontCheckoutService
                     'store_id' => $store->id,
                     'customer_name' => $validated['customer_name'],
                     'customer_phone' => $validated['customer_phone'],
+                    'customer_email' => $validated['customer_email'] ?? null,
                     'customer_address' => $validated['customer_address'] ?? null,
+                    'fulfilment_method' => $validated['fulfilment_method'] ?? 'pickup',
                     'total_amount' => $totalAmount,
                     'payment_method' => $validated['payment_method'],
                     'payment_status' => $paymentStatus,
@@ -222,6 +225,8 @@ class StorefrontCheckoutService
             'message' => "Order #{$order->id} placed by {$order->customer_name} for {$totalAmount}.",
             'type' => 'online_order',
         ]);
+
+        dispatch(fn () => $this->notifier->send($order, $store))->afterResponse();
 
         return response()->json([
             'message' => 'Order placed successfully',

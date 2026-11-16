@@ -64,6 +64,8 @@ export function ProductImageSection({ productId, productName: storedName, imageK
           imageKey={imageKey}
           categoryName={categoryName}
           alt={productName}
+          productName={productName}
+          zoom="full"
           sizePx={112}
           className="h-28 w-28 shrink-0 rounded-xl border border-border bg-primary/5 text-primary/70"
           iconClassName="h-8 w-8"

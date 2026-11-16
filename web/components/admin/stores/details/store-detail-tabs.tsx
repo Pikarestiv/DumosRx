@@ -9,15 +9,18 @@ import { useStoreStockDivergence, useStoreTableAgreement } from "@/lib/api/admin
 import { useAdminAuthStore, checkHasPermission } from "@/lib/store/use-admin-auth-store";
 import { syncVerdict, type SyncVerdict, type SyncVerdictTone } from "@/lib/admin/sync-verdict";
 import { StoreOverviewTab } from "@/components/admin/stores/details/store-overview-tab";
+import { StoreStorefrontTab } from "@/components/admin/stores/details/store-storefront-tab";
 import { StoreSyncTab } from "@/components/admin/stores/details/store-sync-tab";
 import { StoreActivityTab } from "@/components/admin/stores/details/store-activity-tab";
 
-type StoreDetailTab = "overview" | "sync" | "activity";
+type StoreDetailTab = "overview" | "storefront" | "sync" | "activity";
 
 function resolveTab(value: string | null | undefined, canViewSync: boolean): StoreDetailTab {
   switch (value ?? "") {
     case "sync":
       return canViewSync ? "sync" : "overview";
+    case "storefront":
+      return "storefront";
     case "activity":
       return "activity";
     default:
@@ -74,18 +77,25 @@ export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-      <TabsList className="mb-4 bg-muted w-full flex overflow-x-auto whitespace-nowrap justify-start p-1 h-12 gap-1">
+      <TabsList className="mb-4 bg-slate-100 dark:bg-slate-900 w-full flex overflow-x-auto whitespace-nowrap justify-start p-1 h-12 gap-1">
         <TabsTrigger
           value="overview"
-          className="px-4 shrink-0 gap-2 min-h-11"
+          className="px-4 shrink-0 gap-2 min-h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:border-slate-700"
           ref={activeTab === "overview" ? activeTriggerRef : undefined}
         >
           Overview
         </TabsTrigger>
+        <TabsTrigger
+          value="storefront"
+          className="px-4 shrink-0 gap-2 min-h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:border-slate-700"
+          ref={activeTab === "storefront" ? activeTriggerRef : undefined}
+        >
+          Storefront
+        </TabsTrigger>
         {canViewSync && (
           <TabsTrigger
             value="sync"
-            className="px-4 shrink-0 gap-2 min-h-11"
+            className="px-4 shrink-0 gap-2 min-h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:border-slate-700"
             ref={activeTab === "sync" ? activeTriggerRef : undefined}
           >
             {"Sync "}
@@ -94,7 +104,7 @@ export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
         )}
         <TabsTrigger
           value="activity"
-          className="px-4 shrink-0 gap-2 min-h-11"
+          className="px-4 shrink-0 gap-2 min-h-11 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 dark:data-[state=active]:border-slate-700"
           ref={activeTab === "activity" ? activeTriggerRef : undefined}
         >
           Activity
@@ -107,6 +117,10 @@ export function StoreDetailTabs({ store }: { store: AdminStoreDetail }) {
 
       <TabsContent value="overview" className="focus-visible:outline-none">
         <StoreOverviewTab store={store} />
+      </TabsContent>
+
+      <TabsContent value="storefront" className="focus-visible:outline-none">
+        <StoreStorefrontTab store={store} />
       </TabsContent>
 
       {canViewSync && (

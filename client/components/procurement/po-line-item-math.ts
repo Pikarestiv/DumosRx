@@ -24,16 +24,16 @@ export function addOrMergeLineItem(
   const unitCost = product.cost_price ? product.cost_price * unitsPerBulk : 0;
   return {
     items: [
-      ...items,
       {
         product_id: product.id,
         product_name: product.name,
-        bulk_unit: product.bulk_unit || "Carton",
+        bulk_unit: product.bulk_unit || product.base_unit || "Units",
         bulk_quantity: 1,
         units_per_bulk: unitsPerBulk,
         unit_cost: unitCost,
         subtotal: unitCost,
       },
+      ...items,
     ],
     merged: false,
   };

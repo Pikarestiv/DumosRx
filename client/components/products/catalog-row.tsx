@@ -90,6 +90,7 @@ function CatalogRowInner({
       <ProductImage
         imageKey={product.imageKey}
         categoryName={product.category}
+        productName={product.name}
         alt=""
         sizePx={sizePx}
         className={`${sizeClass} shrink-0 rounded-lg bg-primary/5 text-primary/60`}

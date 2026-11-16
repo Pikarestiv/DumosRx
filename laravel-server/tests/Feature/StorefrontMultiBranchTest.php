@@ -109,6 +109,20 @@ class StorefrontMultiBranchTest extends TestCase
             ->assertJsonPath('store.id', $this->branchIkeja->id);
     }
 
+    public function test_storefront_reports_the_selected_branch_store_type(): void
+    {
+        $this->branchIkeja->update(['store_type' => 'retail']);
+
+        $this->getJson('/api/v1/storefront/nestpharmacy')
+            ->assertOk()
+            ->assertJsonPath('store.store_type', 'pharmacy');
+
+        $this->getJson('/api/v1/storefront/nestpharmacy?branch='.$this->branchIkeja->id)
+            ->assertOk()
+            ->assertJsonPath('store.store_type', 'retail')
+            ->assertJsonPath('selected_branch.store_type', 'retail');
+    }
+
     public function test_legacy_store_slug_resolves_via_alias_and_preselects_that_branch(): void
     {
         $response = $this->getJson('/api/v1/storefront/nest-ikeja');

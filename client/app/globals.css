@@ -822,3 +822,19 @@ html[dir="rtl"] [data-sonner-toast]::after,
     display: none !important;
   }
 }
+
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 1023px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+}
+
+.fixed-visual-viewport {
+  top: var(--vv-top, 0px);
+  bottom: auto;
+  height: var(--vv-height, 100dvh);
+}

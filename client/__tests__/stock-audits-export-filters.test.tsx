@@ -22,7 +22,7 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 vi.mock("@/lib/context/auth-context", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
 vi.mock("@/lib/hooks/use-permissions", () => ({ useHasPermission: () => true }));
-vi.mock("@/lib/db/sync-engine", () => ({ sync: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/db/sync-engine", () => ({ sync: vi.fn().mockResolvedValue({ success: true }), isSyncing: () => false, SYNC_IN_PROGRESS_ERROR: "Sync already in progress" }));
 vi.mock("@/lib/db/queries/products", () => ({
   getProductsWithDetails: vi.fn().mockResolvedValue([]),
 }));

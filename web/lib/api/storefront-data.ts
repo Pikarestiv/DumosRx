@@ -1,4 +1,5 @@
-import { DEMO_PAGINATED_PRODUCTS, DEMO_STOREFRONT_DATA } from "@/lib/api/storefront-demo-data";
+import { DEMO_STOREFRONT_DATA, demoCatalog } from "@/lib/api/storefront-demo-data";
+import { parseStorefrontScope } from "@/lib/storefront-scope";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 export interface StorefrontStore {
@@ -11,11 +12,15 @@ export interface StorefrontStore {
   logo_url?: string | null;
   currency?: string | null;
   is_primary?: boolean;
+  store_type?: string | null;
+  online_payment_available?: boolean;
+  timezone?: string | null;
 }
 
 export interface StorefrontBranch {
   id: string;
   name: string;
+  slug?: string;
   location?: string | null;
   address?: string | null;
   phone?: string | null;
@@ -29,6 +34,18 @@ export interface StorefrontProfile {
   headline?: string | null;
   about?: string | null;
   theme?: string;
+  locale?: string | null;
+  enabled_locales?: string[] | null;
+  accent?: string | null;
+  tagline?: string | null;
+  whatsapp?: string | null;
+  pickup_minutes?: number | null;
+  payment_instructions?: string | null;
+  delivery_available?: boolean;
+  delivery_note?: string | null;
+  pay_on_delivery?: boolean;
+  show_services?: boolean;
+  opening_hours?: Record<string, { open: string; close: string } | null> | null;
   logo_url?: string | null;
   banner_url?: string | null;
 }
@@ -58,24 +75,26 @@ export class StorefrontFetchError extends Error {}
  * `notFound()`; anything else throws.
  */
 export async function getStorefrontData(
-  store_slug: string,
+  scope: string,
   branchId?: string,
 ): Promise<StorefrontData | null> {
-  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
+  const { slug: store_slug, branch: scopedBranch } = parseStorefrontScope(scope);
+  const branchParam = scopedBranch ?? branchId;
+  if ((process.env.STOREFRONT_ALLOW_EMPTY === "1" || process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1") && store_slug === "demo") {
     return DEMO_STOREFRONT_DATA;
   }
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
 
-  const queryStr = branchId ? `?branch=${encodeURIComponent(branchId)}` : "";
+  const queryStr = branchParam ? `?branch=${encodeURIComponent(branchParam)}` : "";
 
   let res: Response;
   try {
     res = await fetch(`${apiUrl}/storefront/${store_slug}${queryStr}`);
   } catch (error) {
     throw new StorefrontFetchError(
-      `Could not reach the API for /store/${store_slug}: ` +
+      `Could not reach the API for /s/${store_slug}: ` +
         (error instanceof Error ? error.message : "network error"),
     );
   }
@@ -86,13 +105,13 @@ export async function getStorefrontData(
 
   if (!res.ok) {
     throw new StorefrontFetchError(
-      `API returned HTTP ${res.status} for /store/${store_slug}.`,
+      `API returned HTTP ${res.status} for /s/${store_slug}.`,
     );
   }
 
   if (!res.headers.get("content-type")?.includes("application/json")) {
     throw new StorefrontFetchError(
-      `API returned a non-JSON response for /store/${store_slug} ` +
+      `API returned a non-JSON response for /s/${store_slug} ` +
         `(${res.headers.get("content-type") ?? "no content-type"}).`,
     );
   }
@@ -101,11 +120,13 @@ export async function getStorefrontData(
     return (await res.json()) as StorefrontData;
   } catch (error) {
     throw new StorefrontFetchError(
-      `API returned unparseable JSON for /store/${store_slug}: ` +
+      `API returned unparseable JSON for /s/${store_slug}: ` +
         (error instanceof Error ? error.message : "parse error"),
     );
   }
 }
+
+const PRODUCTS_REQUEST_TIMEOUT_MS = 15_000;
 
 export interface StorefrontCategory {
   id: string;
@@ -135,11 +156,13 @@ export interface PaginatedStorefrontProducts {
 }
 
 export async function getStorefrontProducts(
-  store_slug: string,
-  options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string },
+  scope: string,
+  options?: { page?: number; q?: string; category?: string; per_page?: number; branch?: string; ids?: string[] },
 ): Promise<PaginatedStorefrontProducts | null> {
-  if (process.env.STOREFRONT_ALLOW_EMPTY === "1" && store_slug === "demo") {
-    return DEMO_PAGINATED_PRODUCTS;
+  const { slug: store_slug, branch: scopedBranch } = parseStorefrontScope(scope);
+  const branch = scopedBranch ?? options?.branch;
+  if (process.env.NEXT_PUBLIC_STOREFRONT_SANDBOX === "1" && store_slug === "demo") {
+    return demoCatalog(options);
   }
 
   const apiUrl =
@@ -150,16 +173,19 @@ export async function getStorefrontProducts(
   if (options?.q) params.set("q", options.q);
   if (options?.category) params.set("category", options.category);
   if (options?.per_page) params.set("per_page", String(options.per_page));
-  if (options?.branch) params.set("branch", options.branch);
+  if (branch) params.set("branch", branch);
+  if (options?.ids?.length) params.set("ids", options.ids.join(","));
 
   const queryStr = params.toString() ? `?${params.toString()}` : "";
 
   let res: Response;
   try {
-    res = await fetch(`${apiUrl}/storefront/${store_slug}/products${queryStr}`);
+    res = await fetch(`${apiUrl}/storefront/${store_slug}/products${queryStr}`, {
+      signal: AbortSignal.timeout(PRODUCTS_REQUEST_TIMEOUT_MS),
+    });
   } catch (error) {
     throw new StorefrontFetchError(
-      `Could not reach the API for /store/${store_slug}/products: ` +
+      `Could not reach the API for /s/${store_slug}/products: ` +
         (error instanceof Error ? error.message : "network error"),
     );
   }
@@ -170,7 +196,7 @@ export async function getStorefrontProducts(
 
   if (!res.ok) {
     throw new StorefrontFetchError(
-      `API returned HTTP ${res.status} for /store/${store_slug}/products.`,
+      `API returned HTTP ${res.status} for /s/${store_slug}/products.`,
     );
   }
 
@@ -178,7 +204,7 @@ export async function getStorefrontProducts(
     return (await res.json()) as PaginatedStorefrontProducts;
   } catch (error) {
     throw new StorefrontFetchError(
-      `API returned unparseable JSON for /store/${store_slug}/products: ` +
+      `API returned unparseable JSON for /s/${store_slug}/products: ` +
         (error instanceof Error ? error.message : "parse error"),
     );
   }

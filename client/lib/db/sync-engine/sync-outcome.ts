@@ -8,6 +8,16 @@ import { STORE_REFUSED_MESSAGE } from "./store-refusal";
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-sync-outcome-ts-L6
 export const SYNC_IN_PROGRESS_ERROR = "Sync already in progress";
 
+const PUSH_BATCHES_FAILED_SUFFIX = "batch(es) failed to push; will retry automatically";
+
+export function pushBatchesFailedError(failedBatches: number): string {
+  return `${failedBatches} ${PUSH_BATCHES_FAILED_SUFFIX}`;
+}
+
+export function isPushBatchesFailedError(error: unknown): boolean {
+  return typeof error === "string" && error.endsWith(PUSH_BATCHES_FAILED_SUFFIX);
+}
+
 export const READ_ONLY_TAB_MESSAGE =
   "This tab is read-only. Switch to the tab where DumosRx is active to sync.";
 

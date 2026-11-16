@@ -1,6 +1,8 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
+import { reconcilePurchaseOrderLines } from "./procurement-line-diff";
+import { getStoredUser } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { clearImmediateOnlyFields, immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
@@ -87,6 +89,7 @@ export interface PurchaseOrderItem {
 // A line item as it exists in the create/edit PO form before submission:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L108
 export interface DraftPOLineItem {
+  id?: string;
   product_id: string;
   product_name: string;
   bulk_unit: string;
@@ -219,6 +222,7 @@ export async function createPurchaseOrder(
       supplier_id: supplierId,
       status: "pending",
       type,
+      ordered_by: getStoredUser()?.id ?? null,
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,
@@ -274,17 +278,6 @@ export async function updatePurchaseOrder(
   }
 
   return transaction(async () => {
-    // Soft delete existing items
-    const existingItems = await query<{ id: string }>(
-      "SELECT id FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
-      [poId]
-    );
-
-    for (const item of existingItems) {
-      await softDelete("purchase_order_items", item.id);
-    }
-
-    // Update PO details
     await update("purchase_orders", poId, {
       supplier_id: supplierId,
       payment_status: paymentStatus,
@@ -295,24 +288,7 @@ export async function updatePurchaseOrder(
       updated_at: now
     });
 
-    // Insert new items
-    for (const item of lines) {
-      await insert("purchase_order_items", {
-        id: generateId(),
-        po_id: poId,
-        product_id: item.product_id,
-        bulk_quantity: item.bulk_quantity,
-        quantity_received: 0,
-        units_per_bulk: item.units_per_bulk,
-        unit_cost: item.unit_cost,
-        subtotal: roundMoney(immediateLineAmount(item)),
-        selling_price: coerceOptionalNumber(item.selling_price),
-        cost_price_override: coerceOptionalNumber(item.cost_price_override),
-        lot_number: item.lot_number || null,
-        expiry_date: item.expiry_date || null,
-        created_at: now
-      });
-    }
+    await reconcilePurchaseOrderLines(poId, lines, now);
 
     await applyChangedSellingPrices(lines);
 

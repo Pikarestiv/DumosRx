@@ -11,15 +11,25 @@ use App\Services\SubscriptionService;
 use App\Support\StorefrontThemes;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class StorefrontCatalogService
 {
     public const MAX_STOREFRONT_PRODUCTS = 50;
     public const PER_PAGE = 50;
 
+    private const MAX_REQUESTED_IDS = 100;
+    public const FEATURED_PRODUCT_COUNT = 8;
+    public const BEST_SELLER_WINDOW_DAYS = 90;
+    public const BEST_SELLER_UNITS_WEIGHT = 0.5;
+    public const BEST_SELLER_REVENUE_WEIGHT = 0.5;
+    public const NOT_SOLD_PAYMENT_STATUSES = ['failed', 'refunded'];
+
     public function __construct(
         private readonly SubscriptionService $subscriptionService,
+        private readonly StorefrontBranchSlugs $branchSlugs,
     ) {}
 
     public function storefrontEnabled(Store $store): bool
@@ -88,6 +98,7 @@ class StorefrontCatalogService
         Storefront $storefront,
         ?string $branchId = null,
         ?string $requestedSlug = null,
+        bool $requireExplicitMatch = false,
     ): ?Store {
         $branches = $this->getStorefrontBranches($storefront);
         if ($branches->isEmpty()) {
@@ -96,7 +107,13 @@ class StorefrontCatalogService
 
         if ($branchId) {
             $matched = $branches->firstWhere('id', $branchId);
-            if ($matched) {
+
+            if (! $matched) {
+                $slugs = $this->branchSlugs->forBranches($branches);
+                $matched = $branches->first(fn (Store $branch) => $slugs[$branch->id] === $branchId || $branch->store_slug === $branchId);
+            }
+
+            if ($matched || $requireExplicitMatch) {
                 return $matched;
             }
         }
@@ -135,12 +152,98 @@ class StorefrontCatalogService
      */
     public function getLandingProducts(Store $store, int $limit = self::MAX_STOREFRONT_PRODUCTS): Collection
     {
+        $sales = $this->bestSellerTotals($store);
+        $peaks = DB::query()->fromSub($sales, 'totals')
+            ->selectRaw('MAX(units) AS max_units, MAX(revenue) AS max_revenue');
+
         return $this->storeProducts($store)
+            ->select('products.*')
+            ->leftJoinSub($sales, 'best_sellers', 'best_sellers.product_id', '=', 'products.id')
+            ->crossJoinSub($peaks, 'best_seller_peaks')
             ->with('category')
+            ->withStockAt($store->id)
             ->inStockFirstAt($store->id)
-            ->orderBy('name')
+            ->orderByRaw(
+                '(? * COALESCE(best_sellers.units / NULLIF(best_seller_peaks.max_units, 0), 0)'
+                .' + ? * COALESCE(best_sellers.revenue / NULLIF(best_seller_peaks.max_revenue, 0), 0)) DESC',
+                [self::BEST_SELLER_UNITS_WEIGHT, self::BEST_SELLER_REVENUE_WEIGHT],
+            )
+            ->orderBy('products.name')
             ->limit($limit)
             ->get();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function featuredProductIds(Store $store): array
+    {
+        return $this->getLandingProducts($store, self::FEATURED_PRODUCT_COUNT)->pluck('id')->all();
+    }
+
+    private function bestSellerTotals(Store $store): QueryBuilder
+    {
+        return DB::table('sale_items')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->whereIn('sale_items.product_id', $this->storeProducts($store)->select('products.id'))
+            ->where(fn ($q) => $q->where('sales.store_id', $store->id)->orWhereNull('sales.store_id'))
+            ->where('sales.transaction_date', '>=', now()->utc()->subDays(self::BEST_SELLER_WINDOW_DAYS))
+            ->whereNotIn('sales.payment_status', self::NOT_SOLD_PAYMENT_STATUSES)
+            ->whereNull('sales.deleted_at')
+            ->whereNull('sale_items.deleted_at')
+            ->groupBy('sale_items.product_id')
+            ->selectRaw('sale_items.product_id, SUM(sale_items.quantity) * 1.0 AS units, SUM(sale_items.total_price) * 1.0 AS revenue');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    /**
+     * @param  Collection<int, Store>  $branches
+     * @return array<int, array<string, mixed>>
+     */
+    public function branchSummaries(Storefront $storefront, Collection $branches, bool $detailed = true): array
+    {
+        $slugs = $this->branchSlugs->forBranches($branches);
+
+        return $branches->map(fn (Store $b) => [
+            'id' => $b->id,
+            'name' => $b->name,
+            'slug' => $slugs[$b->id],
+            'location' => $b->location,
+            ...($detailed ? ['address' => $b->address, 'phone' => $b->phone] : []),
+            'is_primary' => $b->id === $storefront->primary_store_id,
+        ])->values()->all();
+    }
+
+    public function branchPayload(Store $branch, string $currency): array
+    {
+        return [
+            'id' => $branch->id,
+            'name' => $branch->name,
+            'store_slug' => $branch->store_slug,
+            'branch_slug' => $this->branchSlugs->ensure($branch),
+            'location' => $branch->location,
+            'address' => $branch->address,
+            'phone' => $branch->phone,
+            'email' => $branch->email,
+            'store_type' => $branch->store_type ?? 'pharmacy',
+            'currency' => $currency,
+            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
+            'timezone' => $branch->timezone,
+        ];
+    }
+
+    /**
+     * @return array<int, string>|null null when the request named no ids at all
+     */
+    public function parseRequestedIds(mixed $raw): ?array
+    {
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        return array_slice(array_values(array_unique(array_filter(array_map('trim', explode(',', $raw))))), 0, self::MAX_REQUESTED_IDS);
     }
 
     /**
@@ -151,8 +254,13 @@ class StorefrontCatalogService
         ?string $search = null,
         ?string $categoryId = null,
         int $perPage = self::PER_PAGE,
+        ?array $ids = null,
     ): LengthAwarePaginator {
-        $query = $this->storeProducts($store)->with('category');
+        $query = $this->storeProducts($store)->with('category')->withStockAt($store->id);
+
+        if ($ids !== null) {
+            $query->whereIn('products.id', $ids);
+        }
 
         if ($search !== null && trim($search) !== '') {
             $term = '%'.trim($search).'%';

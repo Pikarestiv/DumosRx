@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/api/base-client", () => ({
   apiClient: {
-    get: vi.fn(() => Promise.resolve({ data: { products: [], online_payment_available: true } })),
+    get: vi.fn(() => Promise.resolve({ data: { data: [], store: { online_payment_available: true } } })),
     post: vi.fn((url: string) =>
       Promise.resolve(
         url.includes("/checkout/initialize")

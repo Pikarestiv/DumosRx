@@ -4,6 +4,9 @@ export interface StorefrontProduct {
   generic_name?: string;
   selling_price: string | number;
   requires_prescription?: boolean;
-  category?: { name: string };
+  stock_quantity?: number;
+  in_stock?: boolean;
+  category?: { id?: string; name: string };
+  image?: string | null;
   image_url?: string | null;
 }

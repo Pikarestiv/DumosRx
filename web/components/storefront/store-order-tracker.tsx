@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/utils/currency";
 import { formatDateSafe } from "@/lib/utils/date-utils";
+import type { StorefrontStore } from "@/lib/api/storefront-data";
+import { storefrontCopy } from "@/lib/storefront-copy";
 
 interface TrackedOrder {
   id: string;
@@ -26,9 +28,11 @@ interface TrackedOrder {
 
 interface StoreOrderTrackerProps {
   storeSlug: string;
+  store?: StorefrontStore | null;
 }
 
-export function StoreOrderTracker({ storeSlug }: StoreOrderTrackerProps) {
+export function StoreOrderTracker({ storeSlug, store }: StoreOrderTrackerProps) {
+  const copy = storefrontCopy(store);
   const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +94,7 @@ export function StoreOrderTracker({ storeSlug }: StoreOrderTrackerProps) {
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-            <Clock className="h-3.5 w-3.5" /> Processing at Pharmacy
+            <Clock className="h-3.5 w-3.5" /> {copy.trackerProcessing}
           </span>
         );
     }
@@ -175,7 +179,7 @@ export function StoreOrderTracker({ storeSlug }: StoreOrderTrackerProps) {
           {order.items && order.items.length > 0 && (
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <h3 className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
-                Prescription & Products Ordered
+                {copy.trackerItemsHeading}
               </h3>
               <ul className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
                 {order.items.map((item, i) => (

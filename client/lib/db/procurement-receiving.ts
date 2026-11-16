@@ -216,6 +216,7 @@ export async function createAndReceivePurchaseOrder(
       supplier_id: supplierId,
       status: "received",
       type: "immediate",
+      ordered_by: getStoredUser()?.id ?? null,
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,

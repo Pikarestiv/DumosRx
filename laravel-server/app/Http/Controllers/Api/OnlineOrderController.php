@@ -97,6 +97,46 @@ class OnlineOrderController extends Controller
     }
 
     #[OA\Post(
+        path: '/app/online-orders/{id}/ready',
+        summary: 'Tell the customer their storefront order is ready',
+        description: 'Stamps ready_at once and emails the customer when they gave an address; calling it again changes nothing and sends nothing. Only a `pending` order can be marked ready. A ready order is no longer auto-cancelled for being unpaid.',
+        tags: ['Online Orders'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Marked ready; `emailed` says whether a customer email was sent'),
+            new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
+            new OA\Response(response: 409, description: 'Order is no longer pending'),
+        ],
+    )]
+    public function markReady(Request $request, $id, \App\Services\Storefront\StorefrontOrderNotifier $notifier)
+    {
+        $storeId = $this->resolveOrderStoreId($request);
+        if (! $storeId) {
+            return response()->json(['error' => 'No store associated'], 400);
+        }
+
+        $order = OnlineOrder::with('store')->where('store_id', $storeId)->findOrFail($id);
+
+        if ($order->order_status !== 'pending') {
+            return response()->json(['message' => "This order is already {$order->order_status}.", 'order' => $order], 409);
+        }
+
+        $newlyReady = OnlineOrder::where('id', $order->id)->where('order_status', 'pending')->whereNull('ready_at')->update(['ready_at' => now()]) === 1;
+        $order->refresh();
+
+        if (! $newlyReady && $order->ready_at === null) {
+            return response()->json(['message' => "This order is already {$order->order_status}.", 'order' => $order], 409);
+        }
+
+        return response()->json([
+            'message' => 'Order marked ready',
+            'order' => $order,
+            'emailed' => $newlyReady && $notifier->ready($order, $order->store),
+        ]);
+    }
+
+    #[OA\Post(
         path: '/app/online-orders/{id}/fulfill',
         summary: 'Mark a storefront order fulfilled or cancelled',
         description: 'Only a `pending` order can transition; anything else is a 409, so a retry after a partial client-side failure is safe. `payment_status` is only promoted to `paid` when the caller passes `payment_confirmed: true` (the POS does, at the moment staff hand goods over and take the money) - fulfilling alone is not treated as evidence of payment. Cancelling an already-paid order flags a refund for the store rather than silently discarding it. Clears any matching unread "online_order" notification for the caller.',
@@ -122,7 +162,7 @@ class OnlineOrderController extends Controller
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
         ],
     )]
-    public function markFulfilled(Request $request, $id, \App\Services\Payment\PaymentService $paymentService)
+    public function markFulfilled(Request $request, $id, \App\Services\Payment\PaymentService $paymentService, \App\Services\Storefront\StorefrontOrderNotifier $notifier)
     {
         $user = Auth::user();
         $storeId = $this->resolveOrderStoreId($request);
@@ -148,6 +188,10 @@ class OnlineOrderController extends Controller
 
         if ($validated['status'] === 'cancelled' && $order->payment_status === 'paid') {
             $this->refundOrFlag($order, $storeId, $paymentService);
+        }
+
+        if ($validated['status'] === 'cancelled') {
+            $notifier->cancelled($order->refresh(), $order->store);
         }
 
         // Mark related notifications as read
@@ -186,6 +230,10 @@ class OnlineOrderController extends Controller
             }
 
             $order->order_status = $validated['status'];
+
+            if ($validated['status'] === 'cancelled') {
+                $order->cancel_reason = 'store';
+            }
 
             if ($validated['status'] === 'fulfilled' && ($validated['payment_confirmed'] ?? false)) {
                 $order->payment_status = 'paid';

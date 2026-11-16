@@ -1,3 +1,5 @@
+import { DEFAULT_STOREFRONT_LOCALE, formatStorefrontMoney, type StorefrontLocale } from "@/lib/storefront-i18n";
+
 const PLATFORM_FALLBACK_CURRENCY = "NGN";
 
 /**
@@ -21,6 +23,6 @@ export function currencySymbol(currency?: string | null): string {
   }
 }
 
-export function formatMoney(amount: number, currency?: string | null): string {
-  return `${currencySymbol(currency)}${amount.toLocaleString()}`;
+export function formatMoney(amount: number, currency?: string | null, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string {
+  return formatStorefrontMoney(amount, currency, locale);
 }

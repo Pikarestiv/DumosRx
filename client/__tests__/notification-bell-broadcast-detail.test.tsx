@@ -20,6 +20,12 @@ const LONG_MESSAGE =
 const push = vi.fn();
 const onOpen = vi.fn();
 
+vi.mock("@/lib/db/queries/payables", () => ({
+  getPayablesDueSummary: vi.fn(() =>
+    Promise.resolve({ overdueCount: 0, overdueTotal: 0, dueSoonCount: 0, dueSoonTotal: 0 }),
+  ),
+}));
+
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({ user: { id: "u1" }, isCloudLinked: true }),
 }));

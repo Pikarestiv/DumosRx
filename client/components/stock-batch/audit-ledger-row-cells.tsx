@@ -11,6 +11,7 @@ interface AuditLedgerRowCellsProps {
   item: AuditItem;
   canEditProductCost: boolean;
   canEditProductPrice: boolean;
+  canViewCost?: boolean;
   isReadOnly?: boolean;
   onUpdateItem: (id: string, patch: Partial<AuditItem>) => void;
   onCountRow: (id: string, countedQty?: number) => void;
@@ -21,6 +22,7 @@ export function AuditLedgerRowCells({
   item,
   canEditProductCost,
   canEditProductPrice,
+  canViewCost = true,
   isReadOnly = false,
   onUpdateItem,
   onCountRow,
@@ -115,34 +117,38 @@ export function AuditLedgerRowCells({
             ? `+${diffQty}`
             : diffQty}
       </div>
-      <div
-        role="cell"
-        className="px-3 py-2 text-right text-foreground font-medium flex items-center justify-end"
-      >
-        {item.costPrice !== undefined ? formatCurrency(item.costPrice) : "-"}
-      </div>
-      <div role="cell" className="px-2 py-1.5 text-right flex items-center">
-        {canEditProductCost && !isReadOnly ? (
-          <EditableNumberCell
-            value={item.countedCostPrice ?? item.costPrice ?? 0}
-            onCommit={(val) => onUpdateItem(item.id, { countedCostPrice: val })}
-            parse={parseFloat}
-            step="10"
-            hasError={costChanged}
-            widthClassName="w-24"
-          />
-        ) : (
-          <span className="w-24 text-right text-foreground font-medium">
-            {formatCurrency(item.countedCostPrice ?? item.costPrice ?? 0)}
-          </span>
-        )}
-      </div>
-      <div
-        role="cell"
-        className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffCost, item.costPrice !== undefined)}`}
-      >
-        {item.costPrice !== undefined ? formatDiffCurrency(diffCost) : "-"}
-      </div>
+      {canViewCost && (
+        <>
+          <div
+            role="cell"
+            className="px-3 py-2 text-right text-foreground font-medium flex items-center justify-end"
+          >
+            {item.costPrice !== undefined ? formatCurrency(item.costPrice) : "-"}
+          </div>
+          <div role="cell" className="px-2 py-1.5 text-right flex items-center">
+            {canEditProductCost && !isReadOnly ? (
+              <EditableNumberCell
+                value={item.countedCostPrice ?? item.costPrice ?? 0}
+                onCommit={(val) => onUpdateItem(item.id, { countedCostPrice: val })}
+                parse={parseFloat}
+                step="10"
+                hasError={costChanged}
+                widthClassName="w-24"
+              />
+            ) : (
+              <span className="w-24 text-right text-foreground font-medium">
+                {formatCurrency(item.countedCostPrice ?? item.costPrice ?? 0)}
+              </span>
+            )}
+          </div>
+          <div
+            role="cell"
+            className={`px-3 py-2 text-right font-semibold flex items-center justify-end ${diffClassName(diffCost, item.costPrice !== undefined)}`}
+          >
+            {item.costPrice !== undefined ? formatDiffCurrency(diffCost) : "-"}
+          </div>
+        </>
+      )}
       <div
         role="cell"
         className="px-3 py-2 text-right text-foreground font-medium flex items-center justify-end"

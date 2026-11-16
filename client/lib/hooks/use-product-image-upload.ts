@@ -22,6 +22,7 @@ function describeFailure(error: unknown): string {
   if (error instanceof ImageRejectedError) return error.message;
   if (typeof navigator !== "undefined" && !navigator.onLine) return OFFLINE_IMAGE_MESSAGE;
   const status = (error as { status?: number } | null)?.status;
+  if (status === 404) return "This product has not finished syncing yet. Try again in a moment.";
   if (status === 403) return "You don't have permission to change product images.";
   if (status === 422 && error instanceof Error) return error.message;
   return "The image could not be uploaded. Check your connection and try again.";

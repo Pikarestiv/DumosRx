@@ -156,13 +156,14 @@ together). The current design:
 - **`useCartRepricing` names what it removed.** It splits the reprice result
   into `removed` (absent from the catalog response) and `repriced`, and names
   the items in each toast instead of the old blanket "Some prices or items in
-  your cart changed" (A-106). The structural half of A-106 is **not** fixed:
-  `GET /storefront/{slug}` is still capped at `MAX_STOREFRONT_PRODUCTS = 50`
-  while `checkout()`/`priceCart()` are uncapped, so a catalogue past 50
-  products can still drop a legitimately purchasable item — the customer now
-  at least sees which one. The real fix is a cart-scoped pricing endpoint
-  (`POST /storefront/{slug}/price-cart` taking item ids); log it there if it
-  gets built.
+  your cart changed" (A-106). The structural half is **fixed (2026-11-14)**: it
+  no longer reads the capped `GET /storefront/{slug}` landing list. It asks
+  `GET /storefront/{slug}/products?ids=<cart ids>&per_page=100` (the endpoint
+  accepts up to 100 comma-separated ids and returns only products still listed
+  online), so an item far down a catalogue of thousands is found. At most 100
+  cart lines are checked; any beyond that are left exactly as they were rather
+  than dropped. Currency and `online_payment_available` come from the
+  response's `store` block.
 
 ## Storefront money is formatted from the store's own currency (PG-4)
 
@@ -196,21 +197,44 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 - **Product images (2026-11-14):** `StorefrontProduct.image_url` is optional and nullable (older API responses omit it). `ProductCard` renders a plain `<img>` (static export, no `next/image` loader) with `alt` = the display-cased name, `width`/`height` 512, `loading="lazy"`, in a square box, and drops the image on a load error. No image means no image box, so a store without photos looks exactly as before. The URL is derived server-side (`docs/PRODUCT_IMAGES_DESIGN.md`); demo data sets `image_url: null` rather than pointing at a real host.
 
 - **Storefront routes (refreshed 2026-11-13):**
-  - Home (`app/store/[store_slug]/page.tsx`), top to bottom: hero (store
-    name, "Shop now", and "Contact us" when the store has contact details), **Featured Products** (the first 8 of
-    the show endpoint's `products`, which the API already orders in-stock
-    first, plus "View all N products" → `/catalog`), a headline band
-    (`storefront.headline` with fixed supporting copy and "Browse the shop"),
-    then `StoreAboutSection` (`#about`), `StoreLocationsSection`
-    (`#locations`, only when `hasLocationsToShow()`: more than one branch, or
-    the store has an address), `StoreFaqSection` (`#faq`) and a Contact
-    section (`#contact`) wrapping `StoreContactBlock`. The Contact section,
-    the hero's "Contact us", the footer's Contact column and the Contact nav
-    link (`storefrontNavLinks(slug, store)`) all appear only when
-    `hasContactDetails(store)` (`lib/storefront-display.ts`): a phone, an
-    email or an address line, each ignored when it is only whitespace
-    (A-384). Without one there is nothing to link to. Every section carries
-    `scroll-mt-24` so the sticky header does not cover its heading.
+  - Home (`app/s/[store_slug]/page.tsx`, redesigned 2026-11-14, storefront
+    redesign phase 2; see `docs/storefront-redesign.md`), top to bottom:
+    utility bar ("Store pickup · Local delivery"), header, hero
+    (`StorefrontHero`), **Products** (`FeaturedProducts`, a client component:
+    category chips filter the first 8 of the show endpoint's `products` in the
+    page, with "All · N" and "View all N products" → `/catalog`), "How ordering
+    works" (`OrderingSteps`, three numbered steps, wording from
+    `storefrontCopy(store).orderingSteps`) and a quiet footer. The hero H1 is
+    the owner's `storefront.tagline`, else `storefront.headline`, else
+    `copy.heroTagline` for the store type. The hero's layout follows the
+    preset (`band` shows the `StoreInfoPanel` at lg+, `tint` and `centered`
+    do not); status ("Open · closes at 6:00 pm") comes from
+    `storefront.opening_hours` and is computed **in the browser**
+    (`StoreOpenStatus`, `lib/storefront-hours.ts`) because the page is a static
+    export, so it renders nothing until mounted and at build time. The
+    WhatsApp button and every "Ask" button exist only when `storefront.whatsapp`
+    has digits; panel rows with no value are omitted. The About, Locations, FAQ
+    and Contact sections, the headline band and the pill label are gone from
+    the home page; `/about`, `/locations` and `/faq` still render those
+    section components for old links.
+  - **Product card** (`product-card.tsx`): a 4:3 `CategoryTile` (tint hashed
+    from the category name over the accent, line icon by keyword in
+    `lib/storefront-categories.ts`, neutral box when nothing matches; renders
+    `product.image` instead once the API sends one), name, price in the preset's
+    price font, a stock hint (`stockHint()`: "In stock", "Only N left" at 5 or
+    fewer, "Out of stock" disabling the add button) and one 44px "+" button
+    labelled "Add to cart: {name}". A price of 0 or missing reads "Price on
+    request" with an "Ask" WhatsApp link, never a zero. Stock comes from
+    `stock_quantity`/`in_stock` on the product payload (units on hand at the
+    branch, before pending online orders); an older API without them shows no
+    hint. Known category typos are corrected by `correctCategoryName()`.
+  - **Mobile:** 2-column grid, a compact header (name with the open status
+    beneath it, a search icon linking to the shop) and `MobileCartBar`, a fixed
+    "View cart · count · total" bar rendered by the layout once the cart has
+    items (hidden on `/checkout`); it opens the cart sheet through the
+    `storefront:open-cart` window event, because the sheet's state lives in
+    `StorefrontCart` inside a header whose `backdrop-blur` would trap a fixed
+    child.
   - **N in "View all N products" is the show endpoint's `product_count`**
     (2026-11-13), the uncapped total of the branch's online-visible products.
     `products` itself stays capped at
@@ -223,17 +247,34 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     every deployed API returns `product_count` (the same release as this
     change). One product reads "View all 1 product". The shop page's own count comes from its paginated `meta.total`.
   - Shop (`/catalog`, labelled **Shop** in breadcrumbs, title and heading;
-    the route name stays `catalog` so old links work): search, category
-    pills and pagination via `StorefrontCatalogView`.
+    the route name stays `catalog` so old links work; rebuilt 2026-11-14,
+    storefront redesign phase 3). The page shell and its first 50 products are
+    built statically, but `StorefrontCatalogView` (via `useStorefrontCatalog`)
+    **refetches page 1 from `GET /storefront/{slug}/products` on every load**,
+    so prices, stock and new products are live and a build never has to be
+    redone for them. Search filters as the user types (350 ms debounce,
+    stale responses discarded; there is no Search button) and starts from
+    `?q=`, which the header search form sets. Categories are a sticky sidebar at
+    lg+ and a horizontally scrolling chip row below it, from the response's
+    `categories` (id, name, count). There is no pagination: pages of 48 append
+    as the sentinel nears the viewport (`IntersectionObserver`), with a "Load
+    more products" button always present as the keyboard and no-observer
+    fallback, and duplicates are dropped because stock changes can shift
+    offsets. The endpoint is throttled at 120 requests a minute per IP
+    (`storefront-read`), which debounced typing plus scrolling stays well
+    inside. Server-rendered products and per-product pages are deliberately
+    not built (static export; see `docs/storefront-redesign.md`).
   - `/about`, `/locations`, `/faq` stay as routes so old links and anything
     indexed keep resolving, and render the same section components as the
     home page (with `headingAs="h1"`). Never fork their content back into the
     page files.
   - Checkout (`/checkout`): order confirmation and Paystack payment.
-- **Nav is exactly Home, Shop, Contact**, then the cart, plus the branch
-  selector (unchanged). The list lives once in `lib/storefront-nav.ts` and
-  both the header and the footer's quick links render it. Contact is
-  `/store/<slug>#contact`, so it works from any storefront page.
+- **The header has no nav links** (2026-11-14): logo (or the store's initial in
+  the accent), name with "type · location" beneath, a search box that submits
+  `GET /s/<slug>/catalog?q=` (the shop view reads `q` on load), the branch
+  selector when there are several branches, and the cart. The old
+  Home/Shop/Contact list (`lib/storefront-nav.ts`) is deleted; contact details
+  live in the hero panel and footer.
 - **Upload Rx and Track Order are intentionally unlinked** (2026-11-13). The
   `/prescription` and `/track` routes and their components stay, still
   prerendered, but no storefront page links them. Track Order: a store can
@@ -244,18 +285,128 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   pulled from the nav in the same refresh to keep the nav to three items;
   relink it when prescription intake is part of the order flow. Do not
   re-add either link as a side effect of other work.
-- **Footer** (`storefront-footer.tsx`, takes `storeSlug`, `store`,
-  `storefront`): `bg-primary text-primary-foreground`, so it follows the
-  theme; store name plus the first 220 characters of `storefront.about`
-  (else the headline), the shared quick links, phone/email/address via
-  `storeAddressLine()`, copyright, and "Powered by {APP_NAME}" linking
-  `WEB_APP_URL`. No social links: `storefronts.social_links` exists in the
-  schema but `GET /storefront/{slug}` does not expose it; add it to the
-  response first if wanted. No text opacity in the footer: white on the
-  default blue is close enough to 4.5:1 that dimming it fails.
+- **Footer** (`storefront-footer.tsx`): deliberately quiet, white with a top
+  border: logo, "© year name", address and hours, and "Powered by
+  {WEB_APP_HOST}" (the host of `WEB_APP_URL` without `www.`) linking
+  `WEB_APP_URL`. No links to storefront routes, no about text, no social links
+  (`storefronts.social_links` is not exposed by `GET /storefront/{slug}`).
+- **Languages (English and French, 2026-11-14).** Everything the storefront
+  itself says comes from `lib/storefront-messages-en.ts` and
+  `-fr.ts` (French is typed `Record<MessageKey, string>`, and
+  `__tests__/storefront-i18n.test.ts` fails if any key is missing, untranslated
+  or has different `{placeholders}`). `lib/storefront-i18n.ts` holds
+  `translate`, `translatePlural` (French treats 0 as singular), the locale list
+  (pinned equal to `laravel-server/app/Support/StorefrontLocales.php`) and
+  `formatStorefrontMoney` (`Intl`, so `1 500 FCFA` in French and `₦1,500` in
+  English; `formatMoney` in `lib/utils/currency.ts` now delegates to it and
+  prints a space after a bare currency code, e.g. `KES 1,000`). The layout wraps
+  every storefront route in `StorefrontI18nProvider` with the store's
+  `storefront.locale` as the default and `enabled_locales` as the choices; the
+  visitor's pick is kept in `localStorage` (`dumosrx-storefront-locale`) and
+  only honoured if the store offers it. Because the pages are static, the HTML
+  is built in the store's default language and switches after hydration, via
+  `useSyncExternalStore` (server snapshot = default) so there is no mismatch.
+  `LanguageSwitch` sits in the utility bar and renders only with two or more
+  languages. Components read text through `useStorefrontI18n()` (`t`, `tp`,
+  `money`); a component rendered outside a provider falls back to English, which
+  is why component tests need no wrapper. Opening hours and times are locale
+  aware (`18h00`, `lun – sam` in French). Page `<title>` and Open Graph text use
+  the store's default language. **Not translated:** the `/about`, `/faq`,
+  `/locations`, `/track` and `/prescription` pages (unlinked, reachable only by
+  old URLs), error text that comes back from the API, and `<html lang>` in the
+  initial HTML (the root layout fixes it to `en`; the provider corrects it after
+  hydration). Product names, categories and the owner's tagline are never
+  translated. To add a language: a messages file, `STOREFRONT_LOCALES`,
+  `LOCALE_NAMES`, the PHP list, and a plural rule if it is not one/other.
+- **Branch paths (2026-11-17).** Branch pages live at `/s/<brand>/<branch>/...` (home, catalog,
+  checkout, order); about, FAQ, locations, track and prescription stay brand-level. The trick that
+  keeps the diff small: the whole storefront already threads one `storeSlug` prop, so a branch
+  page passes `"<brand>/<branch>"` (a *scope*, `lib/storefront-scope.ts`) and every link and the
+  cart key come out per branch for free. API helpers (`getStorefrontData`, `getStorefrontProducts`,
+  services, repricing, checkout) split the scope with `parseStorefrontScope` and send the branch
+  as `?branch=` / `branch_id`. The `[branch]` routes are thin wrappers (`lib/storefront-branch-route.ts`)
+  that call the brand page with the scope. `MobileCartBar` sits in the shared layout, so it reads
+  the scope from the pathname (`scopeFromPathname`, which treats any second segment that is not a
+  page name as a branch). `output: export` refuses an empty `generateStaticParams`, so a build with
+  no multi-branch storefront emits one `_none/_none` pair that the route turns into a 404;
+  `verify-storefront-output.mjs` skips that directory. Carts are per branch, so switching branch
+  no longer clears the cart.
+  A multi-branch storefront's brand-level home, catalog, checkout and order pages redirect in the
+  browser (`BranchCanonicalizer`, in the shared layout) to the main branch's page, so a customer always
+  has one per-branch cart; static pages cannot redirect on the server. The branch switcher keeps the
+  catalog page when you switch. Paystack's return address is the branch's own checkout
+  (`StorefrontBranchSlugs::checkoutPath`), otherwise the return would land on the main branch with
+  the wrong cart.
+- **Old `/store/` links (2026-11-17).** `app/store/[store_slug]/[[...rest]]` is a static redirect page
+  (`LegacyStoreRedirect`) for every old brand-level path (`LEGACY_STORE_PAGES`), keeping the query string
+  and hash, so a till that still shows `dumosrx.com/store/<slug>`, a shared link, or a Paystack return
+  (`?reference=`) started before the rename still lands on `/s/...`. It needs no host configuration (an
+  `.htaccess` rule would, and the host's current file is not in the repo). Remove it once no till build
+  older than 2026-11-17 is in the field and no pre-rename Paystack payment can still return; say so in the
+  PR that removes it. Related housekeeping: the `_none/_none` placeholder is excluded from both web FTP
+  syncs, the reserved branch names are pinned equal to the server's list by `storefront-scope.test.ts` and
+  `StorefrontBranchSlugsTest`, and a cart saved under the brand slug is carried to the main branch's scope
+  by `BranchCanonicalizer` (`moveCart`) when the storefront gains a second branch. The canonicalizer never redirects a URL carrying `?reference=` or `?trxref=` (a Paystack return), because the pending checkout is stored under the scope the payment started in and a redirect would make the form look under another key and show the orphan-reference state for a customer who has already paid.
+- **Services (2026-11-16).** When `storefront.show_services` is set (baked at build),
+  `StorefrontServices` fetches `/storefront/{slug}/services` in the browser and renders
+  nothing if the list is empty. Each card links to WhatsApp to enquire; there is no cart.
+- **Checkout (2026-11-15).** `CheckoutForm` takes the store's
+  `payment_instructions`, `delivery_available`, `delivery_note` and
+  `pay_on_delivery`. `CheckoutContactFields` collects name, phone and an optional
+  email (required only for Paystack), a pickup/delivery choice when the store
+  delivers, and an address only for delivery. `availablePaymentMethods()`
+  (`lib/storefront-checkout.ts`) decides what is offered: pay at pickup or on
+  delivery (delivery only if the store accepts it), transfer **only when the
+  store wrote payment instructions** (so nobody is offered a way to pay with no
+  details), and Paystack when the store has a payout account; if none remain the
+  form says so and blocks the order. The chosen method is whatever is actually
+  offered, so switching to delivery cannot submit an option that vanished. On
+  success the customer lands on `/s/<slug>/order/?id=<order id>`
+  (`OrderConfirmation`, static page, id read from the URL, order fetched from the
+  public lookup): order code, items, total, how it is received and paid, the
+  store's payment details for a transfer, a prefilled **Send my order on
+  WhatsApp** button (only if the store has a WhatsApp number), the store's phone,
+  and plain wording that the store may phone to confirm and that **no text
+  message is sent**. The customer's name, phone, email and address are remembered
+  in `localStorage` (`dumosrx-checkout-details`) after a successful order and
+  prefill the next one. The confirmation page also reflects the order's state:
+  "the store says it is ready" once staff mark it ready, and an expiry message
+  for an unpaid order that timed out (`ready`/`cancel_reason` from the lookup).
+- **Stock, prices and time zones are live, never trusted from the build
+  (2026-11-14).** Stock movements do not dirty a storefront, so the
+  `stock_quantity`/`in_stock` baked into the static HTML can be arbitrarily
+  stale: a card built "Out of stock" would stay disabled after a restock. So
+  `withoutStock()` strips them until a live list arrives (the home page's
+  `useLiveFeatured` refetches just the products already on the page, by id, via
+  `GET /storefront/{slug}/products?ids=` (cheap, and keeps the built order; an
+  answer containing ids it was not asked for, i.e. an older API that ignored
+  `ids`, is ignored, as is the same case in cart repricing); the shop's
+  `useStorefrontCatalog` refetches page 1), and cards show no hint and a working
+  "+" until then. Open/closed status is computed against the store's own time
+  zone (`store.timezone` from the API, via `Intl`); a missing, `UTC` (the column
+  default, i.e. unset) or unknown zone falls back to the visitor's clock. The
+  add button is the accent with `--primary-foreground` on every preset, because
+  an accent-coloured icon on the dark workshop ink failed 3:1 for most accents.
+  A WhatsApp number must start with `+` and the country code (`wa.me` rejects a
+  local `0803...` number).
+- **Storefront states and accessibility (phase 5, 2026-11-14).** The home and
+  shop show `StoreClosedNotice` under the header while the store is closed by
+  its hours (browser clock, nothing when no hours are set); a store with no
+  products gets a card, not bare text; the shop hides the category sidebar and
+  chips when the store has no categories; `ProductGridSkeleton` stands in while
+  the first load is under way. Every storefront button, chip, link and input
+  takes the shared `FOCUS_RING` (`lib/storefront-styles.ts`), the header opens
+  with a "Skip to content" link to each page's `#main-content`, and the cart
+  button's accessible name is its visible text plus the count ("Cart 2") so it
+  passes Lighthouse's label-in-name audit. The shop reads `?q=`/`?branch=`
+  from `window.location` through `useSyncExternalStore`, **not**
+  `useSearchParams`, which would force the whole shop out of the static HTML
+  into client-side rendering. Measured mobile Lighthouse (local, gzip,
+  2026-11-14): accessibility 100 home and 98 shop, performance 86 on both;
+  see `docs/KNOWN_BUGS.md`, Engineering notes.
 - **Storefront themes** (`lib/storefront-themes.ts`). Each theme sets
   `--primary`, `--primary-foreground` and `--ring` for light and dark mode.
-  `app/store/[store_slug]/layout.tsx` is the one place a theme is applied
+  `app/s/[store_slug]/layout.tsx` is the one place a theme is applied
   for every storefront route: it renders a `display: contents` wrapper with
   `data-storefront-theme=<id>` and one `<style>` from `storefrontThemeCss()`,
   whose rules match `:root:has([data-storefront-theme=…])` so portalled UI
@@ -270,15 +421,51 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `laravel-server/app/Support/StorefrontThemes.php`, which is the allow-list
   the server validates against. An unknown or missing theme falls back to
   `emerald`. To add a theme: add it to both lists, run that test.
-- **Only a super admin chooses a theme**, through
-  `PUT /admin/stores/{id}/storefront/theme` (`role:super_admin`) from
-  `StorefrontThemePicker` in the admin store detail's Online Storefront card;
-  everyone else sees the theme name read-only. The store detail payload
-  carries `storefront.theme` and `storefront.available_themes`, and the
-  picker shows only registry themes the server lists. A change marks the
-  owner's published stores dirty, so it ships with the next scheduled
-  rebuild. Store owners deliberately have no theme control in `client/` or
-  the owner dashboard yet.
+- **Style presets** (`lib/storefront-presets.ts`, storefront redesign phase 1,
+  2026-11-14; plan and decisions in `docs/storefront-redesign.md`). A preset
+  (`workshop`, `clinic`, `studio`, and the admin-only `market`, `boutique`, `grove`) is a bundle of tokens (fonts, page and ink
+  colours, card radius, button shape, hero variant, default accent) and is
+  also a theme id: the three ids sit in `STOREFRONT_THEMES` and in the PHP
+  allow-list, so the existing admin picker assigns them. A legacy accent
+  theme has no preset of its own and resolves through
+  `resolveStorefrontPreset(themeId, storeType)` to `clinic` for a pharmacy and
+  `workshop` otherwise, keeping its accent. The layout emits
+  `data-storefront-preset` and `storefrontPresetCss()` (the `--sf-*` variables,
+  same `:root:has()` pattern as themes), plus `storefrontAccentCss()` when
+  `storefront.accent` is a valid `#RRGGBB`; `lib/storefront-accent.ts` picks
+  white or ink text on it (WCAG 4.5:1) and reports `readable: false` when
+  neither passes. Adding a look is one `STOREFRONT_PRESETS` entry plus the
+  PHP id. Nothing reads the `--sf-*` variables yet: phase 2 (home page and
+  product card) is the first consumer, so existing stores look unchanged.
+  Preset fonts are self-hosted from `public/store-fonts/` and **not** loaded
+  through `next/font` (changed 2026-11-14): `lib/storefront-fonts.ts` emits
+  `@font-face` rules for only the active preset's faces
+  (`storefrontFontFaceCss([id])`, rendered in the layout's `<style>`) and the
+  layout calls `react-dom`'s `preload()` for that preset's display font alone,
+  so a store downloads and preloads nothing from the other presets. The admin
+  Storefront tab declares all faces once for its previews. A new preset's fonts
+  go in `public/store-fonts/` and `FONTS`/`PRESET_FONTS`; the test checks every
+  referenced file exists. The family names in `STOREFRONT_PRESETS` are the same
+  strings as the `@font-face` families. Presets define a light palette only; storefront dark mode
+  reuses the same accent and has not been designed per preset.
+- **Only a super admin changes a store's look, and it ships by hand**
+  (storefront redesign phase 4, 2026-11-14). The admin store detail has a
+  **Storefront** tab (`store-storefront-tab.tsx`, `?tab=storefront`) holding the
+  publish/slug card (moved out of Overview), then "Look and details":
+  `StorefrontPresetPicker` (a card per preset with a `StorefrontPresetPreview`
+  that applies the preset's tokens and the draft accent as inline custom
+  properties, never the global `storefrontThemeCss()`, whose `:root:has()`
+  rules would recolour the whole admin), the legacy `StorefrontThemePicker`
+  (now "Classic accent themes", non-preset themes only), and
+  `StorefrontSettingsForm` (accent swatches + hex with a contrast warning from
+  `readableForeground`, tagline, WhatsApp, pickup minutes, opening hours by
+  day). Everything is `PUT /admin/stores/{id}/storefront/theme` or
+  `.../settings` (`role:super_admin`); other roles see it read-only. None of it
+  queues a rebuild: the card shows "Pending Rebuild" and a super admin clicks
+  **Rebuild storefronts now** (`StorefrontRebuildButton`, behind a
+  `ConfirmDialog`, `POST /admin/storefront/rebuild`), which redeploys every
+  storefront. The preview shows sample products, since the detail payload
+  carries none. Store owners can also change the look from the till, but only for a store where a super admin ticks "Let the store owner change the look themselves" in this tab (`owner_style_enabled`, off by default, because each owner save queues a full automatic rebuild); otherwise the till tells them to contact their account manager. A super admin's own change waits for the manual button.
 - **Storefront Header Branch Selector:** `StoreBranchSelector`, wrapped in
   `<Suspense fallback={null}>`. When multiple branches exist under the owner,
   users can switch branches (`?branch=<id>`), with a confirmation modal
@@ -287,9 +474,23 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   sandbox environments without a live backend, `lib/api/storefront-data.ts` supplies
   the placeholders in `lib/api/storefront-demo-data.ts` (a storefront profile and
   12 sample products, so the home page and shop render something to look at) and
-  static export prerendering (`/store/demo`, `/about`, `/locations`, `/faq`,
+  static export prerendering (`/s/demo`, `/about`, `/locations`, `/faq`,
   `/catalog`, `/track`, `/prescription`, `/checkout`) succeeds without a mock
-  server. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme.
+  server. `next.config.ts` (which also sets `experimental.inlineCss`, so the CSS ships
+  inside each page's HTML instead of as render-blocking stylesheets) republishes the flag to the browser as
+  `NEXT_PUBLIC_STOREFRONT_SANDBOX`, because the shop refetches its products at
+  runtime and would otherwise call a real API; `demoCatalog()` answers search and
+  category filters from the demo products. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and
+  `STOREFRONT_DEMO_STORE_TYPE=<type>` (e.g. `retail`) previews the non-pharmacy copy, and
+  `STOREFRONT_DEMO_ACCENT=#RRGGBB` previews an accent override.
+- **Store-type copy** (`lib/storefront-copy.ts`). `GET /storefront/{slug}`
+  returns `store.store_type` (the selected branch's, since 2026-11-14). Every
+  piece of storefront copy that differs by store type (FAQ, About, Locations
+  subtitle, footer fallback, the order tracker's labels) comes from
+  `storefrontCopy(store)`; do not hardcode pharmacy wording in a component.
+  A missing type means an older API, and is treated as `pharmacy`, so a
+  pharmacy's copy is unchanged; every other type gets neutral retail copy
+  with no prescription Q&A and no dispensary/medication wording.
 - **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`
   (logo + store name, linking home, the nav and the cart) and
@@ -1294,7 +1495,7 @@ disable rule above. Three things to know before changing it:
     truth for the cooldown rather than duplicating the 6-month rule here.
 - **Changing a live slug is confirmed; setting a first one is not.** Replacing
   an existing slug breaks every link already shared or printed, so the card
-  raises a `ConfirmDialog` naming the `/store/<slug>` URL that stops resolving
+  raises a `ConfirmDialog` naming the `/s/<slug>` URL that stops resolving
   and the 6-month limit. A store with no slug has no URL to break and nothing
   to warn about, so that path submits directly — a confirmation with no cost
   behind it is the kind users learn to click through, which is exactly how
@@ -1462,7 +1663,7 @@ npm run verify:storefront-output   # post-build storefront guard (see below)
 **`npm run build` now fails hard when the API is unreachable, on purpose.**
 `getStorefrontSlugs()` used to swallow every failure and return the single
 `demo` placeholder, which exited 0 and let the deploy's FTP *sync* delete
-every live `/store/<slug>/` directory from production (`SF-P0-1`). Two
+every live `/s/<slug>/` directory from production (`SF-P0-1`). Two
 deliberate escape routes exist, and nothing else:
 
 ```
@@ -1474,12 +1675,12 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8899/api/v1 npm run build   # build against
 `verify:storefront-output`. Use it when you genuinely don't care about the
 storefront routes; use the stub (below) when you're changing them.
 
-Historical note, since it comes up: the old "`/store/demo` fails to
+Historical note, since it comes up: the old "`/s/demo` fails to
 prerender offline" behaviour was a `ConnectTimeoutError` reaching
 `dumosrx.test:443`, nothing more. A pre-launch review speculated it was
 really the `params`-as-Promise bug in the two `[store_slug]` routes; it was
 not. That bug was real and is now fixed, but it failed *silently* — the
-build still exited 0 and emitted `/store/demo/index.html` as a rendered 404
+build still exited 0 and emitted `/s/demo/index.html` as a rendered 404
 page, because `params.store_slug` was `undefined`, the page fetched
 `/storefront/undefined`, and `getStorefrontData` turned the miss into
 `notFound()`. Two independent problems at the same URL. Neither now exits 0.
@@ -1494,11 +1695,11 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8899/api/v1 npm run build
 
 serving `GET /storefront-slugs` → `{"slugs":[...]}` and `GET
 /storefront/<slug>` → `{"store":{...},"products":[...]}`. Worth doing for
-any change to `app/store/[store_slug]/`: a typecheck cannot catch a params
+any change to `app/s/[store_slug]/`: a typecheck cannot catch a params
 regression here, since both routes declare their own local `params`
 interface rather than Next's generated `PageProps`.
 
-**Before changing anything under `app/store/[store_slug]/`, read
+**Before changing anything under `app/s/[store_slug]/`, read
 `docs/STOREFRONT_REVIEW.md`** (2026-09-26 audit of the whole storefront
 surface; 15 of its 16 findings were fixed the same day, and it carries a
 per-finding status). The storefront contract as it now stands:
@@ -1520,7 +1721,7 @@ per-finding status). The storefront contract as it now stands:
   overwritten with a rendered 404. **Don't "helpfully" catch either of these.**
 - **`verify:storefront-output` runs between the build and the FTP sync** in
   `deploy-web.yml`. It re-asks the API for the slug list and asserts each one
-  has an `out/store/<slug>/index.html`. Keep it before the sync step: the
+  has an `out/s/<slug>/index.html`. Keep it before the sync step: the
   whole point is to abort *before* anything is uploaded or deleted.
 - **Both routes have `generateMetadata`** (`lib/storefront-metadata.ts`), so a
   store's link previews as the store and not as DumosRx. It reuses the same
@@ -1576,7 +1777,7 @@ per-finding status). The storefront contract as it now stands:
   failed in CI (`⨯ useSearchParams() should be wrapped in a suspense
   boundary`, only surfaces at static-export prerender time). Any page-level
   component that calls `useSearchParams()` directly needs its own
-  `<Suspense>` wrapper in the page (see `app/store/[store_slug]/checkout/
+  `<Suspense>` wrapper in the page (see `app/s/[store_slug]/checkout/
   page.tsx`) — run a real `npm run build` (per the local-stub instructions
   above) whenever touching one, not just `tsc`/`vitest`.
 
@@ -1758,11 +1959,11 @@ the oldest unsynced edit's age and the delivered-age histogram. Both fields are
 without the migration still renders, and absent reads as nothing rather than as
 "delivered instantly".
 
-## Store details is three tabs, and the Sync tab carries a verdict badge (2026-10-19)
+## Store details is four tabs, and the Sync tab carries a verdict badge (2026-10-19; Storefront tab added 2026-11-14)
 
 `app/admin/stores/details/page.tsx` keeps the header, the status badges and the
-stat tiles — fixed chrome — and renders `StoreDetailTabs`. The body is three
-tabs, one grid each, in `components/admin/stores/details/`:
+stat tiles — fixed chrome — and renders `StoreDetailTabs`. The body is four
+tabs (Overview, Storefront, Sync, Activity), one grid each, in `components/admin/stores/details/`:
 
 - **`overview`** (`store-overview-tab.tsx`) — business and operational metrics,
   profile, the owner/subscription stack, staff, account manager, storefront,
@@ -1793,7 +1994,7 @@ convention, and the path is built from `adminStoreDetailPath()` so the
 `trailingSlash: true` export stays consistent. Changing tab calls
 `router.replace(…, { scroll: false })` — **`replace`, not `push`**, because a
 tab is a view preference and Back must return to the fleet list rather than
-walk three tabs; `scroll: false` so switching on a phone does not jump. `Tabs`
+walk the tabs; `scroll: false` so switching on a phone does not jump. `Tabs`
 is **controlled** (`value={activeTab}`), so a deep link and the strip can never
 disagree.
 
@@ -1949,3 +2150,25 @@ pushes to `dev`/`main`. The job executes:
 `deploy-web.yml` gates on `checks.yml` for all code pushes to `main` before
 running `next build` and syncing to FTP (storefront-change repository dispatches
 bypass checks so storefront toggles stay fast).
+
+## Fonts are self-hosted (2026-11-14)
+
+`app/layout.tsx` in both `client/` and `web/` loads Inter (`--font-sans`) and
+Montserrat (`--font-heading`) with `next/font/local` from `app/fonts/*.woff2`
+(the variable, latin-subset files from the Fontsource packages, SIL Open Font
+License). They used to come from `next/font/google`, which fetches the fonts
+from Google at **build** time: a flaky runner network failed the dev deploy
+("Module not found ... font/google"), and `client/` is an offline-first PWA, so
+the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
+`fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
+contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
+update the `localFont` call; do not reintroduce `next/font/google`.
+
+## Storefront tile icons (2026-11-16)
+
+`categoryIcon(category, productName)` in `web/lib/storefront-categories.ts` mirrors
+the POS matcher in `client/lib/constants/product-icons.ts`: the category picks the
+icon and a family (health, beauty, food), and the product name may refine it only
+through that family's rules. An unrecognised category stays a neutral box and the
+name is not used to guess. Categories were extended from the production list of
+2026-11-16.

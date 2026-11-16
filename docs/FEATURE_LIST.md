@@ -7,7 +7,7 @@ bug investigations, test-coverage gaps) if it's ever needed; this file only
 tracks current behavior.
 
 ## Dashboard
-- Today's Sales (net of refunds, with a "vs yesterday" comparison), Total Products, Inventory Value, and Orders Today stat cards
+- Today's Sales (net of refunds, with a "vs yesterday" comparison), Active Products, Inventory Value, and Orders Today stat cards
 - Action Center (admin only): trial days remaining, low-stock count, oversold count, batches missing expiry, profile completeness, "Get the App," no cloud account, subscription expiring, no staff accounts, and unsynced-changes count — each a clickable card linking to the relevant screen
 - Recent Activity feed (5 most recent), each row opening a details dialog scoped to its type (sale, expense, purchase order, prescription, stock movement, product)
 - Quick Actions shortcuts, role-filtered
@@ -127,7 +127,8 @@ tracks current behavior.
 - Desktop app (Windows, macOS, Linux), Android app, and web dashboard, all backed by the same account
 
 ## Online Storefront (`web/`)
-- Per-store public storefront at `/store/[slug]`, switched on per store (plan-gated) with a 6-month slug-change cooldown; products show online by default, with a per-product "Show Online" switch
+- Per-store public storefront at `/s/[slug]`, switched on per store (plan-gated) with a 6-month slug-change cooldown; products show online by default, with a per-product "Show Online" switch
+- Home page features the store's eight best sellers (last 90 days, units and revenue weighted equally, in stock first), refreshed nightly at 23:00 Lagos only when the top eight changed
 - Product cards show the product photo when it has one
 - Home, Shop (searchable, paginated catalog) and checkout, with server-verified Paystack among the payment methods; multi-branch owners get one storefront with a branch picker
 - Static pages rebuild automatically (debounced) after a store goes online/offline or changes slug or published details, so a change is live after the next rebuild, not instantly

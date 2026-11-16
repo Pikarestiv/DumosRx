@@ -1,10 +1,11 @@
 import { resolveAppOverride } from "./api/server-environments";
 
 export const APP_NAME = "DumosRx";
-export const APP_VERSION = "v0.0.41"; // DumosRx current version (update when bumping version)
+export const APP_VERSION = "v0.0.43"; // DumosRx current version (update when bumping version)
 export const GITHUB_REPO = "Pikarestiv/DumosRx";
 
 export const WEB_APP_URL = process.env.NEXT_PUBLIC_WEB_APP_URL || "https://dumosrx.com";
+export const WEB_APP_HOST = new URL(WEB_APP_URL).host.replace(/^www\./, "");
 export const WEB_APP_DASHBOARD_URL = process.env.NEXT_PUBLIC_WEB_APP_DASHBOARD_URL || "https://app.dumosrx.com/dashboard";
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://app.dumosrx.com";
 
@@ -37,7 +38,7 @@ export const setAppURL = (url: string) => {
     localStorage.removeItem(APP_URL_STORAGE_KEY);
   }
 };
-export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/store";
+export const STOREFRONT_BASE_URL = process.env.NEXT_PUBLIC_STOREFRONT_BASE_URL || "dumosrx.com/s";
 export const SYSTEM_EMAIL = "system-logs@dumosrx.com";
 export const SUPPORT_EMAIL = "support@dumosrx.com";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.dumosrx.com/api/v1";

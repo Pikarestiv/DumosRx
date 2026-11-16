@@ -105,6 +105,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:storefront-read')->group(function () {
         Route::get('/storefront-slugs', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'slugs']);
         Route::get('/storefront/{store_slug}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'show']);
+        Route::get('/storefront/{store_slug}/services', [\App\Http\Controllers\Api\Public\StorefrontServicesController::class, 'index']);
         Route::get('/storefront/{store_slug}/products', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'products']);
         Route::get('/storefront/{store_slug}/orders/{identifier}', [\App\Http\Controllers\Api\Public\StorefrontController::class, 'trackOrder']);
     });
@@ -232,6 +233,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
             Route::put('/stores/{id}/storefront', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'update'])->middleware('permission:manage_account_status');
             Route::put('/stores/{id}/storefront/theme', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'updateTheme'])->middleware('role:super_admin');
+            Route::put('/stores/{id}/storefront/settings', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'updateSettings'])->middleware('role:super_admin');
+            Route::post('/storefront/rebuild', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'rebuild'])->middleware('role:super_admin');
             Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
             Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan'])->middleware('permission:grant_trials');
             Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('permission:view_platform_revenue');
@@ -351,7 +354,12 @@ Route::prefix('v1')->group(function () {
         Route::prefix('app')->middleware('subscription')->group(function () {
             // Online Orders
             Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
+            Route::post('/online-orders/{id}/ready', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markReady']);
             Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
+
+            // Storefront look (owner only)
+            Route::get('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'show']);
+            Route::put('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'update'])->middleware('subscription:custom_branding');
 
             // Sync
             Route::post('/sync/push', [SyncController::class, 'push']);

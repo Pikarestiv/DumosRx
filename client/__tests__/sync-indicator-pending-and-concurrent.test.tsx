@@ -19,6 +19,7 @@ if (!window.matchMedia) {
 
 let mockSyncResult: { success: boolean; error?: string } = { success: true };
 const mockSync = vi.fn(() => Promise.resolve(mockSyncResult));
+let mockEngineSyncing = false;
 
 let mockPendingCount = 0;
 vi.mock("@tanstack/react-query", () => ({
@@ -31,7 +32,7 @@ vi.mock("@/lib/db/queries/setup", () => ({
 
 vi.mock("@/lib/db/sync-engine", () => ({
   sync: mockSync,
-  isSyncing: () => false,
+  isSyncing: () => mockEngineSyncing,
   SYNC_IN_PROGRESS_ERROR: "Sync already in progress",
 }));
 
@@ -73,6 +74,7 @@ describe("SyncIndicator pending state and concurrent-sync handling", () => {
     mockSync.mockClear();
     mockSyncResult = { success: true };
     mockPendingCount = 0;
+    mockEngineSyncing = false;
     container = document.createElement("div");
     document.body.appendChild(container);
     localStorage.setItem("auth_token", "test-token");
@@ -145,6 +147,22 @@ describe("SyncIndicator pending state and concurrent-sync handling", () => {
 
     expect(mockSync).toHaveBeenCalled();
     expect(container.textContent).not.toContain("Sync Error");
+  });
+
+  it("keeps showing the sync in progress when a click lands while another caller's sync is still running", async () => {
+    mockPendingCount = 3;
+    mockEngineSyncing = true;
+    mockSyncResult = { success: false, error: "Sync already in progress" };
+
+    await render();
+    const card = container.querySelector("#tour-sync-indicator") as HTMLElement;
+    await act(async () => {
+      card.click();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain("Syncing...");
+    expect(container.textContent).not.toContain("Pending Sync");
   });
 
   it("still reports a genuine sync failure", async () => {

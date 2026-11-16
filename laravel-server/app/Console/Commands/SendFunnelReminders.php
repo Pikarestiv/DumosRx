@@ -35,6 +35,8 @@ class SendFunnelReminders extends Command
         $now = now();
 
         $users = User::query()->where('is_active', true)
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
             ->where('setup_reminder_level', '<', 3)
             ->whereDoesntHave('tokens', function ($query) {
                 $query->where('name', '!=', 'web');

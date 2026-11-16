@@ -20,8 +20,10 @@ interface PODesktopEditViewProps {
   onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
   newlyCreatedProductId: string | null;
   onNewlyCreatedProductConsumed: () => void;
+  canEditProducts?: boolean;
   isSubmitting: boolean;
   handleSubmit: () => void;
+  isDirty?: boolean;
   onOpenEditDetails: () => void;
   paymentStatus?: string;
   dueDate?: string;
@@ -40,8 +42,10 @@ export function PODesktopEditView({
   onOpenAddProduct,
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
+  canEditProducts,
   isSubmitting,
   handleSubmit,
+  isDirty,
   onOpenEditDetails,
   paymentStatus,
   dueDate,
@@ -56,7 +60,7 @@ export function PODesktopEditView({
         className="flex items-center gap-3 px-6 pb-5 border-b border-border bg-card shrink-0"
         style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}
       >
-        <POBackButton itemCount={items.length} />
+        <POBackButton itemCount={isDirty === false ? 0 : items.length} />
         <div>
           <div className="text-[17px] font-serif font-bold leading-tight">
             Edit Purchase Order
@@ -77,13 +81,15 @@ export function PODesktopEditView({
               {formatCurrency(totalAmount)}
             </div>
           </div>
-          <Button
-            className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-            onClick={handleSubmit}
-            disabled={isSubmitting || items.length === 0}
-          >
-            {isSubmitting ? "Saving..." : "Save Purchase Order"}
-          </Button>
+          {isDirty !== false && (
+            <Button
+              className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
+              onClick={handleSubmit}
+              disabled={isSubmitting || items.length === 0}
+            >
+              {isSubmitting ? "Saving..." : "Save"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -103,6 +109,7 @@ export function PODesktopEditView({
           onOpenAddProduct={onOpenAddProduct}
           newlyCreatedProductId={newlyCreatedProductId}
           onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
+          canEditProducts={canEditProducts}
         />
       </div>
     </div>

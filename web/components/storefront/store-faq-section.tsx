@@ -1,41 +1,27 @@
 import { HelpCircle } from "lucide-react";
 
 import { StoreSectionHeading } from "@/components/storefront/store-section-heading";
+import type { StorefrontStore } from "@/lib/api/storefront-data";
+import { storefrontCopy } from "@/lib/storefront-copy";
 
-const FAQS = [
-  {
-    q: "How does in-store pickup work?",
-    a: "Once you place your order online, our dispensary prepares your items immediately. You will receive an SMS/WhatsApp or email confirmation when your package is ready for pickup at your selected branch.",
-  },
-  {
-    q: "What payment methods are supported?",
-    a: "Depending on your selected branch, we accept secure online card payments via Paystack, direct bank transfers, or payment on pickup (cash/POS at the counter).",
-  },
-  {
-    q: "Can I order prescription-only medications?",
-    a: "Prescription medications require a valid doctor's prescription. Please present your physical prescription upon pickup.",
-  },
-  {
-    q: "How can I switch branches?",
-    a: "You can select your preferred pickup branch using the branch switcher in the header or from the Locations section. Because inventory is live at each store, switching branches will update item availability.",
-  },
-  {
-    q: "What is your return policy for pharmaceuticals?",
-    a: "In accordance with regulatory healthcare guidelines, dispensed medications cannot be returned or refunded once they leave pharmacy custody, except in the case of verified manufacturing recall.",
-  },
-];
+interface StoreFaqSectionProps {
+  store?: StorefrontStore | null;
+  headingAs?: "h1" | "h2";
+}
 
-export function StoreFaqSection({ headingAs }: { headingAs?: "h1" | "h2" }) {
+export function StoreFaqSection({ store, headingAs }: StoreFaqSectionProps) {
+  const copy = storefrontCopy(store);
+
   return (
     <section id="faq" aria-label="Frequently asked questions" className="scroll-mt-24 space-y-6">
       <StoreSectionHeading
         as={headingAs}
         title="Frequently Asked Questions"
-        subtitle="Everything you need to know about ordering, pickup, and pharmacy policies."
+        subtitle={copy.faqSubtitle}
       />
 
       <div className="space-y-4">
-        {FAQS.map((faq) => (
+        {copy.faqs.map((faq) => (
           <div
             key={faq.q}
             className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2"

@@ -73,21 +73,21 @@ const ICON_FAMILY: ReadonlyMap<CategoryIcon, Family> = new Map<CategoryIcon, Fam
 ]);
 
 const NAME_RULES: [Family, CategoryIcon, string][] = [
-  ["health", "syringe", "syringe injection inj needle"],
-  ["health", "pill", "capsule capsules tablet tablets tab tabs"],
-  ["health", "droplet", "syrup suspension drops solution ors"],
-  ["health", "device", "thermometer sphygmomanometer sphygomanometer glucometer oximeter"],
-  ["beauty", "hair", "relaxer shampoo conditioner braid wig"],
-  ["beauty", "bath", "soap shower wash"],
-  ["beauty", "perfume", "perfume parfum cologne"],
+  ["health", "syringe", "syringe injection injections inj needle cannula infusion drip ampoule"],
+  ["health", "droplet", "syrup syr sirop suspension susp drop drops eyedrop solution ors elixir"],
+  ["health", "pill", "capsule capsules cap caps tablet tablets tab tabs lozenge lozenges"],
+  ["health", "device", "thermometer thermomether sphygmomanometer sphygomanometer glucometer oximeter bp bpm strip strips"],
+  ["beauty", "hair", "relaxer shampoo conditioner braid wig hair razor shaving"],
+  ["beauty", "bath", "soap shower wash bath"],
+  ["beauty", "perfume", "perfume parfum cologne perf pefume scent scents"],
   ["beauty", "wipes", "wipes"],
-  ["beauty", "spray", "spray bodyspray bodysplash deodorant"],
-  ["food", "grain", "pasta spaghetti macaroni noodles indomie rice flour oats cereal"],
-  ["food", "sauce", "tomato sauce ketchup vinegar"],
+  ["beauty", "spray", "spray bodyspray bodyspary bodysprays bodysplash bodymist deodorant roll rollon insecticide"],
+  ["food", "grain", "pasta spaghetti spagheti macaroni noodles indomie rice flour oats oat cereal cornflakes cornflaks"],
+  ["food", "sauce", "tomato sauce ketchup vinegar mayonnaise mayonaise mayonase salad"],
   ["food", "wine", "wine vodka whisky gin champagne"],
-  ["food", "drink", "beer stout juice malt water cola soda tea coffee"],
-  ["food", "biscuit", "biscuit biscuits cookie cookies cracker"],
-  ["food", "sweet", "chocolate candy gum lollipop"],
+  ["food", "drink", "beer stout guiness guinness heineken juice malt water cola coke fanta pepsi mirinda lucozade tea coffee bournvita milo ovaltine drink soda"],
+  ["food", "biscuit", "biscuit biscuits bisciut busicuit cookie cookies cracker crackers"],
+  ["food", "sweet", "chocolate candy gum lollipop sweet sugar"],
 ];
 
 const KNOWN_TYPOS: ReadonlyMap<string, string> = new Map([["busicuit", "biscuit"]]);

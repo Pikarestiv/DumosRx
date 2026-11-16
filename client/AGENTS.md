@@ -7850,6 +7850,12 @@ their own default (an offline checkout was checked and completes).
   production category list of 2026-11-16 (perfume, lotion, wash, soap, scrub,
   spray, wipes, pasta, sweet, machine, uncategorized and others). The
   storefront's own mapping in `web/lib/storefront-categories.ts` is separate.
+- Name rules were tuned on the production catalogs of 2026-11-16 (drugs,
+  cosmetics, toiletries, perfume, provision, beverages): antimalarial, antibiotic
+  and vitamin brands, gummies, detergents, insecticides, air fresheners, stationery
+  and the usual food and drink brands, including the misspellings stores type
+  (`bodyspary`, `spagheti`, `bisciut`, `youghort`). The category and product
+  suggestions in `lib/constants/suggestions.ts` were extended from the same data.
 
 ## Mobile keyboard handling, payables due (2026-11-15)
 

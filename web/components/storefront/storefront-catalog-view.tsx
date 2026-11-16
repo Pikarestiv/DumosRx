@@ -15,6 +15,7 @@ interface StorefrontCatalogViewProps {
   storeSlug: string;
   currency?: string | null;
   whatsapp?: string | null;
+  phone?: string | null;
   initialData: PaginatedStorefrontProducts | null;
 }
 
@@ -25,7 +26,7 @@ const subscribeToLocation = (notify: () => void) => {
   return () => window.removeEventListener("popstate", notify);
 };
 
-export function StorefrontCatalogView({ storeSlug, currency, whatsapp, initialData }: StorefrontCatalogViewProps) {
+export function StorefrontCatalogView({ storeSlug, currency, whatsapp, phone, initialData }: StorefrontCatalogViewProps) {
   const { t, tp } = useStorefrontI18n();
   const urlSearch = useSyncExternalStore(subscribeToLocation, () => window.location.search, () => "");
   const params = new URLSearchParams(urlSearch);
@@ -117,7 +118,7 @@ export function StorefrontCatalogView({ storeSlug, currency, whatsapp, initialDa
         ) : (
           <div className={`grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4 ${refreshing ? "opacity-60" : ""}`}>
             {items.map((product) => (
-              <ProductCard key={product.id} product={product} storeSlug={storeSlug} currency={currency} whatsapp={whatsapp} />
+              <ProductCard key={product.id} product={product} storeSlug={storeSlug} currency={currency} whatsapp={whatsapp} phone={phone} />
             ))}
           </div>
         )}

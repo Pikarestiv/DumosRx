@@ -20,6 +20,7 @@ interface FeaturedProductsProps {
   storeSlug: string;
   currency?: string | null;
   whatsapp?: string | null;
+  phone?: string | null;
   catalogHref: string;
 }
 
@@ -31,7 +32,7 @@ function categoryNames(products: StorefrontProduct[]): string[] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
 }
 
-export function FeaturedProducts({ products: builtProducts, productCount: builtCount, storeSlug, currency, whatsapp, catalogHref }: FeaturedProductsProps) {
+export function FeaturedProducts({ products: builtProducts, productCount: builtCount, storeSlug, currency, whatsapp, phone, catalogHref }: FeaturedProductsProps) {
   const { t, tp, locale } = useStorefrontI18n();
   const { products, productCount } = useLiveFeatured(storeSlug, builtProducts, builtCount);
   const [active, setActive] = useState<string | null>(null);
@@ -79,7 +80,7 @@ export function FeaturedProducts({ products: builtProducts, productCount: builtC
 
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
         {shown.map((product) => (
-          <ProductCard key={product.id} product={product} storeSlug={storeSlug} currency={currency} whatsapp={whatsapp} />
+          <ProductCard key={product.id} product={product} storeSlug={storeSlug} currency={currency} whatsapp={whatsapp} phone={phone} />
         ))}
       </div>
 

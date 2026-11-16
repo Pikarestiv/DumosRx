@@ -6,7 +6,6 @@ import { Search } from "lucide-react";
 
 import { StoreBranchSelector } from "@/components/storefront/store-branch-selector";
 import { StoreLogo } from "@/components/storefront/store-logo";
-import { StoreOpenStatus } from "@/components/storefront/store-open-status";
 import { StorefrontCart } from "@/components/storefront/storefront-cart";
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { StorefrontUtilityBar } from "@/components/storefront/storefront-utility-bar";
@@ -63,7 +62,6 @@ export function StorefrontHeader({ storeSlug, store, storefront, branches, selec
                 {brandName}
               </span>
               {subtitle && <span className="hidden text-xs opacity-70 sm:block">{subtitle}</span>}
-              <StoreOpenStatus hours={storefront?.opening_hours} timeZone={store?.timezone} className="text-xs sm:hidden" openClassName="text-emerald-800" />
             </span>
           </Link>
 

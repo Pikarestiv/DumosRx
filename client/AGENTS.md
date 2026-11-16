@@ -7840,6 +7840,10 @@ their own default (an offline checkout was checked and completes).
 
 ## Mobile keyboard handling, payables due (2026-11-15)
 
+- `useKeyboardViewport` also toggles `data-keyboard-open` on `<html>` while the
+  keyboard covers more than 120px. `ResponsiveModal` uses it to hide the
+  description and tighten header and footer, and the Add Product sheet hides
+  its Cancel button, so the form keeps room above the keyboard.
 - `useNumberInputWheelGuard` (mounted in `DashboardLayout`) blurs a focused
   `type="number"` input when the wheel or a trackpad swipe passes over it, so a
   stray scroll cannot change a quantity. Arrow keys still step the value.

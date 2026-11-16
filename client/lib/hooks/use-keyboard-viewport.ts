@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+const KEYBOARD_MIN_INSET = 120;
 const FIELD_SELECTOR = "input, textarea, select, [contenteditable='true']";
 
 export function useKeyboardViewport() {
@@ -16,6 +17,7 @@ export function useKeyboardViewport() {
         root.style.setProperty("--vv-height", `${viewport.height}px`);
         root.style.setProperty("--vv-top", `${viewport.offsetTop}px`);
         root.style.setProperty("--kb-inset", `${inset}px`);
+        root.toggleAttribute("data-keyboard-open", inset > KEYBOARD_MIN_INSET);
       });
     };
 
@@ -39,6 +41,7 @@ export function useKeyboardViewport() {
       viewport.removeEventListener("resize", publish);
       viewport.removeEventListener("scroll", publish);
       document.removeEventListener("focusin", revealFocusedField);
+      root.removeAttribute("data-keyboard-open");
     };
   }, []);
 }

@@ -7,7 +7,7 @@ import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provi
 import { CategoryTile } from "@/components/storefront/category-tile";
 import { useCart } from "@/lib/store/use-cart-store";
 import { toDisplayTitle } from "@/lib/storefront-display";
-import { isPriceOnRequest, stockHint, whatsappLink, type StockHint } from "@/lib/storefront-product";
+import { isPriceOnRequest, phoneLink, stockHint, whatsappLink, type StockHint } from "@/lib/storefront-product";
 import { ADD_BUTTON, CARD_SURFACE, FOCUS_RING, PRICE_FONT } from "@/lib/storefront-styles";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ interface ProductCardProps {
   storeSlug: string;
   currency?: string | null;
   whatsapp?: string | null;
+  phone?: string | null;
   className?: string;
 }
 
@@ -27,7 +28,7 @@ const HINT_STYLE: Record<StockHint["kind"], string> = {
   unknown: "",
 };
 
-export function ProductCard({ product, storeSlug, currency, whatsapp, className }: ProductCardProps) {
+export function ProductCard({ product, storeSlug, currency, whatsapp, phone, className }: ProductCardProps) {
   const { t, money } = useStorefrontI18n();
   const cart = useCart(storeSlug);
   const hintLabel = (hint: StockHint): string => {
@@ -41,6 +42,7 @@ export function ProductCard({ product, storeSlug, currency, whatsapp, className 
   const onRequest = isPriceOnRequest(product.selling_price);
   const hint = stockHint(product);
   const askLink = onRequest ? whatsappLink(whatsapp, t("card.askMessage", { name: displayName })) : null;
+  const callLink = onRequest && !askLink ? phoneLink(phone) : null;
 
   const handleAddToCart = () => {
     cart.addItem({ id: product.id, name: product.name, price, quantity: 1 });
@@ -67,15 +69,14 @@ export function ProductCard({ product, storeSlug, currency, whatsapp, className 
             )}
           </div>
           {onRequest ? (
-            askLink && (
+            (askLink || callLink) && (
               <a
-                href={askLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={t("card.ask.aria", { name: displayName })}
+                href={askLink ?? callLink ?? undefined}
+                {...(askLink ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                aria-label={t(askLink ? "card.ask.aria" : "card.call.aria", { name: displayName })}
                 className={cn("inline-flex min-h-11 items-center rounded-[var(--sf-button-radius)] border border-current px-4 text-sm font-medium", FOCUS_RING)}
               >
-                {t("card.ask")}
+                {t(askLink ? "card.ask" : "card.call")}
               </a>
             )
           ) : (

@@ -97,14 +97,16 @@ export function ResponsiveModal({
       >
         <DrawerHeader
           className={cn(
-            "text-left mb-4 px-0 flex flex-row items-start justify-between",
+            "text-left mb-4 px-0 flex flex-row items-start justify-between [[data-keyboard-open]_&]:mb-1",
             headerClassName,
           )}
         >
           <div className="flex flex-col gap-2 sm:gap-0">
             <DrawerTitle>{title}</DrawerTitle>
             {description && (
-              <DrawerDescription>{description}</DrawerDescription>
+              <DrawerDescription className="[[data-keyboard-open]_&]:hidden">
+                {description}
+              </DrawerDescription>
             )}
           </div>
           <button
@@ -119,7 +121,7 @@ export function ResponsiveModal({
         <ScrollFade containerClassName="responsive-modal-fields flex-1">
           {children}
         </ScrollFade>
-        {footer && <div className="pt-4 pb-2 shrink-0">{footer}</div>}
+        {footer && <div className="pt-4 pb-2 shrink-0 [[data-keyboard-open]_&]:pt-1 [[data-keyboard-open]_&]:pb-1">{footer}</div>}
       </DrawerContent>
     </Drawer>
   );

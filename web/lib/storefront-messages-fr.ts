@@ -53,6 +53,8 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
 
   "card.priceOnRequest": "Prix sur demande",
   "card.ask": "Demander",
+  "card.call": "Appeler",
+  "card.call.aria": "Appeler pour demander le prix de {name}",
   "card.ask.aria": "Demander le prix de {name}",
   "card.askMessage": "Bonjour, quel est le prix de {name} ?",
   "card.add.aria": "Ajouter au panier : {name}",

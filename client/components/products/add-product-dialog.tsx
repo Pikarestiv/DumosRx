@@ -166,11 +166,11 @@ export function AddProductDialog({
         className="sm:max-w-3xl h-[95vh] sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden px-0 sm:px-6 pb-0 sm:pb-6"
         headerClassName="px-4 pt-4 sm:p-0"
         footer={
-          <DialogFooter className="bg-background border-t gap-2 p-4 sm:p-0 sm:pt-4 flex-shrink-0">
+          <DialogFooter className="bg-background border-t gap-2 p-4 [[data-keyboard-open]_&]:py-2 sm:p-0 sm:pt-4 flex-shrink-0">
             <Button
               type="button"
               variant="outline"
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto [[data-keyboard-open]_&]:hidden sm:[[data-keyboard-open]_&]:inline-flex"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >

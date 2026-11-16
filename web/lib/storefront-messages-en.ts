@@ -51,6 +51,8 @@ export const EN_MESSAGES = {
 
   "card.priceOnRequest": "Price on request",
   "card.ask": "Ask",
+  "card.call": "Call",
+  "card.call.aria": "Call to ask the price of {name}",
   "card.ask.aria": "Ask about the price of {name}",
   "card.askMessage": "Hi, how much is {name}?",
   "card.add.aria": "Add to cart: {name}",

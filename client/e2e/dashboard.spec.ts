@@ -6,7 +6,7 @@ test.describe('Dashboard Module', () => {
 
     // Check for dashboard stats (components/dashboard/dashboard-overview.tsx)
     await expect(page.getByText(/Today's Sales/i)).toBeVisible();
-    await expect(page.getByText(/Total Products/i)).toBeVisible();
+    await expect(page.getByText(/Active Products/i)).toBeVisible();
     await expect(page.getByText(/Inventory Value/i)).toBeVisible();
     await expect(page.getByText(/Orders Today/i)).toBeVisible();
   });

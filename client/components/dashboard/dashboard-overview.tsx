@@ -114,7 +114,7 @@ export function DashboardOverview() {
           href: POS_RECENT_SALES_ROUTE,
         },
     {
-      title: `Total ${t("products")}`,
+      title: `Active ${t("products")}`,
       value: stats.totalProducts.toLocaleString(),
       comparison: `Across ${activeCategories} categories`,
       icon: Package,

@@ -70,10 +70,10 @@ export function StockBatchMetrics({
           />
         )}
 
-        {/* Total Products */}
+        {/* All Products */}
         <MetricCard
           className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
-          title="Total products"
+          title="All products"
           value={totalProducts}
           icon={<Package className="h-4 w-4 hover-rotate-icon" />}
           iconBgClass="bg-sky-50 text-sky-700"

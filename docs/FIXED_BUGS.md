@@ -1,3 +1,8 @@
+### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
+- **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
+- **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.
+- **Now:** the `print_labels` and new `product_images` topics live in `client/lib/assistant/help-catalog-catalog.ts` (moved to keep `help-catalog.ts` under 350 lines) with real word boundaries.
+- **Coverage:** `client/__tests__/assistant-product-images-help.test.ts` routes "print barcode labels" and "I need price stickers" to the topic and fails if any help phrase holds a control character; both fail with the old bytes restored.
 ### A-380 — the Activity Log detail panel printed batch cost fields to users without view_cost_fields
 - **Fixed:** 2026-11-14, client only, TDD. Found during the batch cost correction review (PR #308).
 - **Was:** `client/components/activity-log/activity-log-detail-panel.tsx` parsed `entry.details` and rendered all keys except `HIDDEN_KEYS`. A `BATCH_COST_CORRECTED` row carries `cost_price` and `previous_cost_price`, `stock_batches` insertions/updates carry `cost_price`, and cycle count adjustments carry `counted_cost_price`, `unit_cost`, or `total_cost`. A user with `view_activity_log` but without `view_cost_fields` was able to read batch costs by opening the detail panel.

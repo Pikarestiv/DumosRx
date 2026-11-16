@@ -142,6 +142,9 @@ class PushPayloadNormalizer
         }
 
         if ($change['table_name'] === 'products') {
+            foreach (self::PRODUCT_SYNC_FORBIDDEN_FIELDS as $field) {
+                unset($payload[$field]);
+            }
             if (empty($payload['pack_size'])) {
                 $payload['pack_size'] = 1;
             }
@@ -189,6 +192,8 @@ class PushPayloadNormalizer
         'loyalty_defaults_seeded_at', 'permission_groups_seeded_at',
         'last_sync_run_id', 'last_sync_run_started_at',
     ];
+
+    private const PRODUCT_SYNC_FORBIDDEN_FIELDS = ['image_key'];
 
     public const STORE_ID_BACKFILL_TABLES = [
         'requested_products', 'payment_accounts',

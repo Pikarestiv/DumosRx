@@ -100,6 +100,10 @@ export function ProductDatabase() {
     [rawProducts],
   );
 
+  const liveSelectedProduct = selectedProduct
+    ? (products.find((p) => p.id === selectedProduct.id) ?? selectedProduct)
+    : null;
+
   const deepLinkProductId = searchParams.get("productId");
   const [deepLinkSource, setDeepLinkSource] = useState<{
     searchParamsKey: string;
@@ -325,7 +329,7 @@ export function ProductDatabase() {
         }}
       >
         <CatalogDetailPanel
-          product={selectedProduct}
+          product={liveSelectedProduct}
           className="border-none rounded-none"
           onEditProduct={handleEditProduct}
           onClose={() => setSelectedProduct(null)}

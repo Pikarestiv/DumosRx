@@ -194,6 +194,8 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 
 ## Storefront chrome and display conventions (storefront Phases 1–5, 2026-11-02; home refresh and themes 2026-11-13)
 
+- **Product images (2026-11-14):** `StorefrontProduct.image_url` is optional and nullable (older API responses omit it). `ProductCard` renders a plain `<img>` (static export, no `next/image` loader) with `alt` = the display-cased name, `width`/`height` 512, `loading="lazy"`, in a square box, and drops the image on a load error. No image means no image box, so a store without photos looks exactly as before. The URL is derived server-side (`docs/PRODUCT_IMAGES_DESIGN.md`); demo data sets `image_url: null` rather than pointing at a real host.
+
 - **Storefront routes (refreshed 2026-11-13):**
   - Home (`app/s/[store_slug]/page.tsx`, redesigned 2026-11-14, storefront
     redesign phase 2; see `docs/storefront-redesign.md`), top to bottom:

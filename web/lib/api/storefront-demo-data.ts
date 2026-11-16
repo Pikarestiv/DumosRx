@@ -29,6 +29,7 @@ const DEMO_PRODUCTS: StorefrontProduct[] = DEMO_PRODUCT_NAMES.map((name, index) 
   category: { name: DEMO_CATEGORIES[index % DEMO_CATEGORIES.length] },
   stock_quantity: index === DEMO_OUT_OF_STOCK_INDEX ? 0 : index === DEMO_LOW_STOCK_INDEX ? 3 : 40,
   in_stock: index !== DEMO_OUT_OF_STOCK_INDEX,
+  image_url: null,
 }));
 
 const WEEKDAY_HOURS = { open: "08:00", close: "18:00" };

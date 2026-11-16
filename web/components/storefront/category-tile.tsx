@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   AirVent,
   Bath,
@@ -60,10 +63,23 @@ interface CategoryTileProps {
 }
 
 export function CategoryTile({ category, image, alt, productName }: CategoryTileProps) {
-  if (image) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+
+  if (image && failedImage !== image) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- static export arbitrary data URI
-      <img src={image} alt={alt} className="aspect-[4/3] w-full object-cover" />
+      <div className="aspect-[4/3] w-full" style={{ background: categoryTint(category ?? "") }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static export arbitrary data URI */}
+        <img
+          src={image}
+          alt={alt}
+          width={512}
+          height={512}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailedImage(image)}
+          className="h-full w-full object-contain"
+        />
+      </div>
     );
   }
 

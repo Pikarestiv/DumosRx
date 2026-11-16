@@ -7,7 +7,7 @@ bug investigations, test-coverage gaps) if it's ever needed; this file only
 tracks current behavior.
 
 ## Dashboard
-- Today's Sales (net of refunds, with a "vs yesterday" comparison), Total Products, Inventory Value, and Orders Today stat cards
+- Today's Sales (net of refunds, with a "vs yesterday" comparison), Active Products, Inventory Value, and Orders Today stat cards
 - Action Center (admin only): trial days remaining, low-stock count, oversold count, batches missing expiry, profile completeness, "Get the App," no cloud account, subscription expiring, no staff accounts, and unsynced-changes count — each a clickable card linking to the relevant screen
 - Recent Activity feed (5 most recent), each row opening a details dialog scoped to its type (sale, expense, purchase order, prescription, stock movement, product)
 - Quick Actions shortcuts, role-filtered

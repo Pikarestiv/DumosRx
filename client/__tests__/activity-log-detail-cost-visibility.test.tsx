@@ -143,4 +143,26 @@ describe("ActivityLogDetailPanel cost field visibility", () => {
 
     expect(document.body.textContent).toContain('"cost_price": 5000');
   });
+
+  it("hides every cost-named column, including stock audit and purchase order line fields", () => {
+    const entry = {
+      ...baseEntry,
+      details: JSON.stringify({
+        expected_cost_price: 100,
+        actual_cost_price: 120,
+        cost_price_difference: 20,
+        cost_price_override: 130,
+        points_cost: 500,
+        batch_number: "B-9",
+      }),
+    };
+    render(<ActivityLogDetailPanel entry={entry} onClose={vi.fn()} />);
+
+    expect(screen.queryByText("Expected Cost Price")).toBeNull();
+    expect(screen.queryByText("Actual Cost Price")).toBeNull();
+    expect(screen.queryByText("Cost Price Difference")).toBeNull();
+    expect(screen.queryByText("Cost Price Override")).toBeNull();
+    expect(screen.getByText("Points Cost")).toBeTruthy();
+    expect(screen.getByText("B-9")).toBeTruthy();
+  });
 });

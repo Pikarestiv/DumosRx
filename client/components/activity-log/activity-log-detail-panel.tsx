@@ -27,21 +27,18 @@ const HIDDEN_KEYS = new Set([
   "pin",
 ]);
 
-const COST_KEYS = new Set([
-  "cost_price",
-  "previous_cost_price",
-  "counted_cost_price",
-  "unit_cost",
-  "total_cost",
-  "cost",
-  "unit_cost_price",
-  "total_cost_price",
-]);
+const COST_KEY_PATTERN = /cost/i;
+const NON_COST_KEYS = new Set(["points_cost"]);
+
+function isCostKey(key: string) {
+  return COST_KEY_PATTERN.test(key) && !NON_COST_KEYS.has(key);
+}
 
 function sanitizeRawDetails(raw: string): string {
   return raw.replace(
-    /(["']?(?:cost_price|previous_cost_price|counted_cost_price|unit_cost|total_cost|cost|unit_cost_price|total_cost_price)["']?\s*[:=]\s*)(["'][^"']*["']|\d+(?:\.\d+)?|null)/gi,
-    "$1[hidden]",
+    /(["']?)(\w*cost\w*)(["']?\s*[:=]\s*)(["'][^"']*["']|-?\d+(?:\.\d+)?|null)/gi,
+    (match, open: string, key: string, sep: string) =>
+      NON_COST_KEYS.has(key.toLowerCase()) ? match : `${open}${key}${sep}[hidden]`,
   );
 }
 
@@ -84,7 +81,7 @@ export function ActivityLogDetailPanel({
     ? Object.entries(parsedDetails).filter(
         ([key, value]) =>
           !HIDDEN_KEYS.has(key) &&
-          (canViewCost || !COST_KEYS.has(key)) &&
+          (canViewCost || !isCostKey(key)) &&
           value !== undefined,
       )
     : [];

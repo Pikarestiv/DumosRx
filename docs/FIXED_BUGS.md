@@ -1,3 +1,36 @@
+### A-380 — the Activity Log detail panel printed batch cost fields to users without view_cost_fields
+- **Fixed:** 2026-11-14, client only, TDD. Found during the batch cost correction review (PR #308).
+- **Was:** `client/components/activity-log/activity-log-detail-panel.tsx` parsed `entry.details` and rendered all keys except `HIDDEN_KEYS`. A `BATCH_COST_CORRECTED` row carries `cost_price` and `previous_cost_price`, `stock_batches` insertions/updates carry `cost_price`, and cycle count adjustments carry `counted_cost_price`, `unit_cost`, or `total_cost`. A user with `view_activity_log` but without `view_cost_fields` was able to read batch costs by opening the detail panel.
+- **Now:** `ActivityLogDetailPanel` checks `useHasPermission("view_cost_fields")`. When withheld, every key whose name contains `cost` (except `points_cost`, a loyalty figure) is filtered out, which also covers the stock audit and purchase order line columns (`expected_cost_price`, `actual_cost_price`, `cost_price_difference`, `cost_price_override`) from the displayed entries, and any raw fallback details have cost values masked. If only cost keys are present in an entry, "No further details recorded." is shown.
+- **Coverage:** `client/__tests__/activity-log-detail-cost-visibility.test.tsx` (tests hiding cost keys, showing them when permitted, handling cost-only payloads, and masking raw details).
+- **Compat:** no schema or storage changes.
+
+### A-381 — the Cycle Count ledger showed cost and cost difference to users without view_cost_fields
+- **Fixed:** 2026-11-14, client only, TDD. Found during the release review of #312–#314.
+- **Was:** `client/components/stock-batch/audit-ledger-row-cells.tsx` rendered the cost price, the counted cost (as read-only text when `canEditProductCost` is false) and the cost difference for every row. `audit-ledger-step.tsx` rendered the "Cost Price", "Counted Cost", and "Diff Cost" headers, and `audit-ledger-totals-row.tsx` rendered the cost difference totals. In the review step (`audit-review-step.tsx`), any cost correction displayed the old and new cost prices. Only cost editing was gated on `edit_product_cost`; anyone with `perform_stock_audit` could view all product batch costs.
+- **Now:** `audit-ledger-step.tsx` and `audit-review-step.tsx` check `useHasPermission("view_cost_fields")`. When withheld:
+  (1) The three cost column headers ("Cost Price", "Counted Cost", "Diff Cost") are excluded from the ledger table, and the CSS grid collapses from 11 columns to 8 (`AUDIT_LEDGER_GRID_COLS_NO_COST`).
+  (2) `AuditLedgerRowCells` omits the three cost cells.
+  (3) `AuditLedgerTotalsRow` omits the diff-cost total cell and uses the 8-column grid.
+  (4) Empty state column span dynamically adjusts to `col-span-8`.
+  (5) In `AuditReviewStep`, cost adjustments display "Cost price adjusted" without exposing numeric cost prices.
+- **Coverage:** `client/__tests__/audit-ledger-cost-visibility.test.tsx` (tests hiding headers/cells/totals when withheld, showing them when permitted, column span adjustments, and review step notice).
+- **Compat:** no schema, storage or API changes.
+
+### A-382 — the product export's Cost Price column ignored view_cost_fields
+- **Fixed:** 2026-11-14, client only, TDD. Found during the release review of #312–#314.
+- **Was:** `EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts` always offered "Cost Price". `ExportColumnsDialog` listed it to every user, and `import-export-toolbar.tsx` gated the export on `export_product_list` only, so any user with export permissions was able to export batch cost averages across the entire catalog.
+- **Now:** `ExportColumnsDialog` checks `useHasPermission("view_cost_fields")` and excludes "Cost Price" from the column picker when withheld. `buildExportRows` and `buildExportBlob` filter requested columns through `getExportColumns(canViewCost)`: even if a client attempts to export `costPrice`, the column and values are stripped when `canViewCost` is false.
+- **Coverage:** `client/__tests__/product-export-cost-visibility.test.tsx` (tests `getExportColumns`, `buildExportRows`, `buildExportBlob` CSV stripping, and `ExportColumnsDialog` visibility and confirmation).
+- **Compat:** no schema, storage or API changes.
+
+### A-383 — the Inventory Valuation report export carried Cost Price for anyone with report access
+- **Fixed:** 2026-11-14, client only, TDD. Found during cost-visibility review; pre-existing.
+- **Was:** `stock_batches` report in `client/lib/hooks/use-report-export.ts` always exported "Cost Price" and "Stock Value" (derived from cost price). The Report Center gated report export on `export_reports` and financial reports on `view_financial_reports`, but did not check `view_cost_fields`. A user with report access lacking `view_cost_fields` could view the report in modal, export CSV, and download/print PDF with cost prices and stock valuation figures intact.
+- **Now:** `getReportHeaders("stock_batches", canViewCost)` filters out `"Cost Price"` and `"Stock Value"` when `!canViewCost`. `useReportExport({ canViewCost })` accepts `canViewCost` option (defaulting to `true` for backwards compatibility without heavy auth imports), which strips `"Cost Price"` and `"Stock Value"` from rows when false before formatting, CSV export, and PDF generation. `ReportCenter` checks `useHasPermission("view_cost_fields")`, dynamically renames the report card from "Inventory Valuation" to "Stock Levels" (with cost-free description) when withheld, and passes `canViewCost` to both `useReportExport` and modal table headers.
+- **Coverage:** `client/__tests__/report-inventory-valuation-cost-visibility.test.tsx` (headers filtering, rows sanitization, PDF export structure, ReportCenter card title and description gating).
+- **Compat:** no payload, schema or storage change.
+
 ### A-390 — editing a purchase order soft-deleted and re-inserted every line, churning the whole PO through sync
 - **Fixed:** 2026-11-14, client only, TDD. Found reviewing production lines on the Nest Amawbia store.
 - **Was:** `updatePurchaseOrder()` in `client/lib/db/procurement.ts` soft-deleted every existing live line of the PO and inserted the edited set with newly generated UUIDs. A save of an N-line PO wrote N tombstones and N inserts to `_sync_queue` even when a single quantity was edited, inflating `purchase_order_items` (observed ~59% soft-deleted on production), churning push/pull queues, and invalidating line IDs referenced by receiving progress or audit logs.

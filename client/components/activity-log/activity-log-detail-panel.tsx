@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { format } from "date-fns";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import { describeActivity } from "./describe-activity";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 interface ActivityLogDetailPanelProps {
   entry: AuditLogRow | null;
@@ -26,6 +27,24 @@ const HIDDEN_KEYS = new Set([
   "pin",
 ]);
 
+const COST_KEYS = new Set([
+  "cost_price",
+  "previous_cost_price",
+  "counted_cost_price",
+  "unit_cost",
+  "total_cost",
+  "cost",
+  "unit_cost_price",
+  "total_cost_price",
+]);
+
+function sanitizeRawDetails(raw: string): string {
+  return raw.replace(
+    /(["']?(?:cost_price|previous_cost_price|counted_cost_price|unit_cost|total_cost|cost|unit_cost_price|total_cost_price)["']?\s*[:=]\s*)(["'][^"']*["']|\d+(?:\.\d+)?|null)/gi,
+    "$1[hidden]",
+  );
+}
+
 function humanizeKey(key: string) {
   return key
     .replace(/^_+/, "")
@@ -48,6 +67,7 @@ export function ActivityLogDetailPanel({
   onSelectRelated,
   onClose,
 }: ActivityLogDetailPanelProps) {
+  const canViewCost = useHasPermission("view_cost_fields");
   if (!entry) return null;
 
   let parsedDetails: Record<string, unknown> | null = null;
@@ -62,7 +82,10 @@ export function ActivityLogDetailPanel({
 
   const entries = parsedDetails
     ? Object.entries(parsedDetails).filter(
-        ([key, value]) => !HIDDEN_KEYS.has(key) && value !== undefined,
+        ([key, value]) =>
+          !HIDDEN_KEYS.has(key) &&
+          (canViewCost || !COST_KEYS.has(key)) &&
+          value !== undefined,
       )
     : [];
 
@@ -129,7 +152,7 @@ export function ActivityLogDetailPanel({
             </div>
           ) : rawDetails ? (
             <pre className="text-[11px] bg-muted/50 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
-              {rawDetails}
+              {canViewCost ? rawDetails : sanitizeRawDetails(rawDetails)}
             </pre>
           ) : (
             <p className="text-[13px] text-muted-foreground italic">

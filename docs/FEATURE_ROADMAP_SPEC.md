@@ -78,6 +78,29 @@ The review concluded the sync engine should **not** be rewritten: every defect t
   - **Graceful Fallbacks & Low-Spec Mode:** Defaults back to lightweight category SVG icons whenever an image is missing or offline. Adds a store display setting toggle ("Show images in POS grid") so low-memory devices can disable images for maximum rendering speed.
 - **Effort:** ~3–4 days (storage endpoints, image resizing pipeline, local cache adapter, catalog/POS card thumbnail components).
 
+### Product images: offline-first pending upload (follow-up to the product images PR)
+
+- **Description:** Let a till attach a product photo while offline, including to a product created offline, and have it upload and relink itself once the device is online and the product has synced.
+- **Today:** Upload, replace and remove are online-only, and an upload needs the product to exist on the server, so a product created offline cannot take a photo until it has synced (the panel says it has not finished syncing).
+- **Shape:**
+  - Keep the compressed image (at most 120KB) on the device, in IndexedDB beside the local database, and render it from there straight away.
+  - A pending-upload queue (one entry per product; a new pick replaces the pending one; deleting the product clears it) uploads when online and the product has synced, then writes the returned `image_key` locally and drops the local copy.
+  - Reuse the existing compress, presign, PUT and confirm path; failures retry with backoff and surface a "photo not uploaded yet" marker rather than blocking the sale or the product save.
+- **Constraints:** `image_key` stays server-owned (never pushed by sync); the pending blob is never synced between devices, so other tills see the photo only after the upload lands; cap pending storage and show the device's pending count.
+- **Effort:** ~2 days. Build after the R2 bucket pipeline has been verified on dev.
+
+### Nightly database backup to R2 (disaster recovery)
+
+- **Description:** A scheduled full dump of the production MySQL database, compressed, encrypted and written to a private R2 bucket every night at 23:00 Africa/Lagos, with older copies expired automatically. Separate from the per-tenant manual backups (`BackupController`, `backups:prune`), which hold one store's local database.
+- **Shape:**
+  - A third, private bucket (for example `dumosrx-db-backups`) with its own API token that can write but not delete; expiry is an R2 lifecycle rule on the bucket, not application code, so a compromised server token cannot erase the history.
+  - `backups:database` command, scheduled `dailyAt('23:00')->timezone('Africa/Lagos')->withoutOverlapping()`: dump with `--single-transaction`, gzip, encrypt with a key kept outside the server, upload, verify with a HEAD and a minimum size, log the result and alert on failure.
+  - Retention: 30 days of dailies, then keep the first of each month for 12 months (lifecycle rules by key prefix).
+  - A restore drill documented in `laravel-server/AGENTS.md` and rehearsed against a scratch database, because an untested backup is not a backup.
+- **Open questions:** whether the shared host allows `mysqldump` or needs a PHP streaming dump; the database size and the host's time and memory limits; who holds the encryption key.
+- **Never:** run a dump, restore or any command against production without the owner's clearance (`.agents/AGENTS.md` §12).
+- **Effort:** ~2 days plus one restore rehearsal.
+
 ### Migration from other systems: what the product import does not cover yet
 
 - **Current state:** Inventory's product import reads CSV and XLSX (every sheet of a workbook), auto-maps columns from known QuickBooks POS, Moniebook and DumosRx headers, lets the user confirm or correct the mapping (`import-mapping-dialog.tsx`), and warns about in-file duplicates. The old QuickBooks `.IIF` importer no longer exists.

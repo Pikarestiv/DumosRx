@@ -7840,6 +7840,9 @@ their own default (an offline checkout was checked and completes).
 
 ## Mobile keyboard handling, payables due (2026-11-15)
 
+- `useNumberInputWheelGuard` (mounted in `DashboardLayout`) blurs a focused
+  `type="number"` input when the wheel or a trackpad swipe passes over it, so a
+  stray scroll cannot change a quantity. Arrow keys still step the value.
 - `useKeyboardViewport` (mounted once in `DashboardLayout`) publishes
   `--vv-height`, `--vv-top` and `--kb-inset` from `window.visualViewport` and
   scrolls a focused field to the centre. Full-screen takeovers use the

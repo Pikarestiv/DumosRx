@@ -88,7 +88,7 @@ export const POSProductCard = memo(function POSProductCard({
 
         {/* Icon Area */}
         <div className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-1.5 sm:mb-2.5">
-          <CategoryIcon categoryName={product.category_name} className="h-4 w-4 sm:h-5 sm:w-5" />
+          <CategoryIcon categoryName={product.category_name} productName={product.name} className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
 
         <TooltipProvider delayDuration={1000}>

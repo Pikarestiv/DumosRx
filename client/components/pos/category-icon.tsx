@@ -1,12 +1,14 @@
 import { createElement } from "react";
-import { getCategoryIcon } from "@/lib/constants/category-icons";
+import { getProductIcon } from "@/lib/constants/product-icons";
 
 export function CategoryIcon({
   categoryName,
+  productName,
   className,
 }: {
   categoryName?: string | null;
+  productName?: string | null;
   className?: string;
 }) {
-  return createElement(getCategoryIcon(categoryName), { className });
+  return createElement(getProductIcon(categoryName, productName), { className });
 }

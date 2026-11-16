@@ -52,6 +52,13 @@ import {
   PaintBucket,
   Bath,
   HardHat,
+  Flower2,
+  Droplets,
+  Layers,
+  Wheat,
+  CookingPot,
+  AirVent,
+  Cog,
   type LucideIcon,
 } from "lucide-react";
 import { calculateLevenshteinDistance } from "@/lib/utils/search";
@@ -78,8 +85,23 @@ const KEYWORD_ICONS: [string, LucideIcon][] = [
   ["derma", Sparkles],
   ["beauty", Sparkles],
   ["cosmetic", Sparkles],
-  ["perfume", Sparkles],
-  ["fragrance", Sparkles],
+  ["perfume", Flower2],
+  ["fragrance", Flower2],
+  ["cologne", Flower2],
+  ["lotion", Droplets],
+  ["body wash", Bath],
+  ["shower", Bath],
+  ["soap", Bath],
+  ["wash", Bath],
+  ["scrub", Sparkles],
+  ["spray", SprayCan],
+  ["wipes", Layers],
+  ["pasta", Wheat],
+  ["tomato", CookingPot],
+  ["sweet", Candy],
+  ["diffuser", AirVent],
+  ["humidifier", AirVent],
+  ["uncategorized", Package],
   ["histamine", Wind],
   ["cough", Wind],
   ["cold", Wind],
@@ -137,7 +159,7 @@ const KEYWORD_ICONS: [string, LucideIcon][] = [
   ["electronics", Smartphone],
   ["toy", Gamepad2],
   ["game", Gamepad2],
-  ["machine", Wrench],
+  ["machine", Cog],
   ["hardware", Wrench],
   ["tool", Wrench],
   ["stationery", BookOpen],
@@ -239,12 +261,17 @@ const KEYWORD_ICONS_BY_SPECIFICITY = [...KEYWORD_ICONS].sort(
   (a, b) => b[0].length - a[0].length,
 );
 
-export function getCategoryIcon(categoryName?: string | null): LucideIcon {
-  if (!categoryName) return Package;
+function containsKeyword(text: string, keyword: string): boolean {
+  if (keyword.length > 3) return text.includes(keyword);
+  return text.split(/[^a-z]+/).some((word) => word === keyword || word === `${keyword}s`);
+}
+
+export function matchCategoryIcon(categoryName?: string | null): LucideIcon | null {
+  if (!categoryName) return null;
   const normalized = categoryName.toLowerCase();
 
   const substringMatch = KEYWORD_ICONS_BY_SPECIFICITY.find(([keyword]) =>
-    normalized.includes(keyword),
+    containsKeyword(normalized, keyword),
   );
   if (substringMatch) return substringMatch[1];
 
@@ -253,6 +280,13 @@ export function getCategoryIcon(categoryName?: string | null): LucideIcon {
     const fuzzyMatch = fuzzyKeywordMatch(word);
     if (fuzzyMatch) return fuzzyMatch;
   }
+  return null;
+}
 
-  return FALLBACK_ICONS[hashString(normalized) % FALLBACK_ICONS.length];
+export function getCategoryIcon(categoryName?: string | null): LucideIcon {
+  if (!categoryName) return Package;
+  return (
+    matchCategoryIcon(categoryName) ??
+    FALLBACK_ICONS[hashString(categoryName.toLowerCase()) % FALLBACK_ICONS.length]
+  );
 }

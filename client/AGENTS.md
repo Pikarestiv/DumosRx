@@ -7838,6 +7838,19 @@ their own default (an offline checkout was checked and completes).
 - `DatePickerInput` records the value it last emitted, so a parent echoing `""`
   for an incomplete date no longer wipes the half-typed text.
 
+## Product icons (2026-11-16)
+
+- `getProductIcon(category, name)` in `lib/constants/product-icons.ts` picks the
+  POS tile icon. The category decides a family (health, beauty, food) and the
+  product name refines the icon only through rules of that family, so "carrot"
+  in a soap or lotion stays a soap or lotion. When the category matches no
+  keyword, the name rules of every family apply before the hash fallback.
+- Category keywords of three letters or fewer match whole words only (`ear`,
+  `eye`, `pet`, `tea`), so "carpet" is not a pet. Keywords were extended from the
+  production category list of 2026-11-16 (perfume, lotion, wash, soap, scrub,
+  spray, wipes, pasta, sweet, machine, uncategorized and others). The
+  storefront's own mapping in `web/lib/storefront-categories.ts` is separate.
+
 ## Mobile keyboard handling, payables due (2026-11-15)
 
 - `useKeyboardViewport` also toggles `data-keyboard-open` on `<html>` while the

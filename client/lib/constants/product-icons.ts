@@ -101,6 +101,9 @@ const PRODUCT_RULES: [Family, LucideIcon, string][] = [
   ["food", Droplet, "oil"],
 ];
 
+const RULE_WORDS = PRODUCT_RULES.map(([family, icon, words]) => ({ family, icon, words: new Set(words.split(" ")) }));
+const iconCache = new Map<string, LucideIcon>();
+
 function categoryFamily(category: string): Family | null {
   const text = category.toLowerCase();
   const family = (Object.keys(FAMILY_KEYWORDS) as Family[]).find((key) =>
@@ -109,21 +112,30 @@ function categoryFamily(category: string): Family | null {
   return family ?? null;
 }
 
-function nameTokens(productName: string): Set<string> {
-  return new Set(productName.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+function nameTokens(productName: string): string[] {
+  return productName.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 }
 
-export function getProductIcon(categoryName?: string | null, productName?: string | null): LucideIcon {
-  const category = categoryName ?? "";
+function resolveProductIcon(category: string, productName: string): LucideIcon {
   const family = category ? categoryFamily(category) : null;
   const categoryIcon = matchCategoryIcon(category);
   if (productName && (family || !categoryIcon)) {
     const tokens = nameTokens(productName);
-    const rule = PRODUCT_RULES.find(
-      ([ruleFamily, , words]) =>
-        (!family || ruleFamily === family) && words.split(" ").some((word) => tokens.has(word)),
+    const rule = RULE_WORDS.find(
+      (candidate) => (!family || candidate.family === family) && tokens.some((token) => candidate.words.has(token)),
     );
-    if (rule) return rule[1];
+    if (rule) return rule.icon;
   }
-  return categoryIcon ?? getCategoryIcon(categoryName);
+  return categoryIcon ?? getCategoryIcon(category || null);
+}
+
+export function getProductIcon(categoryName?: string | null, productName?: string | null): LucideIcon {
+  const category = categoryName ?? "";
+  const name = productName ?? "";
+  const cacheKey = `${category}\u0000${name}`;
+  const cached = iconCache.get(cacheKey);
+  if (cached) return cached;
+  const icon = resolveProductIcon(category, name);
+  iconCache.set(cacheKey, icon);
+  return icon;
 }

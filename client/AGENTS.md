@@ -7859,6 +7859,7 @@ their own default (an offline checkout was checked and completes).
 
 ## Mobile keyboard handling, payables due (2026-11-15)
 
+- `useKeyboardViewport` ignores a pinch-zoomed viewport (`visualViewport.scale` above 1.05), so zooming in is not mistaken for the keyboard. `getProductIcon` caches its result per category and name.
 - `useKeyboardViewport` also toggles `data-keyboard-open` on `<html>` while the
   keyboard covers more than 120px. `ResponsiveModal` uses it to hide the
   description and tighten header and footer, and the Add Product sheet hides

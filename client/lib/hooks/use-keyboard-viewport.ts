@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 const KEYBOARD_MIN_INSET = 120;
+const PINCH_ZOOM_SCALE = 1.05;
 const FIELD_SELECTOR = "input, textarea, select, [contenteditable='true']";
 
 export function useKeyboardViewport() {
@@ -13,7 +14,8 @@ export function useKeyboardViewport() {
     const publish = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+        const isPinchZoomed = viewport.scale > PINCH_ZOOM_SCALE;
+        const inset = isPinchZoomed ? 0 : Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
         root.style.setProperty("--vv-height", `${viewport.height}px`);
         root.style.setProperty("--vv-top", `${viewport.offsetTop}px`);
         root.style.setProperty("--kb-inset", `${inset}px`);

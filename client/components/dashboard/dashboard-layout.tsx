@@ -27,6 +27,7 @@ import {
   useSyncAutoLockDurationWithAccount,
 } from "@/lib/hooks/use-auto-lock";
 import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
+import { useKeyboardViewport } from "@/lib/hooks/use-keyboard-viewport";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
 import { usePosFullscreenStore } from "@/lib/hooks/use-pos-fullscreen";
 import { useIsTouchDevice } from "@/lib/hooks/use-is-touch-device";
@@ -126,6 +127,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const tourEligible = useMemo(() => hydrated && isTourEligible(), [hydrated]);
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
+  useKeyboardViewport();
   const { handleTouchStart, handleTouchEnd, direction } = useSwipeNavigation(
     TABS,
     { onSwipePastEnd: () => setMoreDrawerOpen(true) },

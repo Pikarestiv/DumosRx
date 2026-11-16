@@ -144,7 +144,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background w-full fixed-visual-viewport">
       <ConfirmDialog
         open={showDiscardDialog}
         onOpenChange={setShowDiscardDialog}
@@ -241,7 +241,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
         className="flex-1 overflow-y-auto p-4 md:p-8 md:pt-4 flex justify-center"
         style={{
           paddingBottom:
-            "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
+            "calc(var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
         }}
       >
         <div className={STEP_WIDTH(step)}>

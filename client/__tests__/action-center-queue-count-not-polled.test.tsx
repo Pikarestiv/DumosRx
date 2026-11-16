@@ -11,6 +11,12 @@ const state = {
   syncQueueCount: 0,
 };
 
+vi.mock("@/lib/db/queries/payables", () => ({
+  getPayablesDueSummary: vi.fn(() =>
+    Promise.resolve({ overdueCount: 0, overdueTotal: 0, dueSoonCount: 0, dueSoonTotal: 0 }),
+  ),
+}));
+
 vi.mock("@/lib/context/auth-context", () => ({
   useAuth: () => ({
     isAuthenticated: true,

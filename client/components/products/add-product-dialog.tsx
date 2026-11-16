@@ -144,6 +144,7 @@ export function AddProductDialog({
   return (
     <>
       <ResponsiveModal
+        swipeToDismiss={false}
         open={open}
         onOpenChange={onOpenChange}
         title={

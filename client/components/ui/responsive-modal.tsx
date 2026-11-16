@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerHeader,
@@ -37,6 +36,9 @@ interface ResponsiveModalProps {
    * content on mobile so they can't be scrolled out of view.
    */
   footer?: React.ReactNode;
+  /** False limits swipe-down to the grab handle, so a form being typed into
+   * survives a stray swipe; Esc, outside tap and the X still close it. */
+  swipeToDismiss?: boolean;
 }
 
 export function ResponsiveModal({
@@ -48,6 +50,7 @@ export function ResponsiveModal({
   className,
   headerClassName,
   footer,
+  swipeToDismiss = true,
 }: ResponsiveModalProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   // Renders nothing until hydrated so only one of Dialog/Drawer ever mounts.
@@ -76,9 +79,21 @@ export function ResponsiveModal({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer
+      open={open}
+      onOpenChange={onOpenChange}
+      handleOnly={!swipeToDismiss}
+      repositionInputs={false}
+    >
       <DrawerContent
         className={cn("max-h-[90vh] flex flex-col px-4", className)}
+        style={{
+          bottom: "var(--kb-inset, 0px)",
+          maxHeight: "calc(var(--vv-height, 100dvh) * 0.95)",
+        }}
+        onInteractOutside={
+          swipeToDismiss ? undefined : (event) => event.preventDefault()
+        }
       >
         <DrawerHeader
           className={cn(
@@ -92,10 +107,14 @@ export function ResponsiveModal({
               <DrawerDescription>{description}</DrawerDescription>
             )}
           </div>
-          <DrawerClose className="p-1">
+          <button
+            type="button"
+            className="p-1"
+            onClick={() => onOpenChange(false)}
+          >
             <X className="h-5 w-5 opacity-70" />
             <span className="sr-only">Close</span>
-          </DrawerClose>
+          </button>
         </DrawerHeader>
         <ScrollFade containerClassName="responsive-modal-fields flex-1">
           {children}

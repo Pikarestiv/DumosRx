@@ -81,7 +81,7 @@ export function AdjustStockFlow({ onClose, onSubmitted }: AdjustStockFlowProps) 
   return (
     <div
       data-testid="adjust-stock-flow"
-      className="fixed inset-0 z-50 flex flex-col bg-background w-full h-full"
+      className="fixed inset-0 z-50 flex flex-col bg-background w-full fixed-visual-viewport"
     >
       <div
         className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
@@ -109,7 +109,7 @@ export function AdjustStockFlow({ onClose, onSubmitted }: AdjustStockFlowProps) 
         className="flex-1 overflow-y-auto p-4 md:p-8 md:pt-4 flex justify-center"
         style={{
           paddingBottom:
-            "calc(var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
+            "calc(var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
         }}
       >
         <div className={`w-full ${step === "preferences" ? "max-w-2xl" : "max-w-[1280px]"}`}>

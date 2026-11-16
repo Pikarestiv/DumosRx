@@ -31,6 +31,8 @@ import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { useBroadcasts } from "@/lib/hooks/use-broadcasts";
 import { NotificationDetailModal } from "./notification-detail-modal";
 import { queryKeys } from "@/lib/query-keys";
+import { usePayablesDue } from "@/lib/hooks/use-payables-due";
+import { buildPayableAlerts } from "@/lib/hooks/payable-alerts";
 import type { Broadcast } from "@/lib/types/broadcast";
 import { cn } from "@/lib/utils";
 
@@ -108,6 +110,7 @@ export function NotificationBell() {
   // Shared with BroadcastBanner (same query key/cache) so both fetch once
   // and poll on one interval instead of duplicating the network call.
   const { data: broadcastsData } = useBroadcasts(storeProfile?.id);
+  const payablesDue = usePayablesDue();
   const { data: cloudNotifications = [] } = useQuery({
     ...queryKeys.notifications.all(storeProfile?.id),
     queryFn: async () => {
@@ -155,10 +158,21 @@ export function NotificationBell() {
         isRead: readBroadcastIds.includes(`broadcast-${b.id}`),
         category: "broadcast",
       }));
-    return [...standardBroadcasts, ...cloudNotifications];
-  }, [broadcastsData, cloudNotifications, readBroadcastIds]);
+    const payableNotifications = buildPayableAlerts(payablesDue, storeProfile?.currency).map((alert) => ({
+      id: alert.id,
+      title: alert.title,
+      description: alert.description,
+      time: "Payables",
+      type: alert.priority === "critical" ? "danger" : "warning",
+      isRead: false,
+      category: "payable",
+      link: alert.actionRoute,
+    }));
+    return [...payableNotifications, ...standardBroadcasts, ...cloudNotifications];
+  }, [broadcastsData, cloudNotifications, readBroadcastIds, payablesDue, storeProfile?.currency]);
 
   const markAsRead = async (id: string) => {
+    if (id.startsWith("payables-")) return;
     try {
       if (id.startsWith('broadcast-')) {
         setReadBroadcasts(prev => {

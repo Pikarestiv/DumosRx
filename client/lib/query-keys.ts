@@ -97,6 +97,9 @@ export const queryKeys = {
     droppedReceiptSignal: (id: string | null) =>
       resource(["purchase_order_dropped_receipt", id] as const, ["purchase_order_items"]),
   },
+  payables: {
+    dueSummary: () => resource(["payables_due_summary"] as const, ["purchase_orders"]),
+  },
   requestedProducts: {
     all: () => resource(["requested_products"] as const, ["requested_products"]),
   },

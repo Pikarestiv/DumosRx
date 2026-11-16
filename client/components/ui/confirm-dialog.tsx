@@ -42,7 +42,7 @@ export function ConfirmDialog({
   variant = "destructive",
   onConfirm,
   requirePin = false,
-  autoFocusConfirm = false,
+  autoFocusConfirm = variant !== "destructive",
 }: ConfirmDialogProps) {
   const [pin, setPin] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);

@@ -7837,3 +7837,20 @@ their own default (an offline checkout was checked and completes).
   saves and returns to the order.
 - `DatePickerInput` records the value it last emitted, so a parent echoing `""`
   for an incomplete date no longer wipes the half-typed text.
+
+## Mobile keyboard handling, payables due (2026-11-15)
+
+- `useKeyboardViewport` (mounted once in `DashboardLayout`) publishes
+  `--vv-height`, `--vv-top` and `--kb-inset` from `window.visualViewport` and
+  scrolls a focused field to the centre. Full-screen takeovers use the
+  `.fixed-visual-viewport` class so they track the visible area, and pad their
+  scroll area by `var(--kb-inset)` so the last field clears the keyboard.
+  iOS Safari does not resize the layout viewport; do not rely on `100dvh`.
+  Do not set the viewport `interactiveWidget` to `resizes-content`: it stacks
+  with vaul's own input repositioning (the assistant drawer) and leaves the
+  drawer shifted with a blank gap under the input.
+- `ResponsiveModal` takes `swipeToDismiss={false}` for forms: drag only from
+  the grab handle, outside tap blocked; X and Esc still close.
+- A PO due date drives `getPayableDueState` (`lib/utils/payables.ts`): overdue
+  once past, "due soon" within 3 days. Only unpaid, non-draft orders count. It
+  feeds the dashboard Action Center, the notification bell and an order badge.

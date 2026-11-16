@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Filter } from "lucide-react";
+import { Filter, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { ProductCombobox, SelectedProduct } from "@/components/ui/product-combobox";
@@ -202,8 +202,18 @@ export function POItemBuilder({
             onChange={(e) => setItemFilter(e.target.value)}
             placeholder="Filter items in this order"
             aria-label="Filter items in this order"
-            className="pl-9 h-9 text-[12.5px] rounded-[10px]"
+            className="pl-9 pr-9 h-9 text-[12.5px] rounded-[10px]"
           />
+          {itemFilter && (
+            <button
+              type="button"
+              aria-label="Clear filter"
+              onClick={() => setItemFilter("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )}
 

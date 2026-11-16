@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
 import { type AuditCountStatus, type AuditSortKey } from "./audit-derivations";
-import { AUDIT_LEDGER_GRID_COLS as GRID_COLS } from "./audit-ledger-format";
+import { getAuditLedgerGridCols } from "./audit-ledger-format";
 import { AuditLedgerRowCells } from "./audit-ledger-row-cells";
 import { AuditLedgerTotalsRow } from "./audit-ledger-totals-row";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
@@ -82,8 +82,22 @@ export function AuditLedgerStep({
   scrollElementRef,
   sort,
 }: AuditLedgerStepProps) {
+  const canViewCost = useHasPermission("view_cost_fields");
   const canEditProductCost = useHasPermission("edit_product_cost");
   const canEditProductPrice = useHasPermission("edit_product_price");
+  const gridCols = getAuditLedgerGridCols(canViewCost);
+  const displayedColumns = useMemo(
+    () =>
+      canViewCost
+        ? LEDGER_COLUMNS
+        : LEDGER_COLUMNS.filter(
+            (c) =>
+              c.key !== "costPrice" &&
+              c.key !== "countedCost" &&
+              c.key !== "diffCost",
+          ),
+    [canViewCost],
+  );
   // Totals cover the rows shown, so a filtered view gets a live subtotal.
   const totals = useMemo(
     () =>
@@ -190,7 +204,7 @@ export function AuditLedgerStep({
             <div role="rowgroup">
               <div
                 role="row"
-                className={`grid ${GRID_COLS} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}
+                className={`grid ${gridCols} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}
               >
                 <div
                   role="columnheader"
@@ -203,7 +217,7 @@ export function AuditLedgerStep({
                     onClick={() => toggleSort("name")}
                   />
                 </div>
-                {LEDGER_COLUMNS.map((column) => (
+                {displayedColumns.map((column) => (
                   <div
                     key={column.key}
                     role="columnheader"
@@ -239,7 +253,7 @@ export function AuditLedgerStep({
                     role="row"
                     data-index={virtualRow.index}
                     ref={rowVirtualizer.measureElement}
-                    className={`grid ${GRID_COLS} hover:bg-accent/10 absolute top-0 left-0 w-full border-b border-border`}
+                    className={`grid ${gridCols} hover:bg-accent/10 absolute top-0 left-0 w-full border-b border-border`}
                     style={{
                       transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                     }}
@@ -248,6 +262,7 @@ export function AuditLedgerStep({
                       item={item}
                       canEditProductCost={canEditProductCost}
                       canEditProductPrice={canEditProductPrice}
+                      canViewCost={canViewCost}
                       isReadOnly={isReadOnly}
                       onUpdateItem={onUpdateItem}
                       onCountRow={onCountRow}
@@ -257,8 +272,8 @@ export function AuditLedgerStep({
                 );
               })}
               {items.length === 0 && (
-                <div role="row" className={`grid ${GRID_COLS}`}>
-                  <div role="cell" className="col-span-11">
+                <div role="row" className={`grid ${gridCols}`}>
+                  <div role="cell" className={canViewCost ? "col-span-11" : "col-span-8"}>
                     <EmptyState
                       icon={SearchX}
                       title="No items match"
@@ -290,6 +305,7 @@ export function AuditLedgerStep({
                   selectedCategory={selectedCategory}
                   countStatus={countStatus}
                   search={search}
+                  canViewCost={canViewCost}
                 />
               </div>
             )}

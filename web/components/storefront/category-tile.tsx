@@ -1,6 +1,19 @@
 import {
+  AirVent,
+  Bath,
   Box,
+  Candy,
+  Cookie,
+  CookingPot,
+  CupSoda,
+  Flower2,
   FlaskRound,
+  HeartPulse,
+  Layers,
+  Scissors,
+  Syringe,
+  Wheat,
+  Wine,
   Droplet,
   Lightbulb,
   Pill,
@@ -24,15 +37,29 @@ const ICONS: Record<CategoryIcon, LucideIcon> = {
   tools: Wrench,
   basket: ShoppingBasket,
   box: Box,
+  perfume: Flower2,
+  bath: Bath,
+  wipes: Layers,
+  hair: Scissors,
+  wine: Wine,
+  drink: CupSoda,
+  sweet: Candy,
+  biscuit: Cookie,
+  grain: Wheat,
+  sauce: CookingPot,
+  device: HeartPulse,
+  air: AirVent,
+  syringe: Syringe,
 };
 
 interface CategoryTileProps {
   category?: string | null;
   image?: string | null;
   alt: string;
+  productName?: string | null;
 }
 
-export function CategoryTile({ category, image, alt }: CategoryTileProps) {
+export function CategoryTile({ category, image, alt, productName }: CategoryTileProps) {
   if (image) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- static export arbitrary data URI
@@ -41,7 +68,7 @@ export function CategoryTile({ category, image, alt }: CategoryTileProps) {
   }
 
   const label = category ? toDisplayTitle(correctCategoryName(category)) : null;
-  const Icon = ICONS[categoryIcon(category ?? "")];
+  const Icon = ICONS[categoryIcon(category ?? "", productName)];
 
   return (
     <div

@@ -51,7 +51,7 @@ export function ProductCard({ product, storeSlug, currency, whatsapp, phone, cla
 
   return (
     <article className={cn("flex h-full flex-col", CARD_SURFACE, className)}>
-      <CategoryTile category={product.category?.name} image={product.image} alt={displayName} />
+      <CategoryTile category={product.category?.name} image={product.image} alt={displayName} productName={product.name} />
       <div className="flex flex-1 flex-col gap-3 p-3 sm:p-4">
         <h3 className="line-clamp-2 text-sm font-medium leading-snug sm:text-base">
           {displayName}

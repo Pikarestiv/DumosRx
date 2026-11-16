@@ -2161,3 +2161,12 @@ the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
 `fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
 contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
 update the `localFont` call; do not reintroduce `next/font/google`.
+
+## Storefront tile icons (2026-11-16)
+
+`categoryIcon(category, productName)` in `web/lib/storefront-categories.ts` mirrors
+the POS matcher in `client/lib/constants/product-icons.ts`: the category picks the
+icon and a family (health, beauty, food), and the product name may refine it only
+through that family's rules. An unrecognised category stays a neutral box and the
+name is not used to guess. Categories were extended from the production list of
+2026-11-16.

@@ -59,8 +59,34 @@ describe("storefront category tiles", () => {
     ["Serums", "droplet"],
     ["Outillage", "tools"],
     ["Provisions", "basket"],
+    ["perfume", "perfume"],
+    ["Body Wash", "bath"],
+    ["bar soap", "bath"],
+    ["body lotion", "jar"],
+    ["body spray", "spray"],
+    ["face wipes", "wipes"],
+    ["pasta", "grain"],
+    ["tomato pastes", "sauce"],
+    ["tea bags", "drink"],
+    ["wine", "wine"],
+    ["sweet", "sweet"],
+    ["busicuit", "biscuit"],
+    ["machine", "device"],
+    ["humidifiers and diffusers", "air"],
   ])("gives %s the %s icon", (name, icon) => {
     expect(categoryIcon(name)).toBe(icon);
+  });
+
+  it("refines the icon by product name inside the same family only", () => {
+    expect(categoryIcon("drugs", "10ml Syringe")).toBe("syringe");
+    expect(categoryIcon("drugs", "Amoxil Capsules")).toBe("pill");
+    expect(categoryIcon("cosmetics", "2 Black Avocado Relaxer")).toBe("hair");
+    expect(categoryIcon("toiletries", "2 Sure Liquid Wash")).toBe("bath");
+    expect(categoryIcon("provision", "Divella Spaghetti")).toBe("grain");
+    expect(categoryIcon("body lotion", "Amanda Carrot")).toBe("jar");
+    expect(categoryIcon("bar soap", "Asantee Carrot Bar Soap")).toBe("bath");
+    expect(categoryIcon("machine", "Aneroid Sphygomanometer")).toBe("device");
+    expect(categoryIcon("Tools", "Spaghetti Wrench")).toBe("tools");
   });
 
   it("does not mistake words that merely contain a keyword for it", () => {

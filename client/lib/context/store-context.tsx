@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useMemo, ReactNode } from "react";
 import * as Sentry from "@sentry/nextjs";
+import { applySentryIdentity } from "@/lib/utils/sentry-identity";
 import { toast } from "sonner";
 import { update } from "@/lib/db/local-database";
 import { setActiveStoreId as setResolvedStoreId } from "@/lib/db/core";
@@ -87,9 +88,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   setActiveCurrency(storeProfile?.currency);
 
   React.useEffect(() => {
-    Sentry.setTag("store_id", storeProfile?.id);
-    Sentry.setTag("store_type", storeProfile?.store_type);
-  }, [storeProfile]);
+    applySentryIdentity(user, storeProfile);
+  }, [user, storeProfile]);
 
   // Set once on mount: distinguishes which physical device/terminal at a multi-device store a remote log came from, since store_id/user_id alone…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L247

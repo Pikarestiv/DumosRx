@@ -12,9 +12,12 @@ export function cartToReceiptTransaction(
   total: number,
   selectedCustomer: Customer | null,
   cashier: string,
+  transactionNumber?: string,
 ): ReceiptTransaction {
   return {
     id: crypto.randomUUID(),
+    transactionNumber,
+    transaction_number: transactionNumber,
     date: new Date().toISOString(),
     cashier,
     items: cart.map((item) => ({

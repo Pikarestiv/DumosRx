@@ -3,6 +3,10 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import {
+  UNCATEGORIZED_CATEGORY_VALUE,
+  UNCATEGORIZED_CATEGORY_LABEL,
+} from "@/lib/constants/categories";
 
 interface Props {
   categories: string[];
@@ -44,7 +48,9 @@ export function POSCategoryFilter({ categories, value, onChange }: Props) {
               caseClass,
             )}
           >
-            {category}
+            {category === UNCATEGORIZED_CATEGORY_VALUE
+              ? UNCATEGORIZED_CATEGORY_LABEL
+              : category}
           </TabsTrigger>
         ))}
       </TabsList>

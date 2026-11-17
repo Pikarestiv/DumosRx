@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ProductDatabaseFilters } from "./product-database-filters";
+import { ProductActionsMenu } from "./product-actions-menu";
 import { AddProductDialog } from "./add-product-dialog";
 import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
@@ -24,11 +25,20 @@ import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { useProductDatabaseNavigation } from "./use-product-database-navigation";
+import {
+  UNCATEGORIZED_CATEGORY_VALUE,
+  UNCATEGORIZED_CATEGORY_LABEL,
+  PHARMACY_DEFAULT_CATEGORIES,
+  RETAIL_DEFAULT_CATEGORIES,
+  CATALOG_STATUS_FILTERS,
+} from "@/lib/constants/categories";
 
 /** Matches pos-transaction-history, the other fuzzy-search surface. */
 const SEARCH_DEBOUNCE_MS = 200;
 
 export function ProductDatabase() {
+  const router = useRouter();
   const { storeType, storeProfile } = useStore();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [searchTerm, setSearchTerm] = useState("");
@@ -45,28 +55,6 @@ export function ProductDatabase() {
     setShowAddDialog(open);
     if (!open) setEditingProduct(null);
   }, []);
-
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const searchParamsKey = searchParams.toString();
-  const [appliedSearchParamsKey, setAppliedSearchParamsKey] = useState<string | null>(null);
-  if (searchParamsKey !== appliedSearchParamsKey) {
-    setAppliedSearchParamsKey(searchParamsKey);
-    if (searchParams.get("action") === "add") setShowAddDialog(true);
-    const status = searchParams.get("status");
-    if (status) setStatusFilter(status);
-  }
-
-  useEffect(() => {
-    if (searchParams.get("action") !== "add") return;
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.delete("action");
-    const newUrl =
-      window.location.pathname +
-      (newParams.toString() ? `?${newParams.toString()}` : "");
-    router.replace(newUrl);
-  }, [searchParams, router]);
 
   const isStore = storeType === "pharmacy";
 
@@ -108,70 +96,45 @@ export function ProductDatabase() {
     [rawProducts],
   );
 
+  useProductDatabaseNavigation({
+    products,
+    rawProducts,
+    setShowAddDialog,
+    setStatusFilter,
+    setSelectedProduct,
+  });
+
   const liveSelectedProduct = selectedProduct
     ? (products.find((p) => p.id === selectedProduct.id) ?? selectedProduct)
     : null;
-
-  const deepLinkProductId = searchParams.get("productId");
-  const [deepLinkSource, setDeepLinkSource] = useState<{
-    searchParamsKey: string;
-    rawProducts: typeof rawProducts;
-  } | null>(null);
-  if (
-    deepLinkProductId &&
-    rawProducts &&
-    (deepLinkSource?.searchParamsKey !== searchParamsKey ||
-      deepLinkSource.rawProducts !== rawProducts)
-  ) {
-    setDeepLinkSource({ searchParamsKey, rawProducts });
-    const match = products.find((p) => p.id === deepLinkProductId);
-    if (match) setSelectedProduct(match);
-  }
-
-  useEffect(() => {
-    if (!searchParams.get("productId") || !rawProducts) return;
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.delete("productId");
-    const newUrl =
-      window.location.pathname +
-      (newParams.toString() ? `?${newParams.toString()}` : "");
-    router.replace(newUrl);
-  }, [searchParams, rawProducts, router]);
 
   const { data: rawCategories } = useQuery({
     ...queryKeys.categories.list(),
     queryFn: () => getCategoryList(),
   });
 
-  const defaultCategories = isStore
-    ? ["Analgesics", "Antibiotics", "Antimalarials", "Vitamins", "Antacids"]
-    : [
-        "Groceries",
-        "Beverages",
-        "Personal Care",
-        "Household",
-        "Snacks",
-        "Dairy",
-      ];
-
   const fetchedCategories = rawCategories?.map((c) => c.name) || [];
 
-  const categories = [
-    "all",
-    ...(fetchedCategories.length > 0 ? fetchedCategories : defaultCategories),
-  ];
+  const hasUncategorizedProducts = useMemo(
+    () => products.some((p) => !p.categoryName || !p.categoryId),
+    [products],
+  );
 
-  const statuses = [
-    "all",
-    "active",
-    "inactive",
-    "expiring_soon",
-    "expired",
-    "low_stock",
-    "out_of_stock",
-    "stock_owed",
-    "possible_duplicates",
-  ];
+  const categories = useMemo(() => {
+    const defaultCats = isStore
+      ? PHARMACY_DEFAULT_CATEGORIES
+      : RETAIL_DEFAULT_CATEGORIES;
+    const list = [
+      "all",
+      ...(fetchedCategories.length > 0 ? fetchedCategories : defaultCats),
+    ];
+    if (hasUncategorizedProducts) {
+      list.push(UNCATEGORIZED_CATEGORY_VALUE);
+    }
+    return list;
+  }, [fetchedCategories, isStore, hasUncategorizedProducts]);
+
+  const statuses = CATALOG_STATUS_FILTERS;
   const duplicateIds = useMemo(() => findDuplicateProductIds(products), [products]);
 
   const { handleAddProduct, isSaving } = useAddProduct({
@@ -186,11 +149,14 @@ export function ProductDatabase() {
 
   const preFilteredProducts = useMemo(
     () =>
-      products.filter(
-        (product) =>
-          (categoryFilter === "all" || product.category === categoryFilter) &&
-          matchesCatalogStatus(product, statusFilter, { owedByProduct, duplicateIds }),
-      ),
+      products.filter((product) => {
+        const matchesCategory =
+          categoryFilter === "all" ||
+          (categoryFilter === UNCATEGORIZED_CATEGORY_VALUE
+            ? !product.categoryName || !product.categoryId
+            : product.category === categoryFilter);
+        return matchesCategory && matchesCatalogStatus(product, statusFilter, { owedByProduct, duplicateIds });
+      }),
     [products, categoryFilter, statusFilter, owedByProduct, duplicateIds],
   );
 
@@ -231,13 +197,21 @@ export function ProductDatabase() {
         {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout */}
         {!isDesktop && (
         <div className="lg:hidden space-y-3">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search by name or SKU"
-            aria-label="Search products"
-            inputClassName="bg-card border-border"
-          />
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search by name or SKU"
+              aria-label="Search products"
+              inputClassName="bg-card border-border"
+            />
+            <ProductActionsMenu
+              onManageCategories={() => router.push("/settings/categories")}
+              onProductsChanged={() => void refetch()}
+              filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
+              labelProducts={filteredProducts}
+            />
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <FilterPill
               label="Category"
@@ -245,7 +219,12 @@ export function ProductDatabase() {
               onValueChange={setCategoryFilter}
               options={categories.map((c) => ({
                 value: c,
-                label: c === "all" ? "All" : c,
+                label:
+                  c === "all"
+                    ? "All"
+                    : c === UNCATEGORIZED_CATEGORY_VALUE
+                      ? UNCATEGORIZED_CATEGORY_LABEL
+                      : c,
               }))}
               className="bg-card"
             />

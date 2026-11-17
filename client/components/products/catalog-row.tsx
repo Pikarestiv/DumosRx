@@ -123,8 +123,8 @@ function CatalogRowInner({
         >
           {thumbnail("h-10 w-10 mr-3", 40)}
           <div className="min-w-0 pr-2 flex-1">
-            <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
-              <span className={capsClass}>{product.name}</span>
+            <div className="text-[15px] font-bold text-foreground flex items-start gap-2">
+              <span className={`min-w-0 line-clamp-2 ${capsClass}`}>{product.name}</span>
               {canEdit && (
                 <EditProductPencil
                   productName={product.name}
@@ -171,8 +171,8 @@ function CatalogRowInner({
           <div className="min-w-0 pr-2 flex items-center gap-2">
             {thumbnail("h-8 w-8", 32)}
             <div className="min-w-0">
-              <div className="text-[13px] font-semibold truncate flex items-center gap-2">
-                <span className={capsClass}>{product.name}</span>
+              <div className="text-[13px] font-semibold flex items-center gap-2">
+                <span className={`min-w-0 truncate ${capsClass}`}>{product.name}</span>
                 {canEdit && (
                   <EditProductPencil
                     productName={product.name}

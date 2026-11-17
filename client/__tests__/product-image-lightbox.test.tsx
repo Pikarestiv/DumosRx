@@ -30,11 +30,11 @@ describe("ProductImage zoom", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("the corner zoom does not trigger the surrounding click", () => {
+  it("the overlay zoom does not trigger the surrounding click", () => {
     const outer = vi.fn();
     render(
       <div onClick={outer}>
-        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="corner" />
+        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />
       </div>,
     );
 
@@ -44,8 +44,44 @@ describe("ProductImage zoom", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
+  it("closing the enlarged view does not trigger the surrounding click", () => {
+    const outer = vi.fn();
+    render(
+      <button type="button" onClick={outer}>
+        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />
+      </button>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "View larger image of Dettol" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("clicking inside the enlarged view does not trigger the surrounding click", () => {
+    const outer = vi.fn();
+    render(
+      <button type="button" onClick={outer}>
+        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />
+      </button>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "View larger image of Dettol" }));
+    fireEvent.click(screen.getByRole("dialog").querySelector("img") as HTMLImageElement);
+
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("fills the space beside a contained image with a blurred copy of it", () => {
+    const { container } = render(<ProductImage imageKey={KEY} alt="Dettol" sizePx={56} fit="contain" />);
+
+    const sources = Array.from(container.querySelectorAll("img")).map((img) => img.getAttribute("src"));
+    expect(sources).toEqual([SRC, SRC]);
+  });
+
   it("offers no zoom when the image fails and the icon is shown", () => {
-    const { container } = render(<ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="corner" />);
+    const { container } = render(<ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />);
 
     fireEvent.error(container.querySelector("img") as HTMLImageElement);
 

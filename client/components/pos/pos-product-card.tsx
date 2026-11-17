@@ -114,7 +114,7 @@ export const POSProductCard = memo(function POSProductCard({
           alt=""
           sizePx={56}
           fit="contain"
-          zoom="corner"
+          zoom="overlay"
           showImage={storeProfile?.pos_show_product_images !== 0}
           className="w-full h-12 sm:h-20 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 mb-1.5 sm:mb-2.5"
           iconClassName="h-4 w-4 sm:h-5 sm:w-5"

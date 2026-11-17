@@ -10,6 +10,10 @@ vi.mock("@/hooks/use-media-query", () => ({
   useMediaQuery: (query: string) => mockUseMediaQuery(query),
 }));
 
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { uppercase_display_enabled: 1 } }),
+}));
+
 const mockServices: Service[] = [
   {
     id: "srv-1",

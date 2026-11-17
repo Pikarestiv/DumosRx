@@ -173,7 +173,7 @@ export function AddProductDialog({
         open={open}
         onOpenChange={onOpenChange}
         title={
-          <span className="font-serif font-bold text-2xl">
+          <span className="font-serif font-bold text-2xl [[data-keyboard-open]_&]:text-lg">
             {editingProduct
               ? `Edit ${t("product")}`
               : `Add New ${t("product")}`}
@@ -206,7 +206,7 @@ export function AddProductDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-accent text-accent hover:bg-accent/10 hover:text-primary w-full sm:w-auto"
+                  className="border-accent text-accent hover:bg-accent/10 hover:text-primary w-full sm:w-auto [[data-keyboard-open]_&]:hidden sm:[[data-keyboard-open]_&]:inline-flex"
                   onClick={withRestriction((e: React.MouseEvent) => handleSubmit(e, true))}
                   disabled={isSubmitting}
                 >

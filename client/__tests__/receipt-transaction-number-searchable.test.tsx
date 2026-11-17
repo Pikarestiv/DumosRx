@@ -6,7 +6,7 @@ import { saleToReceiptTransaction } from "@/components/pos/sale-to-receipt-trans
 import { genericFuzzySearch } from "@/lib/utils/search";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
-let storeProfile: Record<string, unknown> = {
+const storeProfile: Record<string, unknown> = {
   name: "Divamax Pharmacy",
   show_barcode_on_receipt: 1,
 };

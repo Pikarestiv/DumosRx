@@ -114,10 +114,10 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
       <div className="flex items-center gap-2 px-2.5 py-1 bg-primary/5 border border-primary/20 rounded-[10px] hover:bg-primary/10 transition-colors">
         <button
           type="button"
-          className="flex flex-1 min-w-0 items-center gap-2 text-left cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          className="flex flex-1 min-w-0 items-center gap-2 text-left pointer-coarse:-my-3 pointer-coarse:py-3 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
           onClick={() => setOpen(true)}
         >
-          <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
+          <div className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
             {initials}
           </div>
           <div className="flex flex-1 min-w-0 items-baseline leading-tight">
@@ -144,7 +144,7 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
           <button
             type="button"
             aria-label={`Clear selected customer ${selectedCustomer.first_name} ${selectedCustomer.last_name || ""}`.trim()}
-            className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="shrink-0 rounded p-0.5 pointer-coarse:-m-2 pointer-coarse:p-2.5 text-muted-foreground hover:text-foreground cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={handleClear}
           >
             <X className="w-4 h-4" />

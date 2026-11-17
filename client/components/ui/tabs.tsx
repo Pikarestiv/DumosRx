@@ -58,7 +58,7 @@ const tabsTriggerVariants = cva(
         default:
           "gap-1.5 rounded-lg border px-4 py-2 bg-card border-border text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary data-[state=active]:hover:text-primary-foreground data-[state=active]:hover:border-primary",
         chips:
-          "gap-1.5 rounded-full border px-3.5 py-1.5 bg-transparent border-transparent text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary data-[state=active]:hover:text-primary-foreground data-[state=active]:hover:border-primary",
+          "gap-1.5 rounded-full border px-3.5 py-1.5 pointer-coarse:py-2.5 bg-transparent border-transparent text-muted-foreground data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-primary data-[state=active]:border-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:hover:bg-primary data-[state=active]:hover:text-primary-foreground data-[state=active]:hover:border-primary",
       },
     },
     defaultVariants: {

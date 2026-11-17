@@ -7,13 +7,16 @@ use App\Exceptions\StorefrontStockUnavailableException;
 use App\Models\Notification;
 use App\Models\OnlineOrder;
 use App\Models\OnlineOrderItem;
+use App\Models\Service;
 use App\Models\StockBatch;
 use App\Models\Store;
+use App\Models\Storefront;
 use App\Models\StorefrontPaymentIntent;
 use App\Models\User;
 use App\Services\Payment\PaymentService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class StorefrontCheckoutService
@@ -40,12 +43,16 @@ class StorefrontCheckoutService
     }
 
     /**
-     * @param  array<int, array{product_id: string, quantity: int}>  $orderItems
+     * @param  array<int, array<string, mixed>>  $orderItems
      * @param  array<string, string>  $productNames
      */
     public function checkAvailability(Store $store, array $orderItems, array $productNames): ?JsonResponse
     {
         foreach ($orderItems as $item) {
+            if (empty($item['product_id'])) {
+                continue;
+            }
+
             if ($this->availableQuantity($store, $item['product_id']) < $item['quantity']) {
                 $name = $productNames[$item['product_id']] ?? 'this item';
 
@@ -59,13 +66,13 @@ class StorefrontCheckoutService
     }
 
     /**
-     * @param  array<int, array{product_id: string, quantity: int}>  $items
+     * @param  array<int, array{product_id?: ?string, service_id?: ?string, quantity: int}>  $items
      * @return array{0: float, 1: array, 2: ?JsonResponse, 3: array<string, string>}
      */
     public function priceCart(Store $store, array $items): array
     {
-        $productIds = collect($items)->pluck('product_id')->unique();
-        $products = $this->catalogService->storeProducts($store)
+        $productIds = collect($items)->filter(fn ($item) => empty($item['service_id']))->pluck('product_id')->unique();
+        $products = $productIds->isEmpty() ? collect() : $this->catalogService->storeProducts($store)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
@@ -74,21 +81,22 @@ class StorefrontCheckoutService
             abort(404);
         }
 
+        $services = $this->bookableServices($store, collect($items)->pluck('service_id')->filter()->unique());
+
         $totalAmount = 0;
         $orderItems = [];
         $productNames = $products->pluck('name', 'id')->all();
 
         foreach ($items as $item) {
-            $product = $products[$item['product_id']];
-            $requestedQty = $item['quantity'];
-
-            $subtotal = $product->selling_price * $requestedQty;
+            $isService = ! empty($item['service_id']);
+            $unitPrice = $isService ? (float) $services[$item['service_id']]->price : $products[$item['product_id']]->selling_price;
+            $subtotal = $unitPrice * $item['quantity'];
             $totalAmount += $subtotal;
 
             $orderItems[] = [
-                'product_id' => $product->id,
-                'quantity' => $requestedQty,
-                'unit_price' => $product->selling_price,
+                ($isService ? 'service_id' : 'product_id') => $isService ? $item['service_id'] : $item['product_id'],
+                'quantity' => $item['quantity'],
+                'unit_price' => $unitPrice,
                 'subtotal' => $subtotal,
             ];
         }
@@ -99,6 +107,27 @@ class StorefrontCheckoutService
         }
 
         return [(float) $totalAmount, $orderItems, null, $productNames];
+    }
+
+    /**
+     * @param  Collection<int, string>  $ids
+     * @return Collection<string, Service>
+     */
+    private function bookableServices(Store $store, Collection $ids): Collection
+    {
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        $services = Storefront::where('user_id', $store->user_id)->value('show_services')
+            ? Service::where('store_id', $store->id)->where('is_active', true)->whereIn('id', $ids)->get()->keyBy('id')
+            : collect();
+
+        if ($services->count() !== $ids->count()) {
+            abort(404);
+        }
+
+        return $services;
     }
 
     public function initializePayment(
@@ -230,7 +259,7 @@ class StorefrontCheckoutService
 
         return response()->json([
             'message' => 'Order placed successfully',
-            'order' => $order->load('items'),
+            'order' => $order->load(['items', 'serviceItems']),
         ], 201);
     }
 }

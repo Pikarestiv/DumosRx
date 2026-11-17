@@ -49,10 +49,10 @@ export function AuditLedgerRowCells({
         <div className="flex items-center gap-2">
           <Checkbox
             checked={isCounted}
-            disabled={isReadOnly}
+            disabled={isReadOnly || item.isDeleted}
             // Ticking means "counted, and it matched".
             onCheckedChange={(checked) =>
-              !isReadOnly && (checked === true
+              !(isReadOnly || item.isDeleted) && (checked === true
                 ? onCountRow(item.id)
                 : (onClearCount(item.id),
                   onUpdateItem(item.id, {
@@ -63,11 +63,18 @@ export function AuditLedgerRowCells({
             aria-label={`Mark ${item.name} as counted`}
           />
           <div className="min-w-0">
-            <ProductName
-              name={item.name}
-              tooltipSuffix={item.sku}
-              className="font-semibold text-foreground"
-            />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <ProductName
+                name={item.name}
+                tooltipSuffix={item.sku}
+                className="font-semibold text-foreground"
+              />
+              {item.isDeleted && (
+                <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-destructive/10 text-destructive">
+                  Deleted
+                </span>
+              )}
+            </div>
             <div className="text-[11px] text-muted-foreground/70 truncate">
               {item.sku}
             </div>
@@ -78,7 +85,7 @@ export function AuditLedgerRowCells({
         role="cell"
         className="px-2 py-1.5 text-right flex items-center justify-end"
       >
-        {isReadOnly ? (
+        {isReadOnly || item.isDeleted ? (
           <div className="w-20 text-right px-2 py-1 text-[13px] font-semibold text-muted-foreground">
             {item.countedQty !== undefined ? item.countedQty : "—"}
           </div>
@@ -126,7 +133,7 @@ export function AuditLedgerRowCells({
             {item.costPrice !== undefined ? formatCurrency(item.costPrice) : "-"}
           </div>
           <div role="cell" className="px-2 py-1.5 text-right flex items-center">
-            {canEditProductCost && !isReadOnly ? (
+            {canEditProductCost && !isReadOnly && !item.isDeleted ? (
               <EditableNumberCell
                 value={item.countedCostPrice ?? item.costPrice ?? 0}
                 onCommit={(val) => onUpdateItem(item.id, { countedCostPrice: val })}
@@ -158,7 +165,7 @@ export function AuditLedgerRowCells({
           : "-"}
       </div>
       <div role="cell" className="px-2 py-1.5 text-right flex items-center">
-        {canEditProductPrice && !isReadOnly ? (
+        {canEditProductPrice && !isReadOnly && !item.isDeleted ? (
           <EditableNumberCell
             value={item.countedSellingPrice ?? item.sellingPrice ?? 0}
             onCommit={(val) =>

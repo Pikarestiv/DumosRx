@@ -592,15 +592,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** the UI names a state it cannot select. A store that bulk-imported without categories has no way to enumerate the gap it needs to fix — those products are reachable only by scrolling the full "All" list or by already knowing a product's name to search for. That is exactly the audit the store owner wants after a partial import, and it is also why the uncategorized tail stays uncategorized.
 - **Fix:** add an explicit sentinel option to both filters (a reserved value such as `"__uncategorized__"`, matched by a `switch`/`Map` rather than a dynamic lookup per `.agents/AGENTS.md` §8) that filters to `category_name == null`. On the POS side, append the chip when any loaded product lacks a `category_name`; on the Catalog side it has to be appended to the `categories` array independently of `getCategoryList()`, and `preFilteredProducts`' `product.category === categoryFilter` test needs a branch for it — note that `types.ts` has already collapsed null into the *string* `"Uncategorized"` by that point, so a filter keyed on the display string would also match a real category a store happened to name "Uncategorized". Filter on the raw `category_name`/`category_id`, not the label.
 
-#### A-259. `client/` — a resumed cycle-count draft never notices the catalog changing under it
-
-- **Found:** 2026-10-13, while verifying the cycle-count tick/resume behaviour.
-- **Location:** `client/components/stock-batch/stock-audits.tsx:131-150` — the effect that builds `items` is gated on `items.length === 0`, deliberately, so a background refetch cannot clobber counts in progress.
-- **What's wrong:** that gate also means a draft resumed hours or days later is a frozen snapshot of the catalog as it was when the count began. A product created since is absent from the sheet (it simply cannot be counted until the draft is cleared), and a product soft-deleted since still has an editable row — `applyStockAdjustmentDelta` takes no `_deleted` guard, so submitting it writes an `AUDIT-` batch against a dead product id.
-- **Consequence:** low frequency and low severity. Stock figures stay correct either way: `submitStockAudit` re-reads the live quantity inside the transaction (`client/lib/db/queries/inventory.ts:665-671`), so a stale `systemQty` in the draft never mis-posts a delta — this is about coverage of the count, not corruption of it.
-- **Mitigation already in place:** the "Start over" control added 2026-10-13 (same file, the export dropdown) clears the draft and reloads the sheet from the current catalog, so there is a user-reachable fix.
-- **Fix if taken further:** reconcile the resumed draft against `rawProducts` on load — append rows for new products, mark soft-deleted ones un-submittable — rather than all-or-nothing rebuilding.
-
 #### A-182. `web/` — the site-wide PWA's `start_url` is a cross-origin bounce, so installing `dumosrx.com` yields a window that navigates out of its own scope on launch
 
 - **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).

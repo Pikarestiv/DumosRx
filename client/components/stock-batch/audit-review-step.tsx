@@ -23,6 +23,7 @@ export function AuditReviewStep({
 }: AuditReviewStepProps) {
   const capsClass = useUppercaseDisplayClass();
   const canViewCost = useHasPermission("view_cost_fields");
+  const deletedCounted = countedItems.filter((i) => i.isDeleted);
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="text-[17px] font-semibold mb-1.5">Review &amp; submit</div>
@@ -33,6 +34,12 @@ export function AuditReviewStep({
         acknowledged={staleAcknowledged}
         onAcknowledgedChange={onStaleAcknowledgedChange}
       />
+
+      {deletedCounted.length > 0 && (
+        <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[12.5px] font-medium">
+          {deletedCounted.length} item(s) counted in this draft were deleted from the catalog and will not be adjusted.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-5">
         <div className="bg-card border border-border p-3 rounded-xl">

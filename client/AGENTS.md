@@ -7955,6 +7955,13 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   also selects `barcode`). Two offline tills can still each create the same name
   or barcode before syncing; there is no server-side uniqueness rule, so this is
   a guard against typing mistakes, not a guarantee.
+
+## Cycle-count draft catalog reconciliation (2026-11-17, A-259)
+
+- `reconcileAuditDraftWithCatalog()` (`components/stock-batch/audit-reconciliation.ts`) reconciles a resumed draft against live catalog products on load and refetch.
+- Products created since the draft was saved are appended to the sheet as uncounted rows so they can be audited without discarding the in-progress draft.
+- Products soft-deleted from the catalog are pruned from the sheet if uncounted, or marked `isDeleted: true` if previously counted.
+- `selectAdjustedAuditItems()` and `toStockAuditSubmissions()` exclude `isDeleted` rows, preventing adjustments against deleted products. `AuditLedgerRowCells` renders a "Deleted" badge and disables inputs for deleted rows. Uncounted live rows have their system stock and prices refreshed from live catalog data.
 - The catalog's Inventory filter has a "Possible Duplicates (N)" option. `findDuplicateProductIds`
   returns every product sharing a name+strength or a non-empty barcode with another, and
   `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.

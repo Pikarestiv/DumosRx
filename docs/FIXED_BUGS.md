@@ -1,3 +1,18 @@
+### A-259 — a resumed cycle-count draft never noticed the catalog changing under it
+- **Fixed:** 2026-11-17, client only, TDD. Found while verifying cycle-count draft resume behavior.
+- **Was:** `useAuditSheetSource` built `items` from `rawProducts` only when `shouldRebuildAuditSheet(items)` was true (i.e. zero items counted). When a draft with counted items was resumed hours or days later, the sheet was a frozen snapshot: products added to the catalog since were completely absent, uncounted products retained stale prices/quantities, and products soft-deleted from the catalog still had editable rows that, if submitted, wrote `AUDIT-` batches against deleted product IDs.
+- **Now:**
+  (1) Introduced `reconcileAuditDraftWithCatalog()` (`client/components/stock-batch/audit-reconciliation.ts`). When a draft is resumed or live products reload:
+      - Newly added products from the catalog are automatically appended to the draft sheet.
+      - Soft-deleted products that were never counted are pruned from the sheet.
+      - Soft-deleted products that were counted in the draft are marked `isDeleted: true` and rendered with a "Deleted" badge, with edits and checkbox disabled.
+      - Uncounted live rows have their system stock and prices updated from the fresh catalog.
+      - All live rows have their `lastAuditedAt` updated.
+  (2) `selectAdjustedAuditItems()` and `toStockAuditSubmissions()` exclude items with `isDeleted: true`, preventing inventory adjustments against deleted products.
+  (3) `AuditReviewStep` displays a notice if any counted items in the draft were deleted from the catalog.
+- **Coverage:** `client/__tests__/stock-audit-draft-catalog-reconciliation.test.tsx` (13 tests covering appending new products, dropping uncounted deleted products, marking counted deleted products un-submittable, refreshing uncounted prices/stock, and UI disabled state / review banner).
+- **Compat:** No schema or server API changes; local drafts gain defensive reconciliation without data loss.
+
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
 - **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.

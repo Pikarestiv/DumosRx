@@ -47,8 +47,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
 - **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
 
-
-
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.
@@ -361,14 +359,6 @@ suggested tackle order rather than a strict ranking.
 - **Retirement condition:** the spec's Stage 4 `opening_quantity` work dissolves the A-148 class (batches whose opening stock never produced a movement row) that this endpoint is the only repair for. Once that ships, delete the endpoint and the config switch rather than re-enabling them. Until then Stage 1 may proceed, because the endpoint cannot run.
 - **One more reason not to re-enable it, found while shipping Stage 1 (2026-10-13).** `reconcile-quantities.ts`'s `storeReconciliationMovementLocally()` is the only writer of a `stock_movements` row that bypasses `insert()`, so it is the only one that does not rebuild its batch — deliberately, because the device had just asserted that quantity. Under the derived definition that leaves the batch out of step with its own log until the next rebuild touches it, and the rebuild then *adopts* the fabricated delta (A-240's shape) rather than ignoring it. Harmless while the endpoint returns 410; it means re-enabling the path now needs the seeded movement and the rebuild reconciled, not just the config flipped.
 
-#### A-306. `client/` — `relaxPurchaseOrdersSupplierIdNullable()` cannot retry after an interrupted rebuild
-
-- **Found:** 2026-10-19, in the review of A-305, which fixed the same flaw in its own rebuild. Same shape, one statement earlier, milder consequence — filed rather than fixed because it is not this change's path and deserves its own test.
-- **Location:** `client/lib/db/schema-migrations.ts` — `relaxPurchaseOrdersSupplierIdNullable()`'s `CREATE TABLE purchase_orders_nullable_supplier` with no preceding `DROP TABLE IF EXISTS`.
-- **What's wrong:** the rebuild is CREATE / copy / DROP / RENAME with no transaction. A process death between the create and the rename leaves the scratch table behind, and the next boot's plain `CREATE TABLE` (not `IF NOT EXISTS`) throws on it, is swallowed by the function's catch, and the migration never completes. The device then keeps a `NOT NULL purchase_orders.supplier_id`, so an Immediate Purchase or walk-in order fails to insert — visible as a failing save rather than silently, which is why this is milder than A-305's version was.
-- **Fix:** `await adapter.run("DROP TABLE IF EXISTS purchase_orders_nullable_supplier")` before the CREATE, and a test with a pre-populated scratch table — exactly what A-305 now has in `__tests__/init-database-migrations.test.ts`.
-- **Blast radius:** needs a death inside a few milliseconds on one boot, on a device that still has the un-relaxed column (the migration shipped 2026-08-14, so any such device has not opened the app since). Probably nobody; the fix is one line and the test is copy-paste.
-
 #### A-188. `client/` — `no such table: permission_groups` on one device, **mechanism unconfirmed** (do not treat the obvious explanations as the cause; three are already ruled out)
 
 - **Found:** 2026-10-08, triaging Sentry `DUMOSRX-CLIENT-1P` — 3 events, 1 user, culprit `/inventory/:tab`. Logged deliberately as unconfirmed: the telemetry is real, but the code-side mechanism could not be established and is not worth guessing at.
@@ -458,6 +448,18 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-393. `client/` — a product price edit is logged with the new price only
+- **Issue:** #367
+- **Found:** 2026-11-17, auditing service activity logging for the storefront booking work.
+- **What's wrong:** a product edit goes through `update()`, whose audit row holds the values written, so the Activity Log shows the new selling price but not the one it replaced. Services now record `previous_price` beside it (`updateServiceDetails()`); products do not.
+- **Fix:** read the current `selling_price` before the update in the product edit path and pass it as `auditDetails: { previous_price }`, as `updateServiceDetails()` does.
+
+#### A-394. `client/` — a till older than 2026-11-17 fulfils a storefront booking without its service lines
+- **Issue:** #368
+- **Found:** 2026-11-17, building storefront service bookings.
+- **What's wrong:** `GET /app/online-orders` keeps booked services out of `items` (in `service_items`) so an older till never meets a line without a product. That till's fulfil path still writes the sale at the order's full `total_amount`, so the sale carries the service revenue with no `sale_services` line to explain it.
+- **Fix / retire:** update the till; no server change is planned. Goes away once no active `user_devices` row reports an `app_version` older than the release carrying this change.
+
 #### A-372. `client/` + `web/` — a store owner's customer-referral link never credits the referrer
 - **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
 - **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
@@ -518,15 +520,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** every signed-in role, cashiers included, can open Inventory Overview and Catalog by link or URL. Nothing on those pages is a write a cashier can make without a further key (`manage_products`, `adjust_stock_counts`, `delete_products` and the rest are checked per control), and on-hand numbers now follow `view_stock_quantities`, so today this is a visibility question rather than a hole. But it is the one dashboard area with no route-level decision recorded, so the next control added there inherits "everyone" by default.
 - **Fix:** decide explicitly. Either keep it open and say so in `dashboard-page-routes.ts` beside the other routes, or add a `RequireRole` with `allowSalesStaff` (cashiers use Catalog for price and expiry lookups, so they should keep it).
 
-#### A-208. `laravel-server/` — an admin till access code never expires, so a forgotten one stays a working credential for ever
-
-- **Found:** 2026-10-10, reviewing the super_admin code-visibility change (`docs/FIXED_BUGS.md` A-207).
-- **Location:** `app/Models/AdminTillCode.php:27` — `scopeActive()` is `whereNull('revoked_at')` and nothing else.
-- **What's wrong:** the *session* a code opens expires after four hours (`AdminTillSessionService::MAX_SESSION_HOURS`), but the *code* itself has no lifetime. It is valid from issue until someone explicitly revokes it. Nothing prompts that, nothing ages it out, and an admin who leaves the company keeps a working till credential until a human remembers the row exists.
-- **Why it matters more now:** before 2026-10-10 a forgotten code was at least unreadable — only its bcrypt hash was stored, so even its owner could not recover it. A-207 deliberately made codes recoverable by a super_admin (encrypted at rest, audited), which is the right call for the operational need but turns a forgotten code into a **durable, readable** credential. The two changes are individually defensible and compound.
-- **Consequence:** the blast radius of a stale row grows with time rather than shrinking. The three-active-codes cap limits how many exist per admin but says nothing about how old they are, and the cap is itself pinned to `EQUALIZED_CHECKS` because `verify()` does a fixed number of bcrypt comparisons for timing equalisation — so raising it to make room is not free either.
-- **Fix:** give a code an `expires_at` and include it in `scopeActive()`, defaulting to something short enough that a forgotten one dies on its own (90 days is a starting point, not a researched number). Existing rows have no expiry, so §11 applies: treat a null `expires_at` as "never expires" on read and backfill deliberately rather than letting the filter silently retire every live code the day it ships. Surfacing age and `last_used_at` in the reveal card — already returned by `revealAll()` — is the cheap half, and worth doing even if the expiry is deferred.
-
 #### A-177. `laravel-server/` — a sync command is addressed by `device_id`, which any device of the same store can claim
 
 - **Found:** 2026-10-07, in review of the Phase 4 command channel. Logged rather than fixed: it is a real limit, but it is not a privilege escalation and the fix needs a device-identity decision that does not exist yet.
@@ -553,35 +546,6 @@ suggested tackle order rather than a strict ranking.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
 
-#### A-182. `web/` — the site-wide PWA's `start_url` is a cross-origin bounce, so installing `dumosrx.com` yields a window that navigates out of its own scope on launch
-
-- **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
-- **Location:** `public/site.webmanifest` and `app/dashboard/[...view]/redirect-client.tsx`.
-- **What's wrong:** `site.webmanifest` sets `start_url: "/dashboard"` with no `scope` and no `id`. `/dashboard` is not a page — it is a client-side redirect that sets `window.location.href = getAppURL()`, i.e. `https://app.dumosrx.com`. So the installed app launches, immediately leaves its own origin, and lands outside any scope the manifest declares.
-- **Consequence:** the standalone window is out of scope from the first navigation. Browsers handle that inconsistently — typically by showing an in-app browser chrome bar, or by treating subsequent navigation as a plain tab — so the "installed app" feel is lost, and the user is left looking at a URL bar in what should be a standalone window. This was the visible half of A-181's symptom and it is **not** fixed by A-181: installing from anywhere on `dumosrx.com` outside `/admin` still does this.
-- **Fix:** decide what the marketing-site PWA is actually for. Three options, in order of preference: (a) drop `manifest` from the root layout entirely and let store owners install the real app from `app.dumosrx.com`, which has its own `client/public/manifest.json` with `start_url: "/"` — the app they want is served from that origin anyway; (b) keep it installable but point `start_url` at `/` with an explicit `scope: "/"`, so it is honestly a marketing-site shortcut; (c) keep `/dashboard` but make it a real page rather than a redirect. Whichever is chosen, add an explicit `id` — without one, the id defaults to `start_url`, so changing `start_url` later orphans every already-installed copy rather than updating it.
-
-#### A-183. `web/` — the root service worker registers in development and on `/admin/` pages, the two things `admin-sw.js` deliberately avoids
-
-- **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
-- **Location:** `components/pwa-registrar.tsx` (mounted in `app/layout.tsx`, i.e. on every route) and `public/sw.js`.
-- **What's wrong:** `PwaRegistrar` calls `navigator.serviceWorker.register("/sw.js")` with no `scope` (so `/`) and **no `NODE_ENV` guard**. `AdminPwaRegistrar` was given both precautions on purpose — see the Admin PWA section of `web/AGENTS.md` — and this one predates that reasoning. On an admin page both workers register; `/admin/` wins control by longest-scope match, so behaviour is correct but the registration is pointless.
-- **What this is *not*:** a cache-poisoning risk. `public/sw.js` has an empty `fetch` handler and caches nothing at all, so the hazard `web/AGENTS.md` documents for this host — `index.html` returned `200 OK` for any unknown path, plus an FTP deploy that deletes old hashed chunks, yielding a sticky `Unexpected token '<'` — does not apply to it. This was checked, not assumed. **It does mean `sw.js` must never be given caching** without reading that section first; `web/` has no `chunk-error.ts` recovery the way `client/` does.
-- **Consequence as it stands:** a worker claims clients during `next dev`, which is exactly the hot-reload weirdness the admin registrar's guard exists to prevent, and it registers redundantly on admin pages.
-- **Fix:** add the `process.env.NODE_ENV !== "production"` early return to `PwaRegistrar`, and skip registration when `location.pathname` starts with `/admin` so the two workers never both register on one page. Worth resolving together with A-182, since if the site-wide manifest goes away there may be no reason to keep `sw.js` at all — its only stated purpose is qualifying the site as installable.
-
-#### A-180. `web/` — the admin panel calls one concept three things: "Account Manager", "Contact Specialist", and a component that contradicts itself
-
-- **Found:** 2026-10-07, while writing `docs/partner-sop/DumosRx-Partner-SOP.docx`. The owner spotted it: the SOP asserted the panel labels the relationship "Account Manager", and that turned out to be only half true.
-- **The three names, all user-visible:**
-  - `components/admin/stores/details/account-manager-card.tsx` renders `DetailCard title="Contact Specialist"`.
-  - `components/admin/views/default-account-manager-card.tsx` renders the heading "Default Contact Specialist", then its own body text says "see the **Account Manager** field on a store's ..." - contradicting its own title one line later.
-  - `app/admin/settings/[[...tab]]/settings-client.tsx` labels a settings tab "Account Manager".
-  - The API field is `account_manager` / `account_manager_is_explicit`, so the data layer says account manager while the store page says contact specialist.
-- **Why it matters beyond tidiness:** this is the term partners use with customers, and the SOP now has to spend a paragraph explaining that two labels mean the same thing. An operator reading "Contact Specialist" on a store page has no way to know it is the same field as the "Account Manager" setting they just changed.
-- **Fix:** pick one. "Account Manager" is the better choice: it matches the API field, the settings tab, and ordinary business usage, and it is what the partner SOP teaches. Rename the two card labels, fix the self-contradicting body text, and grep for both strings afterwards. No API change needed.
-- **Also update** `docs/partner-sop/DumosRx-Partner-SOP.docx` section 1, which currently explains the discrepancy and promises it will be tidied up.
-
 #### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
 
 - **Found:** 2026-10-23, in the independent review of A-307.
@@ -598,6 +562,22 @@ suggested tackle order rather than a strict ranking.
 
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
+
+#### A-395. `client/` and `laravel-server/` — the store-owner app still calls the account manager "Contact Specialist"
+- **Issue:** #369
+
+- **Found:** 2026-11-17, reviewing A-180, which unified the web admin panel on "Account Manager" but did not touch the store-owner app or the API docs.
+- **Location:** `client/components/settings/store/contact-specialist-card.tsx:48` ("Your Contact Specialist"), `client/components/help/help-page.tsx:187` ("View your Contact Specialist in Business Info"), `client/components/settings/settings-mobile-menu.tsx:66` ("Business details & contact specialist"), and the OpenAPI summaries in `laravel-server/app/Http/Controllers/Api/AccountManagerController.php:18` and `laravel-server/app/Http/Controllers/Api/Admin/AdminStoreController.php:392,408` ("contact specialist / account manager").
+- **What's wrong:** a store owner reads "Contact Specialist" while the admin who is that person reads "Account Manager" in the panel, so support conversations name one relationship two ways. Cosmetic; the field and API are already `account_manager` throughout.
+- **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
+
+#### A-396. `client/` — a desktop crash between dropping `purchase_orders` and renaming the scratch table strands every purchase order
+- **Issue:** #370
+
+- **Found:** 2026-11-17, in the independent review of the A-306 fix.
+- **Location:** `relaxPurchaseOrdersSupplierIdNullable()` in `client/lib/db/schema-migrations.ts` (`DROP TABLE purchase_orders` then `RENAME`), Tauri path only, where each statement is written straight to disk.
+- **What's wrong:** if the process dies after the drop and before the rename, the next boot recreates an empty `purchase_orders` whose `supplier_id` is already nullable, so the migration's `NOT NULL` match never fires again and the rows stay in `purchase_orders_nullable_supplier`. Unsynced orders are lost; synced ones are not re-pulled because the watermarks are current.
+- **Fix:** on boot, if the scratch table exists and `purchase_orders` is empty or lacks its rows, copy the scratch rows back before dropping it. Probability is very low.
 
 ---
 

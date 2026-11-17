@@ -1,3 +1,56 @@
+### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
+- **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
+- **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.
+- **Now:**
+  (1) Added `await adapter.run("DROP TABLE IF EXISTS purchase_orders_nullable_supplier")` before table creation in `relaxPurchaseOrdersSupplierIdNullable()`.
+  (2) The rebuild now retries cleanly when an earlier attempt died after creating the scratch table but before dropping `purchase_orders`. A death between `DROP TABLE purchase_orders` and the rename is not covered (A-396).
+- **Coverage:** `client/__tests__/init-database-migrations.test.ts` (verifies migration success, null-supplier insert capability, and scratch table removal when starting with a pre-existing `purchase_orders_nullable_supplier` scratch table).
+- **Compat:** Pure client-side migration resilience fix; no schema or server API changes.
+
+### A-182 — the site-wide PWA's start_url was a cross-origin bounce, opening outside its own scope
+- **Fixed:** 2026-11-17, web only, TDD. Found during Admin PWA scope review (Issue #232).
+- **Was:** `web/public/site.webmanifest` set `start_url: "/dashboard"` with no `scope` and no `id`. `/dashboard` is a client-side redirect component to `app.dumosrx.com`. Installing the site as a PWA from `dumosrx.com` launched a window that immediately bounced cross-origin and landed out of scope, causing browsers to display navigation URL chrome.
+- **Now:**
+  (1) Added `"id": "/dashboard"` (the id installed copies already have, so they stay the same app) and `"scope": "/"` to `web/public/site.webmanifest`.
+  (2) Changed `"start_url": "/"` so the installed marketing PWA opens cleanly in-scope on `dumosrx.com`.
+  (3) Documented the manifest configuration in `web/AGENTS.md`.
+- **Coverage:** `web/__tests__/site-manifest.test.ts` (verifies manifest id, start_url, scope, standalone display, and root layout metadata linking).
+- **Compat:** Pure manifest configuration change; `id` stays `/dashboard` so existing installs keep their identity and can pick up the new `start_url`. Browsers that ignore `id` (iOS) are unaffected.
+
+### A-183 — the root service worker registered in development and on /admin/ pages
+- **Fixed:** 2026-11-17, web only, TDD. Found during Admin PWA scope review (Issue #233).
+- **Was:** `components/pwa-registrar.tsx` registered `/sw.js` unconditionally across all routes (mounted in root `app/layout.tsx`) without a `process.env.NODE_ENV !== "production"` check or path check. This caused service workers to claim clients in `next dev` (interfering with hot reload) and register redundantly on `/admin*` pages where `AdminPwaRegistrar` already manages `/admin-sw.js` scoped to `/admin/`.
+- **Now:**
+  (1) Added early returns in `PwaRegistrar` when `process.env.NODE_ENV !== "production"`.
+  (2) Added early return when `window.location.pathname.startsWith("/admin")`, preventing redundant root worker registration on admin routes.
+  (3) Documented the aligned registration guards in `web/AGENTS.md`.
+- **Coverage:** `web/__tests__/pwa-registrar.test.tsx` (tests dev environment rejection, admin route rejection in production, and successful `/sw.js` registration on non-admin production routes).
+- **Compat:** Pure client-side registration guard, no API or schema changes.
+
+### A-180 — the admin panel called one concept three things: "Account Manager", "Contact Specialist", and a component that contradicted itself
+- **Fixed:** 2026-11-17, web only, TDD. Found while writing partner SOP documentation (Issue #234).
+- **Was:** In the web admin panel, the relationship was called "Account Manager" in Settings tabs (`app/admin/settings/[[...tab]]/settings-client.tsx`) and in API fields (`account_manager` / `account_manager_is_explicit`), but the store detail card rendered `DetailCard title="Contact Specialist"` (`account-manager-card.tsx`), and the settings card rendered `Default Contact Specialist` while referencing "see the Account Manager field" in its own body (`default-account-manager-card.tsx`), contradicting itself.
+- **Now:**
+  (1) Standardized on "Account Manager" across the web admin panel.
+  (2) `AccountManagerCard` (`web/components/admin/stores/details/account-manager-card.tsx`) now renders `DetailCard title="Account Manager"`, uses "No account manager resolved.", and displays "Account manager updated" upon saving.
+  (3) `DefaultAccountManagerCard` (`web/components/admin/views/default-account-manager-card.tsx`) now renders heading "Default Account Manager", with consistent toast messages.
+  (4) Updated `docs/partner-sop/DumosRx-Partner-SOP.docx` (section 1) to document that the relationship is unified as Account Manager across the panel.
+  (5) Updated `web/AGENTS.md` store detail documentation.
+- **Coverage:** `web/__tests__/admin-account-manager-cards.test.tsx` (tests for title rendering, unassigned copy, save mutation toasts for both `AccountManagerCard` and `DefaultAccountManagerCard`).
+- **Compat:** Pure UI string standardization; no API or schema changes.
+
+### A-208 — an admin till access code never expired, so a forgotten one stayed a working credential for ever
+- **Fixed:** 2026-11-17, server and web, TDD. Found during the super_admin code-visibility review (A-207).
+- **Was:** `AdminTillCode::scopeActive()` matched only `whereNull('revoked_at')`. The session opened by a till code expired after four hours, but the code itself had no lifetime. It remained valid from issue until explicitly revoked. With codes recoverable by super admins (A-207), a forgotten code became a durable, readable credential with growing risk over time.
+- **Now:**
+  (1) Added an additive `expires_at` timestamp column to `admin_till_codes` (`2026_11_17_000002_add_expires_at_to_admin_till_codes_table.php`).
+  (2) `AdminTillCode::scopeActive()` requires `expires_at > now()`. A row with null `expires_at` (issued before the migration) expires 90 days after its `created_at`, computed on read rather than backfilled (follow-up to PR #360, which first shipped null as "never expires" and so left every pre-migration code permanent). The oldest such code dates from 2026-10-09, so none died on deploy. The scope and `mine()` also tolerate the column not existing yet (laravel-server/AGENTS.md, "A column a release adds").
+  (3) `AdminTillSessionService::newCodeAttributes()` defaults new codes to 90 days validity (`CODE_LIFETIME_DAYS = 90`).
+  (4) `AdminTillCodeController` (`mine()`, `issue()`, `all()`) returns `expires_at`.
+  (5) `web/` cards (`till-codes-card.tsx` and `all-till-codes-card.tsx`) render the expiration date for active codes.
+- **Coverage:** `laravel-server/tests/Feature/Admin/AdminTillCodeApiTest.php` (mine filter, issue response, reveal all structure), `laravel-server/tests/Feature/App/AdminTillSessionTest.php` (active scope exclusion of expired codes, a fresh legacy null still valid, verify refusal of expired codes), `laravel-server/tests/Feature/Admin/AdminTillCodeExpiryCompatTest.php` (legacy null ageing out at 90 days, every till-code path with the column dropped and no SQL naming it), and `web/__tests__/admin-till-codes-card.test.tsx` / `web/__tests__/admin-all-till-codes-card.test.tsx` (rendering expiry dates).
+- **Compat:** Additive schema change, tolerated before the migration runs. Legacy null-expiry codes keep working until 90 days after issue, then an admin reissues one.
+
 ### A-259 — a resumed cycle-count draft never noticed the catalog changing under it
 - **Fixed:** 2026-11-17, client only, TDD. Found while verifying cycle-count draft resume behavior.
 - **Was:** `useAuditSheetSource` built `items` from `rawProducts` only when `shouldRebuildAuditSheet(items)` was true (i.e. zero items counted). When a draft with counted items was resumed hours or days later, the sheet was a frozen snapshot: products added to the catalog since were completely absent, uncounted products retained stale prices/quantities, and products soft-deleted from the catalog still had editable rows that, if submitted, wrote `AUDIT-` batches against deleted product IDs.
@@ -12,6 +65,7 @@
   (3) `AuditReviewStep` displays a notice if any counted items in the draft were deleted from the catalog.
 - **Coverage:** `client/__tests__/stock-audit-draft-catalog-reconciliation.test.tsx` (13 tests covering appending new products, dropping uncounted deleted products, marking counted deleted products un-submittable, refreshing uncounted prices/stock, and UI disabled state / review banner).
 - **Compat:** No schema or server API changes; local drafts gain defensive reconciliation without data loss.
+
 ### A-187 — a product with no category was labelled "Uncategorized" everywhere but could not be filtered to from anywhere
 - **Fixed:** 2026-11-17, client only, TDD. Found during catalog QA.
 - **Was:** In POS category tabs (`usePOSProductFilter`) and the product database catalog filters (`ProductDatabaseFilters`, `product-database.tsx`), filter options were populated only from non-empty category names. When products had null or empty categories, they displayed "Uncategorized" in tables and POS cards, but there was no way to filter to them — selecting categories only allowed picking assigned categories. If a user wanted to audit or assign categories to all unorganized products, they had to scan the entire catalog manually.

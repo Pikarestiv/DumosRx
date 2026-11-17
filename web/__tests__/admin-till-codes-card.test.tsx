@@ -134,4 +134,15 @@ describe("TillCodesCard", () => {
 
     expect(screen.getByText(/09\/10\/2026/)).toBeInTheDocument();
   });
+
+  it("renders expiry date when present, or never expires for legacy codes", () => {
+    state.codes = [
+      code({ id: "c1", expires_at: "2026-12-31T23:59:00Z" }),
+      code({ id: "c2", expires_at: null }),
+    ];
+    render(<TillCodesCard />);
+
+    expect(screen.getByText(/expires 31\/12\/2026 23:59/i)).toBeInTheDocument();
+    expect(screen.getByText(/never expires/i)).toBeInTheDocument();
+  });
 });

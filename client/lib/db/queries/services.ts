@@ -62,11 +62,18 @@ export async function updateServiceDetails(
   id: string,
   data: Partial<Omit<Service, "id">>,
 ): Promise<void> {
-  await update("services", id, {
-    ...data,
-    ...(data.price !== undefined ? { price: Math.max(0, Number(data.price) || 0) } : {}),
-    ...(data.is_active !== undefined ? { is_active: data.is_active ? 1 : 0 } : {}),
-  });
+  const price = data.price !== undefined ? Math.max(0, Number(data.price) || 0) : undefined;
+  const previousPrice = price !== undefined ? (await getServiceById(id))?.price : undefined;
+  await update(
+    "services",
+    id,
+    {
+      ...data,
+      ...(price !== undefined ? { price } : {}),
+      ...(data.is_active !== undefined ? { is_active: data.is_active ? 1 : 0 } : {}),
+    },
+    previousPrice !== undefined && previousPrice !== price ? { auditDetails: { previous_price: previousPrice } } : undefined,
+  );
 }
 
 async function servicesInCategory(name: string, storeId?: string | null): Promise<Service[]> {

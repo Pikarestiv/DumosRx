@@ -57,7 +57,7 @@ class OnlineOrderController extends Controller
             new OA\Parameter(name: 'status', in: 'query', required: false, description: 'Restrict to one order_status (the actionable set is `pending`).', schema: new OA\Schema(type: 'string', enum: ['pending', 'packed', 'fulfilled', 'cancelled'])),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Most recent orders, newest first, with items/product eager-loaded', content: new OA\JsonContent(properties: [
+            new OA\Response(response: 200, description: 'Most recent orders, newest first. `items` holds product lines only (with product); booked services are in `service_items` (with service), kept apart so a till that predates bookings never sees a line without a product.', content: new OA\JsonContent(properties: [
                 new OA\Property(property: 'orders', type: 'array', items: new OA\Items(type: 'object')),
                 new OA\Property(property: 'has_more', type: 'boolean', description: 'True when older orders exist beyond this page.'),
             ])),
@@ -81,7 +81,7 @@ class OnlineOrderController extends Controller
         // store had ever received, with items and products eager-loaded, and
         // the POS modal rendered all of them. A deeper history needs a real
         // paginated view rather than a bigger page.
-        $orders = OnlineOrder::with('items.product')
+        $orders = OnlineOrder::with(['items.product', 'serviceItems.service'])
             ->where('store_id', $storeId)
             ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('order_status', $status))
             ->orderBy('created_at', 'desc')

@@ -15,7 +15,14 @@ class AdminTillCodeController extends AdminBaseController
         $codes = AdminTillCode::active()
             ->where('admin_id', $request->user()->id)
             ->orderByDesc('created_at')
-            ->get(['id', 'label', 'last_used_at', 'created_at']);
+            ->get()
+            ->map(fn (AdminTillCode $row) => [
+                'id' => $row->id,
+                'label' => $row->label,
+                'last_used_at' => $row->last_used_at,
+                'expires_at' => $row->effectiveExpiresAt(),
+                'created_at' => $row->created_at,
+            ]);
 
         return response()->json(['codes' => $codes]);
     }
@@ -46,7 +53,11 @@ class AdminTillCodeController extends AdminBaseController
             $this->sessions->newCodeAttributes($code, $adminId, $validated['label'] ?? null),
         );
 
-        return response()->json(['id' => $row->id, 'code' => $code]);
+        return response()->json([
+            'id' => $row->id,
+            'code' => $code,
+            'expires_at' => $row->effectiveExpiresAt()?->toIso8601String(),
+        ]);
     }
 
     public function revoke(Request $request, string $id)

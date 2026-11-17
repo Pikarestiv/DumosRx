@@ -201,8 +201,8 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     redesign phase 2; see `docs/storefront-redesign.md`), top to bottom:
     utility bar ("Store pickup · Local delivery"), header, hero
     (`StorefrontHero`), **Products** (`FeaturedProducts`, a client component:
-    category chips filter the first 8 of the show endpoint's `products` in the
-    page, with "All · N" and "View all N products" → `/catalog`), "How ordering
+    category chips filter the show endpoint's `products` in the
+    page into a two-row grid ending in a "+ N more" tile, see below, with "All · N" and "View all N products" → `/catalog`), **Services** when switched on, "How ordering
     works" (`OrderingSteps`, three numbered steps, wording from
     `storefrontCopy(store).orderingSteps`) and a quiet footer. The hero H1 is
     the owner's `storefront.tagline`, else `storefront.headline`, else
@@ -347,9 +347,36 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   syncs, the reserved branch names are pinned equal to the server's list by `storefront-scope.test.ts` and
   `StorefrontBranchSlugsTest`, and a cart saved under the brand slug is carried to the main branch's scope
   by `BranchCanonicalizer` (`moveCart`) when the storefront gains a second branch. The canonicalizer never redirects a URL carrying `?reference=` or `?trxref=` (a Paystack return), because the pending checkout is stored under the scope the payment started in and a redirect would make the form look under another key and show the orphan-reference state for a customer who has already paid.
-- **Services (2026-11-16).** When `storefront.show_services` is set (baked at build),
+- **Services (2026-11-16; bookable 2026-11-17).** When `storefront.show_services` is set (baked at build),
   `StorefrontServices` fetches `/storefront/{slug}/services` in the browser and renders
-  nothing if the list is empty. Each card links to WhatsApp to enquire; there is no cart.
+  nothing if the list is empty. It has a count, category chips ("All · N" plus each category) and
+  `StorefrontServiceCard`s (a `CategoryTile` for the icon, name, description, price). A priced service has a
+  "+" button ("Book: {name}") that adds it to the cart as `kind: "service"`; a service with no price shows
+  "Price on request" and Enquire on WhatsApp instead. `lib/storefront-cart-lines.ts` turns a cart line into
+  `{ service_id }` or `{ product_id }` for checkout and `checkout/initialize`; it lives outside
+  `use-cart-store.ts` because several tests mock that module whole. `useCartRepricing` re-prices the cart on mount
+  because the server prices an order from ids and quantities, never from the cart's cached prices, and a failed
+  products lookup is shown as unconfirmed pricing rather than passed off as confirmed. It asks for products and,
+  when the cart holds a booking, the services list at the same time (`Promise.all`); the products lookup still
+  gets every cart id and supplies currency and `online_payment_available`. A service the store stopped offering
+  is dropped. A failed services lookup leaves booked lines at their cart price and does not mark the product
+  prices unconfirmed; checkout re-prices them on the server anyway. The cart drawer, checkout summary
+  and confirmation tag service lines "Booking". `OrderingSteps` takes `hasServices` and then explains booking
+  and pay-now/pay-at-store; without it the copy is unchanged. The order confirmation shows when it was placed
+  (`dd/MM/yyyy HH:mm`), a booking note when any line `is_service`, and a Print button (`window.print()`, the
+  buttons are `print:hidden`). There are no time slots by design (spec
+  `docs/superpowers/specs/2026-11-17-storefront-service-booking-design.md`). Ship the API before the web build:
+  an API older than this change answers a `service_id` line with a 422, so a customer's booking would fail.
+- **Home grids end in a "+ N more" tile (2026-11-17).** `homeGridLayout()` (`lib/storefront-home-grid.ts`)
+  fills two rows at lg (4 columns) and xl (5) and four rows of products or three of services on a phone
+  (2 columns); when the list overflows, the last cell is `HomeGridMoreTile` with the count left at that width.
+  Every card is in the DOM and hidden per breakpoint with literal `hidden`/`lg:block`/`xl:block` classes,
+  because the page is a static export and cannot measure the viewport; the tile renders one count per
+  breakpoint the same way. The products tile links to `/catalog` (the "View all N products" button stays
+  below it); the services tile expands the section in place, since there is no services page, 50 services at a
+  time with a "Show more services" button for the next 50 (§8 pagination). Chips share
+  `categoryChip()` in `lib/storefront-styles.ts`. Both sections use the theme's CSS variables only, so every
+  theme and preset styles them the same way the product cards are styled.
 - **Checkout (2026-11-15).** `CheckoutForm` takes the store's
   `payment_instructions`, `delivery_available`, `delivery_note` and
   `pay_on_delivery`. `CheckoutContactFields` collects name, phone and an optional
@@ -523,7 +550,7 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   per-store themes above work only by swapping those variables.
 - Carts are partitioned per storefront by `storeSlug`
   (`lib/store/use-cart-store.ts`), which is why every storefront component
-  takes the slug.
+  takes the slug. A single global cart (the pre-2026-09 shape) sent items added at one store to another store's checkout; the persisted v1 shape is dropped on load (persist `version: 2`) because its items cannot be attributed to a store. `reconcilePrices` drops any line missing from the price map it is given. Prefer `useCart(storeSlug)` over touching `carts`.
 - Both routes must `await params`: under Next 16 it is a plain Promise in a
   production build, and reading `params.store_slug` synchronously yields
   `undefined` (see "Running things" below). `CheckoutForm` reads
@@ -1002,9 +1029,10 @@ is the only place that mapping belongs.
   2026-10-07, A-181). The registrar swapped the root layout's link `href` in
   a `useEffect`, i.e. after hydration. iOS Safari's "Add to Home Screen"
   reads the manifest attached at load, so it installed `site.webmanifest`
-  instead — `start_url: /dashboard`, which client-side bounces to
-  `getAppURL()`. The reported symptom was "I installed dumosrx.com/dashboard
-  and it opens app.dumosrx.com". Two further holes in that approach: the
+  instead — originally `start_url: /dashboard` (a cross-origin bounce to
+  `getAppURL()`). Since A-182, `site.webmanifest` explicitly declares `id: "/dashboard"` (the legacy install identity, kept so existing installs migrate),
+  `start_url: "/"`, and `scope: "/"`, keeping the marketing site installation
+  cleanly in-scope on its own origin. Two further holes in that approach: the
   layout rendered no registrar at all during the session check or for an
   unauthorized user, so a cold `/admin/` load had no admin manifest in the
   DOM even after hydration; and the registrar restored the site manifest on
@@ -1046,6 +1074,10 @@ is the only place that mapping belongs.
   offline mode to build here.
 - **It does not register in development** — a worker holding the shell makes
   hot reloads behave strangely.
+- **Root `PwaRegistrar` respects the same guards:** `components/pwa-registrar.tsx`
+  registers `/sw.js` only in production (`process.env.NODE_ENV === "production"`)
+  and skips registration on `/admin*` paths so it does not register redundantly
+  alongside `AdminPwaRegistrar` (A-183).
 - **The server switcher is visible in production for super admins only.**
   `ServerSelector` stays hidden in production by default so a customer can
   never point their app at the wrong API; `allowInProduction` is opt-in and
@@ -1292,6 +1324,8 @@ URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
   `issue.reset()` when the freshly issued code is dismissed: the mutation keeps
   its result in observer state (and React Query devtools), so clearing only the
   card's own copy would leave the code readable for the life of the page.
+  Both cards render `expires_at` (A-208, 90-day expiry), displaying "Expires DD/MM/YYYY HH:mm"
+  or "Never expires" for legacy rows.
 
 Covered by `__tests__/admin-action-permission-gating.test.tsx` (per-action
 hidden/shown/super_admin-bypass cases across `StoreRowActions`, `StoreTable`'s
@@ -1398,7 +1432,7 @@ reached at `/admin/stores/details/?id=<storeId>`; the old `ViewStoreDialog` in
 `store-dialogs.tsx` is gone). Two things drove that:
 
 - The content no longer fits a dialog — profile, owner, subscription, staff,
-  contact specialist, sync health, storefront publish state, Paystack/payment
+  account manager, sync health, storefront publish state, Paystack/payment
   config, recent transactions and recent activity, over a stat-tile row.
 - **It is a query-param route, not `app/admin/stores/[id]/`, and that is not
   stylistic.** This app is `output: "export"`; a dynamic segment would need

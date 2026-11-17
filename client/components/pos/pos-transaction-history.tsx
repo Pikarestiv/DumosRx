@@ -17,6 +17,7 @@ import { getRecentSales, getPendingResellerCommissionTotal } from "@/lib/db/quer
 import { queryKeys } from "@/lib/query-keys";
 import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
 import { deriveSaleStockOwedStatus } from "@/lib/db/queries/backorders";
+import { matchesSaleTypeFilter } from "@/lib/utils/sale-type-filter";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import type { SaleWithDetails } from "@/lib/types/sale";
 
@@ -194,12 +195,7 @@ export function POSTransactionHistory({
         if (sale.payment_method?.toLowerCase() !== paymentFilter.toLowerCase())
           return false;
       }
-      if (saleTypeFilter === "Reseller" && (!sale.is_reseller_sale || sale.markup_type === "store")) {
-        return false;
-      }
-      if (saleTypeFilter === "StoreMarkup" && (!sale.is_reseller_sale || sale.markup_type !== "store")) {
-        return false;
-      }
+      if (!matchesSaleTypeFilter(sale, saleTypeFilter)) return false;
       if (stockOwedFilter !== "All") {
         const owedStatus = deriveSaleStockOwedStatus(
           Number(sale.stock_originally_owed ?? 0),

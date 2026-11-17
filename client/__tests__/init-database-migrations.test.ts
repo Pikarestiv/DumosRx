@@ -261,6 +261,64 @@ describe("initDatabase() web migration path", () => {
     expect(scratch).toEqual([]);
   });
 
+  // A-306: relaxPurchaseOrdersSupplierIdNullable() cannot retry after an interrupted rebuild if scratch table remains
+  it("relaxes purchase_orders.supplier_id even when an interrupted earlier attempt left purchase_orders_nullable_supplier scratch table", async () => {
+    const SQL = await initSqlJs({
+      locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm"),
+    });
+    const legacyDb = new SQL.Database();
+    legacyDb.run(`
+      CREATE TABLE purchase_orders (
+        id TEXT PRIMARY KEY,
+        order_number TEXT,
+        supplier_id TEXT NOT NULL,
+        ordered_by TEXT,
+        order_date TEXT,
+        status TEXT DEFAULT 'pending',
+        type TEXT DEFAULT 'standard',
+        payment_status TEXT DEFAULT 'unpaid',
+        amount_paid REAL DEFAULT 0,
+        due_date TEXT,
+        total_amount REAL DEFAULT 0,
+        notes TEXT,
+        created_at TEXT,
+        received_at TEXT,
+        updated_at TEXT,
+        _version INTEGER DEFAULT 1,
+        _synced INTEGER DEFAULT 0,
+        _synced_at TEXT,
+        _deleted INTEGER DEFAULT 0
+      );
+      CREATE TABLE purchase_orders_nullable_supplier (
+        id TEXT PRIMARY KEY,
+        order_number TEXT,
+        supplier_id TEXT
+      );
+      CREATE TABLE stores (id TEXT PRIMARY KEY, name TEXT);
+      INSERT INTO purchase_orders (id, order_number, supplier_id, status)
+        VALUES ('po-1', 'PO-001', 'supplier-1', 'pending');
+      INSERT INTO stores (id, name) VALUES ('store-1', 'Local Store');
+    `);
+    storedExport = legacyDb.export();
+    legacyDb.close();
+
+    const core = await import("@/lib/db/core");
+    const db = await core.initDatabase();
+
+    const po = db.exec("SELECT supplier_id FROM purchase_orders WHERE id = 'po-1'");
+    expect(po[0].values).toEqual([["supplier-1"]]);
+    expect(() =>
+      db.run(
+        "INSERT INTO purchase_orders (id, order_number, supplier_id, status) VALUES ('po-2', 'PO-002', NULL, 'pending')",
+      ),
+    ).not.toThrow();
+
+    const scratch = db.exec(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'purchase_orders_nullable_supplier'",
+    );
+    expect(scratch).toEqual([]);
+  });
+
   it("is idempotent: re-running the same migrations against an already-migrated database is a no-op that doesn't throw", async () => {
     const core = await import("@/lib/db/core");
     const first = await core.initDatabase();

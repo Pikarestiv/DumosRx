@@ -23,8 +23,19 @@ final class StorefrontCheckoutRules
                 'prohibited_unless:payment_method,paystack',
             ],
             'branch_id' => 'nullable|string',
+            ...self::itemRules(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function itemRules(): array
+    {
+        return [
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|uuid|exists:products,id',
+            'items.*.product_id' => 'required_without:items.*.service_id|prohibits:items.*.service_id|nullable|uuid|exists:products,id',
+            'items.*.service_id' => 'required_without:items.*.product_id|nullable|uuid|exists:services,id',
             'items.*.quantity' => 'required|integer|min:1',
         ];
     }

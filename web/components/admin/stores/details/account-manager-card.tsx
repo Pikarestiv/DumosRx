@@ -47,23 +47,23 @@ export function AccountManagerCard({ store }: { store: AdminStoreDetail }) {
       },
       {
         onSuccess: () =>
-          toast.success("Contact specialist updated", {
+          toast.success("Account manager updated", {
             description: `${store.name}'s account manager was reassigned.`,
           }),
         onError: () =>
-          toast.error("Failed to update the contact specialist. Please try again."),
+          toast.error("Failed to update the account manager. Please try again."),
       },
     );
   };
 
   return (
-    <DetailCard title="Contact Specialist" icon={<Headset className="h-4 w-4" />}>
+    <DetailCard title="Account Manager" icon={<Headset className="h-4 w-4" />}>
       <p className="text-xs text-slate-500 dark:text-slate-400">
         {store.account_manager_is_explicit
           ? "Explicitly assigned."
           : store.account_manager
             ? `Currently "${store.account_manager.name}" via referral/default, not explicitly assigned.`
-            : "No contact specialist resolved."}
+            : "No account manager resolved."}
       </p>
       <div className="min-w-0 space-y-3">
         <Select value={managerId} onValueChange={setManagerId}>

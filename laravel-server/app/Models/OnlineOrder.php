@@ -38,7 +38,15 @@ class OnlineOrder extends Model
      */
     public function items(): HasMany
     {
-        return $this->hasMany(OnlineOrderItem::class);
+        return $this->hasMany(OnlineOrderItem::class)->whereNull('service_id');
+    }
+
+    /**
+     * @return HasMany<OnlineOrderItem, $this>
+     */
+    public function serviceItems(): HasMany
+    {
+        return $this->hasMany(OnlineOrderItem::class)->whereNotNull('service_id');
     }
 
     public function code(): string

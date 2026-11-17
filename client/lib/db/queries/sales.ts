@@ -1,7 +1,7 @@
 import { query } from "@/lib/db/local-database";
 import { getActiveStoreId } from "@/lib/db/core";
 import { PRICE_ADJUSTMENT_COLUMNS_SQL } from "@/lib/db/queries/price-adjustment-sql";
-import { SALE_LINE_NAMES_SQL, SALE_UNIT_COUNT_SQL } from "@/lib/db/queries/sale-line-summary-sql";
+import { SALE_HAS_PRODUCT_LINES_SQL, SALE_HAS_SERVICE_LINES_SQL, SALE_LINE_NAMES_SQL, SALE_UNIT_COUNT_SQL } from "@/lib/db/queries/sale-line-summary-sql";
 import { getSaleStockReconciliation } from "@/lib/db/queries/backorders";
 import { getSaleServices } from "@/lib/db/queries/services";
 import type { Sale, SaleWithDetails, SaleItemDetail, ReturnRecord, ReturnItemDetail, SaleServiceDetail } from "@/lib/types/sale";
@@ -221,6 +221,8 @@ export async function getRecentSales(
       ${SALE_UNIT_COUNT_SQL} as item_count,
       COALESCE((SELECT SUM(r.total_refunded) FROM returns r WHERE r.sale_id = s.id AND (r._deleted = 0 OR r._deleted IS NULL)), 0) as total_refunded,
       ${SALE_LINE_NAMES_SQL} as item_names,
+      ${SALE_HAS_PRODUCT_LINES_SQL} as has_product_lines,
+      ${SALE_HAS_SERVICE_LINES_SQL} as has_service_lines,
       COALESCE((SELECT ROUND(SUM(sm.quantity), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_originally_owed,
       COALESCE((SELECT ROUND(SUM(ABS(sm.quantity)), 6) FROM stock_movements sm WHERE sm.reference_id = s.id AND sm.reference_type = 'backorder_settlement' AND (sm._deleted = 0 OR sm._deleted IS NULL)), 0) as stock_settled,
       ${PRICE_ADJUSTMENT_COLUMNS_SQL}

@@ -47,17 +47,12 @@ class StorefrontPaymentIntent extends Model
         return $this->belongsTo(Store::class);
     }
 
-    /**
-     * The cart identity this reference was minted for: product_id => quantity,
-     * key-sorted so two orderings of the same cart compare equal. Used by
-     * checkout() to assert the confirmed order is the one that was paid for.
-     */
     public static function cartFingerprint(array $items): array
     {
         $map = [];
         foreach ($items as $item) {
-            $productId = (string) ($item['product_id'] ?? '');
-            $map[$productId] = ($map[$productId] ?? 0) + (int) ($item['quantity'] ?? 0);
+            $key = empty($item['service_id']) ? (string) ($item['product_id'] ?? '') : 'service:'.$item['service_id'];
+            $map[$key] = ($map[$key] ?? 0) + (int) ($item['quantity'] ?? 0);
         }
         ksort($map);
 

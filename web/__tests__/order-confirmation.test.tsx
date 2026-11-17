@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 const { getMock } = vi.hoisted(() => ({ getMock: vi.fn() }));
 vi.mock("@/lib/api/base-client", () => ({ apiClient: { get: getMock } }));
@@ -49,6 +49,21 @@ describe("order confirmation", () => {
     expect(screen.getByText("You will collect it from the store.")).toBeTruthy();
     expect(screen.getByText("You pay when you collect.")).toBeTruthy();
     expect(getMock).toHaveBeenCalledWith("/storefront/divamax/orders/0f3a9c1e-1111-2222-3333-444455556666");
+  });
+
+  it("marks booked services, explains the booking, shows when it was placed, and prints", async () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    getMock.mockResolvedValue({
+      data: { order: order({ created_at: "2026-11-17T09:05:00+00:00", items: [{ product_name: "Scaling", quantity: 1, is_service: true }] }) },
+    });
+    render(<OrderConfirmation storeSlug="divamax" />);
+
+    expect(await screen.findByText(/1 × Scaling/)).toBeTruthy();
+    expect(screen.getByText("Booking")).toBeTruthy();
+    expect(screen.getByText(/your booking is held under this code/i)).toBeTruthy();
+    expect(screen.getByText(/^17\/11\/2026 \d{2}:\d{2}$/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Print confirmation" }));
+    expect(print).toHaveBeenCalledOnce();
   });
 
   it("tells a transfer customer they have not paid yet and shows the store's details", async () => {

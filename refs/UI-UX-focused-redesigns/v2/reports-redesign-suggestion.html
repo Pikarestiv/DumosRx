@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DumosRx: Reports</title>
+<style>*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.bottom-0{bottom:0}.left-1\/2{left:50%}.top-0{top:0}.z-\[3\]{z-index:3}.z-\[4\]{z-index:4}.z-\[6\]{z-index:6}.col-span-2{grid-column:span 2/span 2}.-mx-4{margin-left:-1rem;margin-right:-1rem}.mx-auto{margin-left:auto;margin-right:auto}.my-1\.5{margin-top:.375rem;margin-bottom:.375rem}.my-2{margin-top:.5rem;margin-bottom:.5rem}.-mt-\[30px\]{margin-top:-30px}.mb-0\.5{margin-bottom:.125rem}.mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-2\.5{margin-bottom:.625rem}.mb-3{margin-bottom:.75rem}.mb-3\.5{margin-bottom:.875rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.mb-6{margin-bottom:1.5rem}.mb-7{margin-bottom:1.75rem}.mb-\[18px\]{margin-bottom:18px}.ml-auto{margin-left:auto}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.flex{display:flex}.inline-flex{display:inline-flex}.table{display:table}.grid{display:grid}.hidden{display:none}.h-11{height:2.75rem}.h-2{height:.5rem}.h-2\.5{height:.625rem}.h-3\.5{height:.875rem}.h-4{height:1rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-\[130px\]{height:130px}.h-\[160px\]{height:160px}.h-\[17px\]{height:17px}.h-\[180px\]{height:180px}.h-\[21px\]{height:21px}.h-\[22px\]{height:22px}.h-\[26px\]{height:26px}.h-\[34px\]{height:34px}.h-\[38px\]{height:38px}.h-\[52px\]{height:52px}.h-\[844px\]{height:844px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\[880px\]{min-height:880px}.w-11{width:2.75rem}.w-2{width:.5rem}.w-2\.5{width:.625rem}.w-3\.5{width:.875rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-\[120px\]{width:120px}.w-\[17px\]{width:17px}.w-\[21px\]{width:21px}.w-\[220px\]{width:220px}.w-\[22px\]{width:22px}.w-\[34px\]{width:34px}.w-\[38px\]{width:38px}.w-\[390px\]{width:390px}.w-\[52px\]{width:52px}.w-fit{width:-moz-fit-content;width:fit-content}.w-full{width:100%}.min-w-\[120px\]{min-width:120px}.max-w-\[1400px\]{max-width:1400px}.max-w-\[28px\]{max-width:28px}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.-translate-x-1\/2{--tw-translate-x:-50%;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.grid-cols-\[1\.4fr_1fr\]{grid-template-columns:1.4fr 1fr}.grid-cols-\[1fr_70px_90px\]{grid-template-columns:1fr 70px 90px}.grid-cols-\[76px_1fr\]{grid-template-columns:76px 1fr}.flex-col{flex-direction:column}.items-start{align-items:flex-start}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-around{justify-content:space-around}.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-3\.5{gap:.875rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}.gap-\[3px\]{gap:3px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded{border-radius:.25rem}.rounded-2xl{border-radius:1rem}.rounded-\[10px\]{border-radius:10px}.rounded-\[11px\]{border-radius:11px}.rounded-\[14px\]{border-radius:14px}.rounded-\[20px\]{border-radius:20px}.rounded-\[44px\]{border-radius:44px}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.rounded-xl{border-radius:.75rem}.rounded-b-2xl{border-bottom-right-radius:1rem;border-bottom-left-radius:1rem}.rounded-t-md{border-top-left-radius:.375rem;border-top-right-radius:.375rem}.border{border-width:1px}.border-0{border-width:0}.border-4{border-width:4px}.border-\[10px\]{border-width:10px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\[\#1A1D23\]{--tw-border-opacity:1;border-color:rgb(26 29 35/var(--tw-border-opacity,1))}.border-\[\#D3F2E1\]{--tw-border-opacity:1;border-color:rgb(211 242 225/var(--tw-border-opacity,1))}.border-\[\#D6E2FC\]{--tw-border-opacity:1;border-color:rgb(214 226 252/var(--tw-border-opacity,1))}.border-\[\#E6EAF2\]{--tw-border-opacity:1;border-color:rgb(230 234 242/var(--tw-border-opacity,1))}.border-\[\#FBD5D2\]{--tw-border-opacity:1;border-color:rgb(251 213 210/var(--tw-border-opacity,1))}.border-\[\#FFFFFF\]{--tw-border-opacity:1;border-color:rgb(255 255 255/var(--tw-border-opacity,1))}.bg-\[\#12B76A\]{--tw-bg-opacity:1;background-color:rgb(18 183 106/var(--tw-bg-opacity,1))}.bg-\[\#153C9E\]{--tw-bg-opacity:1;background-color:rgb(21 60 158/var(--tw-bg-opacity,1))}.bg-\[\#1A1D23\]{--tw-bg-opacity:1;background-color:rgb(26 29 35/var(--tw-bg-opacity,1))}.bg-\[\#2054E0\]{--tw-bg-opacity:1;background-color:rgb(32 84 224/var(--tw-bg-opacity,1))}.bg-\[\#DCE3EE\]{--tw-bg-opacity:1;background-color:rgb(220 227 238/var(--tw-bg-opacity,1))}.bg-\[\#EAF0FE\]{--tw-bg-opacity:1;background-color:rgb(234 240 254/var(--tw-bg-opacity,1))}.bg-\[\#ECFDF3\]{--tw-bg-opacity:1;background-color:rgb(236 253 243/var(--tw-bg-opacity,1))}.bg-\[\#F3F7FF\]{--tw-bg-opacity:1;background-color:rgb(243 247 255/var(--tw-bg-opacity,1))}.bg-\[\#F5F8FC\]{--tw-bg-opacity:1;background-color:rgb(245 248 252/var(--tw-bg-opacity,1))}.bg-\[\#FEF3F2\]{--tw-bg-opacity:1;background-color:rgb(254 243 242/var(--tw-bg-opacity,1))}.bg-\[\#FFFFFF\]{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-transparent{background-color:transparent}.p-0\.5{padding:.125rem}.p-1{padding:.25rem}.p-3{padding:.75rem}.p-3\.5{padding:.875rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-\[18px\]{padding:18px}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-3\.5{padding-left:.875rem;padding-right:.875rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-\[22px\]{padding-left:22px;padding-right:22px}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-3\.5{padding-top:.875rem;padding-bottom:.875rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-5{padding-top:1.25rem;padding-bottom:1.25rem}.py-8{padding-top:2rem;padding-bottom:2rem}.pb-2{padding-bottom:.5rem}.pb-3{padding-bottom:.75rem}.pb-3\.5{padding-bottom:.875rem}.pb-4{padding-bottom:1rem}.pb-8{padding-bottom:2rem}.pb-\[40px\]{padding-bottom:40px}.pt-2\.5{padding-top:.625rem}.pt-4{padding-top:1rem}.pt-5{padding-top:1.25rem}.text-center{text-align:center}.text-right{text-align:right}.font-\[\'Inter\'\]{font-family:Inter}.font-\[\'Playfair_Display\'\]{font-family:Playfair Display}.text-\[10\.5px\]{font-size:10.5px}.text-\[10px\]{font-size:10px}.text-\[11\.5px\]{font-size:11.5px}.text-\[11px\]{font-size:11px}.text-\[12\.5px\]{font-size:12.5px}.text-\[12px\]{font-size:12px}.text-\[13\.5px\]{font-size:13.5px}.text-\[13px\]{font-size:13px}.text-\[14\.5px\]{font-size:14.5px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[16px\]{font-size:16px}.text-\[18px\]{font-size:18px}.text-\[19px\]{font-size:19px}.text-\[20px\]{font-size:20px}.text-\[22px\]{font-size:22px}.text-\[24px\]{font-size:24px}.text-\[28px\]{font-size:28px}.text-\[9\.5px\]{font-size:9.5px}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xs{font-size:.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.italic{font-style:italic}.tracking-wide{letter-spacing:.025em}.text-\[\#067647\]{--tw-text-opacity:1;color:rgb(6 118 71/var(--tw-text-opacity,1))}.text-\[\#101828\]{--tw-text-opacity:1;color:rgb(16 24 40/var(--tw-text-opacity,1))}.text-\[\#12B76A\]{--tw-text-opacity:1;color:rgb(18 183 106/var(--tw-text-opacity,1))}.text-\[\#153C9E\]{--tw-text-opacity:1;color:rgb(21 60 158/var(--tw-text-opacity,1))}.text-\[\#2054E0\]{--tw-text-opacity:1;color:rgb(32 84 224/var(--tw-text-opacity,1))}.text-\[\#344054\]{--tw-text-opacity:1;color:rgb(52 64 84/var(--tw-text-opacity,1))}.text-\[\#667085\]{--tw-text-opacity:1;color:rgb(102 112 133/var(--tw-text-opacity,1))}.text-\[\#98A2B3\]{--tw-text-opacity:1;color:rgb(152 162 179/var(--tw-text-opacity,1))}.text-\[\#B42318\]{--tw-text-opacity:1;color:rgb(180 35 24/var(--tw-text-opacity,1))}.text-\[\#B54708\]{--tw-text-opacity:1;color:rgb(181 71 8/var(--tw-text-opacity,1))}.text-\[\#E6EAF2\]{--tw-text-opacity:1;color:rgb(230 234 242/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.shadow-\[0_1px_2px_rgba\(16\2c 24\2c 40\2c 0\.04\)\2c 0_1px_3px_rgba\(16\2c 24\2c 40\2c 0\.03\)\]{--tw-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.03);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color),0 1px 3px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_1px_2px_rgba\(16\2c 24\2c 40\2c 0\.04\)\]{--tw-shadow:0 1px 2px rgba(16,24,40,.04);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_1px_2px_rgba\(32\2c 84\2c 224\2c 0\.3\)\]{--tw-shadow:0 1px 2px rgba(32,84,224,.3);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_20px_60px_rgba\(16\2c 24\2c 40\2c 0\.16\)\]{--tw-shadow:0 20px 60px rgba(16,24,40,.16);--tw-shadow-colored:0 20px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_30px_60px_rgba\(16\2c 24\2c 40\2c 0\.35\)\]{--tw-shadow:0 30px 60px rgba(16,24,40,.35);--tw-shadow-colored:0 30px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_6px_16px_rgba\(32\2c 84\2c 224\2c 0\.4\)\]{--tw-shadow:0 6px 16px rgba(32,84,224,.4);--tw-shadow-colored:0 6px 16px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.\[scrollbar-width\:none\]{scrollbar-width:none}.after\:absolute:after{content:var(--tw-content);position:absolute}.after\:-inset-1:after{content:var(--tw-content);inset:-.25rem}@keyframes ping{75%,to{content:var(--tw-content);transform:scale(2);opacity:0}}.after\:animate-ping:after{content:var(--tw-content);animation:ping 1s cubic-bezier(0,0,.2,1) infinite}.after\:rounded-full:after{content:var(--tw-content);border-radius:9999px}.after\:border:after{content:var(--tw-content);border-width:1px}.after\:border-\[\#12B76A\]\/50:after{content:var(--tw-content);border-color:rgba(18,183,106,.5)}.after\:content-\[\'\'\]:after{--tw-content:"";content:var(--tw-content)}.last\:border-0:last-child{border-width:0}.hover\:bg-\[\#153C9E\]:hover{--tw-bg-opacity:1;background-color:rgb(21 60 158/var(--tw-bg-opacity,1))}@media (min-width:768px){.md\:w-max{width:-moz-max-content;width:max-content}}.\[\&\:\:-webkit-scrollbar\]\:hidden::-webkit-scrollbar{display:none}.\[\&_svg\]\:h-\[19px\] svg{height:19px}.\[\&_svg\]\:w-\[19px\] svg{width:19px}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-['Inter'] bg-[#DCE3EE] text-[#101828] antialiased py-8 px-6">
+
+<div class="flex justify-center mb-7">
+  <div class="inline-flex bg-[#FFFFFF] border border-[#E6EAF2] rounded-full p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] switcher">
+    <button class="border-0 bg-[#2054E0] text-white px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('desktop', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+      Desktop
+    </button>
+    <button class="border-0 bg-transparent text-[#98A2B3] px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('mobile', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      Mobile
+    </button>
+  </div>
+</div>
+
+<div class="max-w-[1400px] mx-auto">
+
+<!-- ============ DESKTOP VIEW ============ -->
+<div class="view" id="view-desktop">
+<div class="grid grid-cols-[76px_1fr] bg-[#F5F8FC] rounded-[20px] overflow-hidden shadow-[0_20px_60px_rgba(16,24,40,0.16)] min-h-[880px] border border-[#E6EAF2] relative" id="desktop-app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="bg-[#FFFFFF] border-r border-[#E6EAF2] flex flex-col items-center py-5 gap-1.5">
+    <div class="w-9 h-9 rounded-[10px] bg-[#2054E0] flex items-center justify-center text-white font-['Playfair_Display'] font-bold text-[15px] mb-[18px]">Rx</div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Prescriptions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Procurement">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6v4H9z"/><rect x="4" y="4" width="16" height="18" rx="2"/><path d="M8 12h8M8 16h5"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Customers">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Expenses">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h11l5 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 5v4h4"/><path d="M8 14h5"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#153C9E] bg-[#EAF0FE] cursor-pointer relative [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </div>
+    <div class="flex-1"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-[#12B76A] mb-4 relative after:content-[''] after:absolute after:-inset-1 after:rounded-full after:border after:border-[#12B76A]/50 after:animate-ping" title="Synced"></div>
+    <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold">JO</div>
+  </div>
+
+  <!-- PAGE CONTENT -->
+  <div class="flex flex-col min-h-0 p-6 pb-8">
+
+    <div class="flex items-center gap-3 mb-5">
+      <div>
+        <div class="text-[12px] text-[#98A2B3] font-medium mb-0.5">DumosRx · Awka Main Pharmacy</div>
+        <div class="text-[22px] font-['Playfair_Display'] font-bold">Reports</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2.5">
+        <div class="w-[38px] h-[38px] rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center cursor-pointer relative shrink-0 text-[#667085]">
+          <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </div>
+        <button class="flex items-center gap-2 bg-[#2054E0] text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] shadow-[0_1px_2px_rgba(32,84,224,0.3)] hover:bg-[#153C9E]">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+          New Sale
+        </button>
+      </div>
+    </div>
+
+    <!-- TABS (kept at 3: these are genuinely different tasks, not the same data viewed differently) -->
+    <div class="w-full md:w-max inline-flex gap-1 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 mb-5">
+      <div class="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer tab-chip bg-[#2054E0] text-white flex items-center gap-1.5" data-tab="operational" onclick="setTab('operational')">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+        Operational Reports
+      </div>
+      <div class="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer tab-chip text-[#98A2B3] flex items-center gap-1.5" data-tab="dailyclose" onclick="setTab('dailyclose')">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+        Daily Close
+      </div>
+      <div class="px-5 py-2 rounded-lg text-[13px] font-semibold cursor-pointer tab-chip text-[#98A2B3] flex items-center gap-1.5" data-tab="analytics" onclick="setTab('analytics')">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/></svg>
+        Analytics &amp; Insights
+      </div>
+    </div>
+
+    <!-- ===== TAB: OPERATIONAL REPORTS ===== -->
+    <div id="d-tab-operational" class="flex flex-col flex-1 min-h-0">
+
+      <!-- REPORT GRID VIEW -->
+      <div id="d-report-grid">
+        <div class="flex items-center gap-2.5 mb-5">
+          <div class="flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 w-[220px]">
+            <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <select class="border-0 outline-none text-[13px] w-full bg-transparent">
+              <option>Last 30 Days</option><option>This Month</option><option>This Quarter</option><option>This Year</option>
+            </select>
+          </div>
+          <div class="text-[12.5px] text-[#667085]">Reports will be generated for this time range</div>
+        </div>
+
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5 mb-5">
+          <div class="text-[15px] font-semibold mb-0.5">Standard Reports</div>
+          <div class="text-[12.5px] text-[#667085] mb-5">Select a report to generate or export as CSV</div>
+          <div class="grid grid-cols-2 gap-4" id="d-report-cards"></div>
+        </div>
+
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="text-[15px] font-semibold mb-0.5">Recent Downloads</div>
+          <div class="text-[12.5px] text-[#667085] mb-5">Reports generated in this browser session</div>
+          <div id="d-recent-downloads"></div>
+        </div>
+      </div>
+
+      <!-- REPORT VIEWER (swapped in when Preview is clicked) -->
+      <div id="d-report-viewer" class="hidden bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-6 flex-1 min-h-0 overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+          <button class="flex items-center gap-2 border border-[#E6EAF2] bg-[#F5F8FC] text-[#344054] text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer" onclick="closeReportViewer()">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Reports
+          </button>
+          <button class="flex items-center gap-2 bg-[#2054E0] text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer hover:bg-[#153C9E]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Now
+          </button>
+        </div>
+        <div class="flex items-start justify-between mb-5 pb-4 border-b border-[#E6EAF2]">
+          <div>
+            <div class="text-[24px] font-['Playfair_Display'] font-bold" id="d-report-title">Report</div>
+            <div class="text-[12.5px] text-[#98A2B3] mt-1" id="d-report-meta">Generated on: N/A</div>
+          </div>
+          <div class="text-[16px] font-['Playfair_Display'] font-bold">DumosRx Store</div>
+        </div>
+        <div id="d-report-content"></div>
+      </div>
+    </div>
+
+    <!-- ===== TAB: DAILY CLOSE ===== -->
+    <div id="d-tab-dailyclose" class="hidden flex-col flex-1 min-h-0 overflow-y-auto">
+      <div class="bg-[#F3F7FF] border border-[#D6E2FC] rounded-2xl px-5 py-4 mb-5 flex items-center gap-4">
+        <div class="w-9 h-9 rounded-lg bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div class="flex-1">
+          <div class="text-[14px] font-semibold">Daily Close Ready</div>
+          <div class="text-[12.5px] text-[#667085]">This report aggregates all transactions made on 2026-07-22. Use this for end-of-day reconciliation.</div>
+        </div>
+        <button class="flex items-center gap-1.5 border border-[#E6EAF2] bg-[#FFFFFF] text-[#344054] text-[12.5px] font-semibold px-3.5 py-2 rounded-lg cursor-pointer">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+          Download Backup
+        </button>
+        <button class="flex items-center gap-1.5 bg-[#2054E0] text-white text-[12.5px] font-semibold px-3.5 py-2 rounded-lg cursor-pointer">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg>
+          Cloud Sync Now
+        </button>
+      </div>
+
+      <div class="grid grid-cols-4 gap-4 mb-5">
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div class="text-[12.5px] text-[#667085] font-medium mb-3">Total Sales</div>
+          <div class="text-[22px] font-semibold font-['Playfair_Display']">₦284,500</div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div class="text-[12.5px] text-[#667085] font-medium mb-3">Cash Expected</div>
+          <div class="text-[22px] font-semibold font-['Playfair_Display']">₦120,000</div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div class="text-[12.5px] text-[#667085] font-medium mb-3">Transfer / Mobile</div>
+          <div class="text-[22px] font-semibold font-['Playfair_Display']">₦98,500</div>
+        </div>
+        <div class="bg-[#FEF3F2] border border-[#FBD5D2] rounded-[14px] p-[18px] px-5">
+          <div class="text-[12.5px] text-[#B42318] font-medium mb-3">Total Refunds</div>
+          <div class="text-[22px] font-semibold font-['Playfair_Display'] text-[#B42318]">₦4,200</div>
+        </div>
+      </div>
+
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5 mb-5">
+        <div class="text-[12.5px] text-[#667085] font-medium mb-2">Total Profit (Est.)</div>
+        <div class="text-[28px] font-bold font-['Playfair_Display'] text-[#067647]">₦86,300</div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-5 mb-5">
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="text-[14.5px] font-semibold mb-4">Payment Breakdown</div>
+          <div class="flex flex-col">
+            <div class="flex items-center justify-between py-2.5 border-b border-[#E6EAF2]"><div class="text-[13px] text-[#667085]">Cash</div><div class="text-[13px] font-semibold">₦120,000</div></div>
+            <div class="flex items-center justify-between py-2.5 border-b border-[#E6EAF2]"><div class="text-[13px] text-[#667085]">Card / POS</div><div class="text-[13px] font-semibold">₦66,000</div></div>
+            <div class="flex items-center justify-between py-2.5 border-b border-[#E6EAF2]"><div class="text-[13px] text-[#667085]">Transfer / Mobile</div><div class="text-[13px] font-semibold">₦98,500</div></div>
+            <div class="flex items-center justify-between py-2.5"><div class="text-[13px] text-[#667085]">Credit Sales</div><div class="text-[13px] font-semibold">₦0</div></div>
+          </div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="text-[14.5px] font-semibold mb-0.5">Highest Selling Products</div>
+          <div class="text-[12px] text-[#98A2B3] mb-4">By quantity sold today</div>
+          <div class="grid grid-cols-[1fr_70px_90px] gap-2 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide pb-2 border-b border-[#E6EAF2]">
+            <div>Product</div><div>Qty</div><div class="text-right">Revenue</div>
+          </div>
+          <div class="grid grid-cols-[1fr_70px_90px] gap-2 py-2.5 border-b border-[#E6EAF2] text-[13px]"><div>Paracetamol 500mg</div><div class="text-[#667085]">42</div><div class="text-right font-semibold">₦21,000</div></div>
+          <div class="grid grid-cols-[1fr_70px_90px] gap-2 py-2.5 border-b border-[#E6EAF2] text-[13px]"><div>Amoxicillin 500mg</div><div class="text-[#667085]">18</div><div class="text-right font-semibold">₦9,000</div></div>
+          <div class="grid grid-cols-[1fr_70px_90px] gap-2 py-2.5 text-[13px]"><div>Bottled water 50cl</div><div class="text-[#667085]">35</div><div class="text-right font-semibold">₦7,000</div></div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2.5">
+        <button class="flex items-center gap-1.5 border border-[#E6EAF2] bg-[#FFFFFF] text-[#344054] text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print
+        </button>
+        <button class="flex items-center gap-1.5 bg-[#2054E0] text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer hover:bg-[#153C9E]">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <!-- ===== TAB: ANALYTICS & INSIGHTS ===== -->
+    <div id="d-tab-analytics" class="hidden flex-col flex-1 min-h-0 overflow-y-auto">
+      <div class="flex items-center gap-2.5 mb-5">
+        <div class="flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 w-[220px]">
+          <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <select class="border-0 outline-none text-[13px] w-full bg-transparent">
+            <option>Last 30 Days</option><option>This Month</option><option>This Quarter</option>
+          </select>
+        </div>
+        <button class="flex items-center gap-1.5 border border-[#E6EAF2] bg-[#FFFFFF] text-[#344054] text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Export Reports
+        </button>
+      </div>
+
+      <div class="grid grid-cols-5 gap-4 mb-5">
+        <div class="bg-[#EAF0FE] border border-[#D6E2FC] rounded-[14px] p-[18px] px-5">
+          <div class="text-[12px] text-[#153C9E] font-medium mb-3">Total Revenue</div>
+          <div class="text-[19px] font-semibold font-['Playfair_Display']">₦8,000,000</div>
+          <div class="text-[11px] text-[#667085] mt-1">Gross billings</div>
+        </div>
+        <div class="bg-[#ECFDF3] border border-[#D3F2E1] rounded-[14px] p-[18px] px-5">
+          <div class="text-[12px] text-[#067647] font-medium mb-3">Net Profit</div>
+          <div class="text-[19px] font-semibold font-['Playfair_Display'] text-[#067647]">₦2,000,000</div>
+          <div class="text-[11px] text-[#667085] mt-1">After COGS &amp; expenses</div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5">
+          <div class="text-[12px] text-[#667085] font-medium mb-3">Transactions</div>
+          <div class="text-[19px] font-semibold font-['Playfair_Display']">612</div>
+          <div class="text-[11px] text-[#98A2B3] mt-1">Volume</div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5">
+          <div class="text-[12px] text-[#667085] font-medium mb-3">Stock Batch Value</div>
+          <div class="text-[19px] font-semibold font-['Playfair_Display']">₦12.4M</div>
+          <div class="text-[11px] text-[#98A2B3] mt-1">Asset value (cost)</div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5">
+          <div class="text-[12px] text-[#667085] font-medium mb-3">Customers</div>
+          <div class="text-[19px] font-semibold font-['Playfair_Display']">248</div>
+          <div class="text-[11px] text-[#98A2B3] mt-1">Active base</div>
+        </div>
+      </div>
+
+      <div class="w-full md:w-max inline-flex gap-1 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 mb-5">
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer subtab-chip bg-[#2054E0] text-white" data-subtab="sales" onclick="setSubTab('sales')">Sales Analytics</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer subtab-chip text-[#98A2B3]" data-subtab="pnl" onclick="setSubTab('pnl')">Profit &amp; Loss</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer subtab-chip text-[#98A2B3]" data-subtab="stock" onclick="setSubTab('stock')">Stock Batch Insights</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer subtab-chip text-[#98A2B3]" data-subtab="customer" onclick="setSubTab('customer')">Customer Behavior</div>
+      </div>
+
+      <!-- SUB-TAB: Sales Analytics -->
+      <div id="d-sub-sales" class="grid grid-cols-2 gap-5">
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="text-[14.5px] font-semibold mb-0.5">Revenue Trend</div>
+          <div class="text-[12px] text-[#98A2B3] mb-5">Monthly revenue analysis</div>
+          <div class="flex items-end gap-3 h-[180px]" id="d-revenue-chart"></div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-0.5">
+            <div class="text-[14.5px] font-semibold">Top Selling Products</div>
+            <div class="flex gap-1 bg-[#F5F8FC] border border-[#E6EAF2] rounded-lg p-0.5">
+              <div class="px-2.5 py-1 rounded-md text-[11.5px] font-semibold cursor-pointer top-products-toggle bg-[#2054E0] text-white" data-mode="revenue" onclick="setTopProductsMode('revenue')">Revenue</div>
+              <div class="px-2.5 py-1 rounded-md text-[11.5px] font-semibold cursor-pointer top-products-toggle text-[#98A2B3]" data-mode="quantity" onclick="setTopProductsMode('quantity')">Quantity</div>
+            </div>
+          </div>
+          <div class="text-[12px] text-[#98A2B3] mb-5">Best performing products</div>
+          <div id="d-top-products"></div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5 col-span-2">
+          <div class="text-[14.5px] font-semibold mb-0.5">Sales by Category</div>
+          <div class="text-[12px] text-[#98A2B3] mb-5">Revenue distribution across product categories</div>
+          <div class="flex flex-col gap-3.5" id="d-sales-by-category"></div>
+        </div>
+      </div>
+
+      <!-- SUB-TAB: Profit & Loss -->
+      <div id="d-sub-pnl" class="hidden grid grid-cols-[1.4fr_1fr] gap-5">
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="flex items-center gap-2 mb-0.5">
+            <svg class="w-4 h-4 text-[#2054E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+            <div class="text-[14.5px] font-semibold">Financial Performance Statement</div>
+          </div>
+          <div class="text-[12px] text-[#98A2B3] mb-5">Detailed breakdown of income and operational costs</div>
+          <div class="flex items-center justify-between py-3 border-b border-[#E6EAF2] text-[13.5px]"><div>Total Gross Revenue</div><div class="font-semibold">₦8,000,000</div></div>
+          <div class="flex items-center justify-between py-3 border-b border-[#E6EAF2] text-[13.5px] text-[#B42318] italic"><div>↘ Cost of Goods Sold (COGS)</div><div class="font-semibold">− ₦4,000,000</div></div>
+          <div class="flex items-center justify-between py-3 bg-[#F3F7FF] px-3 rounded-lg my-2 text-[13.5px] font-bold text-[#153C9E]"><div>GROSS PROFIT</div><div>₦4,000,000</div></div>
+          <div class="flex items-center justify-between py-3 border-b border-[#E6EAF2] text-[13.5px] text-[#B42318] italic"><div>↘ Total Operational Expenses</div><div class="font-semibold">− ₦2,000,000</div></div>
+          <div class="bg-[#ECFDF3] rounded-xl p-4 mt-3 flex items-center justify-between">
+            <div>
+              <div class="text-[11px] font-bold text-[#067647] uppercase tracking-wide">Final Net Income (Take Home)</div>
+              <div class="text-[24px] font-bold font-['Playfair_Display'] text-[#067647]">₦2,000,000</div>
+            </div>
+            <div class="bg-[#FFFFFF] rounded-xl px-4 py-2.5 text-center">
+              <div class="text-[10px] font-semibold text-[#98A2B3] uppercase">Net Margin</div>
+              <div class="text-[19px] font-bold font-['Playfair_Display']">25%</div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="flex items-center gap-2 mb-5">
+            <svg class="w-4 h-4 text-[#2054E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 010 20z"/></svg>
+            <div class="text-[13.5px] font-bold uppercase tracking-wide">Burn Distribution</div>
+          </div>
+          <div class="flex flex-col gap-3.5" id="d-burn-distribution"></div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5 col-span-2">
+          <div class="text-[14.5px] font-semibold mb-0.5">Financial Health Over Time</div>
+          <div class="text-[12px] text-[#98A2B3] mb-5">Revenue vs. net profit across recent months</div>
+          <div class="flex items-end gap-4 h-[160px]" id="d-financial-health-chart"></div>
+        </div>
+      </div>
+
+      <!-- SUB-TAB: Stock Batch Insights -->
+      <div id="d-sub-stock" class="hidden grid grid-cols-2 gap-5">
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="flex items-center gap-2 mb-0.5">
+            <svg class="w-4 h-4 text-[#B42318]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+            <div class="text-[14.5px] font-semibold text-[#B42318]">Stock Batch Alerts</div>
+          </div>
+          <div class="text-[12px] text-[#98A2B3] mb-4">Critical issues requiring immediate attention</div>
+          <div class="flex flex-col gap-2.5" id="d-stock-alerts"></div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="text-[14.5px] font-semibold mb-0.5">Stock Value by Category</div>
+          <div class="text-[12px] text-[#98A2B3] mb-5">Where inventory capital is tied up</div>
+          <div class="flex flex-col gap-3.5" id="d-stock-value-by-category"></div>
+        </div>
+      </div>
+
+      <!-- SUB-TAB: Customer Behavior -->
+      <div id="d-sub-customer" class="hidden">
+        <div class="grid grid-cols-4 gap-4 mb-5">
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5">
+            <div class="text-[12.5px] text-[#667085] font-medium mb-3">Total Customers</div>
+            <div class="text-[20px] font-semibold font-['Playfair_Display'] mb-1.5">248</div>
+            <div class="text-[11.5px] font-semibold text-[#067647]">↑ 6% vs last period</div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5">
+            <div class="text-[12.5px] text-[#667085] font-medium mb-3">Loyalty Members</div>
+            <div class="text-[20px] font-semibold font-['Playfair_Display'] mb-1.5">210</div>
+            <div class="text-[11.5px] font-semibold text-[#067647]">↑ 4% vs last period</div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5">
+            <div class="text-[12.5px] text-[#667085] font-medium mb-3">Avg. Transaction</div>
+            <div class="text-[20px] font-semibold font-['Playfair_Display'] mb-1.5">₦15,420</div>
+            <div class="text-[11.5px] font-semibold text-[#067647]">↑ 3% vs last period</div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5">
+            <div class="text-[12.5px] text-[#667085] font-medium mb-3">Customer Retention</div>
+            <div class="text-[20px] font-semibold font-['Playfair_Display'] mb-1.5">78.5%</div>
+            <div class="text-[11.5px] font-semibold text-[#B54708]">↘ Needs attention</div>
+          </div>
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5">
+          <div class="flex items-center gap-2 mb-0.5">
+            <svg class="w-4 h-4 text-[#2054E0]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <div class="text-[14.5px] font-semibold">Customer Purchase Patterns</div>
+          </div>
+          <div class="text-[12px] text-[#98A2B3] mb-5">Peak hours based on transaction volume</div>
+          <div class="flex items-end gap-3 h-[160px]" id="d-purchase-patterns-chart"></div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+</div>
+
+<!-- ============ MOBILE VIEW ============ -->
+<div class="view hidden" id="view-mobile">
+  <div class="flex justify-center" id="mobile-phone-wrap">
+    <div class="w-[390px] bg-[#F5F8FC] rounded-[44px] border-[10px] border-[#1A1D23] shadow-[0_30px_60px_rgba(16,24,40,0.35)] overflow-hidden relative">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[26px] bg-[#1A1D23] rounded-b-2xl z-[6]"></div>
+      <div class="h-[844px] flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] sticky top-0 z-[3]">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="text-[11.5px] text-[#98A2B3] font-medium">DumosRx · Awka Main</div>
+              <div class="text-lg font-['Playfair_Display'] font-bold">Reports</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center relative shrink-0 text-[#667085]">
+                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              </div>
+              <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold shrink-0">JO</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 bg-[#ECFDF3] border border-[#D3F2E1] rounded-full px-3 py-1.5 w-fit">
+            <div class="w-2 h-2 rounded-full bg-[#12B76A]"></div>
+            <span class="text-[11.5px] font-semibold text-[#067647]">Synced · 2 min ago</span>
+          </div>
+        </div>
+
+        <div class="px-4 pt-4 pb-[40px]">
+
+          <div class="flex gap-2 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 tab-chip bg-[#2054E0] text-white" data-tab="operational" onclick="setTab('operational')">Operational</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 tab-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-tab="dailyclose" onclick="setTab('dailyclose')">Daily Close</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 tab-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-tab="analytics" onclick="setTab('analytics')">Analytics</div>
+          </div>
+
+          <!-- OPERATIONAL -->
+          <div id="m-tab-operational">
+            <div id="m-report-grid">
+              <div class="text-[13px] font-semibold mb-3">Standard Reports</div>
+              <div class="flex flex-col gap-3 mb-5" id="m-report-cards"></div>
+              <div class="text-[13px] font-semibold mb-3">Recent Downloads</div>
+              <div id="m-recent-downloads"></div>
+            </div>
+            <div id="m-report-viewer" class="hidden">
+              <button class="flex items-center gap-2 border border-[#E6EAF2] bg-[#FFFFFF] text-[#344054] text-[13px] font-semibold px-4 py-2.5 rounded-[10px] cursor-pointer mb-4" onclick="closeReportViewer()">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Back to Reports
+              </button>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4">
+                <div class="text-[18px] font-['Playfair_Display'] font-bold" id="m-report-title">Report</div>
+                <div class="text-[11.5px] text-[#98A2B3] mt-1 mb-4" id="m-report-meta">Generated on: N/A</div>
+                <div id="m-report-content"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- DAILY CLOSE -->
+          <div id="m-tab-dailyclose" class="hidden">
+            <div class="bg-[#F3F7FF] border border-[#D6E2FC] rounded-2xl px-4 py-3.5 mb-4">
+              <div class="text-[13px] font-semibold mb-1">Daily Close Ready</div>
+              <div class="text-[11.5px] text-[#667085] mb-3">Aggregates all transactions made today.</div>
+              <div class="flex gap-2">
+                <button class="flex-1 text-[11.5px] font-semibold border border-[#E6EAF2] bg-[#FFFFFF] px-2.5 py-2 rounded-lg">Backup</button>
+                <button class="flex-1 text-[11.5px] font-semibold bg-[#2054E0] text-white px-2.5 py-2 rounded-lg">Cloud Sync</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5"><div class="text-[11px] text-[#667085] mb-1.5">Total Sales</div><div class="text-[16px] font-semibold">₦284,500</div></div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5"><div class="text-[11px] text-[#667085] mb-1.5">Cash Expected</div><div class="text-[16px] font-semibold">₦120,000</div></div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5"><div class="text-[11px] text-[#667085] mb-1.5">Transfer/Mobile</div><div class="text-[16px] font-semibold">₦98,500</div></div>
+              <div class="bg-[#FEF3F2] border border-[#FBD5D2] rounded-xl p-3.5"><div class="text-[11px] text-[#B42318] mb-1.5">Total Refunds</div><div class="text-[16px] font-semibold text-[#B42318]">₦4,200</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 mb-4">
+              <div class="text-[11.5px] text-[#667085] mb-1.5">Total Profit (Est.)</div>
+              <div class="text-[22px] font-bold font-['Playfair_Display'] text-[#067647]">₦86,300</div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 mb-4">
+              <div class="text-[13px] font-semibold mb-3">Payment Breakdown</div>
+              <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px]"><div class="text-[#667085]">Cash</div><div class="font-semibold">₦120,000</div></div>
+              <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px]"><div class="text-[#667085]">Card/POS</div><div class="font-semibold">₦66,000</div></div>
+              <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px]"><div class="text-[#667085]">Transfer/Mobile</div><div class="font-semibold">₦98,500</div></div>
+              <div class="flex items-center justify-between py-2 text-[12.5px]"><div class="text-[#667085]">Credit Sales</div><div class="font-semibold">₦0</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4">
+              <div class="text-[13px] font-semibold mb-3">Highest Selling Products</div>
+              <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px]"><div>Paracetamol 500mg</div><div class="font-semibold">₦21,000</div></div>
+              <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px]"><div>Amoxicillin 500mg</div><div class="font-semibold">₦9,000</div></div>
+              <div class="flex items-center justify-between py-2 text-[12.5px]"><div>Bottled water 50cl</div><div class="font-semibold">₦7,000</div></div>
+            </div>
+          </div>
+
+          <!-- ANALYTICS -->
+          <div id="m-tab-analytics" class="hidden">
+            <div class="flex gap-2.5 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+              <div class="min-w-[120px] bg-[#EAF0FE] border border-[#D6E2FC] rounded-[14px] p-3.5 shrink-0"><div class="text-[10.5px] text-[#153C9E] font-medium mb-2">Revenue</div><div class="text-[16px] font-semibold">₦8.0M</div></div>
+              <div class="min-w-[120px] bg-[#ECFDF3] border border-[#D3F2E1] rounded-[14px] p-3.5 shrink-0"><div class="text-[10.5px] text-[#067647] font-medium mb-2">Net Profit</div><div class="text-[16px] font-semibold text-[#067647]">₦2.0M</div></div>
+              <div class="min-w-[120px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0"><div class="text-[10.5px] text-[#667085] font-medium mb-2">Txns</div><div class="text-[16px] font-semibold">612</div></div>
+              <div class="min-w-[120px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0"><div class="text-[10.5px] text-[#667085] font-medium mb-2">Stock Value</div><div class="text-[16px] font-semibold">₦12.4M</div></div>
+              <div class="min-w-[120px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0"><div class="text-[10.5px] text-[#667085] font-medium mb-2">Customers</div><div class="text-[16px] font-semibold">248</div></div>
+            </div>
+
+            <div class="flex gap-2 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+              <div class="px-3.5 py-2 rounded-lg text-[12.5px] font-semibold cursor-pointer whitespace-nowrap shrink-0 subtab-chip bg-[#2054E0] text-white" data-subtab="sales" onclick="setSubTab('sales')">Sales</div>
+              <div class="px-3.5 py-2 rounded-lg text-[12.5px] font-semibold cursor-pointer whitespace-nowrap shrink-0 subtab-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-subtab="pnl" onclick="setSubTab('pnl')">P&amp;L</div>
+              <div class="px-3.5 py-2 rounded-lg text-[12.5px] font-semibold cursor-pointer whitespace-nowrap shrink-0 subtab-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-subtab="stock" onclick="setSubTab('stock')">Stock</div>
+              <div class="px-3.5 py-2 rounded-lg text-[12.5px] font-semibold cursor-pointer whitespace-nowrap shrink-0 subtab-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-subtab="customer" onclick="setSubTab('customer')">Customers</div>
+            </div>
+
+            <div id="m-sub-sales">
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 mb-4">
+                <div class="text-[13px] font-semibold mb-3">Revenue Trend</div>
+                <div class="flex items-end gap-2 h-[130px]" id="m-revenue-chart"></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 mb-4">
+                <div class="text-[13px] font-semibold mb-3">Top Selling Products</div>
+                <div id="m-top-products"></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4">
+                <div class="text-[13px] font-semibold mb-3">Sales by Category</div>
+                <div class="flex flex-col gap-3" id="m-sales-by-category"></div>
+              </div>
+            </div>
+
+            <div id="m-sub-pnl" class="hidden">
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 mb-4">
+                <div class="text-[13px] font-semibold mb-3">Financial Performance</div>
+                <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px]"><div>Gross Revenue</div><div class="font-semibold">₦8,000,000</div></div>
+                <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px] text-[#B42318]"><div>COGS</div><div class="font-semibold">−₦4,000,000</div></div>
+                <div class="flex items-center justify-between py-2 bg-[#F3F7FF] px-2 rounded-lg my-1.5 text-[12.5px] font-bold text-[#153C9E]"><div>Gross Profit</div><div>₦4,000,000</div></div>
+                <div class="flex items-center justify-between py-2 border-b border-[#E6EAF2] text-[12.5px] text-[#B42318]"><div>OpEx</div><div class="font-semibold">−₦2,000,000</div></div>
+                <div class="bg-[#ECFDF3] rounded-xl p-3 mt-2">
+                  <div class="text-[10px] font-bold text-[#067647] uppercase">Net Income</div>
+                  <div class="text-[19px] font-bold font-['Playfair_Display'] text-[#067647]">₦2,000,000 <span class="text-[12px] font-semibold text-[#667085]">(25%)</span></div>
+                </div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4">
+                <div class="text-[13px] font-bold uppercase mb-3">Burn Distribution</div>
+                <div class="flex flex-col gap-3" id="m-burn-distribution"></div>
+              </div>
+            </div>
+
+            <div id="m-sub-stock" class="hidden">
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 mb-4">
+                <div class="text-[13px] font-semibold text-[#B42318] mb-3">Stock Batch Alerts</div>
+                <div class="flex flex-col gap-2.5" id="m-stock-alerts"></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4">
+                <div class="text-[13px] font-semibold mb-3">Stock Value by Category</div>
+                <div class="flex flex-col gap-3" id="m-stock-value-by-category"></div>
+              </div>
+            </div>
+
+            <div id="m-sub-customer" class="hidden">
+              <div class="grid grid-cols-2 gap-3 mb-4">
+                <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5"><div class="text-[11px] text-[#667085] mb-1.5">Total Customers</div><div class="text-[16px] font-semibold">248</div></div>
+                <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5"><div class="text-[11px] text-[#667085] mb-1.5">Loyalty Members</div><div class="text-[16px] font-semibold">210</div></div>
+                <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5"><div class="text-[11px] text-[#667085] mb-1.5">Avg. Transaction</div><div class="text-[16px] font-semibold">₦15,420</div></div>
+                <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5"><div class="text-[11px] text-[#667085] mb-1.5">Retention</div><div class="text-[16px] font-semibold">78.5%</div></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4">
+                <div class="text-[13px] font-semibold mb-3">Customer Purchase Patterns</div>
+                <div class="flex items-end gap-2 h-[130px]" id="m-purchase-patterns-chart"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- BOTTOM NAV -->
+      <div class="flex items-center justify-around bg-[#FFFFFF] border-t border-[#E6EAF2] px-2 pt-2.5 pb-3.5 sticky bottom-0 z-[4]">
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          <span class="text-[10px] font-semibold">Home</span>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+          <span class="text-[10px] font-semibold">Rx</span>
+        </div>
+        <div class="w-[52px] h-[52px] rounded-full bg-[#2054E0] flex items-center justify-center text-white -mt-[30px] shadow-[0_6px_16px_rgba(32,84,224,0.4)] border-4 border-[#FFFFFF] cursor-pointer">
+          <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#2054E0] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          <span class="text-[10px] font-semibold">Reports</span>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+          <span class="text-[10px] font-semibold">More</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function showView(name, btn){
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + name).classList.remove('hidden');
+  document.querySelectorAll('.switcher button').forEach(b => {
+    b.classList.remove('bg-[#2054E0]','text-white');
+    b.classList.add('bg-transparent','text-[#98A2B3]');
+  });
+  btn.classList.add('bg-[#2054E0]','text-white');
+  btn.classList.remove('bg-transparent','text-[#98A2B3]');
+}
+
+function setTab(tab){
+  ['operational','dailyclose','analytics'].forEach(t => {
+    const d = document.getElementById('d-tab-' + t);
+    const m = document.getElementById('m-tab-' + t);
+    if(d){ d.classList.toggle('hidden', t !== tab); d.classList.toggle('flex', t === tab); }
+    if(m) m.classList.toggle('hidden', t !== tab);
+  });
+  document.querySelectorAll('.tab-chip').forEach(chip => {
+    const active = chip.dataset.tab === tab;
+    chip.classList.toggle('bg-[#2054E0]', active);
+    chip.classList.toggle('text-white', active);
+    chip.classList.toggle('bg-[#FFFFFF]', !active);
+    chip.classList.toggle('border', !active);
+    chip.classList.toggle('border-[#E6EAF2]', !active);
+    chip.classList.toggle('text-[#98A2B3]', !active);
+  });
+}
+
+function setSubTab(sub){
+  ['sales','pnl','stock','customer'].forEach(s => {
+    const d = document.getElementById('d-sub-' + s);
+    const m = document.getElementById('m-sub-' + s);
+    if(d){ d.classList.toggle('hidden', s !== sub); d.classList.toggle('grid', s === sub); }
+    if(m) m.classList.toggle('hidden', s !== sub);
+  });
+  document.querySelectorAll('.subtab-chip').forEach(chip => {
+    const active = chip.dataset.subtab === sub;
+    chip.classList.toggle('bg-[#2054E0]', active);
+    chip.classList.toggle('text-white', active);
+    chip.classList.toggle('bg-[#FFFFFF]', !active);
+    chip.classList.toggle('border', !active);
+    chip.classList.toggle('border-[#E6EAF2]', !active);
+    chip.classList.toggle('text-[#98A2B3]', !active);
+  });
+}
+
+// ================= DATA =================
+const REPORTS = [
+  { id:'sales', title:'Detailed Sales Report', category:'Financial', desc:'Itemized list of all transactions with tax and discount breakdown.',
+    icon:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/>' },
+  { id:'stock', title:'Stock Batch Valuation', category:'Operations', desc:'Current stock levels, cost value, and potential selling value.',
+    icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 4v18"/>' },
+  { id:'pnl', title:'Profit &amp; Loss Summary', category:'Financial', desc:'Comparative view of revenue vs expenses for the selected period.',
+    icon:'<path d="M18 20V10M12 20V4M6 20v-6"/>' },
+  { id:'loyalty', title:'Customer Loyalty Report', category:'CRM', desc:'Analysis of top customers, points balance, and outstanding balances.',
+    icon:'<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>' },
+  { id:'expenses', title:'Expense Categories', category:'Financial', desc:'Breakdown of operating costs by category.',
+    icon:'<path d="M3 7a2 2 0 012-2h11l5 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 5v4h4"/>' }
+];
+
+const REPORT_CONTENT = {
+  sales: { columns:['Date','Customer','Items','Amount'], rows:[
+    ['2026-07-20','Adebayo Johnson','Paracetamol 500mg, Vitamin C 1000mg','₦25,400'],
+    ['2026-07-19','Fatima Abdullahi','Insulin Glargine, Blood glucose strips','₦45,600'],
+    ['2026-07-18','Ngozi Eze','Amoxicillin 500mg','₦12,000'],
+    ['2026-07-17','Chiamaka Nwosu','Sertraline 50mg','₦8,500'] ] },
+  stock: { columns:['Product','Batch','Qty','Cost Value'], rows:[
+    ['Amoxicillin 250mg','#A214','22','₦26,400'],
+    ['Panadol Extra','#P077','6','₦4,200'],
+    ['Bottled water 50cl','#W340','88','₦17,600'],
+    ['Rice 5kg bag','#R502','4','₦26,000'] ] },
+  pnl: { columns:['Line Item','Amount'], rows:[
+    ['Total Gross Revenue','₦8,000,000'],
+    ['Cost of Goods Sold','−₦4,000,000'],
+    ['Gross Profit','₦4,000,000'],
+    ['Operating Expenses','−₦2,000,000'],
+    ['Final Net Income','₦2,000,000'] ] },
+  loyalty: { columns:['Customer','Tier','Points','Balance'], rows:[
+    ['Adebayo Johnson','Gold','2,540','₦0'],
+    ['Fatima Abdullahi','Platinum','4,560','₦0'],
+    ['Ngozi Eze','Silver','1,200','₦15,000'],
+    ['Chiamaka Nwosu','Gold','1,800','₦8,500'] ] },
+  expenses: { columns:['Category','Amount'], rows:[
+    ['Rent','₦450,000'],
+    ['Inventory Purchase','₦1,280,000'],
+    ['Utilities','₦110,000'],
+    ['Salaries','₦180,000'],
+    ['Marketing','₦20,000'] ] }
+};
+
+let recentDownloads = [];
+
+function reportCardHtml(r, ctx){
+  if(ctx === 'desktop'){
+    return `
+      <div class="bg-[#F5F8FC] border border-[#E6EAF2] rounded-xl p-4">
+        <div class="flex items-start justify-between mb-2.5">
+          <div class="w-9 h-9 rounded-lg bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${r.icon}</svg>
+          </div>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F5F8FC] border border-[#E6EAF2] text-[#667085]">${r.category}</span>
+        </div>
+        <div class="text-[14.5px] font-semibold mb-1">${r.title}</div>
+        <div class="text-[12px] text-[#667085] mb-3.5">${r.desc}</div>
+        <div class="flex gap-2">
+          <button class="flex items-center gap-1.5 text-[11.5px] font-semibold border border-[#E6EAF2] bg-[#FFFFFF] px-3 py-1.5 rounded-lg cursor-pointer" onclick="openReportViewer('${r.id}')">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Preview
+          </button>
+          <button class="flex items-center gap-1.5 text-[11.5px] font-semibold border border-[#E6EAF2] bg-[#FFFFFF] px-3 py-1.5 rounded-lg cursor-pointer">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+          </button>
+          <button class="flex items-center gap-1.5 text-[11.5px] font-semibold border border-[#E6EAF2] bg-[#FFFFFF] px-3 py-1.5 rounded-lg cursor-pointer" onclick="exportReport('${r.id}')">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Export
+          </button>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3.5">
+      <div class="flex items-start justify-between mb-2">
+        <div class="w-8 h-8 rounded-lg bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center shrink-0">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${r.icon}</svg>
+        </div>
+        <span class="text-[9.5px] font-semibold px-1.5 py-0.5 rounded bg-[#F5F8FC] border border-[#E6EAF2] text-[#667085]">${r.category}</span>
+      </div>
+      <div class="text-[13px] font-semibold mb-1">${r.title}</div>
+      <div class="text-[11px] text-[#667085] mb-3">${r.desc}</div>
+      <div class="flex gap-1.5">
+        <button class="flex-1 text-[11px] font-semibold border border-[#E6EAF2] bg-[#F5F8FC] px-2 py-1.5 rounded-lg cursor-pointer" onclick="openReportViewer('${r.id}')">Preview</button>
+        <button class="flex-1 text-[11px] font-semibold border border-[#E6EAF2] bg-[#F5F8FC] px-2 py-1.5 rounded-lg cursor-pointer" onclick="exportReport('${r.id}')">Export</button>
+      </div>
+    </div>`;
+}
+
+function renderReportCards(){
+  const html = REPORTS.map(r => reportCardHtml(r, 'desktop')).join('');
+  document.getElementById('d-report-cards').innerHTML = html;
+  document.getElementById('m-report-cards').innerHTML = REPORTS.map(r => reportCardHtml(r, 'mobile')).join('');
+}
+
+function renderRecentDownloads(){
+  const html = recentDownloads.length
+    ? recentDownloads.map(d => `
+        <div class="flex items-center gap-3 py-2.5 border-b border-[#E6EAF2] last:border-0">
+          <svg class="w-4 h-4 text-[#12B76A] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          <div class="flex-1 text-[13px] font-medium">${d.title}</div>
+          <div class="text-[11.5px] text-[#98A2B3]">${d.time}</div>
+        </div>`).join('')
+    : `<div class="text-center py-8">
+        <svg class="w-8 h-8 mx-auto mb-3 text-[#E6EAF2]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M20 6L9 17l-5-5"/></svg>
+        <div class="text-[13px] font-semibold text-[#667085]">No reports generated yet</div>
+        <div class="text-[12px] text-[#98A2B3] mt-1">Export a report above to see it here.</div>
+       </div>`;
+  document.getElementById('d-recent-downloads').innerHTML = html;
+  document.getElementById('m-recent-downloads').innerHTML = html;
+}
+
+function exportReport(id){
+  const r = REPORTS.find(x => x.id === id);
+  recentDownloads.unshift({ title: r.title.replace(/&amp;/,'&') + '.csv', time: 'Just now' });
+  renderRecentDownloads();
+}
+
+function openReportViewer(id){
+  const r = REPORTS.find(x => x.id === id);
+  const data = REPORT_CONTENT[id];
+  const table = `
+    <div class="grid gap-2 px-4 py-2.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide border-b border-[#E6EAF2]" style="grid-template-columns: repeat(${data.columns.length}, 1fr);">
+      ${data.columns.map(c => `<div>${c}</div>`).join('')}
+    </div>
+    ${data.rows.map(row => `
+      <div class="grid gap-2 px-4 py-3 border-b border-[#E6EAF2] text-[13px]" style="grid-template-columns: repeat(${data.columns.length}, 1fr);">
+        ${row.map((cell,i) => `<div class="${i===0?'font-semibold':''}">${cell}</div>`).join('')}
+      </div>`).join('')}`;
+
+  document.getElementById('d-report-title').innerHTML = r.title;
+  document.getElementById('d-report-meta').textContent = 'Generated on 7/22/2026 · Last 30 days';
+  document.getElementById('d-report-content').innerHTML = table;
+  document.getElementById('m-report-title').innerHTML = r.title;
+  document.getElementById('m-report-meta').textContent = 'Generated 7/22/2026 · Last 30 days';
+  document.getElementById('m-report-content').innerHTML = table;
+
+  document.getElementById('d-report-grid').classList.add('hidden');
+  document.getElementById('d-report-viewer').classList.remove('hidden');
+  document.getElementById('d-report-viewer').classList.add('flex', 'flex-col');
+  document.getElementById('m-report-grid').classList.add('hidden');
+  document.getElementById('m-report-viewer').classList.remove('hidden');
+}
+
+function closeReportViewer(){
+  document.getElementById('d-report-grid').classList.remove('hidden');
+  document.getElementById('d-report-viewer').classList.add('hidden');
+  document.getElementById('m-report-grid').classList.remove('hidden');
+  document.getElementById('m-report-viewer').classList.add('hidden');
+}
+
+// ---- charts (lightweight bar charts, no external library) ----
+function barChart(containerId, data, colorClass){
+  const max = Math.max(...data.map(d => d.value));
+  const html = data.map(d => `
+    <div class="flex-1 flex flex-col items-center gap-2">
+      <div class="w-full flex items-end justify-center" style="height:130px;">
+        <div class="w-full max-w-[28px] rounded-t-md ${colorClass}" style="height:${Math.max(6, (d.value/max)*100)}%;"></div>
+      </div>
+      <div class="text-[10.5px] text-[#98A2B3] font-medium">${d.label}</div>
+    </div>`).join('');
+  const el = document.getElementById(containerId);
+  if(el) el.innerHTML = html;
+}
+
+function distributionBars(containerId, items){
+  const html = items.map(i => `
+    <div>
+      <div class="flex items-center justify-between mb-1.5">
+        <div class="text-[13px] font-medium">${i.label}</div>
+        <div class="text-[12.5px] font-semibold text-[#667085]">${i.pct}%</div>
+      </div>
+      <div class="h-2 bg-[#F5F8FC] rounded-full overflow-hidden">
+        <div class="h-full rounded-full" style="width:${i.pct}%; background:${i.color};"></div>
+      </div>
+    </div>`).join('');
+  const el = document.getElementById(containerId);
+  if(el) el.innerHTML = html;
+}
+
+const REVENUE_TREND = [
+  {label:'Feb', value:5200000},{label:'Mar', value:6100000},{label:'Apr', value:5800000},
+  {label:'May', value:7300000},{label:'Jun', value:6900000},{label:'Jul', value:8000000}
+];
+barChart('d-revenue-chart', REVENUE_TREND, 'bg-[#2054E0]');
+barChart('m-revenue-chart', REVENUE_TREND, 'bg-[#2054E0]');
+
+const FINANCIAL_HEALTH = [
+  {label:'Mar', value:1200000},{label:'Apr', value:1350000},{label:'May', value:1680000},
+  {label:'Jun', value:1590000},{label:'Jul', value:2000000}
+];
+barChart('d-financial-health-chart', FINANCIAL_HEALTH, 'bg-[#12B76A]');
+
+const PURCHASE_PATTERNS = [
+  {label:'9a', value:8},{label:'11a', value:22},{label:'1p', value:38},
+  {label:'3p', value:24},{label:'5p', value:41},{label:'7p', value:29},{label:'9p', value:11}
+];
+barChart('d-purchase-patterns-chart', PURCHASE_PATTERNS, 'bg-[#153C9E]');
+barChart('m-purchase-patterns-chart', PURCHASE_PATTERNS, 'bg-[#153C9E]');
+
+distributionBars('d-sales-by-category', [
+  {label:'Pharmacy', pct:62, color:'#2054E0'},{label:'Beverages', pct:18, color:'#12B76A'},
+  {label:'Household', pct:12, color:'#F79009'},{label:'Other', pct:8, color:'#98A2B3'}
+]);
+distributionBars('m-sales-by-category', [
+  {label:'Pharmacy', pct:62, color:'#2054E0'},{label:'Beverages', pct:18, color:'#12B76A'},
+  {label:'Household', pct:12, color:'#F79009'},{label:'Other', pct:8, color:'#98A2B3'}
+]);
+distributionBars('d-burn-distribution', [
+  {label:'Stock Batch Cost', pct:50, color:'#2054E0'},{label:'Operating Exp.', pct:25, color:'#F79009'},{label:'Net Profit', pct:25, color:'#12B76A'}
+]);
+distributionBars('m-burn-distribution', [
+  {label:'Stock Batch Cost', pct:50, color:'#2054E0'},{label:'Operating Exp.', pct:25, color:'#F79009'},{label:'Net Profit', pct:25, color:'#12B76A'}
+]);
+distributionBars('d-stock-value-by-category', [
+  {label:'Pharmacy', pct:71, color:'#2054E0'},{label:'Beverages', pct:14, color:'#12B76A'},
+  {label:'Household', pct:15, color:'#F79009'}
+]);
+distributionBars('m-stock-value-by-category', [
+  {label:'Pharmacy', pct:71, color:'#2054E0'},{label:'Beverages', pct:14, color:'#12B76A'},
+  {label:'Household', pct:15, color:'#F79009'}
+]);
+
+const STOCK_ALERTS = [
+  { name:'Amoxicillin 250mg', issue:'22 units · reorder at 30', type:'low' },
+  { name:'Cough syrup 100ml', issue:'Batch #C088 expires in 18 days', type:'expiring' },
+  { name:'Vitamin C tablets', issue:'Out of stock', type:'out' }
+];
+function stockAlertRow(a){
+  const cfg = { low:['#FFFAEB','#B54708'], expiring:['#FEF3F2','#B42318'], out:['#FEF3F2','#B42318'] };
+  const [bg,text] = cfg[a.type];
+  return `<div class="flex items-center gap-3 p-3 rounded-xl" style="background:${bg};">
+    <svg class="w-4 h-4 shrink-0" style="color:${text};" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+    <div><div class="text-[13px] font-semibold">${a.name}</div><div class="text-[11.5px]" style="color:${text};">${a.issue}</div></div>
+  </div>`;
+}
+document.getElementById('d-stock-alerts').innerHTML = STOCK_ALERTS.map(stockAlertRow).join('');
+document.getElementById('m-stock-alerts').innerHTML = STOCK_ALERTS.map(stockAlertRow).join('');
+
+const TOP_PRODUCTS = {
+  revenue: [
+    {name:'Paracetamol 500mg', value:'₦1,200,000'},{name:'Amoxicillin 500mg', value:'₦980,000'},
+    {name:'Insulin Glargine', value:'₦850,000'},{name:'Bottled water 50cl', value:'₦620,000'},{name:'Vitamin C 1000mg', value:'₦410,000'}
+  ],
+  quantity: [
+    {name:'Bottled water 50cl', value:'842 units'},{name:'Paracetamol 500mg', value:'615 units'},
+    {name:'Recharge card ₦100', value:'480 units'},{name:'Amoxicillin 500mg', value:'390 units'},{name:'Vitamin C 1000mg', value:'210 units'}
+  ]
+};
+function renderTopProducts(mode){
+  const html = TOP_PRODUCTS[mode].map((p,i) => `
+    <div class="flex items-center gap-3 py-2.5 border-b border-[#E6EAF2] last:border-0">
+      <div class="w-5 text-[12px] font-bold text-[#98A2B3]">${String(i+1).padStart(2,'0')}</div>
+      <div class="flex-1 text-[13px] font-medium truncate">${p.name}</div>
+      <div class="text-[13px] font-semibold">${p.value}</div>
+    </div>`).join('');
+  document.getElementById('d-top-products').innerHTML = html;
+  document.getElementById('m-top-products').innerHTML = html;
+}
+function setTopProductsMode(mode){
+  document.querySelectorAll('.top-products-toggle').forEach(t => {
+    const active = t.dataset.mode === mode;
+    t.classList.toggle('bg-[#2054E0]', active);
+    t.classList.toggle('text-white', active);
+    t.classList.toggle('text-[#98A2B3]', !active);
+  });
+  renderTopProducts(mode);
+}
+
+// init
+renderReportCards();
+renderRecentDownloads();
+renderTopProducts('revenue');
+</script>
+
+</body>
+</html>

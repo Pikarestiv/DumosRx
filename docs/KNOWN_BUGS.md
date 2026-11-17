@@ -566,13 +566,6 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** add `transaction_number` to `ReceiptTransaction`, print it as the receipt number, and barcode that instead of the UUID. That also makes the barcode worth the paper — until then `show_barcode_on_receipt` (2026-10-15) exists partly so a store can stop printing a decoration.
 - **Not urgent:** staff can find the sale by customer or item today. It is cheap and it removes a daily annoyance at the counter.
 
-#### A-269. `client/` — a part-paid sale prints "Total paid" with no balance owing
-
-- **Found:** 2026-10-15, in the same receipt audit.
-- **What's wrong:** `ReceiptView` prints `Total paid` and, when it is larger than the total, `Change`. A credit or partial payment prints a smaller `Total paid` and **nothing stating what is still owed**, so the customer's copy records neither the debt nor its amount. The reader has to subtract two numbers to learn they owe money.
-- **Fix:** a `Balance due` line whenever `amountPaid < total`, mirroring `Change`. One conditional block; it must not be toggleable (a customer needs it to dispute the debt).
-- **Noted while shortening the receipt**, which made the gap obvious: the shortening rules deliberately keep `Total paid` in exactly this case, so the line it needs beside it is the one that is missing.
-
 #### A-186. `client/` — the POS product tile shows nothing that distinguishes two similar products, so staff report "duplicate products" that do not exist
 
 - **Found:** 2026-10-08, investigating a production report of duplicate products at store `68e4c0e5-2354-4ff9-98e4-69d3b4c482fa` (Nest Pharmacy A2). No duplicate rows exist: the server holds 2,495 products against a 2,493-row QuickBooks source file whose Item Names and Item Numbers are 100% unique. What staff could not tell apart were genuinely distinct products rendering identically on the POS grid.

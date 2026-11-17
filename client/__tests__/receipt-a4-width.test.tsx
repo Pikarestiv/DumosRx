@@ -102,11 +102,12 @@ describe("receipt length", () => {
     expect(labels(container)).toContain("Total paid:");
   });
 
-  it("keeps total paid when the sale was only part-paid", () => {
+  it("keeps total paid and prints balance due when the sale was only part-paid", () => {
     const partial = { ...transaction, amountPaid: 500, change: 0 };
     const { container } = render(<ReceiptView transaction={partial} paperSize="a4" />);
 
     expect(labels(container)).toContain("Total paid:");
+    expect(labels(container)).toContain("Balance due:");
   });
 
   it("drops the boxed heading on a receipt but keeps it on a quote", () => {

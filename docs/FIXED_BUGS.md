@@ -1,3 +1,10 @@
+### A-269 — a part-paid sale printed "Total paid" with no balance owing
+- **Fixed:** 2026-11-17, client only, TDD. Found during receipt auditing (PR #343).
+- **Was:** `ReceiptView` in `client/components/pos/receipt-view.tsx` printed `Total paid` and `Change` (when overpaid). On a credit or partial payment where `amountPaid < total`, it printed a smaller `Total paid` but nothing stating what was still owed, leaving the customer without printed proof of their remaining debt amount.
+- **Now:** `ReceiptView` unconditionally prints a prominent `Balance due:` line with the exact formatted difference (`total - amountPaid`) whenever `transaction.total > transaction.amountPaid`. It renders in both thermal (80mm) and A4 formats and is omitted on fully paid or overpaid sales and quotes.
+- **Coverage:** `client/__tests__/receipt-part-paid-balance-due.test.tsx` (tests part-paid sales, 100% credit sales with amountPaid 0, fully paid, overpaid, both thermal and A4 layouts, and quotes) and `client/__tests__/receipt-a4-width.test.tsx`.
+- **Compat:** pure UI display fix, no schema or API changes.
+
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
 - **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.

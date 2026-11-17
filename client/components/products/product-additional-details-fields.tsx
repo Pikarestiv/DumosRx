@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldLabel } from "./field-label";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -51,9 +51,52 @@ export function ProductAdditionalDetailsFields({
           isOpen ? "max-h-[1000px] opacity-100 mt-4" : "max-h-0 opacity-0 m-0",
         )}
       >
+        <div className="space-y-2">
+          <FieldLabel
+            htmlFor="strength"
+            hint="Optional size or strength, e.g. 500mg or 1L. Shown on the product card. You can also put it in the name."
+          >
+            Strength / Size
+          </FieldLabel>
+          <SearchableInput
+            id="strength"
+            value={formData.strength}
+            onValueChange={(val) => onInputChange("strength", val)}
+            options={
+              isPharmacy
+                ? suggestions.strengths
+                : ["Small", "Medium", "Large", "1kg", "500g", "1L", "500ml"]
+            }
+            placeholder="e.g., 500mg or 1L"
+          />
+        </div>
+
         {isPharmacy && (
           <div className="space-y-2">
-            <Label htmlFor="genericName">Generic Name</Label>
+            <FieldLabel
+              htmlFor="dosageForm"
+              hint="How the medicine is taken, e.g. Tablet, Syrup, Capsule, Injection."
+            >
+              Dosage Form
+            </FieldLabel>
+            <SearchableInput
+              id="dosageForm"
+              options={suggestions.dosageForms || []}
+              value={formData.dosageForm}
+              onValueChange={(val) => onInputChange("dosageForm", val)}
+              placeholder="Select or type dosage form"
+            />
+          </div>
+        )}
+
+        {isPharmacy && (
+          <div className="space-y-2">
+            <FieldLabel
+              htmlFor="genericName"
+              hint="The active ingredient, e.g. Paracetamol. Helps staff find alternatives when a brand is out of stock."
+            >
+              Generic Name
+            </FieldLabel>
             <SearchableInput
               id="genericName"
               value={formData.genericName}
@@ -65,8 +108,11 @@ export function ProductAdditionalDetailsFields({
         )}
 
         <div className="space-y-2">
-          <Label htmlFor="manufacturer">Manufacturer</Label>
+          <FieldLabel htmlFor="manufacturer" hint="The company that makes the product.">
+            Manufacturer
+          </FieldLabel>
           <SearchableInput
+            id="manufacturer"
             options={suggestions.manufacturers}
             value={formData.manufacturer}
             onValueChange={(val) => onInputChange("manufacturer", val)}
@@ -75,7 +121,12 @@ export function ProductAdditionalDetailsFields({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="nafdacNumber">{t("registration_number")}</Label>
+          <FieldLabel
+            htmlFor="nafdacNumber"
+            hint="The registration number the regulator prints on the pack, if the product has one."
+          >
+            {t("registration_number")}
+          </FieldLabel>
           <Input
             id="nafdacNumber"
             value={formData.nafdacNumber}
@@ -87,12 +138,13 @@ export function ProductAdditionalDetailsFields({
         {isPharmacy && (
           <div className="pt-2 md:col-span-2 flex flex-row flex-wrap items-center gap-6">
             <div className="flex items-center gap-2">
-              <Label
+              <FieldLabel
                 htmlFor="requiresPrescription"
                 className="cursor-pointer whitespace-nowrap"
+                hint="Marks this as a prescription-only medicine."
               >
                 Requires Prescription (Rx)
-              </Label>
+              </FieldLabel>
               <Switch
                 id="requiresPrescription"
                 checked={formData.requiresPrescription}
@@ -102,12 +154,13 @@ export function ProductAdditionalDetailsFields({
               />
             </div>
             <div className="flex items-center gap-2">
-              <Label
+              <FieldLabel
                 htmlFor="isControlled"
                 className="cursor-pointer whitespace-nowrap"
+                hint="Flags this as a controlled substance."
               >
                 Controlled Substance
-              </Label>
+              </FieldLabel>
               <Switch
                 id="isControlled"
                 checked={formData.isControlled}
@@ -120,9 +173,13 @@ export function ProductAdditionalDetailsFields({
         )}
 
         <div className="pt-2 md:col-span-2 flex items-center gap-2">
-          <Label htmlFor="showOnline" className="cursor-pointer whitespace-nowrap">
+          <FieldLabel
+            htmlFor="showOnline"
+            className="cursor-pointer whitespace-nowrap"
+            hint="Lists this product on your public online store. The online store must also be enabled in Settings."
+          >
             Show Online
-          </Label>
+          </FieldLabel>
           <Switch
             id="showOnline"
             checked={formData.showOnline}

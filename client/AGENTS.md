@@ -4833,6 +4833,10 @@ Call sites (all read the key once, unconditionally, at the top level):
   when the store toggle is on and the key is not; no chip when the store
   toggle is off. `display_stock_levels` is unchanged: a store-wide "no
   numbers at the till for anyone, owners included" switch on top of the key.
+  The tile subtitle also acts as a disambiguator (A-186): when `generic_name`
+  and `strength` are absent or placeholders, it falls back to
+  `barcode · category_name` (or barcode/category alone, or short 8-char id)
+  so imported catalog variants with long names never render identically.
 - `lib/hooks/use-pos-cart.ts` — the two "only N units available" toasts
   become "Not enough stock for that quantity". This reaches barcode scan,
   prescription dispense and held-sale recall too, since they go through
@@ -7691,7 +7695,7 @@ The product detail panel's Batches tab (`product-batch-history.tsx`) lets a user
 
 - **What it writes:** one `update("stock_batches", id, { cost_price })`, rounded to 2 dp, so it syncs as a cost-only UPDATE. A cost-only push is *not* quantity-only, so the server applies its normal strict `_version` check (`SyncEndpointTest::test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells`); no server change was needed. The server does not validate the value, so the client range check (`isValidBatchCostPrice`: finite, 0 to 1,000,000,000) is the only one. An unchanged cost writes nothing.
 - **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`. Without `view_cost_fields` the History tab prints the row without either cost (`describeAuditDetails(..., canViewCost)`; the permission is part of the query key). The Activity Log detail panel does not gate them yet (A-380).
-- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), the cost of future sales via that average, and the cost a later return restocks at (A-374). **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
+- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), and the cost of future sales via that average. **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), customer return valuation (which uses the sale-time `sale_items.cost_price` snapshot to guarantee full returns net COGS to zero, per A-374), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
 - Expired, sold-out and inactive batches are editable on purpose: a zero-quantity batch still feeds Last Bought Price and return valuation.
 
 ## "Average cost" always carries a tooltip
@@ -7961,6 +7965,36 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   returns every product sharing a name+strength or a non-empty barcode with another, and
   `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.
   It is the way to find duplicates that offline tills created before they synced.
+
+## Sentry identity (2026-11-17)
+
+- Every client event carries the store and the staff member: tags `store_id`, `store_name`, `store_type`,
+  `staff_name`, `staff_role` plus the Sentry user (`id`, `username`, `name`, `role`), all set in one place,
+  `applySentryIdentity` (`lib/utils/sentry-identity.ts`), called from `StoreProvider` whenever the signed-in
+  user or the store profile changes. It used to be set only inside the login call, so a till restoring a saved
+  session after a reload sent events with no user at all (DUMOSRX-CLIENT-2J had none).
+- Tags show in Sentry's alert emails and can be searched (`store_name:"..."`); they are the staff member's name
+  and the store's name, never an email address or PIN.
+
+## Service categories (2026-11-17)
+
+- `services.category` stays free text; there is no services category table and no schema change.
+  Service categories are deliberately separate from product `categories` so "Consultation" never
+  appears in the product category picker or product filters.
+- The service form uses `CategoryCombobox` with its `options` prop (the distinct categories of this
+  store's services, via `useServiceCategories`), and saves through `resolveServiceCategory`, which
+  reuses an existing spelling when only case or spacing differs. Case variants already in the data are
+  grouped by `groupServiceCategories` under their most-used spelling; stored values are not rewritten
+  until someone renames the category (`renameServiceCategory`, `clearServiceCategory` update each
+  service through the sync-aware `update()` helper, scoped to the active store).
+- The services tab has a "Services actions" menu beside the search (`ServicesActionsMenu`, same place as the
+  catalog's Product actions): "Export services list" (CSV/XLSX/PDF of the rows on screen, gated by
+  `export_product_list`) and "Manage categories", which opens Settings → Categories on its Services tab
+  (`/settings/categories?type=services`). That page (`CategoriesTabs`) has Products and Services tabs; the
+  Services tab is `ServiceCategoriesCard`, the rename/remove manager. The services list and its category
+  cells follow the store's capitalisation setting like the product catalog.
+- Backward compatibility (§11): nothing about the stored shape changed, so older bundles keep working;
+  they just keep their free-text input.
 
 ## Mobile keyboard and touch targets (2026-11-17)
 

@@ -1,5 +1,4 @@
 import { apiClient } from "@/lib/api/client";
-import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import {
   shouldAttemptAdminTillLogin,
@@ -242,7 +241,6 @@ export async function performLogin(
 
     setters.setUser(userProfile);
     setDbUser(userProfile);
-    Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
     setStoredUser(userProfile);
     // Marks this tab as already having gone through a real auth/unlock this session.
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-auth-context-tsx-L495

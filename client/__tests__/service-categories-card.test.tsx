@@ -11,7 +11,7 @@ vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ activeStoreId: "store-1", storeProfile: { uppercase_display_enabled: 0 } }),
 }));
 
-import { ServiceCategoriesDialog } from "@/components/services/service-categories-dialog";
+import { ServiceCategoriesCard } from "@/components/settings/store/service-categories-card";
 import { getServices } from "@/lib/db/queries/services";
 
 async function freshDb() {
@@ -33,7 +33,7 @@ async function freshDb() {
 function renderDialog() {
   return render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
-      <ServiceCategoriesDialog open onOpenChange={() => {}} />
+      <ServiceCategoriesCard />
     </QueryClientProvider>,
   );
 }
@@ -41,7 +41,7 @@ function renderDialog() {
 const categoriesOf = async () =>
   Object.fromEntries((await getServices({ storeId: "store-1", activeOnly: false })).map((s) => [s.id, s.category ?? null]));
 
-describe("Service categories dialog", () => {
+describe("Service categories card", () => {
   beforeEach(freshDb);
 
   it("lists each category once with how many services use it", async () => {

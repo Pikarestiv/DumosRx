@@ -15,8 +15,7 @@ import { getServices } from "@/lib/db/queries/services";
 import { ServicesList } from "./services-list";
 import { ServiceFormDialog } from "./service-form-dialog";
 import { ServiceDeleteDialog } from "./service-delete-dialog";
-import { ServiceCategoriesDialog } from "./service-categories-dialog";
-import { Button } from "@/components/ui/button";
+import { ServicesActionsMenu } from "./services-actions-menu";
 import { groupServiceCategories, sameServiceCategory } from "@/lib/utils/service-category";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Service } from "@/lib/types/service";
@@ -37,7 +36,6 @@ export function ServicesDatabase() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
 
@@ -117,13 +115,21 @@ export function ServicesDatabase() {
       {/* Mobile Filters (above card) */}
       {!isDesktop && (
         <div className="lg:hidden flex flex-col gap-3">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search services by name, code or category..."
-            aria-label="Search services"
-            inputClassName="bg-card border-border"
-          />
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search services by name, code or category..."
+              aria-label="Search services"
+              inputClassName="bg-card border-border"
+            />
+            <ServicesActionsMenu
+              services={filteredServices}
+              isFiltered={isFiltered}
+              canManageCategories={canManageServices}
+              onManageCategories={() => router.push("/settings/categories?type=services")}
+            />
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <FilterPill
               label="Category"
@@ -148,11 +154,6 @@ export function ServicesDatabase() {
               ]}
               className="bg-card"
             />
-              {canManageServices && categories.length > 1 && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setCategoriesOpen(true)}>
-                  Manage categories
-                </Button>
-              )}
           </div>
         </div>
       )}
@@ -169,6 +170,12 @@ export function ServicesDatabase() {
                 placeholder="Search services by name, code or category..."
                 aria-label="Search services"
               />
+              <ServicesActionsMenu
+              services={filteredServices}
+              isFiltered={isFiltered}
+              canManageCategories={canManageServices}
+              onManageCategories={() => router.push("/settings/categories?type=services")}
+            />
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <FilterPill
@@ -192,11 +199,6 @@ export function ServicesDatabase() {
                   { value: "inactive", label: "Inactive" },
                 ]}
               />
-              {canManageServices && categories.length > 1 && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setCategoriesOpen(true)}>
-                  Manage categories
-                </Button>
-              )}
             </div>
           </div>
         )}
@@ -254,10 +256,6 @@ export function ServicesDatabase() {
           onOpenChange={setFormOpen}
           service={editingService}
         />
-      )}
-
-      {canManageServices && (
-        <ServiceCategoriesDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
       )}
 
       {canDeleteServices && (

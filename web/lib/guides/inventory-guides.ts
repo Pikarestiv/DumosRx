@@ -250,7 +250,8 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Open Inventory, then Services, and tap Add Service (or the pencil on an existing one).",
       "Click the Category box. Your existing categories are listed; pick one, or type a new name and choose 'Create' to add it.",
       "If you type a name that only differs by capital letters from an existing category, DumosRx uses the existing one.",
-      "To tidy up, tap 'Manage categories' beside the filters. Use the pencil to rename a category on every service that uses it, or the bin to remove it. Removed categories leave those services as Uncategorized.",
+      "To tidy up, open 'Services actions' beside the search box and choose 'Manage categories'. In Settings, on the Services tab, use the pencil to rename a category on every service that uses it, or the bin to remove it. Removed categories leave those services as Uncategorized.",
+      "The same 'Services actions' menu has 'Export services list' to download the services you are looking at as CSV, Excel or PDF.",
     ],
     proTip:
       "Rename a category once here instead of editing services one by one. The new name shows on the POS service tiles and the services list straight away.",

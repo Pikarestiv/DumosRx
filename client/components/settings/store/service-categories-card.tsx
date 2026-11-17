@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,7 @@ import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useServiceCategories, useServiceCategoryMutations } from "@/lib/hooks/use-service-categories";
 import { pluralize } from "@/lib/utils";
 
-interface ServiceCategoriesDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-export function ServiceCategoriesDialog({ open, onOpenChange }: ServiceCategoriesDialogProps) {
+export function ServiceCategoriesCard() {
   const capsClass = useUppercaseDisplayClass();
   const categories = useServiceCategories();
   const { rename, remove } = useServiceCategoryMutations();
@@ -41,14 +36,14 @@ export function ServiceCategoriesDialog({ open, onOpenChange }: ServiceCategorie
 
   return (
     <>
-      <ResponsiveModal
-        open={open}
-        onOpenChange={onOpenChange}
-        title="Service categories"
-        description="Rename a category to change it on every service that uses it. Removing one leaves those services uncategorised."
-        className="sm:max-w-md"
-      >
-        <div className="space-y-2 pb-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Service categories</CardTitle>
+          <CardDescription>
+            Rename a category to change it on every service that uses it. Removing one leaves those services uncategorised.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
           {categories.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center">
               No categories yet. Add one when you create or edit a service.
@@ -94,8 +89,8 @@ export function ServiceCategoriesDialog({ open, onOpenChange }: ServiceCategorie
               )}
             </div>
           ))}
-        </div>
-      </ResponsiveModal>
+        </CardContent>
+      </Card>
 
       <ConfirmDialog
         open={!!pendingRemove}

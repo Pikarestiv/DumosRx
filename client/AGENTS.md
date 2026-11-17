@@ -7967,8 +7967,12 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   grouped by `groupServiceCategories` under their most-used spelling; stored values are not rewritten
   until someone renames the category (`renameServiceCategory`, `clearServiceCategory` update each
   service through the sync-aware `update()` helper, scoped to the active store).
-- "Manage categories" (services tab, managers only) opens `ServiceCategoriesDialog`. The services list
-  and its category cells follow the store's capitalisation setting like the product catalog.
+- The services tab has a "Services actions" menu beside the search (`ServicesActionsMenu`, same place as the
+  catalog's Product actions): "Export services list" (CSV/XLSX/PDF of the rows on screen, gated by
+  `export_product_list`) and "Manage categories", which opens Settings → Categories on its Services tab
+  (`/settings/categories?type=services`). That page (`CategoriesTabs`) has Products and Services tabs; the
+  Services tab is `ServiceCategoriesCard`, the rename/remove manager. The services list and its category
+  cells follow the store's capitalisation setting like the product catalog.
 - Backward compatibility (§11): nothing about the stored shape changed, so older bundles keep working;
   they just keep their free-text input.
 

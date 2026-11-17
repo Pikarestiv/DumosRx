@@ -4,6 +4,8 @@ import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provi
 import { apiClient } from "@/lib/api/base-client";
 import { parseStorefrontScope } from "@/lib/storefront-scope";
 import { useCartStore } from "@/lib/store/use-cart-store";
+import { isServiceLine } from "@/lib/storefront-cart-lines";
+import type { StorefrontService } from "@/lib/api/storefront-services";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 const MAX_REPRICED_ITEMS = 100;
@@ -13,12 +15,6 @@ interface CatalogResponse {
   store?: { currency?: string | null; online_payment_available?: boolean };
 }
 
-/**
- * Re-prices a storefront cart against the live catalog on mount: the server
- * prices an order from product_id + quantity, never from the cart's cached
- * prices. See docs/KNOWN_BUGS.md history for why a failure here has to be
- * surfaced rather than presented as confirmed pricing.
- */
 export function useCartRepricing(storeSlug: string) {
   const i18n = useStorefrontI18n();
   const latestI18n = useRef(i18n);
@@ -44,9 +40,18 @@ export function useCartRepricing(storeSlug: string) {
       try {
         const asked = items.slice(0, MAX_REPRICED_ITEMS);
         const { slug, branch } = parseStorefrontScope(storeSlug);
-        const { data } = await apiClient.get<CatalogResponse>(`/storefront/${slug}/products`, {
-          params: { ids: asked.map((item) => item.id).join(","), per_page: MAX_REPRICED_ITEMS, ...(branch ? { branch } : {}) },
-        });
+        const bookedServices = items.filter(isServiceLine);
+        const [{ data }, liveServices] = await Promise.all([
+          apiClient.get<CatalogResponse>(`/storefront/${slug}/products`, {
+            params: { ids: asked.map((item) => item.id).join(","), per_page: MAX_REPRICED_ITEMS, ...(branch ? { branch } : {}) },
+          }),
+          bookedServices.length === 0
+            ? Promise.resolve([])
+            : apiClient
+                .get<{ data?: StorefrontService[] }>(`/storefront/${slug}/services`, { params: branch ? { branch } : {} })
+                .then(({ data: services }) => services.data ?? [])
+                .catch(() => null),
+        ]);
         if (cancelled) return;
 
         const askedIds = new Set(asked.map((item) => item.id));
@@ -61,6 +66,13 @@ export function useCartRepricing(storeSlug: string) {
         const prices: Record<string, number> = {};
         for (const product of data.data ?? []) {
           prices[product.id] = parseFloat(String(product.selling_price));
+        }
+        const booked = new Set(bookedServices.map((item) => item.id));
+        for (const service of liveServices ?? []) {
+          if (booked.has(service.id)) prices[service.id] = Number(service.price);
+        }
+        if (liveServices === null) {
+          for (const item of bookedServices) prices[item.id] = item.price;
         }
         for (const item of items.slice(MAX_REPRICED_ITEMS)) prices[item.id] = item.price;
 

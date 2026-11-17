@@ -62,9 +62,17 @@ export const EN_MESSAGES = {
   "stock.out": "Out of stock",
 
   "services.heading": "Services",
-  "services.subtitle": "Message the store to book or ask about any of these.",
+  "services.subtitle": "Add a service to your cart to book it, on its own or with products. Pay now online, or pay at the store when you come in.",
   "services.enquire": "Enquire on WhatsApp",
   "services.enquireMessage": "Hi, I would like to ask about {name}.",
+  "services.count.one": "{count} service",
+  "services.count.other": "{count} services",
+  "services.book.aria": "Book: {name}",
+  "services.more.aria": "Show all {count} services",
+  "services.showMore": "Show more services",
+  "products.more.aria": "See every product in the shop",
+  "grid.more": "more",
+  "booking.tag": "Booking",
 
   "steps.heading": "How ordering works",
   "steps.choose.title": "Choose",
@@ -75,6 +83,11 @@ export const EN_MESSAGES = {
   "steps.collect.title": "Collect",
   "steps.collect.body.pharmacy": "Our pharmacy team prepares your order and may contact you on the number you gave to confirm it.",
   "steps.collect.body.retail": "The store prepares your order and may contact you on the number you gave to confirm it.",
+  "steps.choose.body.services": "Add products or services to your cart. A service in your cart is a booking: there is no time slot to pick, the store contacts you to arrange it.",
+  "steps.choose.rxNote": "Prescription items need a valid prescription at pickup.",
+  "steps.pay.body.services": "Pay now, online or by transfer or mobile money where the store offers it, or pay at the store when you collect your order or come in for your service.",
+  "steps.collect.title.services": "Collect or come in",
+  "steps.collect.body.services": "The store prepares your order or confirms your booking and may contact you on the number you gave. Your order code is also your booking code.",
 
   "footer.powered": "Powered by {host}",
 
@@ -177,6 +190,8 @@ export const EN_MESSAGES = {
   "order.contact": "Questions? Contact {store}: {phone}",
   "order.backToStore": "Back to the store",
   "order.loading": "Loading your order…",
+  "order.print": "Print confirmation",
+  "order.bookingNote": "Your booking is held under this code. The store will contact you to arrange a time; bring the code when you come in.",
   "order.notFound": "We couldn't find that order. Check the link, or contact the store.",
   "order.meta": "Your order — {name}",
 

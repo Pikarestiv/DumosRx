@@ -52,6 +52,25 @@ describe("checkout details", () => {
     window.sessionStorage.clear();
   });
 
+  it("sends a booked service as a service line beside the products in one order", async () => {
+    const products = cart.items;
+    cart.items = [...products, { id: "svc-1", name: "Scaling", price: 25000, quantity: 1, kind: "service" } as (typeof products)[number]];
+    try {
+      renderForm();
+      fillContact();
+      await placeOrder();
+
+      await waitFor(() => expect(postMock).toHaveBeenCalled());
+      expect(sentBody().items).toEqual([
+        { product_id: "p1", quantity: 2 },
+        { service_id: "svc-1", quantity: 1 },
+      ]);
+      expect(screen.getByText(/Scaling \(x1\) · Booking/)).toBeTruthy();
+    } finally {
+      cart.items = products;
+    }
+  });
+
   it("offers no transfer option when the store has given no payment details, because customers could not pay", async () => {
     renderForm();
 

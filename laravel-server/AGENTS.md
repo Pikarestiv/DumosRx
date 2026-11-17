@@ -4913,6 +4913,54 @@ Any query assembling the tenant's allowed user IDs for sync authorization must u
 - **Admin Purge Sweeper:**
   - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.
 
+## Storefront service bookings (2026-11-17)
+
+Design: `docs/superpowers/specs/2026-11-17-storefront-service-booking-design.md`.
+A booking is an ordinary storefront order whose lines name a service.
+
+- **Schema (add, don't repurpose).** `online_order_items.service_id` (nullable,
+  indexed) sits beside `product_id`, which became nullable. A line carries exactly
+  one: `StorefrontCheckoutRules::itemRules()` (shared by checkout and
+  `checkout/initialize`) requires one and prohibits both. `online_order_items` is
+  not a sync table, so there is no client schema to mirror.
+- **Pricing.** `StorefrontCheckoutService::priceCart()` prices product lines as
+  before and service lines from `services.price`. A service is bookable only when
+  it is active, belongs to the branch being ordered from, and the owner's
+  storefront has `show_services` on; anything else is a 404, the same answer a
+  product outside the catalogue gets. Service lines skip `checkAvailability()`
+  and never count toward `availableQuantity()`, which only reads `product_id`.
+- **Paystack.** The intent stores the priced lines, service lines included.
+  `StorefrontPaymentIntent::cartFingerprint()` maps a cart to
+  `product_id => quantity` (or `service:<id> => quantity` for a service line),
+  key-sorted so two orderings of one cart compare equal; checkout uses it to
+  assert the confirmed order is the cart that was paid for, and the refund of an
+  unfulfillable paid checkout uses it the same way. Product keys are unchanged,
+  so intents minted before this change still match. The `service:` prefix keeps a
+  service and a product that share an id apart and is the permanent key scheme, not
+  a shim; the only compatibility point is that a product key stays the bare
+  `product_id`, which can change once no intent minted before 2026-11-17 is still
+  claimable (`storefront:sweep-payment-intents` settles stale ones after `payment.storefront_intent_stale_minutes`, 60 by default).
+- **A service with no price is not bookable.** `bookableServices()` also requires
+  `price > 0`, so a crafted request cannot book a "price on request" service at 0
+  and have the till fulfil it as a free sale; the storefront shows Enquire on
+  WhatsApp for those.
+- **Old tills (§11).** `GET /app/online-orders` keeps `items` as product lines
+  only (`OnlineOrder::items()` is `whereNull('service_id')`) and returns booked
+  services in a new `service_items` array (`OnlineOrder::serviceItems()`, with
+  `service`, trashed included). A till older than this change reads only `items`,
+  so it never meets a line without a product, which its fulfil path would have
+  sent to `getBatchesForProduct(null)`. Such a till still records the order's full
+  `total_amount` on the local sale without the service lines; that is the accepted
+  cost. The split is the permanent shape, not a shim: new tills read both arrays.
+  **`$order->items` is product lines only.** Anything that needs every line of an
+  order (a total, a report, a refund, an export) must load `serviceItems` too.
+- **Rolling back** the `service_id` migration deletes the service-only lines
+  (`product_id` NULL) before restoring `product_id` to NOT NULL, so their orders keep
+  a total with no lines behind it (`OnlineOrderItemServiceIdMigrationTest`).
+- **Order lookup and emails.** `trackOrder` appends service lines to `items` with
+  the service name in `product_name` and `is_service: true`, so an older web
+  bundle still renders them. `_order_summary.blade.php` lists both kinds.
+
 ## Product images (2026-11-14)
 
 Design and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`. The server-side rules:

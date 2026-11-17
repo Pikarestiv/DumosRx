@@ -89,4 +89,19 @@ describe("Services Inventory Management & Tab Routing", () => {
     const afterDelete = await getServices({ storeId: STORE_ID, activeOnly: false });
     expect(afterDelete).toHaveLength(0);
   });
+
+  it("writes every service create, edit, price change and delete to the activity log", async () => {
+    db.run("DELETE FROM audit_logs;");
+    const srvId = await createService({ store_id: STORE_ID, name: "Consultation", code: null, category: null, price: 5000, description: null, is_active: 1 });
+
+    await updateServiceDetails(srvId, { price: 6500 });
+    await updateServiceDetails(srvId, { name: "GP consultation" });
+    await deleteService(srvId);
+
+    const rows = db.exec(`SELECT action, details FROM audit_logs WHERE table_name = 'services' AND record_id = ? ORDER BY created_at, rowid`, [srvId])[0].values;
+    expect(rows.map(([action]) => action)).toEqual(["INSERT", "UPDATE", "UPDATE", "DELETE"]);
+    const priceChange = JSON.parse(String(rows[1][1]));
+    expect([priceChange.previous_price, priceChange.price]).toEqual([5000, 6500]);
+    expect(JSON.parse(String(rows[2][1])).previous_price).toBeUndefined();
+  });
 });

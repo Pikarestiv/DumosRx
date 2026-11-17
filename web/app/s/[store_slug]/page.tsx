@@ -83,7 +83,7 @@ export default async function StorefrontPage({
           catalogHref={catalogHref}
         />
         {storefront?.show_services ? <StorefrontServices storeSlug={store_slug} currency={store.currency} whatsapp={whatsapp} /> : null}
-        <OrderingSteps isPharmacy={isPharmacyStore(store)} />
+        <OrderingSteps isPharmacy={isPharmacyStore(store)} hasServices={Boolean(storefront?.show_services)} />
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

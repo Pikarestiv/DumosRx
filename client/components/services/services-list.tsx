@@ -2,10 +2,30 @@
 
 import { Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
+import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { formatCurrency } from "@/lib/utils";
 import type { Service } from "@/lib/types/service";
+
+type ServiceSortKey = "name" | "code" | "category" | "price" | "status";
+
+const SERVICE_SORT_ACCESSORS: Record<ServiceSortKey, (service: Service) => string | number> = {
+  name: (service) => service.name.toLowerCase(),
+  code: (service) => (service.code ?? "").toLowerCase(),
+  category: (service) => (service.category ?? "").toLowerCase(),
+  price: (service) => Number(service.price) || 0,
+  status: (service) => (service.is_active ? 0 : 1),
+};
+
+const SORTABLE_COLUMNS: { key: ServiceSortKey; label: string; thClass: string; buttonClass: string }[] = [
+  { key: "name", label: "Service Name", thClass: "", buttonClass: "" },
+  { key: "code", label: "Code", thClass: "", buttonClass: "" },
+  { key: "category", label: "Category", thClass: "", buttonClass: "" },
+  { key: "price", label: "Price", thClass: "text-right", buttonClass: "ml-auto" },
+  { key: "status", label: "Status", thClass: "text-center", buttonClass: "mx-auto" },
+];
 
 interface ServicesListProps {
   services: Service[];
@@ -51,11 +71,12 @@ export function ServicesList({
 }: ServicesListProps) {
   const isDesktop = useMediaQuery("(min-width: 640px)");
   const capsClass = useUppercaseDisplayClass();
+  const { sortKey, direction, toggleSort, sortedData } = useSortableData(services, SERVICE_SORT_ACCESSORS);
 
   if (!isDesktop) {
     return (
       <div className="pb-3 sm:p-4 space-y-2.5">
-        {services.map((srv) => (
+        {sortedData.map((srv) => (
           <div
             key={srv.id}
             data-service-card-mobile
@@ -108,16 +129,22 @@ export function ServicesList({
       <table className="w-full text-left text-xs">
         <thead className="bg-muted/40 border-b border-border text-muted-foreground font-semibold">
           <tr>
-            <th className="py-3 px-4">Service Name</th>
-            <th className="py-3 px-4">Code</th>
-            <th className="py-3 px-4">Category</th>
-            <th className="py-3 px-4 text-right">Price</th>
-            <th className="py-3 px-4 text-center">Status</th>
+            {SORTABLE_COLUMNS.map((column) => (
+              <th key={column.key} className={`py-3 px-4 ${column.thClass}`}>
+                <SortableHeaderCell
+                  label={column.label}
+                  active={sortKey === column.key}
+                  direction={direction}
+                  onClick={() => toggleSort(column.key)}
+                  className={column.buttonClass}
+                />
+              </th>
+            ))}
             <th className="py-3 px-4 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
-          {services.map((srv) => (
+          {sortedData.map((srv) => (
             <tr key={srv.id} className="hover:bg-muted/20 transition-colors">
               <td className="py-3 px-4 font-medium text-foreground">
                 <div className={capsClass}>{srv.name}</div>

@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { POSServiceCard } from "./pos-service-card";
+import { POSCategoryFilter } from "./pos-category-filter";
 import type { Service } from "@/lib/types/service";
 import type { CartItem } from "@/lib/hooks/use-pos-cart";
 
@@ -86,7 +87,6 @@ export function POSServiceList({
 
   return (
     <div className="flex flex-col gap-4 flex-1 overflow-hidden">
-      {/* Mobile-only Search Bar (Desktop uses top header search) */}
       {onSearchChange && (
         <div className="relative sm:hidden shrink-0 mx-1 mt-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -99,38 +99,10 @@ export function POSServiceList({
         </div>
       )}
 
-      {/* Category Filter Pills */}
-      {categories.length > 0 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none shrink-0">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
-              selectedCategory === "all"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "bg-muted/60 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            All
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground font-semibold"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="shrink-0">
+        <POSCategoryFilter categories={categories} value={selectedCategory} onChange={setSelectedCategory} />
+      </div>
 
-      {/* Services Grid or Empty State */}
       <div className="flex-1 overflow-y-auto pr-1">
         {filteredServices.length === 0 ? (
           <div className="border border-dashed rounded-2xl border-border bg-card/50">

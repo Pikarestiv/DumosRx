@@ -47,12 +47,25 @@ describe("storefront home page", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.unstubAllGlobals());
 
-  it("features only eight products and links to the shop with the full count", async () => {
+  it("fills two rows and ends them with a '+ N more' tile into the shop, beside the full-count link", async () => {
     await renderHome(storefrontData());
 
     const featured = screen.getByRole("region", { name: "Products" });
-    expect(within(featured).getAllByRole("button", { name: /^add to cart:/i })).toHaveLength(8);
+    expect(within(featured).getAllByRole("button", { name: /^add to cart:/i })).toHaveLength(9);
+    const more = within(featured).getByRole("link", { name: "See every product in the shop" });
+    expect(more.getAttribute("href")).toBe("/s/grace/catalog");
+    expect(more.textContent).toContain("+13");
+    expect(more.textContent).toContain("+11");
     expect(screen.getByRole("link", { name: /view all 20 products/i }).getAttribute("href")).toBe("/s/grace/catalog");
+  });
+
+  it("explains that services are booked through the cart when the store lists services", async () => {
+    await renderHome(storefrontData({ storefront: { id: "f1", slug: "grace", name: "Grace Pharmacy", show_services: true } }));
+
+    const steps = within(screen.getByRole("region", { name: "How ordering works" })).getAllByRole("listitem");
+    expect(steps.map((step) => within(step).getByRole("heading").textContent)).toEqual(["Choose", "Pay", "Collect or come in"]);
+    expect(screen.getByText(/a service in your cart is a booking/i)).toBeTruthy();
+    expect(screen.getByText(/pay at the store when you collect your order or come in for your service/i)).toBeTruthy();
   });
 
   it("filters the grid by category chip without leaving the page", async () => {

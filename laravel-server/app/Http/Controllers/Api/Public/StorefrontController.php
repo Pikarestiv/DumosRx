@@ -205,7 +205,8 @@ class StorefrontController extends Controller
             new OA\Property(property: 'customer_email', type: 'string'),
             new OA\Property(property: 'branch_id', type: 'string', nullable: true),
             new OA\Property(property: 'items', type: 'array', items: new OA\Items(properties: [
-                new OA\Property(property: 'product_id', type: 'string'),
+                new OA\Property(property: 'product_id', type: 'string', nullable: true),
+                new OA\Property(property: 'service_id', type: 'string', nullable: true, description: 'A bookable service instead of a product; exactly one of product_id or service_id per line.'),
                 new OA\Property(property: 'quantity', type: 'integer'),
             ])),
         ])),
@@ -247,9 +248,7 @@ class StorefrontController extends Controller
         $validated = $request->validate([
             'customer_email' => 'required|email|max:255',
             'branch_id' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|uuid|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            ...StorefrontCheckoutRules::itemRules(),
         ]);
 
         return $this->checkoutService->initializePayment(
@@ -272,7 +271,8 @@ class StorefrontController extends Controller
             new OA\Property(property: 'paystack_reference', type: 'string', nullable: true),
             new OA\Property(property: 'branch_id', type: 'string', nullable: true),
             new OA\Property(property: 'items', type: 'array', items: new OA\Items(properties: [
-                new OA\Property(property: 'product_id', type: 'string'),
+                new OA\Property(property: 'product_id', type: 'string', nullable: true),
+                new OA\Property(property: 'service_id', type: 'string', nullable: true, description: 'A bookable service instead of a product; exactly one of product_id or service_id per line.'),
                 new OA\Property(property: 'quantity', type: 'integer'),
             ])),
         ])),

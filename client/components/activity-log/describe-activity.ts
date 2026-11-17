@@ -32,6 +32,9 @@ const TABLE_NOUNS: Record<string, string> = {
   system_configs: "system setting",
   requested_products: "product request",
   supplier_payments: "supplier payment",
+  services: "service",
+  sale_services: "sale service line",
+  return_services: "return service line",
 };
 
 // Nouns that read naturally without "a"/"an" in front of them.

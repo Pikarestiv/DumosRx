@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockFlow: Products & Inventory</title>
+<style>*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.\!container{width:100%!important}.container{width:100%}@media (min-width:640px){.\!container{max-width:640px!important}.container{max-width:640px}}@media (min-width:768px){.\!container{max-width:768px!important}.container{max-width:768px}}@media (min-width:1024px){.\!container{max-width:1024px!important}.container{max-width:1024px}}@media (min-width:1280px){.\!container{max-width:1280px!important}.container{max-width:1280px}}@media (min-width:1536px){.\!container{max-width:1536px!important}.container{max-width:1536px}}.static{position:static}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0}.-right-1{right:-.25rem}.-top-1{top:-.25rem}.bottom-0{bottom:0}.left-1{left:.25rem}.left-1\/2{left:50%}.right-1{right:.25rem}.right-1\.5{right:.375rem}.top-0{top:0}.top-1{top:.25rem}.top-1\.5{top:.375rem}.z-10{z-index:10}.z-20{z-index:20}.z-\[3\]{z-index:3}.z-\[4\]{z-index:4}.z-\[6\]{z-index:6}.-mx-4{margin-left:-1rem;margin-right:-1rem}.mx-4{margin-left:1rem;margin-right:1rem}.mx-auto{margin-left:auto;margin-right:auto}.-mt-\[30px\]{margin-top:-30px}.mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-2\.5{margin-bottom:.625rem}.mb-3{margin-bottom:.75rem}.mb-3\.5{margin-bottom:.875rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.mb-6{margin-bottom:1.5rem}.mb-7{margin-bottom:1.75rem}.mb-\[18px\]{margin-bottom:18px}.ml-auto{margin-left:auto}.mt-0{margin-top:0}.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-2\.5{margin-top:.625rem}.mt-3{margin-top:.75rem}.mt-4{margin-top:1rem}.mt-5{margin-top:1.25rem}.block{display:block}.flex{display:flex}.inline-flex{display:inline-flex}.table{display:table}.grid{display:grid}.hidden{display:none}.h-1{height:.25rem}.h-1\.5{height:.375rem}.h-10{height:2.5rem}.h-11{height:2.75rem}.h-12{height:3rem}.h-14{height:3.5rem}.h-16{height:4rem}.h-2{height:.5rem}.h-2\.5{height:.625rem}.h-3{height:.75rem}.h-3\.5{height:.875rem}.h-4{height:1rem}.h-6{height:1.5rem}.h-7{height:1.75rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-\[15px\]{height:15px}.h-\[17px\]{height:17px}.h-\[21px\]{height:21px}.h-\[22px\]{height:22px}.h-\[26px\]{height:26px}.h-\[30px\]{height:30px}.h-\[34px\]{height:34px}.h-\[38px\]{height:38px}.h-\[52px\]{height:52px}.h-\[844px\]{height:844px}.h-full{height:100%}.min-h-0{min-height:0}.min-h-\[860px\]{min-height:860px}.w-1{width:.25rem}.w-1\.5{width:.375rem}.w-10{width:2.5rem}.w-11{width:2.75rem}.w-12{width:3rem}.w-14{width:3.5rem}.w-16{width:4rem}.w-2{width:.5rem}.w-2\.5{width:.625rem}.w-20{width:5rem}.w-24{width:6rem}.w-3{width:.75rem}.w-3\.5{width:.875rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-7{width:1.75rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-\[120px\]{width:120px}.w-\[15px\]{width:15px}.w-\[17px\]{width:17px}.w-\[21px\]{width:21px}.w-\[22px\]{width:22px}.w-\[30px\]{width:30px}.w-\[34px\]{width:34px}.w-\[38px\]{width:38px}.w-\[390px\]{width:390px}.w-\[440px\]{width:440px}.w-\[52px\]{width:52px}.w-fit{width:-moz-fit-content;width:fit-content}.w-full{width:100%}.min-w-0{min-width:0}.min-w-\[140px\]{min-width:140px}.min-w-\[16px\]{min-width:16px}.max-w-\[1360px\]{max-width:1360px}.max-w-\[560px\]{max-width:560px}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.-translate-x-1{--tw-translate-x:-0.25rem}.-translate-x-1,.-translate-x-1\/2{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.-translate-x-1\/2{--tw-translate-x:-50%}.cursor-pointer{cursor:pointer}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-\[100px_1fr_130px_100px_1fr_120px\]{grid-template-columns:100px 1fr 130px 100px 1fr 120px}.grid-cols-\[1fr_110px_90px_100px_90px\]{grid-template-columns:1fr 110px 90px 100px 90px}.grid-cols-\[1fr_380px\]{grid-template-columns:1fr 380px}.grid-cols-\[76px_1fr\]{grid-template-columns:76px 1fr}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-start{align-items:flex-start}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-around{justify-content:space-around}.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-3\.5{gap:.875rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}.gap-\[3px\]{gap:3px}.divide-y>:not([hidden])~:not([hidden]){--tw-divide-y-reverse:0;border-top-width:calc(1px*(1 - var(--tw-divide-y-reverse)));border-bottom-width:calc(1px*var(--tw-divide-y-reverse))}.divide-\[\#E6EAF2\]>:not([hidden])~:not([hidden]){--tw-divide-opacity:1;border-color:rgb(230 234 242/var(--tw-divide-opacity,1))}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded{border-radius:.25rem}.rounded-2xl{border-radius:1rem}.rounded-\[10px\]{border-radius:10px}.rounded-\[11px\]{border-radius:11px}.rounded-\[14px\]{border-radius:14px}.rounded-\[20px\]{border-radius:20px}.rounded-\[44px\]{border-radius:44px}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.rounded-xl{border-radius:.75rem}.rounded-b-2xl{border-bottom-right-radius:1rem;border-bottom-left-radius:1rem}.rounded-t-\[24px\]{border-top-left-radius:24px;border-top-right-radius:24px}.border{border-width:1px}.border-0{border-width:0}.border-2{border-width:2px}.border-4{border-width:4px}.border-\[1\.5px\]{border-width:1.5px}.border-\[10px\]{border-width:10px}.border-b{border-bottom-width:1px}.border-l-2{border-left-width:2px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\[\#1A1D23\]{--tw-border-opacity:1;border-color:rgb(26 29 35/var(--tw-border-opacity,1))}.border-\[\#2054E0\]{--tw-border-opacity:1;border-color:rgb(32 84 224/var(--tw-border-opacity,1))}.border-\[\#C9D3E4\]{--tw-border-opacity:1;border-color:rgb(201 211 228/var(--tw-border-opacity,1))}.border-\[\#D3F2E1\]{--tw-border-opacity:1;border-color:rgb(211 242 225/var(--tw-border-opacity,1))}.border-\[\#E6EAF2\]{--tw-border-opacity:1;border-color:rgb(230 234 242/var(--tw-border-opacity,1))}.border-\[\#FBD5D2\]{--tw-border-opacity:1;border-color:rgb(251 213 210/var(--tw-border-opacity,1))}.border-\[\#FEE3B3\]{--tw-border-opacity:1;border-color:rgb(254 227 179/var(--tw-border-opacity,1))}.border-\[\#FFFFFF\]{--tw-border-opacity:1;border-color:rgb(255 255 255/var(--tw-border-opacity,1))}.border-l-\[\#2054E0\]{--tw-border-opacity:1;border-left-color:rgb(32 84 224/var(--tw-border-opacity,1))}.bg-\[\#12B76A\]{--tw-bg-opacity:1;background-color:rgb(18 183 106/var(--tw-bg-opacity,1))}.bg-\[\#1A1D23\]{--tw-bg-opacity:1;background-color:rgb(26 29 35/var(--tw-bg-opacity,1))}.bg-\[\#2054E0\]{--tw-bg-opacity:1;background-color:rgb(32 84 224/var(--tw-bg-opacity,1))}.bg-\[\#DCE3EE\]{--tw-bg-opacity:1;background-color:rgb(220 227 238/var(--tw-bg-opacity,1))}.bg-\[\#E6EAF2\]{--tw-bg-opacity:1;background-color:rgb(230 234 242/var(--tw-bg-opacity,1))}.bg-\[\#EAF0FE\]{--tw-bg-opacity:1;background-color:rgb(234 240 254/var(--tw-bg-opacity,1))}.bg-\[\#ECFDF3\]{--tw-bg-opacity:1;background-color:rgb(236 253 243/var(--tw-bg-opacity,1))}.bg-\[\#F04438\]{--tw-bg-opacity:1;background-color:rgb(240 68 56/var(--tw-bg-opacity,1))}.bg-\[\#F0F9FF\]{--tw-bg-opacity:1;background-color:rgb(240 249 255/var(--tw-bg-opacity,1))}.bg-\[\#F3F7FF\]{--tw-bg-opacity:1;background-color:rgb(243 247 255/var(--tw-bg-opacity,1))}.bg-\[\#F5F8FC\]{--tw-bg-opacity:1;background-color:rgb(245 248 252/var(--tw-bg-opacity,1))}.bg-\[\#FEF3F2\]{--tw-bg-opacity:1;background-color:rgb(254 243 242/var(--tw-bg-opacity,1))}.bg-\[\#FFFAEB\]{--tw-bg-opacity:1;background-color:rgb(255 250 235/var(--tw-bg-opacity,1))}.bg-\[\#FFFFFF\]{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-\[rgba\(16\2c 24\2c 40\2c 0\.42\)\]{background-color:rgba(16,24,40,.42)}.bg-transparent{background-color:transparent}.p-1{padding:.25rem}.p-3{padding:.75rem}.p-3\.5{padding:.875rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.p-\[18px\]{padding:18px}.px-1{padding-left:.25rem;padding-right:.25rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-3\.5{padding-left:.875rem;padding-right:.875rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-\[18px\]{padding-left:18px;padding-right:18px}.px-\[22px\]{padding-left:22px;padding-right:22px}.px-\[3px\]{padding-left:3px;padding-right:3px}.py-0{padding-top:0;padding-bottom:0}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-10{padding-top:2.5rem;padding-bottom:2.5rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-3\.5{padding-top:.875rem;padding-bottom:.875rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-5{padding-top:1.25rem;padding-bottom:1.25rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.py-8{padding-top:2rem;padding-bottom:2rem}.py-\[18px\]{padding-top:18px;padding-bottom:18px}.pb-1{padding-bottom:.25rem}.pb-3{padding-bottom:.75rem}.pb-3\.5{padding-bottom:.875rem}.pb-4{padding-bottom:1rem}.pb-8{padding-bottom:2rem}.pb-\[100px\]{padding-bottom:100px}.pl-2{padding-left:.5rem}.pl-2\.5{padding-left:.625rem}.pr-3{padding-right:.75rem}.pt-2{padding-top:.5rem}.pt-2\.5{padding-top:.625rem}.pt-3{padding-top:.75rem}.pt-3\.5{padding-top:.875rem}.pt-4{padding-top:1rem}.pt-5{padding-top:1.25rem}.text-center{text-align:center}.text-right{text-align:right}.font-\[\'Inter\'\]{font-family:Inter}.font-\[\'Space_Grotesk\'\]{font-family:Space Grotesk}.text-2xl{font-size:1.5rem;line-height:2rem}.text-\[10\.5px\]{font-size:10.5px}.text-\[10px\]{font-size:10px}.text-\[11\.5px\]{font-size:11.5px}.text-\[11px\]{font-size:11px}.text-\[12\.5px\]{font-size:12.5px}.text-\[12px\]{font-size:12px}.text-\[13\.5px\]{font-size:13.5px}.text-\[13px\]{font-size:13px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[16px\]{font-size:16px}.text-\[17px\]{font-size:17px}.text-\[18px\]{font-size:18px}.text-\[19px\]{font-size:19px}.text-\[30px\]{font-size:30px}.text-\[34px\]{font-size:34px}.text-\[9px\]{font-size:9px}.text-base{font-size:1rem;line-height:1.5rem}.text-lg{font-size:1.125rem}.text-lg,.text-xl{line-height:1.75rem}.text-xl{font-size:1.25rem}.text-xs{font-size:.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-tight{letter-spacing:-.025em}.tracking-wide{letter-spacing:.025em}.text-\[\#026AA2\]{--tw-text-opacity:1;color:rgb(2 106 162/var(--tw-text-opacity,1))}.text-\[\#067647\]{--tw-text-opacity:1;color:rgb(6 118 71/var(--tw-text-opacity,1))}.text-\[\#101828\]{--tw-text-opacity:1;color:rgb(16 24 40/var(--tw-text-opacity,1))}.text-\[\#153C9E\]{--tw-text-opacity:1;color:rgb(21 60 158/var(--tw-text-opacity,1))}.text-\[\#2054E0\]{--tw-text-opacity:1;color:rgb(32 84 224/var(--tw-text-opacity,1))}.text-\[\#344054\]{--tw-text-opacity:1;color:rgb(52 64 84/var(--tw-text-opacity,1))}.text-\[\#667085\]{--tw-text-opacity:1;color:rgb(102 112 133/var(--tw-text-opacity,1))}.text-\[\#98A2B3\]{--tw-text-opacity:1;color:rgb(152 162 179/var(--tw-text-opacity,1))}.text-\[\#B42318\]{--tw-text-opacity:1;color:rgb(180 35 24/var(--tw-text-opacity,1))}.text-\[\#B54708\]{--tw-text-opacity:1;color:rgb(181 71 8/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.shadow-\[0_1px_2px_rgba\(16\2c 24\2c 40\2c 0\.04\)\2c 0_1px_3px_rgba\(16\2c 24\2c 40\2c 0\.03\)\]{--tw-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.03);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color),0 1px 3px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_1px_2px_rgba\(32\2c 84\2c 224\2c 0\.25\)\]{--tw-shadow:0 1px 2px rgba(32,84,224,.25);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_20px_60px_rgba\(16\2c 24\2c 40\2c 0\.18\)\]{--tw-shadow:0 20px 60px rgba(16,24,40,.18);--tw-shadow-colored:0 20px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_30px_60px_rgba\(16\2c 24\2c 40\2c 0\.35\)\]{--tw-shadow:0 30px 60px rgba(16,24,40,.35);--tw-shadow-colored:0 30px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_6px_16px_rgba\(32\2c 84\2c 224\2c 0\.4\)\]{--tw-shadow:0 6px 16px rgba(32,84,224,.4);--tw-shadow-colored:0 6px 16px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_8px_24px_rgba\(16\2c 24\2c 40\2c 0\.14\)\]{--tw-shadow:0 8px 24px rgba(16,24,40,.14);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.\[scrollbar-width\:none\]{scrollbar-width:none}.after\:absolute:after{content:var(--tw-content);position:absolute}.after\:-inset-1:after{content:var(--tw-content);inset:-.25rem}@keyframes ping{75%,to{content:var(--tw-content);transform:scale(2);opacity:0}}.after\:animate-ping:after{content:var(--tw-content);animation:ping 1s cubic-bezier(0,0,.2,1) infinite}.after\:rounded-full:after{content:var(--tw-content);border-radius:9999px}.after\:border:after{content:var(--tw-content);border-width:1px}.after\:border-\[\#12B76A\]\/50:after{content:var(--tw-content);border-color:rgba(18,183,106,.5)}.after\:content-\[\'\'\]:after{--tw-content:"";content:var(--tw-content)}.hover\:border-\[\#2054E0\]:hover{--tw-border-opacity:1;border-color:rgb(32 84 224/var(--tw-border-opacity,1))}.hover\:border-\[\#F04438\]:hover{--tw-border-opacity:1;border-color:rgb(240 68 56/var(--tw-border-opacity,1))}.hover\:border-\[\#F79009\]:hover{--tw-border-opacity:1;border-color:rgb(247 144 9/var(--tw-border-opacity,1))}.hover\:bg-\[\#153C9E\]:hover{--tw-bg-opacity:1;background-color:rgb(21 60 158/var(--tw-bg-opacity,1))}.hover\:bg-\[\#F5F8FC\]:hover{--tw-bg-opacity:1;background-color:rgb(245 248 252/var(--tw-bg-opacity,1))}.hover\:bg-\[\#FBD5D2\]:hover{--tw-bg-opacity:1;background-color:rgb(251 213 210/var(--tw-bg-opacity,1))}.hover\:bg-\[\#FEE3B3\]:hover{--tw-bg-opacity:1;background-color:rgb(254 227 179/var(--tw-bg-opacity,1))}.disabled\:cursor-not-allowed:disabled{cursor:not-allowed}.disabled\:opacity-40:disabled{opacity:.4}@media (min-width:768px){.md\:w-max{width:-moz-max-content;width:max-content}}.\[\&\.open\]\:flex.open{display:flex}.\[\&\:\:-webkit-scrollbar\]\:hidden::-webkit-scrollbar{display:none}.\[\&_svg\]\:h-\[19px\] svg{height:19px}.\[\&_svg\]\:w-\[19px\] svg{width:19px}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-['Inter'] bg-[#DCE3EE] text-[#101828] antialiased py-8 px-6">
+
+<div class="flex justify-center mb-7">
+  <div class="inline-flex bg-[#FFFFFF] border border-[#E6EAF2] rounded-full p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] switcher">
+    <button class="border-0 bg-[#2054E0] text-white px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('desktop', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+      Desktop
+    </button>
+    <button class="border-0 bg-transparent text-[#667085] px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('mobile', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      Mobile
+    </button>
+  </div>
+</div>
+
+<div class="max-w-[1360px] mx-auto">
+
+<!-- ============ DESKTOP VIEW ============ -->
+<div class="view" id="view-desktop">
+<div class="grid grid-cols-[76px_1fr] bg-[#F5F8FC] rounded-[20px] overflow-hidden shadow-[0_20px_60px_rgba(16,24,40,0.18)] min-h-[860px] border border-[#C9D3E4] relative" id="desktop-app-shell">
+
+  <!-- APP SIDEBAR -->
+  <div class="bg-[#FFFFFF] border-r border-[#E6EAF2] flex flex-col items-center py-5 gap-1.5">
+    <div class="w-9 h-9 rounded-[10px] bg-[#2054E0] flex items-center justify-center text-white font-['Space_Grotesk'] font-bold text-base mb-[18px]">S</div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Sales">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l2-5h14l2 5M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 13a3 3 0 006 0"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#153C9E] bg-[#EAF0FE] cursor-pointer relative [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Products & Inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+      <div class="absolute -top-1 -right-1 min-w-[16px] h-4 px-[3px] rounded-full bg-[#F04438] text-white text-[10px] font-bold flex items-center justify-center border-2 border-[#FFFFFF]">9</div>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Customers">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </div>
+    <div class="flex-1"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-[#12B76A] mb-4 relative after:content-[''] after:absolute after:-inset-1 after:rounded-full after:border after:border-[#12B76A]/50 after:animate-ping" title="All synced"></div>
+    <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold">JO</div>
+  </div>
+
+  <!-- PAGE CONTENT -->
+  <div class="flex flex-col min-h-0 p-6 pb-8">
+
+    <div class="flex items-center gap-3 mb-5">
+      <div>
+        <div class="text-lg font-semibold">Products &amp; Inventory</div>
+        <div class="text-[12.5px] text-[#667085] mt-0.5">Awka Main Store · synced 2 min ago</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2.5">
+        <div class="w-[38px] h-[38px] rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center cursor-pointer relative shrink-0 text-[#667085]">
+          <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <div class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#F04438] border-[1.5px] border-[#FFFFFF]"></div>
+        </div>
+        <button class="flex items-center gap-2 border border-[#E6EAF2] bg-[#FFFFFF] text-[#344054] text-[13px] font-semibold px-4 py-2.5 rounded-[10px] hover:border-[#2054E0]">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg>
+          Import
+        </button>
+        <button class="flex items-center gap-2 bg-[#2054E0] text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+          Add product
+        </button>
+      </div>
+    </div>
+
+    <!-- INSIGHTS STRIP -->
+    <div class="grid grid-cols-4 gap-4 mb-5">
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Total stock value</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#EAF0FE] text-[#153C9E]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8v4h8V3z"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Space_Grotesk'] tracking-tight mb-1.5">₦12.4M</div>
+        <div class="text-xs font-semibold text-[#067647] flex items-center gap-1">
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 15l-6-6-6 6"/></svg>
+          3.1% <span class="text-[#98A2B3] font-normal">this month</span>
+        </div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Total products</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F0F9FF] text-[#026AA2]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Space_Grotesk'] tracking-tight mb-1.5">1,248</div>
+        <div class="text-xs text-[#98A2B3]">across 6 categories</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#FEE3B3] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] cursor-pointer hover:border-[#F79009]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Low stock</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#FFFAEB] text-[#B54708]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Space_Grotesk'] tracking-tight mb-1.5 text-[#B54708]">14</div>
+        <div class="text-xs text-[#98A2B3]">below reorder level</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#FBD5D2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] cursor-pointer hover:border-[#F04438]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Expiring soon</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#FEF3F2] text-[#B42318]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Space_Grotesk'] tracking-tight mb-1.5 text-[#B42318]">6</div>
+        <div class="text-xs text-[#98A2B3]">within 30 days</div>
+      </div>
+    </div>
+
+    <!-- HORIZONTAL TABS -->
+    <div class="w-full md:w-max inline-flex gap-1 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 mb-5">
+      <div class="px-5 py-2 rounded-lg text-[13px] font-semibold bg-[#2054E0] text-white cursor-pointer" id="desktabbtn-overview" onclick="switchDeskTab('overview')">Overview</div>
+      <div class="px-5 py-2 rounded-lg text-[13px] font-semibold text-[#98A2B3] cursor-pointer" id="desktabbtn-catalog" onclick="switchDeskTab('catalog')">Catalog</div>
+      <div class="px-5 py-2 rounded-lg text-[13px] font-semibold text-[#98A2B3] cursor-pointer" id="desktabbtn-ledger" onclick="switchDeskTab('ledger')">Ledger</div>
+      <div class="px-5 py-2 rounded-lg text-[13px] font-semibold text-[#98A2B3] cursor-pointer flex items-center gap-1.5" onclick="enterAuditMode('desktop')">Audits <span class="text-[9px] font-bold bg-[#F5F8FC] text-[#667085] px-1.5 py-0.5 rounded">ADMIN</span></div>
+    </div>
+
+    <!-- OVERVIEW TAB CONTENT -->
+    <div class="grid grid-cols-2 gap-5 flex-1 min-h-0" id="desk-tab-overview">
+
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-[15px] font-semibold">Needs attention</div>
+          <div class="text-[12.5px] text-[#2054E0] font-semibold cursor-pointer">View all</div>
+
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-9 h-9 rounded-lg bg-[#FEF3F2] text-[#B42318] flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Amoxicillin 250mg</div>
+              <div class="text-[11.5px] text-[#667085]">Batch #A214 expires in 9 days · 22 units</div>
+            </div>
+            <button class="text-[11.5px] font-semibold text-[#B42318] bg-[#FEF3F2] px-3 py-1.5 rounded-lg shrink-0 hover:bg-[#FBD5D2]">View batch</button>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-9 h-9 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Panadol Extra</div>
+              <div class="text-[11.5px] text-[#667085]">6 units left · reorder at 15</div>
+            </div>
+            <button class="text-[11.5px] font-semibold text-[#B54708] bg-[#FFFAEB] px-3 py-1.5 rounded-lg shrink-0 hover:bg-[#FEE3B3]">Reorder</button>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-9 h-9 rounded-lg bg-[#FEF3F2] text-[#B42318] flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Vitamin C tablets</div>
+              <div class="text-[11.5px] text-[#667085]">Out of stock · 3 sales missed today</div>
+            </div>
+            <button class="text-[11.5px] font-semibold text-[#B42318] bg-[#FEF3F2] px-3 py-1.5 rounded-lg shrink-0 hover:bg-[#FBD5D2]">Reorder</button>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-9 h-9 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Cough syrup 100ml</div>
+              <div class="text-[11.5px] text-[#667085]">Batch #C088 expires in 18 days · 9 units</div>
+            </div>
+            <button class="text-[11.5px] font-semibold text-[#B54708] bg-[#FFFAEB] px-3 py-1.5 rounded-lg shrink-0 hover:bg-[#FEE3B3]">View batch</button>
+          </div>
+          <div class="flex items-center gap-3 py-3">
+            <div class="w-9 h-9 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Rice 5kg bag</div>
+              <div class="text-[11.5px] text-[#667085]">4 units left · reorder at 10</div>
+            </div>
+            <button class="text-[11.5px] font-semibold text-[#B54708] bg-[#FFFAEB] px-3 py-1.5 rounded-lg shrink-0 hover:bg-[#FEE3B3]">Reorder</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-[15px] font-semibold">Fast movers</div>
+          <div class="text-[12.5px] text-[#98A2B3]">Last 7 days</div>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-6 text-[12.5px] font-bold text-[#98A2B3]">01</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Paracetamol 500mg</div>
+              <div class="text-[11.5px] text-[#667085]">142 units sold</div>
+            </div>
+            <div class="text-[11.5px] font-semibold text-[#067647] bg-[#ECFDF3] px-2.5 py-1 rounded-md shrink-0">↑ 18%</div>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-6 text-[12.5px] font-bold text-[#98A2B3]">02</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Bottled water 50cl</div>
+              <div class="text-[11.5px] text-[#667085]">118 units sold</div>
+            </div>
+            <div class="text-[11.5px] font-semibold text-[#067647] bg-[#ECFDF3] px-2.5 py-1 rounded-md shrink-0">↑ 6%</div>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-6 text-[12.5px] font-bold text-[#98A2B3]">03</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Coke 50cl bottle</div>
+              <div class="text-[11.5px] text-[#667085]">96 units sold</div>
+            </div>
+            <div class="text-[11.5px] font-semibold text-[#B42318] bg-[#FEF3F2] px-2.5 py-1 rounded-md shrink-0">↓ 3%</div>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-6 text-[12.5px] font-bold text-[#98A2B3]">04</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Recharge card ₦100</div>
+              <div class="text-[11.5px] text-[#667085]">81 units sold</div>
+            </div>
+            <div class="text-[11.5px] font-semibold text-[#067647] bg-[#ECFDF3] px-2.5 py-1 rounded-md shrink-0">↑ 11%</div>
+          </div>
+          <div class="flex items-center gap-3 py-3">
+            <div class="w-6 text-[12.5px] font-bold text-[#98A2B3]">05</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-[13px] font-semibold truncate">Bread loaf (large)</div>
+              <div class="text-[11.5px] text-[#667085]">64 units sold</div>
+            </div>
+            <div class="text-[11.5px] font-semibold text-[#067647] bg-[#ECFDF3] px-2.5 py-1 rounded-md shrink-0">↑ 2%</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CATALOG TAB CONTENT -->
+    <div class="hidden gap-5 flex-1 min-h-0" id="desk-tab-catalog">
+      <div class="grid grid-cols-[1fr_380px] gap-5 h-full min-h-0">
+
+        <!-- PRODUCT LIST -->
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col min-h-0">
+          <div class="p-4 pb-3 border-b border-[#E6EAF2]">
+            <div class="flex items-center gap-2.5 mb-3">
+              <div class="flex-1 flex items-center gap-2 bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Search by name or SKU" class="border-0 outline-none text-[13px] w-full bg-transparent">
+              </div>
+              <div class="w-10 h-10 rounded-[10px] bg-[#F5F8FC] border border-[#E6EAF2] flex items-center justify-center text-[#667085] shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+              </div>
+            </div>
+            <div class="flex gap-2 overflow-x-auto">
+              <div class="px-3.5 py-1.5 rounded-full border border-[#2054E0] bg-[#2054E0] text-white text-[12px] font-semibold whitespace-nowrap cursor-pointer">All</div>
+              <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Pharmacy</div>
+              <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Beverages</div>
+              <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Household</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-2.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide border-b border-[#E6EAF2]">
+            <div>Product</div><div>Category</div><div>Price</div><div>Stock</div><div>Reorder</div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto" id="catalog-rows">
+            <!-- rows injected identically to markup below by default; static markup kept for no-JS fallback -->
+            <div class="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] cursor-pointer bg-[#F3F7FF] border-l-2 border-l-[#2054E0] catalog-row" data-id="amox" onclick="selectProduct('amox', this)">
+              <div class="min-w-0"><div class="text-[13px] font-semibold truncate">Amoxicillin 250mg</div><div class="text-[11px] text-[#98A2B3]">RX-AMX-250</div></div>
+              <div><span class="text-[11px] font-semibold bg-[#F0F9FF] text-[#026AA2] px-2 py-0.5 rounded-md">Pharmacy</span></div>
+              <div class="text-[13px] font-semibold">₦1,200</div>
+              <div class="text-[13px] font-semibold text-[#B54708]">22 units</div>
+              <div class="text-[13px] text-[#667085]">15</div>
+            </div>
+            <div class="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] cursor-pointer catalog-row" data-id="panadol" onclick="selectProduct('panadol', this)">
+              <div class="min-w-0"><div class="text-[13px] font-semibold truncate">Panadol Extra</div><div class="text-[11px] text-[#98A2B3]">RX-PAN-EXT</div></div>
+              <div><span class="text-[11px] font-semibold bg-[#F0F9FF] text-[#026AA2] px-2 py-0.5 rounded-md">Pharmacy</span></div>
+              <div class="text-[13px] font-semibold">₦700</div>
+              <div class="text-[13px] font-semibold text-[#B54708]">6 units</div>
+              <div class="text-[13px] text-[#667085]">15</div>
+            </div>
+            <div class="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] cursor-pointer catalog-row" data-id="para" onclick="selectProduct('para', this)">
+              <div class="min-w-0"><div class="text-[13px] font-semibold truncate">Paracetamol 500mg</div><div class="text-[11px] text-[#98A2B3]">RX-PCM-500</div></div>
+              <div><span class="text-[11px] font-semibold bg-[#F0F9FF] text-[#026AA2] px-2 py-0.5 rounded-md">Pharmacy</span></div>
+              <div class="text-[13px] font-semibold">₦500</div>
+              <div class="text-[13px] font-semibold text-[#067647]">142 units</div>
+              <div class="text-[13px] text-[#667085]">30</div>
+            </div>
+            <div class="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] cursor-pointer catalog-row" data-id="water" onclick="selectProduct('water', this)">
+              <div class="min-w-0"><div class="text-[13px] font-semibold truncate">Bottled water 50cl</div><div class="text-[11px] text-[#98A2B3]">BEV-WTR-50</div></div>
+              <div><span class="text-[11px] font-semibold bg-[#ECFDF3] text-[#067647] px-2 py-0.5 rounded-md">Beverages</span></div>
+              <div class="text-[13px] font-semibold">₦200</div>
+              <div class="text-[13px] font-semibold text-[#067647]">88 units</div>
+              <div class="text-[13px] text-[#667085]">40</div>
+            </div>
+            <div class="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] cursor-pointer catalog-row" data-id="rice" onclick="selectProduct('rice', this)">
+              <div class="min-w-0"><div class="text-[13px] font-semibold truncate">Rice 5kg bag</div><div class="text-[11px] text-[#98A2B3]">FMC-RIC-5K</div></div>
+              <div><span class="text-[11px] font-semibold bg-[#FFFAEB] text-[#B54708] px-2 py-0.5 rounded-md">Household</span></div>
+              <div class="text-[13px] font-semibold">₦6,500</div>
+              <div class="text-[13px] font-semibold text-[#B54708]">4 units</div>
+              <div class="text-[13px] text-[#667085]">10</div>
+            </div>
+            <div class="grid grid-cols-[1fr_110px_90px_100px_90px] gap-2 px-4 py-3 items-center cursor-pointer catalog-row" data-id="vitc" onclick="selectProduct('vitc', this)">
+              <div class="min-w-0"><div class="text-[13px] font-semibold truncate">Vitamin C tablets</div><div class="text-[11px] text-[#98A2B3]">RX-VTC-500</div></div>
+              <div><span class="text-[11px] font-semibold bg-[#F0F9FF] text-[#026AA2] px-2 py-0.5 rounded-md">Pharmacy</span></div>
+              <div class="text-[13px] font-semibold">₦900</div>
+              <div class="text-[13px] font-semibold text-[#B42318]">0 units</div>
+              <div class="text-[13px] text-[#667085]">20</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DETAIL PANEL -->
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col min-h-0">
+          <div class="p-5 pb-4 border-b border-[#E6EAF2]">
+            <div class="flex items-start justify-between mb-1">
+              <div>
+                <div class="text-[16px] font-semibold" id="detail-name">Amoxicillin 250mg</div>
+                <div class="text-[12px] text-[#98A2B3]" id="detail-sku">SKU: RX-AMX-250</div>
+              </div>
+              <div class="w-8 h-8 rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+              </div>
+            </div>
+            <span class="text-[11px] font-semibold bg-[#F0F9FF] text-[#026AA2] px-2 py-0.5 rounded-md" id="detail-category">Pharmacy</span>
+          </div>
+
+          <div class="flex gap-1 bg-[#F5F8FC] border-b border-[#E6EAF2] p-3">
+            <div class="flex-1 text-center px-3 py-2 rounded-lg text-[12.5px] font-semibold bg-[#2054E0] text-white cursor-pointer" id="detailtabbtn-details" onclick="switchDetailTab('details')">Details</div>
+            <div class="flex-1 text-center px-3 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer" id="detailtabbtn-batches" onclick="switchDetailTab('batches')">Batches</div>
+            <div class="flex-1 text-center px-3 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer" id="detailtabbtn-history" onclick="switchDetailTab('history')">History</div>
+          </div>
+
+          <div class="flex-1 overflow-y-auto p-5">
+
+            <!-- Details -->
+            <div id="detail-tab-details">
+              <div class="grid grid-cols-2 gap-3.5 mb-4">
+                <div>
+                  <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Base price</div>
+                  <div class="text-[14px] font-semibold" id="detail-price">₦1,200</div>
+                </div>
+                <div>
+                  <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Current stock</div>
+                  <div class="text-[14px] font-semibold" id="detail-stock">22 units</div>
+                </div>
+                <div>
+                  <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Reorder level</div>
+                  <div class="text-[14px] font-semibold" id="detail-reorder">15 units</div>
+                </div>
+                <div>
+                  <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Stock value</div>
+                  <div class="text-[14px] font-semibold" id="detail-value">₦26,400</div>
+                </div>
+              </div>
+              <div class="text-[11.5px] text-[#98A2B3] bg-[#F5F8FC] border border-[#E6EAF2] rounded-lg px-3 py-2.5">
+                Full editable form (description, supplier, barcode, tax class) comes with the real Catalog build. This mockup shows the read layout.
+              </div>
+            </div>
+
+            <!-- Batches -->
+            <div id="detail-tab-batches" class="hidden">
+              <div id="detail-batches-list" class="flex flex-col gap-2.5"></div>
+            </div>
+
+            <!-- History -->
+            <div id="detail-tab-history" class="hidden">
+              <div id="detail-history-list" class="flex flex-col"></div>
+              <div class="text-[12px] font-semibold text-[#2054E0] mt-3 cursor-pointer" onclick="switchDeskTab('ledger')">View full history in Ledger →</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEDGER TAB CONTENT -->
+    <div class="hidden flex-col flex-1 min-h-0" id="desk-tab-ledger">
+    <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col flex-1 min-h-0">
+      <div class="p-4 pb-3 border-b border-[#E6EAF2]">
+        <div class="flex items-center gap-2.5 mb-3">
+          <div class="flex-1 flex items-center gap-2 bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
+            <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search by product, reference, or user" class="border-0 outline-none text-[13px] w-full bg-transparent">
+          </div>
+          <div class="flex items-center gap-1.5 text-[11.5px] text-[#98A2B3] bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3 py-2.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/></svg>
+            Immutable log: entries can't be edited or deleted
+          </div>
+        </div>
+        <div class="flex gap-2 overflow-x-auto">
+          <div class="px-3.5 py-1.5 rounded-full border border-[#2054E0] bg-[#2054E0] text-white text-[12px] font-semibold whitespace-nowrap cursor-pointer">All types</div>
+          <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Sales</div>
+          <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Restocks</div>
+          <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Returns</div>
+          <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Damages</div>
+          <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap cursor-pointer">Adjustments</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-2.5 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide border-b border-[#E6EAF2]">
+        <div>Time</div><div>Product</div><div>Type</div><div>Qty</div><div>Reference / Reason</div><div>User</div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto" id="desktop-ledger-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- DESKTOP LEDGER DETAIL MODAL -->
+<div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-20 items-center justify-center" id="modal-ledgerDetail">
+  <div class="w-[440px] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF2]">
+      <div class="text-[15px] font-semibold">Movement detail</div>
+      <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer" onclick="closeModal('ledgerDetail')">
+        <svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="px-5 py-[18px]">
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <div class="text-[15px] font-semibold" id="ld-product">Amoxicillin 250mg</div>
+          <div class="text-[12px] text-[#98A2B3]" id="ld-time">Today, 3:20 PM</div>
+        </div>
+        <div class="text-right">
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md" id="ld-type">Sale</span>
+          <div class="text-[18px] font-semibold mt-1" id="ld-qty">−6</div>
+        </div>
+      </div>
+      <div class="border-t border-[#E6EAF2] pt-3.5 flex flex-col gap-2.5">
+        <div>
+          <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Reference / reason</div>
+          <div class="text-[13px]" id="ld-reference">Sale #1042</div>
+        </div>
+        <div>
+          <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Recorded by</div>
+          <div class="text-[13px]" id="ld-user">Josh O.</div>
+        </div>
+      </div>
+      <div class="text-[12px] font-semibold text-[#2054E0] mt-4 cursor-pointer" id="ld-viewproduct" onclick="closeModal('ledgerDetail'); switchDeskTab('catalog');">View product in Catalog →</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- AUDIT MODE: DESKTOP (full takeover: no sidebar, no tabs, focused guided flow) -->
+<div class="hidden flex-col bg-[#F5F8FC] rounded-[20px] overflow-hidden shadow-[0_20px_60px_rgba(16,24,40,0.18)] min-h-[860px] border border-[#C9D3E4]" id="audit-mode-desktop">
+  <div class="flex items-center gap-3 px-6 py-5 border-b border-[#E6EAF2] bg-[#FFFFFF]">
+    <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center cursor-pointer text-[#667085] shrink-0" onclick="exitAuditMode()">
+      <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+    <div>
+      <div class="text-[15px] font-semibold">Cycle Count</div>
+      <div class="text-[11.5px] text-[#667085]" id="d-audit-subtitle">Choose what to count</div>
+    </div>
+    <div class="ml-auto flex items-center gap-1.5 bg-[#ECFDF3] border border-[#D3F2E1] rounded-full px-3 py-1.5">
+      <div class="w-2 h-2 rounded-full bg-[#12B76A]"></div>
+      <span class="text-[11.5px] font-semibold text-[#067647]">Saved locally · syncs when online</span>
+    </div>
+  </div>
+
+  <div class="px-6 pt-4 hidden" id="d-audit-progress-wrap">
+    <div class="h-1.5 bg-[#E6EAF2] rounded-full overflow-hidden">
+      <div class="h-full bg-[#2054E0] transition-all" id="d-audit-progress-bar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-y-auto p-8 flex justify-center">
+    <div class="w-full max-w-[560px]">
+
+      <!-- STEP: setup -->
+      <div id="d-audit-step-setup">
+        <div class="text-[17px] font-semibold mb-1.5">What are you counting?</div>
+        <div class="text-[13px] text-[#667085] mb-5">Pick a category, then search and count items in any order.</div>
+        <div class="flex flex-col gap-2.5 mb-6" id="d-audit-category-list"></div>
+        <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" id="d-audit-start-btn" disabled onclick="startAuditCount()">Start count</button>
+      </div>
+
+      <!-- STEP: item list (search + free selection) -->
+      <div id="d-audit-step-list" class="hidden">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[17px] font-semibold">Count items</div>
+          <div class="text-[12.5px] text-[#667085] font-medium" id="d-audit-progress-text">0 of 3 counted</div>
+        </div>
+        <div class="flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 mb-4">
+          <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Search by name or SKU" class="border-0 outline-none text-[13px] w-full bg-transparent" id="d-audit-search" oninput="renderAuditItemList(this.value)">
+        </div>
+        <div class="flex flex-col gap-2.5 mb-6" id="d-audit-item-list"></div>
+        <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer" onclick="goToAuditReview()">Review &amp; submit</button>
+      </div>
+
+      <!-- STEP: count (single item, reached by tapping it in the list) -->
+      <div id="d-audit-step-count" class="hidden">
+        <div class="text-[12.5px] font-semibold text-[#2054E0] mb-3.5 cursor-pointer w-fit flex items-center gap-1" onclick="goToAuditStep('list')">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg> Back to list
+        </div>
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-6 mb-5">
+          <span class="text-[11px] font-semibold bg-[#F0F9FF] text-[#026AA2] px-2 py-0.5 rounded-md" id="d-audit-item-category">Pharmacy</span>
+          <div class="text-[18px] font-semibold mt-2.5" id="d-audit-item-name">Amoxicillin 250mg</div>
+          <div class="text-[12px] text-[#98A2B3] mb-5" id="d-audit-item-sku">SKU: RX-AMX-250</div>
+
+          <div class="text-[12px] text-[#667085] mb-1">System says</div>
+          <div class="text-[15px] font-semibold mb-5" id="d-audit-item-system">22 units</div>
+
+          <div class="text-[12px] text-[#667085] mb-2">Your count</div>
+          <div class="flex items-center justify-center gap-5 mb-2">
+            <button class="w-12 h-12 rounded-xl bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] text-xl font-bold cursor-pointer" onclick="auditAdjustQty(-1)">−</button>
+            <div class="text-[34px] font-bold font-['Space_Grotesk'] w-24 text-center" id="d-audit-item-counted">22</div>
+            <button class="w-12 h-12 rounded-xl bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] text-xl font-bold cursor-pointer" onclick="auditAdjustQty(1)">+</button>
+          </div>
+
+          <div class="hidden" id="d-audit-reason-wrap">
+            <div class="border-t border-[#E6EAF2] mt-5 pt-4">
+              <div class="text-[12.5px] font-semibold mb-2.5" id="d-audit-delta-label">2 fewer than expected: reason required</div>
+              <div class="flex flex-wrap gap-2" id="d-audit-reason-chips"></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="w-full bg-[#2054E0] text-white border-0 py-3 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" id="d-audit-save-btn" onclick="saveAuditCount()">Save count</button>
+      </div>
+
+      <!-- STEP: review -->
+      <div id="d-audit-step-review" class="hidden">
+        <div class="text-[17px] font-semibold mb-1.5">Review &amp; submit</div>
+        <div class="text-[13px] text-[#667085] mb-5">Check the adjustments below before submitting to the ledger.</div>
+
+        <div class="grid grid-cols-4 gap-2.5 mb-5" id="d-audit-summary-stats"></div>
+
+        <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl divide-y divide-[#E6EAF2] mb-6" id="d-audit-review-list"></div>
+
+        <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer" onclick="submitAudit()">Submit audit</button>
+      </div>
+
+      <!-- STEP: done -->
+      <div id="d-audit-step-done" class="hidden text-center py-10">
+        <div class="w-16 h-16 rounded-full bg-[#ECFDF3] text-[#067647] flex items-center justify-center mx-auto mb-4">
+          <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div class="text-[18px] font-semibold mb-1.5">Audit submitted</div>
+        <div class="text-[13px] text-[#667085] mb-6" id="d-audit-done-summary">3 items counted · 2 adjusted</div>
+        <button class="bg-[#2054E0] text-white border-0 px-6 py-3 rounded-xl text-[14px] font-bold cursor-pointer" onclick="backToInventoryFromAudit()">Back to Inventory</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+<!-- ============ MOBILE VIEW ============ -->
+<div class="view hidden" id="view-mobile">
+  <div class="flex justify-center" id="mobile-phone-wrap">
+    <div class="w-[390px] bg-[#F5F8FC] rounded-[44px] border-[10px] border-[#1A1D23] shadow-[0_30px_60px_rgba(16,24,40,0.35)] overflow-hidden relative">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[26px] bg-[#1A1D23] rounded-b-2xl z-[6]"></div>
+      <div class="h-[844px] flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] sticky top-0 z-[3]">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="text-[11.5px] text-[#667085] font-medium">Awka Main Store</div>
+              <div class="text-lg font-semibold">Products &amp; Inventory</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center relative shrink-0 text-[#667085]">
+                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                <div class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#F04438] border border-[#FFFFFF]"></div>
+              </div>
+              <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold shrink-0">JO</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 bg-[#ECFDF3] border border-[#D3F2E1] rounded-full px-3 py-1.5 w-fit">
+              <div class="w-2 h-2 rounded-full bg-[#12B76A]"></div>
+              <span class="text-[11.5px] font-semibold text-[#067647]">All synced · 2 min ago</span>
+            </div>
+            <button class="flex items-center gap-1.5 bg-[#2054E0] text-white text-[12px] font-semibold pl-2.5 pr-3 py-1.5 rounded-full shrink-0">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div class="px-4 pt-4 pb-[100px]">
+
+          <div class="text-[12.5px] font-semibold text-[#667085] mb-2.5">Insights</div>
+          <div class="flex gap-2.5 overflow-x-auto -mx-4 mb-5 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Stock value</div>
+              <div class="text-[19px] font-semibold mb-1">₦12.4M</div>
+              <div class="text-[11px] font-semibold text-[#067647]">↑ 3.1%</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Total products</div>
+              <div class="text-[19px] font-semibold mb-1">1,248</div>
+              <div class="text-[11px] text-[#98A2B3]">6 categories</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#FEE3B3] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Low stock</div>
+              <div class="text-[19px] font-semibold mb-1 text-[#B54708]">14</div>
+              <div class="text-[11px] text-[#98A2B3]">below reorder</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#FBD5D2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Expiring soon</div>
+              <div class="text-[19px] font-semibold mb-1 text-[#B42318]">6</div>
+              <div class="text-[11px] text-[#98A2B3]">within 30 days</div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto -mx-4 mb-5 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold bg-[#2054E0] text-white shrink-0" id="mobtabbtn-overview" onclick="switchMobileTab('overview')">Overview</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2] shrink-0" id="mobtabbtn-catalog" onclick="switchMobileTab('catalog')">Catalog</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2] shrink-0" id="mobtabbtn-ledger" onclick="switchMobileTab('ledger')">Ledger</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2] shrink-0 flex items-center gap-1.5 cursor-pointer" onclick="enterAuditMode('mobile')">Audits <span class="text-[9px] font-bold bg-[#F5F8FC] text-[#667085] px-1.5 py-0.5 rounded">ADMIN</span></div>
+          </div>
+
+          <div id="mobile-tab-overview">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="text-[14px] font-semibold">Needs attention</div>
+            <div class="text-[12px] text-[#2054E0] font-semibold">View all</div>
+          </div>
+
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl px-4 mb-5">
+            <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+              <div class="w-9 h-9 rounded-lg bg-[#FEF3F2] text-[#B42318] flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[13px] font-semibold truncate">Amoxicillin 250mg</div>
+                <div class="text-[11px] text-[#667085]">Expires in 9 days · 22 units</div>
+              </div>
+              <button class="text-[11px] font-semibold text-[#B42318] bg-[#FEF3F2] px-2.5 py-1.5 rounded-lg shrink-0">View</button>
+            </div>
+            <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+              <div class="w-9 h-9 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[13px] font-semibold truncate">Panadol Extra</div>
+                <div class="text-[11px] text-[#667085]">6 units left · reorder at 15</div>
+              </div>
+              <button class="text-[11px] font-semibold text-[#B54708] bg-[#FFFAEB] px-2.5 py-1.5 rounded-lg shrink-0">Reorder</button>
+            </div>
+            <div class="flex items-center gap-3 py-3">
+              <div class="w-9 h-9 rounded-lg bg-[#FEF3F2] text-[#B42318] flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[13px] font-semibold truncate">Vitamin C tablets</div>
+                <div class="text-[11px] text-[#667085]">Out of stock</div>
+              </div>
+              <button class="text-[11px] font-semibold text-[#B42318] bg-[#FEF3F2] px-2.5 py-1.5 rounded-lg shrink-0">Reorder</button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="text-[14px] font-semibold">Fast movers</div>
+            <div class="text-[12px] text-[#98A2B3]">Last 7 days</div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl px-4">
+            <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+              <div class="w-5 text-[12px] font-bold text-[#98A2B3]">01</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[13px] font-semibold truncate">Paracetamol 500mg</div>
+                <div class="text-[11px] text-[#667085]">142 units sold</div>
+              </div>
+              <div class="text-[11px] font-semibold text-[#067647] bg-[#ECFDF3] px-2 py-1 rounded-md shrink-0">↑ 18%</div>
+            </div>
+            <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+              <div class="w-5 text-[12px] font-bold text-[#98A2B3]">02</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[13px] font-semibold truncate">Bottled water 50cl</div>
+                <div class="text-[11px] text-[#667085]">118 units sold</div>
+              </div>
+              <div class="text-[11px] font-semibold text-[#067647] bg-[#ECFDF3] px-2 py-1 rounded-md shrink-0">↑ 6%</div>
+            </div>
+            <div class="flex items-center gap-3 py-3">
+              <div class="w-5 text-[12px] font-bold text-[#98A2B3]">03</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[13px] font-semibold truncate">Coke 50cl bottle</div>
+                <div class="text-[11px] text-[#667085]">96 units sold</div>
+              </div>
+              <div class="text-[11px] font-semibold text-[#B42318] bg-[#FEF3F2] px-2 py-1 rounded-md shrink-0">↓ 3%</div>
+            </div>
+          </div>
+          </div>
+
+          <!-- MOBILE CATALOG LIST -->
+          <div id="mobile-tab-catalog" class="hidden">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Search by name or SKU" class="border-0 outline-none text-[13px] w-full bg-transparent">
+              </div>
+              <div class="w-10 h-10 rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center text-[#667085] shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+              </div>
+            </div>
+
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl px-4 divide-y divide-[#E6EAF2]">
+              <div class="flex items-center gap-3 py-3.5 cursor-pointer" onclick="selectProduct('amox', null); openMobileDetail();">
+                <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold truncate">Amoxicillin 250mg</div><div class="text-[11px] text-[#98A2B3]">RX-AMX-250 · Pharmacy</div></div>
+                <div class="text-right shrink-0"><div class="text-[13px] font-semibold">₦1,200</div><div class="text-[11px] font-semibold text-[#B54708]">22 units</div></div>
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="flex items-center gap-3 py-3.5 cursor-pointer" onclick="selectProduct('panadol', null); openMobileDetail();">
+                <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold truncate">Panadol Extra</div><div class="text-[11px] text-[#98A2B3]">RX-PAN-EXT · Pharmacy</div></div>
+                <div class="text-right shrink-0"><div class="text-[13px] font-semibold">₦700</div><div class="text-[11px] font-semibold text-[#B54708]">6 units</div></div>
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="flex items-center gap-3 py-3.5 cursor-pointer" onclick="selectProduct('para', null); openMobileDetail();">
+                <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold truncate">Paracetamol 500mg</div><div class="text-[11px] text-[#98A2B3]">RX-PCM-500 · Pharmacy</div></div>
+                <div class="text-right shrink-0"><div class="text-[13px] font-semibold">₦500</div><div class="text-[11px] font-semibold text-[#067647]">142 units</div></div>
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="flex items-center gap-3 py-3.5 cursor-pointer" onclick="selectProduct('water', null); openMobileDetail();">
+                <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold truncate">Bottled water 50cl</div><div class="text-[11px] text-[#98A2B3]">BEV-WTR-50 · Beverages</div></div>
+                <div class="text-right shrink-0"><div class="text-[13px] font-semibold">₦200</div><div class="text-[11px] font-semibold text-[#067647]">88 units</div></div>
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="flex items-center gap-3 py-3.5 cursor-pointer" onclick="selectProduct('rice', null); openMobileDetail();">
+                <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold truncate">Rice 5kg bag</div><div class="text-[11px] text-[#98A2B3]">FMC-RIC-5K · Household</div></div>
+                <div class="text-right shrink-0"><div class="text-[13px] font-semibold">₦6,500</div><div class="text-[11px] font-semibold text-[#B54708]">4 units</div></div>
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="flex items-center gap-3 py-3.5 cursor-pointer" onclick="selectProduct('vitc', null); openMobileDetail();">
+                <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold truncate">Vitamin C tablets</div><div class="text-[11px] text-[#98A2B3]">RX-VTC-500 · Pharmacy</div></div>
+                <div class="text-right shrink-0"><div class="text-[13px] font-semibold">₦900</div><div class="text-[11px] font-semibold text-[#B42318]">0 units</div></div>
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- MOBILE LEDGER -->
+          <div id="mobile-tab-ledger" class="hidden">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
+                <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Search product, ref, or user" class="border-0 outline-none text-[13px] w-full bg-transparent">
+              </div>
+              <div class="w-10 h-10 rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center text-[#667085] shrink-0">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+              </div>
+            </div>
+
+            <div class="flex gap-2 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+              <div class="px-3.5 py-1.5 rounded-full bg-[#2054E0] text-white text-[12px] font-semibold whitespace-nowrap shrink-0">All types</div>
+              <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap shrink-0">Sales</div>
+              <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap shrink-0">Restocks</div>
+              <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap shrink-0">Damages</div>
+              <div class="px-3.5 py-1.5 rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[#667085] text-[12px] font-semibold whitespace-nowrap shrink-0">Adjustments</div>
+            </div>
+
+            <div id="mobile-ledger-list"></div>
+          </div>
+
+        </div>
+
+        <!-- BOTTOM NAV (standard chrome: this is a browsing/management screen, not a focused task) -->
+        <div class="flex items-center justify-around bg-[#FFFFFF] border-t border-[#E6EAF2] px-2 pt-2.5 pb-3.5 sticky bottom-0 z-[4]">
+          <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+            <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            <span class="text-[10px] font-semibold">Home</span>
+          </div>
+          <div class="flex flex-col items-center gap-[3px] text-[#2054E0] flex-1 cursor-pointer">
+            <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+            <span class="text-[10px] font-semibold">Inventory</span>
+          </div>
+          <div class="w-[52px] h-[52px] rounded-full bg-[#2054E0] flex items-center justify-center text-white -mt-[30px] shadow-[0_6px_16px_rgba(32,84,224,0.4)] border-4 border-[#FFFFFF] cursor-pointer">
+            <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+          </div>
+          <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+            <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l2-5h14l2 5M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 13a3 3 0 006 0"/></svg>
+            <span class="text-[10px] font-semibold">Sales</span>
+          </div>
+          <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+            <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            <span class="text-[10px] font-semibold">More</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- MOBILE PRODUCT DETAIL: full-screen push navigation -->
+      <div class="hidden absolute inset-0 bg-[#F5F8FC] z-10 flex-col" id="mobile-detail-overlay">
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] flex items-center gap-3">
+          <div class="w-9 h-9 rounded-[10px] bg-[#F5F8FC] flex items-center justify-center text-[#667085] shrink-0 cursor-pointer" onclick="closeMobileDetail()">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <div class="min-w-0">
+            <div class="text-[15px] font-semibold truncate" id="m-detail-name">Amoxicillin 250mg</div>
+            <div class="text-[11px] text-[#98A2B3]" id="m-detail-sku">SKU: RX-AMX-250</div>
+          </div>
+          <div class="ml-auto w-8 h-8 rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+          </div>
+        </div>
+
+        <div class="px-4 pt-3">
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md" id="m-detail-category">Pharmacy</span>
+        </div>
+
+        <div class="flex gap-1 bg-[#F5F8FC] p-3 mx-4 mt-3 rounded-xl">
+          <div class="flex-1 text-center px-3 py-2 rounded-lg text-[12.5px] font-semibold bg-[#2054E0] text-white cursor-pointer" id="detailtabbtn-m-details" onclick="switchDetailTab('details')">Details</div>
+          <div class="flex-1 text-center px-3 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer" id="detailtabbtn-m-batches" onclick="switchDetailTab('batches')">Batches</div>
+          <div class="flex-1 text-center px-3 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer" id="detailtabbtn-m-history" onclick="switchDetailTab('history')">History</div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 pt-4 pb-8 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+
+          <div id="detail-tab-m-details">
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 grid grid-cols-2 gap-3.5 mb-3">
+              <div>
+                <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Base price</div>
+                <div class="text-[14px] font-semibold" id="m-detail-price">₦1,200</div>
+              </div>
+              <div>
+                <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Current stock</div>
+                <div class="text-[14px] font-semibold" id="m-detail-stock">22 units</div>
+              </div>
+              <div>
+                <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Reorder level</div>
+                <div class="text-[14px] font-semibold" id="m-detail-reorder">15 units</div>
+              </div>
+              <div>
+                <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Stock value</div>
+                <div class="text-[14px] font-semibold" id="m-detail-value">₦26,400</div>
+              </div>
+            </div>
+            <div class="text-[11.5px] text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl px-3.5 py-3">
+              Full editable form comes with the real Catalog build. This mockup shows the read layout.
+            </div>
+          </div>
+
+          <div id="detail-tab-m-batches" class="hidden">
+            <div id="m-detail-batches-list" class="flex flex-col gap-2.5"></div>
+          </div>
+
+          <div id="detail-tab-m-history" class="hidden">
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl px-4" id="m-detail-history-list"></div>
+            <div class="text-[12px] font-semibold text-[#2054E0] mt-3 cursor-pointer" onclick="closeMobileDetail(); switchMobileTab('ledger');">View full history in Ledger →</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- MOBILE LEDGER DETAIL SHEET -->
+      <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-20 items-end" id="sheet-ledgerDetail">
+        <div class="bg-[#FFFFFF] w-full rounded-t-[24px] overflow-hidden">
+          <div class="w-9 h-1 bg-[#E6EAF2] rounded-full mx-auto mt-2.5 mb-1"></div>
+          <div class="flex items-center justify-between px-[18px] pt-2 pb-3 border-b border-[#E6EAF2]">
+            <div class="text-[15px] font-semibold">Movement detail</div>
+            <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer" onclick="closeSheet('ledgerDetail')">
+              <svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </div>
+          </div>
+          <div class="px-[18px] py-4">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <div class="text-[15px] font-semibold" id="m-ld-product">Amoxicillin 250mg</div>
+                <div class="text-[12px] text-[#98A2B3]" id="m-ld-time">Today, 3:20 PM</div>
+              </div>
+              <div class="text-right">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md" id="m-ld-type">Sale</span>
+                <div class="text-[18px] font-semibold mt-1" id="m-ld-qty">−6</div>
+              </div>
+            </div>
+            <div class="border-t border-[#E6EAF2] pt-3.5 flex flex-col gap-2.5">
+              <div>
+                <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Reference / reason</div>
+                <div class="text-[13px]" id="m-ld-reference">Sale #1042</div>
+              </div>
+              <div>
+                <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Recorded by</div>
+                <div class="text-[13px]" id="m-ld-user">Josh O.</div>
+              </div>
+            </div>
+            <div class="text-[12px] font-semibold text-[#2054E0] mt-4 cursor-pointer" id="m-ld-viewproduct" onclick="closeSheet('ledgerDetail'); switchMobileTab('catalog');">View product in Catalog →</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<!-- AUDIT MODE: MOBILE (full takeover: no header chrome, no bottom nav) -->
+<div class="hidden justify-center" id="audit-mode-mobile-wrap">
+  <div class="w-[390px] bg-[#F5F8FC] rounded-[44px] border-[10px] border-[#1A1D23] shadow-[0_30px_60px_rgba(16,24,40,0.35)] overflow-hidden relative">
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[26px] bg-[#1A1D23] rounded-b-2xl z-[6]"></div>
+    <div class="h-[844px] flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+
+      <div class="flex items-center gap-3 px-4 pt-5 pb-4 border-b border-[#E6EAF2] bg-[#FFFFFF] sticky top-0 z-[3]">
+        <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center cursor-pointer text-[#667085] shrink-0" onclick="exitAuditMode()">
+          <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+        </div>
+        <div class="min-w-0">
+          <div class="text-[15px] font-semibold">Cycle Count</div>
+          <div class="text-[11px] text-[#667085] truncate" id="m-audit-subtitle">Choose what to count</div>
+        </div>
+      </div>
+
+      <div class="px-4 pt-3 hidden" id="m-audit-progress-wrap">
+        <div class="h-1.5 bg-[#E6EAF2] rounded-full overflow-hidden">
+          <div class="h-full bg-[#2054E0] transition-all" id="m-audit-progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="flex-1 px-4 pt-4 pb-8">
+
+        <!-- STEP: setup -->
+        <div id="m-audit-step-setup">
+          <div class="flex items-center gap-1.5 bg-[#ECFDF3] border border-[#D3F2E1] rounded-full px-3 py-1.5 w-fit mb-4">
+            <div class="w-2 h-2 rounded-full bg-[#12B76A]"></div>
+            <span class="text-[11px] font-semibold text-[#067647]">Saved locally · syncs when online</span>
+          </div>
+          <div class="text-[16px] font-semibold mb-1">What are you counting?</div>
+          <div class="text-[12.5px] text-[#667085] mb-4">Pick a category, then search and count items in any order.</div>
+          <div class="flex flex-col gap-2.5 mb-6" id="m-audit-category-list"></div>
+          <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" id="m-audit-start-btn" disabled onclick="startAuditCount()">Start count</button>
+        </div>
+
+        <!-- STEP: item list (search + free selection) -->
+        <div id="m-audit-step-list" class="hidden">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-[16px] font-semibold">Count items</div>
+            <div class="text-[11.5px] text-[#667085] font-medium" id="m-audit-progress-text">0 of 3 counted</div>
+          </div>
+          <div class="flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 mb-3.5">
+            <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search by name or SKU" class="border-0 outline-none text-[13px] w-full bg-transparent" id="m-audit-search" oninput="renderAuditItemList(this.value)">
+          </div>
+          <div class="flex flex-col gap-2.5 mb-6" id="m-audit-item-list"></div>
+          <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer" onclick="goToAuditReview()">Review &amp; submit</button>
+        </div>
+
+        <!-- STEP: count (single item, reached by tapping it in the list) -->
+        <div id="m-audit-step-count" class="hidden">
+          <div class="text-[12px] font-semibold text-[#2054E0] mb-3 cursor-pointer w-fit flex items-center gap-1" onclick="goToAuditStep('list')">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg> Back to list
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-5 mb-5">
+            <span class="text-[11px] font-semibold bg-[#F0F9FF] text-[#026AA2] px-2 py-0.5 rounded-md" id="m-audit-item-category">Pharmacy</span>
+            <div class="text-[16px] font-semibold mt-2.5" id="m-audit-item-name">Amoxicillin 250mg</div>
+            <div class="text-[11px] text-[#98A2B3] mb-4" id="m-audit-item-sku">SKU: RX-AMX-250</div>
+
+            <div class="text-[11.5px] text-[#667085] mb-1">System says</div>
+            <div class="text-[14px] font-semibold mb-4" id="m-audit-item-system">22 units</div>
+
+            <div class="text-[11.5px] text-[#667085] mb-2">Your count</div>
+            <div class="flex items-center justify-center gap-4 mb-1">
+              <button class="w-12 h-12 rounded-xl bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] text-xl font-bold cursor-pointer" onclick="auditAdjustQty(-1)">−</button>
+              <div class="text-[30px] font-bold font-['Space_Grotesk'] w-20 text-center" id="m-audit-item-counted">22</div>
+              <button class="w-12 h-12 rounded-xl bg-[#F5F8FC] border border-[#E6EAF2] text-[#344054] text-xl font-bold cursor-pointer" onclick="auditAdjustQty(1)">+</button>
+            </div>
+
+            <div class="hidden" id="m-audit-reason-wrap">
+              <div class="border-t border-[#E6EAF2] mt-4 pt-3.5">
+                <div class="text-[12px] font-semibold mb-2.5" id="m-audit-delta-label">2 fewer than expected: reason required</div>
+                <div class="flex flex-wrap gap-2" id="m-audit-reason-chips"></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="w-full bg-[#2054E0] text-white border-0 py-3 rounded-xl text-[13.5px] font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" id="m-audit-save-btn" onclick="saveAuditCount()">Save count</button>
+        </div>
+
+        <!-- STEP: review -->
+        <div id="m-audit-step-review" class="hidden">
+          <div class="text-[16px] font-semibold mb-1">Review &amp; submit</div>
+          <div class="text-[12.5px] text-[#667085] mb-4">Check the adjustments before submitting.</div>
+          <div class="grid grid-cols-2 gap-2.5 mb-4" id="m-audit-summary-stats"></div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl divide-y divide-[#E6EAF2] mb-6" id="m-audit-review-list"></div>
+          <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer" onclick="submitAudit()">Submit audit</button>
+        </div>
+
+        <!-- STEP: done -->
+        <div id="m-audit-step-done" class="hidden text-center py-8">
+          <div class="w-14 h-14 rounded-full bg-[#ECFDF3] text-[#067647] flex items-center justify-center mx-auto mb-4">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+          <div class="text-[16px] font-semibold mb-1.5">Audit submitted</div>
+          <div class="text-[12.5px] text-[#667085] mb-6" id="m-audit-done-summary">3 items counted · 2 adjusted</div>
+          <button class="bg-[#2054E0] text-white border-0 px-6 py-3 rounded-xl text-[13.5px] font-bold cursor-pointer" onclick="backToInventoryFromAudit()">Back to Inventory</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<script>
+function openSheet(name){ document.getElementById('sheet-' + name).classList.add('open'); }
+function closeSheet(name){ document.getElementById('sheet-' + name).classList.remove('open'); }
+function openModal(name){ document.getElementById('modal-' + name).classList.add('open'); }
+function closeModal(name){ document.getElementById('modal-' + name).classList.remove('open'); }
+
+// ================= AUDIT MODE =================
+const AUDIT_ITEMS = {
+  'Pharmacy': [
+    { id:'amox', name:'Amoxicillin 250mg', sku:'RX-AMX-250', systemQty:22 },
+    { id:'panadol', name:'Panadol Extra', sku:'RX-PAN-EXT', systemQty:6 },
+    { id:'vitc', name:'Vitamin C tablets', sku:'RX-VTC-500', systemQty:0 }
+  ],
+  'Beverages': [
+    { id:'water', name:'Bottled water 50cl', sku:'BEV-WTR-50', systemQty:88 },
+    { id:'coke', name:'Coke 50cl bottle', sku:'BEV-COK-50', systemQty:64 }
+  ],
+  'Household': [
+    { id:'rice', name:'Rice 5kg bag', sku:'FMC-RIC-5K', systemQty:4 }
+  ]
+};
+const AUDIT_REASONS = ['Damaged','Stolen','Found','Miscounted','Other'];
+
+let auditState = { category:null, items:[], currentItemId:null, counts:{}, saved:new Set() };
+
+function enterAuditMode(){
+  document.getElementById('audit-mode-desktop').classList.remove('hidden');
+  document.getElementById('audit-mode-desktop').classList.add('flex');
+  document.getElementById('desktop-app-shell').classList.add('hidden');
+
+  document.getElementById('audit-mode-mobile-wrap').classList.remove('hidden');
+  document.getElementById('audit-mode-mobile-wrap').classList.add('flex');
+  document.getElementById('mobile-phone-wrap').classList.add('hidden');
+
+  auditState = { category:null, items:[], currentItemId:null, counts:{}, saved:new Set() };
+  renderAuditCategoryList();
+  goToAuditStep('setup');
+}
+
+function exitAuditMode(){
+  document.getElementById('audit-mode-desktop').classList.add('hidden');
+  document.getElementById('audit-mode-desktop').classList.remove('flex');
+  document.getElementById('desktop-app-shell').classList.remove('hidden');
+
+  document.getElementById('audit-mode-mobile-wrap').classList.add('hidden');
+  document.getElementById('audit-mode-mobile-wrap').classList.remove('flex');
+  document.getElementById('mobile-phone-wrap').classList.remove('hidden');
+}
+
+function backToInventoryFromAudit(){
+  exitAuditMode();
+  switchDeskTab('overview');
+  switchMobileTab('overview');
+}
+
+function goToAuditStep(step){
+  ['setup','list','count','review','done'].forEach(s => {
+    const d = document.getElementById('d-audit-step-' + s);
+    const m = document.getElementById('m-audit-step-' + s);
+    if(d) d.classList.toggle('hidden', s !== step);
+    if(m) m.classList.toggle('hidden', s !== step);
+  });
+  if(step === 'list') renderAuditItemList('');
+}
+
+function renderAuditCategoryList(){
+  const cats = Object.keys(AUDIT_ITEMS);
+  const allCount = cats.reduce((sum,c) => sum + AUDIT_ITEMS[c].length, 0);
+  const buildCard = (name, count) => `
+    <div class="flex items-center gap-3 px-4 py-3.5 rounded-xl border cursor-pointer audit-cat-card" data-cat="${name}" onclick="selectAuditCategory('${name}')">
+      <div class="flex-1">
+        <div class="text-[13.5px] font-semibold">${name}</div>
+        <div class="text-[11.5px] text-[#667085]">${count} item${count===1?'':'s'} to count</div>
+      </div>
+      <svg class="w-4 h-4 text-[#98A2B3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </div>`;
+  let html = cats.map(c => buildCard(c, AUDIT_ITEMS[c].length)).join('') + buildCard('All categories', allCount);
+  document.getElementById('d-audit-category-list').innerHTML = html;
+  document.getElementById('m-audit-category-list').innerHTML = html;
+  styleAuditCategoryCards();
+}
+
+function styleAuditCategoryCards(){
+  document.querySelectorAll('.audit-cat-card').forEach(card => {
+    const active = card.dataset.cat === auditState.category;
+    card.classList.toggle('border-[#2054E0]', active);
+    card.classList.toggle('bg-[#F3F7FF]', active);
+    card.classList.toggle('border-[#E6EAF2]', !active);
+    card.classList.toggle('bg-[#FFFFFF]', !active);
+  });
+}
+
+function selectAuditCategory(name){
+  auditState.category = name;
+  auditState.items = name === 'All categories'
+    ? Object.values(AUDIT_ITEMS).flat()
+    : AUDIT_ITEMS[name];
+  styleAuditCategoryCards();
+  document.getElementById('d-audit-start-btn').disabled = false;
+  document.getElementById('m-audit-start-btn').disabled = false;
+  const sub = `${auditState.items.length} item${auditState.items.length===1?'':'s'} selected · ${name}`;
+  document.getElementById('d-audit-subtitle').textContent = sub;
+  document.getElementById('m-audit-subtitle').textContent = sub;
+}
+
+function startAuditCount(){
+  if(!auditState.items.length) return;
+  auditState.counts = {};
+  auditState.saved = new Set();
+  goToAuditStep('list');
+}
+
+function renderAuditItemList(searchTerm){
+  const q = (searchTerm || '').trim().toLowerCase();
+  const items = auditState.items.filter(i => !q || i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
+
+  const rowHtml = item => {
+    const isSaved = auditState.saved.has(item.id);
+    const entry = auditState.counts[item.id];
+    let statusHtml;
+    if(!isSaved){
+      statusHtml = `<span class="text-[11px] font-semibold text-[#98A2B3] bg-[#F5F8FC] px-2.5 py-1 rounded-md">Not counted</span>`;
+    } else {
+      const delta = entry.counted - item.systemQty;
+      const cls = delta === 0 ? 'text-[#067647] bg-[#ECFDF3]' : (delta > 0 ? 'text-[#067647] bg-[#ECFDF3]' : 'text-[#B42318] bg-[#FEF3F2]');
+      statusHtml = `<span class="text-[11px] font-semibold ${cls} px-2.5 py-1 rounded-md">Counted: ${entry.counted}${delta !== 0 ? (delta > 0 ? ` (+${delta})` : ` (${delta})`) : ''}</span>`;
+    }
+    return `
+      <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-[#E6EAF2] bg-[#FFFFFF] cursor-pointer hover:border-[#2054E0]" onclick="openAuditItem('${item.id}')">
+        <div class="flex-1 min-w-0">
+          <div class="text-[13px] font-semibold truncate">${item.name}</div>
+          <div class="text-[11px] text-[#98A2B3]">${item.sku} · system says ${item.systemQty} units</div>
+        </div>
+        ${statusHtml}
+        <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>`;
+  };
+
+  const html = items.length
+    ? items.map(rowHtml).join('')
+    : `<div class="text-center text-[12.5px] text-[#98A2B3] py-6">No items match your search.</div>`;
+
+  document.getElementById('d-audit-item-list').innerHTML = html;
+  document.getElementById('m-audit-item-list').innerHTML = html;
+
+  const progressText = `${auditState.saved.size} of ${auditState.items.length} counted`;
+  document.getElementById('d-audit-progress-text').textContent = progressText;
+  document.getElementById('m-audit-progress-text').textContent = progressText;
+  document.getElementById('d-audit-subtitle').textContent = progressText;
+  document.getElementById('m-audit-subtitle').textContent = progressText;
+}
+
+function openAuditItem(itemId){
+  auditState.currentItemId = itemId;
+  if(!auditState.counts[itemId]){
+    const item = auditState.items.find(i => i.id === itemId);
+    auditState.counts[itemId] = { counted: item.systemQty, reason: null };
+  }
+  goToAuditStep('count');
+  renderAuditCountItem();
+}
+
+function currentAuditItem(){ return auditState.items.find(i => i.id === auditState.currentItemId); }
+
+function renderAuditCountItem(){
+  const item = currentAuditItem();
+  const entry = auditState.counts[item.id];
+
+  ['d-audit-item-category','m-audit-item-category'].forEach(id => document.getElementById(id).textContent = auditState.category === 'All categories' ? 'Cycle count' : auditState.category);
+  ['d-audit-item-name','m-audit-item-name'].forEach(id => document.getElementById(id).textContent = item.name);
+  ['d-audit-item-sku','m-audit-item-sku'].forEach(id => document.getElementById(id).textContent = 'SKU: ' + item.sku);
+  ['d-audit-item-system','m-audit-item-system'].forEach(id => document.getElementById(id).textContent = item.systemQty + ' units');
+  ['d-audit-item-counted','m-audit-item-counted'].forEach(id => document.getElementById(id).textContent = entry.counted);
+
+  renderAuditReasonUI();
+}
+
+function auditAdjustQty(delta){
+  const item = currentAuditItem();
+  const entry = auditState.counts[item.id];
+  entry.counted = Math.max(0, entry.counted + delta);
+  ['d-audit-item-counted','m-audit-item-counted'].forEach(id => document.getElementById(id).textContent = entry.counted);
+  renderAuditReasonUI();
+}
+
+function renderAuditReasonUI(){
+  const item = currentAuditItem();
+  const entry = auditState.counts[item.id];
+  const delta = entry.counted - item.systemQty;
+  const needsReason = delta !== 0;
+
+  ['d-audit-reason-wrap','m-audit-reason-wrap'].forEach(id => document.getElementById(id).classList.toggle('hidden', !needsReason));
+
+  if(needsReason){
+    const label = delta > 0 ? `${delta} more than expected: reason required` : `${Math.abs(delta)} fewer than expected: reason required`;
+    ['d-audit-delta-label','m-audit-delta-label'].forEach(id => document.getElementById(id).textContent = label);
+
+    const chipsHtml = AUDIT_REASONS.map(r => {
+      const active = entry.reason === r;
+      return `<div class="px-3 py-1.5 rounded-full border text-[12px] font-semibold cursor-pointer ${active ? 'bg-[#2054E0] border-[#2054E0] text-white' : 'bg-[#FFFFFF] border-[#E6EAF2] text-[#667085]'}" onclick="selectAuditReason('${r}')">${r}</div>`;
+    }).join('');
+    document.getElementById('d-audit-reason-chips').innerHTML = chipsHtml;
+    document.getElementById('m-audit-reason-chips').innerHTML = chipsHtml;
+  }
+
+  const saveEnabled = !needsReason || !!entry.reason;
+  document.getElementById('d-audit-save-btn').disabled = !saveEnabled;
+  document.getElementById('m-audit-save-btn').disabled = !saveEnabled;
+}
+
+function selectAuditReason(reason){
+  const item = currentAuditItem();
+  auditState.counts[item.id].reason = reason;
+  renderAuditReasonUI();
+}
+
+function saveAuditCount(){
+  const item = currentAuditItem();
+  auditState.saved.add(item.id);
+  goToAuditStep('list');
+  renderAuditItemList(document.getElementById('d-audit-search').value || document.getElementById('m-audit-search').value);
+}
+
+function goToAuditReview(){
+  renderAuditReview();
+  goToAuditStep('review');
+}
+
+function renderAuditReview(){
+  const countedItems = auditState.items.filter(i => auditState.saved.has(i.id));
+  let matched = 0, adjusted = 0, netUnits = 0;
+  const rowsHtml = countedItems.map(item => {
+    const entry = auditState.counts[item.id];
+    const delta = entry.counted - item.systemQty;
+    if(delta === 0) matched++; else { adjusted++; netUnits += delta; }
+    const deltaText = delta === 0 ? 'Matched' : (delta > 0 ? `+${delta}` : `${delta}`);
+    const deltaClass = delta === 0 ? 'text-[#98A2B3]' : (delta > 0 ? 'text-[#067647]' : 'text-[#B42318]');
+    return `
+      <div class="flex items-center gap-3 px-4 py-3">
+        <div class="flex-1 min-w-0">
+          <div class="text-[13px] font-semibold truncate">${item.name}</div>
+          <div class="text-[11px] text-[#98A2B3]">${item.systemQty} → ${entry.counted}${entry.reason ? ' · ' + entry.reason : ''}</div>
+        </div>
+        <div class="text-[13px] font-semibold shrink-0 ${deltaClass}">${deltaText}</div>
+      </div>`;
+  }).join('') || `<div class="text-center text-[12.5px] text-[#98A2B3] py-6">No items counted yet.</div>`;
+
+  document.getElementById('d-audit-review-list').innerHTML = rowsHtml;
+  document.getElementById('m-audit-review-list').innerHTML = rowsHtml;
+
+  const stat = (label, value, cls) => `
+    <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3">
+      <div class="text-[10.5px] text-[#667085] font-medium mb-1">${label}</div>
+      <div class="text-[16px] font-semibold ${cls||''}">${value}</div>
+    </div>`;
+  const statsHtml =
+    stat('Counted', `${countedItems.length}/${auditState.items.length}`) +
+    stat('Matched', matched, 'text-[#067647]') +
+    stat('Adjusted', adjusted, adjusted ? 'text-[#B54708]' : '') +
+    stat('Net units', (netUnits > 0 ? '+' : '') + netUnits, netUnits < 0 ? 'text-[#B42318]' : (netUnits > 0 ? 'text-[#067647]' : ''));
+  document.getElementById('d-audit-summary-stats').innerHTML = statsHtml;
+  document.getElementById('m-audit-summary-stats').innerHTML = statsHtml;
+
+  const subtitle = `Review · ${adjusted} adjusted`;
+  document.getElementById('d-audit-subtitle').textContent = subtitle;
+  document.getElementById('m-audit-subtitle').textContent = subtitle;
+}
+
+function submitAudit(){
+  const countedItems = auditState.items.filter(i => auditState.saved.has(i.id));
+  const adjusted = addAuditEntriesToLedger(countedItems);
+  const summary = `${countedItems.length} items counted · ${adjusted} adjusted`;
+  document.getElementById('d-audit-done-summary').textContent = summary;
+  document.getElementById('m-audit-done-summary').textContent = summary;
+  const subtitle = 'Complete';
+  document.getElementById('d-audit-subtitle').textContent = subtitle;
+  document.getElementById('m-audit-subtitle').textContent = subtitle;
+  goToAuditStep('done');
+  // Adjusted items are now written into LEDGER_ENTRIES as real "Adjustment" rows,
+  // check the Ledger tab after submitting to see them at the top of Today.
+}
+
+
+const LEDGER_ENTRIES = [
+  { id:'led1', group:'Today', product:'Paracetamol 500mg', productId:'para', time:'Today, 3:20 PM', type:'Sale', typeClass:'bg-[#ECFDF3] text-[#067647]', qty:'−6', qtyClass:'', reference:'Sale #1042', user:'Josh O.',
+    icon:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>' },
+  { id:'led2', group:'Today', product:'Amoxicillin 250mg', productId:'amox', time:'Today, 1:05 PM', type:'Restock', typeClass:'bg-[#F0F9FF] text-[#026AA2]', qty:'+50', qtyClass:'text-[#067647]', reference:'PO-2291', user:'Chidi O.',
+    icon:'<path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/>' },
+  { id:'led3', group:'Today', product:'Bottled water 50cl', productId:'water', time:'Today, 11:47 AM', type:'Sale', typeClass:'bg-[#ECFDF3] text-[#067647]', qty:'−12', qtyClass:'', reference:'Sale #1041', user:'Bola A.',
+    icon:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>' },
+  { id:'led4', group:'Today', product:'Rice 5kg bag', productId:'rice', time:'Today, 9:15 AM', type:'Damage', typeClass:'bg-[#FEF3F2] text-[#B42318]', qty:'−2', qtyClass:'text-[#B42318]', reference:'Water damage in storeroom', user:'Josh O.',
+    icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/>' },
+  { id:'led5', group:'Yesterday', product:'Panadol Extra', productId:'panadol', time:'Yesterday, 6:40 PM', type:'Adjustment', typeClass:'bg-[#FFFAEB] text-[#B54708]', qty:'−3', qtyClass:'text-[#B42318]', reference:'Cycle count: found 3 fewer units than recorded', user:'Josh O. (Audit)',
+    icon:'<path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/>' },
+  { id:'led6', group:'Yesterday', product:'Vitamin C tablets', productId:'vitc', time:'Yesterday, 4:10 PM', type:'Return', typeClass:'bg-[#EAF0FE] text-[#153C9E]', qty:'+1', qtyClass:'text-[#067647]', reference:'Customer return, unopened', user:'Bola A.',
+    icon:'<path d="M9 14l-4-4 4-4M5 10h11a4 4 0 010 8h-1"/>' },
+  { id:'led7', group:'Yesterday', product:'Coke 50cl bottle', productId:null, time:'Yesterday, 2:30 PM', type:'Sale', typeClass:'bg-[#ECFDF3] text-[#067647]', qty:'−8', qtyClass:'', reference:'Sale #1038', user:'Chidi O.',
+    icon:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>' },
+  { id:'led8', group:'Yesterday', product:'Rice 5kg bag', productId:'rice', time:'Yesterday, 10:00 AM', type:'Restock', typeClass:'bg-[#F0F9FF] text-[#026AA2]', qty:'+20', qtyClass:'text-[#067647]', reference:'PO-2288', user:'Josh O.',
+    icon:'<path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/>' },
+  { id:'led9', group:'3 days ago', product:'Panadol Extra', productId:'panadol', time:'3 days ago, 5:52 PM', type:'Damage', typeClass:'bg-[#FEF3F2] text-[#B42318]', qty:'−1', qtyClass:'text-[#B42318]', reference:'Blister pack torn in transit', user:'Chidi O.',
+    icon:'<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/>' },
+  { id:'led10', group:'3 days ago', product:'Recharge card ₦100', productId:null, time:'3 days ago, 1:18 PM', type:'Sale', typeClass:'bg-[#ECFDF3] text-[#067647]', qty:'−15', qtyClass:'', reference:'Sale #1029', user:'Bola A.',
+    icon:'<path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>' }
+];
+
+function renderLedgerMobile(){
+  const container = document.getElementById('mobile-ledger-list');
+  if(!container) return;
+  let html = '';
+  let currentGroup = null;
+  LEDGER_ENTRIES.forEach((e, i) => {
+    if(e.group !== currentGroup){
+      if(currentGroup !== null) html += '</div>'; // close previous group card
+      html += `<div class="text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide mb-2 ${i>0 ? 'mt-4' : ''}">${e.group}</div>`;
+      html += `<div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl px-4 divide-y divide-[#E6EAF2]">`;
+      currentGroup = e.group;
+    }
+    html += `
+      <div class="flex items-center gap-3 py-3 cursor-pointer" onclick="showLedgerDetail('${e.id}', 'mobile')">
+        <div class="w-9 h-9 rounded-lg ${e.typeClass} flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${e.icon}</svg>
+        </div>
+        <div class="flex-1 min-w-0"><div class="text-[13px] font-semibold truncate">${e.product}</div><div class="text-[11px] text-[#98A2B3] truncate">${e.reference} · ${e.user}</div></div>
+        <div class="text-[13px] font-semibold shrink-0 ${e.qtyClass}">${e.qty}</div>
+      </div>`;
+  });
+  html += '</div>'; // close last group card
+  container.innerHTML = html;
+}
+
+function renderLedgerDesktop(){
+  const container = document.getElementById('desktop-ledger-list');
+  if(!container) return;
+  let html = '';
+  let currentGroup = null;
+  LEDGER_ENTRIES.forEach(e => {
+    if(e.group !== currentGroup){
+      html += `<div class="px-4 pt-3 pb-1 text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide">${e.group}</div>`;
+      currentGroup = e.group;
+    }
+    html += `
+      <div class="grid grid-cols-[100px_1fr_130px_100px_1fr_120px] gap-2 px-4 py-3 items-center border-b border-[#E6EAF2] text-[13px] cursor-pointer hover:bg-[#F5F8FC]" onclick="showLedgerDetail('${e.id}')">
+        <div class="text-[#667085]">${e.time.replace(/^(Today|Yesterday|3 days ago),\s*/, '')}</div>
+        <div class="font-semibold truncate">${e.product}</div>
+        <div><span class="text-[11px] font-semibold ${e.typeClass} px-2 py-0.5 rounded-md">${e.type}</span></div>
+        <div class="font-semibold ${e.qtyClass}">${e.qty}</div>
+        <div class="text-[#667085] truncate">${e.reference}</div>
+        <div class="text-[#667085]">${e.user}</div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function renderLedger(){
+  renderLedgerDesktop();
+  renderLedgerMobile();
+}
+
+let auditLedgerCounter = 0;
+function addAuditEntriesToLedger(countedItems){
+  const iconAdjustment = '<path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/>';
+  const newEntries = countedItems
+    .filter(item => auditState.counts[item.id].counted !== item.systemQty)
+    .map(item => {
+      const entry = auditState.counts[item.id];
+      const delta = entry.counted - item.systemQty;
+      auditLedgerCounter++;
+      return {
+        id: 'led-audit-' + auditLedgerCounter,
+        group: 'Today',
+        product: item.name,
+        productId: item.id,
+        time: 'Today, Just now',
+        type: 'Adjustment',
+        typeClass: 'bg-[#FFFAEB] text-[#B54708]',
+        qty: (delta > 0 ? '+' : '') + delta,
+        qtyClass: delta > 0 ? 'text-[#067647]' : 'text-[#B42318]',
+        reference: `Cycle count: ${entry.reason}`,
+        user: 'Josh O. (Audit)',
+        icon: iconAdjustment
+      };
+    });
+  // newest first, ahead of the rest of "Today"
+  LEDGER_ENTRIES.unshift(...newEntries.reverse());
+  renderLedger();
+  return newEntries.length;
+}
+
+function showLedgerDetail(id, ctx){
+  const e = LEDGER_ENTRIES.find(x => x.id === id);
+  if(!e) return;
+
+  const setField = (elId, val) => { const el = document.getElementById(elId); if(el) el.textContent = val; };
+  const setType = (elId, cls, txt) => { const el = document.getElementById(elId); if(el){ el.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md ' + cls; el.textContent = txt; } };
+  const setQty = (elId, cls, txt) => { const el = document.getElementById(elId); if(el){ el.className = 'text-[18px] font-semibold mt-1 ' + cls; el.textContent = txt; } };
+
+  setField('ld-product', e.product); setField('ld-time', e.time); setType('ld-type', e.typeClass, e.type);
+  setQty('ld-qty', e.qtyClass, e.qty); setField('ld-reference', e.reference); setField('ld-user', e.user);
+  const ldLink = document.getElementById('ld-viewproduct'); if(ldLink) ldLink.style.display = e.productId ? 'block' : 'none';
+
+  setField('m-ld-product', e.product); setField('m-ld-time', e.time); setType('m-ld-type', e.typeClass, e.type);
+  setQty('m-ld-qty', e.qtyClass, e.qty); setField('m-ld-reference', e.reference); setField('m-ld-user', e.user);
+  const mLdLink = document.getElementById('m-ld-viewproduct'); if(mLdLink) mLdLink.style.display = e.productId ? 'block' : 'none';
+
+  if(ctx === 'mobile') openSheet('ledgerDetail'); else openModal('ledgerDetail');
+}
+
+function showView(name, btn){
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + name).classList.remove('hidden');
+  document.querySelectorAll('.switcher button').forEach(b => {
+    b.classList.remove('bg-[#2054E0]','text-white');
+    b.classList.add('bg-transparent','text-[#667085]');
+  });
+  btn.classList.add('bg-[#2054E0]','text-white');
+  btn.classList.remove('bg-transparent','text-[#667085]');
+}
+
+// ---- Catalog data ----
+const PRODUCTS = {
+  amox: { name:'Amoxicillin 250mg', sku:'RX-AMX-250', category:'Pharmacy', categoryClass:'bg-[#F0F9FF] text-[#026AA2]',
+    price:'₦1,200', stock:'22 units', reorder:'15 units', value:'₦26,400',
+    batches:[
+      {batch:'#A214', qty:'22 units', expiry:'Expires in 9 days', tagClass:'bg-[#FEF3F2] text-[#B42318]', note:'Sell first (FEFO)'},
+      {batch:'#A198', qty:'40 units', expiry:'Expires in 45 days', tagClass:'bg-[#ECFDF3] text-[#067647]', note:null}
+    ],
+    history:[
+      {type:'Sale', qty:'−2', when:'Today, 2:14pm · Josh O.', typeClass:'bg-[#ECFDF3] text-[#067647]'},
+      {type:'Restock', qty:'+50', when:'5 days ago · Chidi O.', typeClass:'bg-[#F0F9FF] text-[#026AA2]'},
+      {type:'Sale', qty:'−1', when:'6 days ago · Josh O.', typeClass:'bg-[#ECFDF3] text-[#067647]'}
+    ]},
+  panadol: { name:'Panadol Extra', sku:'RX-PAN-EXT', category:'Pharmacy', categoryClass:'bg-[#F0F9FF] text-[#026AA2]',
+    price:'₦700', stock:'6 units', reorder:'15 units', value:'₦4,200',
+    batches:[{batch:'#P077', qty:'6 units', expiry:'Expires in 120 days', tagClass:'bg-[#ECFDF3] text-[#067647]', note:null}],
+    history:[
+      {type:'Sale', qty:'−4', when:'Today, 11:02am · Bola A.', typeClass:'bg-[#ECFDF3] text-[#067647]'},
+      {type:'Sale', qty:'−3', when:'Yesterday · Josh O.', typeClass:'bg-[#ECFDF3] text-[#067647]'}
+    ]},
+  para: { name:'Paracetamol 500mg', sku:'RX-PCM-500', category:'Pharmacy', categoryClass:'bg-[#F0F9FF] text-[#026AA2]',
+    price:'₦500', stock:'142 units', reorder:'30 units', value:'₦71,000',
+    batches:[{batch:'#PC901', qty:'142 units', expiry:'Expires in 88 days', tagClass:'bg-[#ECFDF3] text-[#067647]', note:null}],
+    history:[
+      {type:'Sale', qty:'−6', when:'Today, 3:20pm · Josh O.', typeClass:'bg-[#ECFDF3] text-[#067647]'},
+      {type:'Restock', qty:'+80', when:'4 days ago · Chidi O.', typeClass:'bg-[#F0F9FF] text-[#026AA2]'}
+    ]},
+  water: { name:'Bottled water 50cl', sku:'BEV-WTR-50', category:'Beverages', categoryClass:'bg-[#ECFDF3] text-[#067647]',
+    price:'₦200', stock:'88 units', reorder:'40 units', value:'₦17,600',
+    batches:[{batch:'#W340', qty:'88 units', expiry:'Expires in 210 days', tagClass:'bg-[#ECFDF3] text-[#067647]', note:null}],
+    history:[
+      {type:'Restock', qty:'+120', when:'3 days ago · Chidi O.', typeClass:'bg-[#F0F9FF] text-[#026AA2]'},
+      {type:'Sale', qty:'−20', when:'2 days ago · Josh O.', typeClass:'bg-[#ECFDF3] text-[#067647]'},
+      {type:'Sale', qty:'−12', when:'Yesterday · Bola A.', typeClass:'bg-[#ECFDF3] text-[#067647]'}
+    ]},
+  rice: { name:'Rice 5kg bag', sku:'FMC-RIC-5K', category:'Household', categoryClass:'bg-[#FFFAEB] text-[#B54708]',
+    price:'₦6,500', stock:'4 units', reorder:'10 units', value:'₦26,000',
+    batches:[{batch:'#R502', qty:'4 units', expiry:'No expiry tracked', tagClass:'bg-[#F5F8FC] text-[#667085]', note:null}],
+    history:[
+      {type:'Sale', qty:'−2', when:'Today, 4:05pm · Bola A.', typeClass:'bg-[#ECFDF3] text-[#067647]'},
+      {type:'Restock', qty:'+10', when:'9 days ago · Chidi O.', typeClass:'bg-[#F0F9FF] text-[#026AA2]'}
+    ]},
+  vitc: { name:'Vitamin C tablets', sku:'RX-VTC-500', category:'Pharmacy', categoryClass:'bg-[#F0F9FF] text-[#026AA2]',
+    price:'₦900', stock:'0 units', reorder:'20 units', value:'₦0',
+    batches:[],
+    history:[
+      {type:'Sale', qty:'−1', when:'Today, 9:40am · Josh O.', typeClass:'bg-[#ECFDF3] text-[#067647]'},
+      {type:'Sale', qty:'−1', when:'Yesterday · Bola A.', typeClass:'bg-[#ECFDF3] text-[#067647]'}
+    ]}
+};
+
+function renderBatches(list){
+  if(!list.length){
+    return '<div class="text-[12.5px] text-[#98A2B3] text-center py-6">No batches in stock for this item.</div>';
+  }
+  return list.map(b => `
+    <div class="border border-[#E6EAF2] rounded-xl p-3.5">
+      <div class="flex items-center justify-between mb-1.5">
+        <div class="text-[13px] font-semibold">Batch ${b.batch}</div>
+        <div class="text-[10.5px] font-bold px-2 py-0.5 rounded-md ${b.tagClass}">${b.expiry}</div>
+      </div>
+      <div class="text-[12px] text-[#667085]">${b.qty}${b.note ? ' · ' + b.note : ''}</div>
+    </div>`).join('');
+}
+
+function renderHistory(list){
+  return list.map((h,i) => `
+    <div class="flex items-center gap-3 py-2.5 ${i < list.length-1 ? 'border-b border-[#E6EAF2]' : ''}">
+      <div class="text-[10.5px] font-bold px-2 py-1 rounded-md ${h.typeClass} shrink-0">${h.type}</div>
+      <div class="flex-1 min-w-0 text-[12px] text-[#667085] truncate">${h.when}</div>
+      <div class="text-[13px] font-semibold shrink-0">${h.qty}</div>
+    </div>`).join('');
+}
+
+function selectProduct(id, rowEl){
+  const p = PRODUCTS[id];
+  if(!p) return;
+
+  // desktop detail panel
+  const dn = document.getElementById('detail-name'); if(dn) dn.textContent = p.name;
+  const ds = document.getElementById('detail-sku'); if(ds) ds.textContent = 'SKU: ' + p.sku;
+  const dc = document.getElementById('detail-category');
+  if(dc){ dc.textContent = p.category; dc.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md ' + p.categoryClass; }
+  const dp = document.getElementById('detail-price'); if(dp) dp.textContent = p.price;
+  const dstk = document.getElementById('detail-stock'); if(dstk) dstk.textContent = p.stock;
+  const dro = document.getElementById('detail-reorder'); if(dro) dro.textContent = p.reorder;
+  const dv = document.getElementById('detail-value'); if(dv) dv.textContent = p.value;
+  const dbl = document.getElementById('detail-batches-list'); if(dbl) dbl.innerHTML = renderBatches(p.batches);
+  const dhl = document.getElementById('detail-history-list'); if(dhl) dhl.innerHTML = renderHistory(p.history);
+
+  // row highlight (desktop)
+  document.querySelectorAll('.catalog-row').forEach(r => r.classList.remove('bg-[#F3F7FF]','border-l-2','border-l-[#2054E0]'));
+  if(rowEl) rowEl.classList.add('bg-[#F3F7FF]','border-l-2','border-l-[#2054E0]');
+
+  // mobile: fill and open the full-screen detail view
+  const mn = document.getElementById('m-detail-name'); if(mn) mn.textContent = p.name;
+  const ms = document.getElementById('m-detail-sku'); if(ms) ms.textContent = 'SKU: ' + p.sku;
+  const mc = document.getElementById('m-detail-category');
+  if(mc){ mc.textContent = p.category; mc.className = 'text-[11px] font-semibold px-2 py-0.5 rounded-md ' + p.categoryClass; }
+  const mp = document.getElementById('m-detail-price'); if(mp) mp.textContent = p.price;
+  const mstk = document.getElementById('m-detail-stock'); if(mstk) mstk.textContent = p.stock;
+  const mro = document.getElementById('m-detail-reorder'); if(mro) mro.textContent = p.reorder;
+  const mv = document.getElementById('m-detail-value'); if(mv) mv.textContent = p.value;
+  const mbl = document.getElementById('m-detail-batches-list'); if(mbl) mbl.innerHTML = renderBatches(p.batches);
+  const mhl = document.getElementById('m-detail-history-list'); if(mhl) mhl.innerHTML = renderHistory(p.history);
+}
+
+function switchDetailTab(name){
+  ['details','batches','history'].forEach(t => {
+    document.getElementById('detail-tab-' + t).classList.toggle('hidden', t !== name);
+    const btn = document.getElementById('detailtabbtn-' + t);
+    btn.classList.toggle('bg-[#2054E0]', t === name);
+    btn.classList.toggle('text-white', t === name);
+    btn.classList.toggle('text-[#667085]', t !== name);
+  });
+  ['m-details','m-batches','m-history'].forEach(t => {
+    const el = document.getElementById('detail-tab-' + t);
+    if(el) el.classList.toggle('hidden', t !== 'm-' + name);
+    const btn = document.getElementById('detailtabbtn-' + t);
+    if(btn){
+      btn.classList.toggle('bg-[#2054E0]', t === 'm-' + name);
+      btn.classList.toggle('text-white', t === 'm-' + name);
+      btn.classList.toggle('text-[#667085]', t !== 'm-' + name);
+    }
+  });
+}
+
+function switchDeskTab(name){
+  document.getElementById('desk-tab-overview').classList.toggle('hidden', name !== 'overview');
+  document.getElementById('desk-tab-catalog').classList.toggle('hidden', name !== 'catalog');
+  document.getElementById('desk-tab-catalog').classList.toggle('flex', name === 'catalog');
+  document.getElementById('desk-tab-ledger').classList.toggle('hidden', name !== 'ledger');
+  document.getElementById('desk-tab-ledger').classList.toggle('flex', name === 'ledger');
+  ['overview','catalog','ledger'].forEach(t => {
+    const btn = document.getElementById('desktabbtn-' + t);
+    btn.classList.toggle('bg-[#2054E0]', t === name);
+    btn.classList.toggle('text-white', t === name);
+    btn.classList.toggle('text-[#98A2B3]', t !== name);
+  });
+  if(name === 'catalog') selectProduct('amox', document.querySelector('.catalog-row[data-id="amox"]'));
+}
+
+function switchMobileTab(name){
+  document.getElementById('mobile-tab-overview').classList.toggle('hidden', name !== 'overview');
+  document.getElementById('mobile-tab-catalog').classList.toggle('hidden', name !== 'catalog');
+  document.getElementById('mobile-tab-ledger').classList.toggle('hidden', name !== 'ledger');
+  ['overview','catalog','ledger'].forEach(t => {
+    const btn = document.getElementById('mobtabbtn-' + t);
+    btn.classList.toggle('bg-[#2054E0]', t === name);
+    btn.classList.toggle('text-white', t === name);
+    btn.classList.toggle('bg-[#FFFFFF]', t !== name);
+    btn.classList.toggle('border', t !== name);
+    btn.classList.toggle('text-[#98A2B3]', t !== name);
+  });
+}
+
+function openMobileDetail(){
+  document.getElementById('mobile-detail-overlay').classList.remove('hidden');
+  document.getElementById('mobile-detail-overlay').classList.add('flex');
+}
+function closeMobileDetail(){
+  document.getElementById('mobile-detail-overlay').classList.add('hidden');
+  document.getElementById('mobile-detail-overlay').classList.remove('flex');
+}
+
+// initialize detail panel with the default product on load
+selectProduct('amox', document.querySelector('.catalog-row[data-id="amox"]'));
+renderLedger();
+</script>
+
+
+</body>
+</html>

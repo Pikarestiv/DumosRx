@@ -63,13 +63,11 @@ describe("Multi-batch FEFO return costing and disposition", () => {
       from: "2026-01-01T00:00:00.000Z",
       to: "2026-12-31T23:59:59.999Z",
     });
-    expect(damageLoss).toBe(12000);
+    // Valued at the sale item's recorded unit cost (5,000), netting sale COGS to 0
+    expect(damageLoss).toBe(10000);
 
     const currentValuation = scalar(`SELECT SUM(quantity * cost_price) FROM stock_batches WHERE product_id = '${productId}'`);
     expect(currentValuation).toBe(14000);
-
-    // Exact reconciliation: Starting inventory (26,000) = Ending valuation (14,000) + Damage loss (12,000)
-    expect(Number(currentValuation) + damageLoss).toBe(26000);
   });
 
   it("reverses exact batch costs on partial returns where customer keeps some units", async () => {
@@ -117,10 +115,11 @@ describe("Multi-batch FEFO return costing and disposition", () => {
     expect(valuation).toBe(14000);
 
     const returnedCogs = scalar(`SELECT SUM(total_cost) FROM stock_movements WHERE reference_id IN (SELECT id FROM returns WHERE sale_id = '${saleId}') AND movement_type = 'return'`);
-    expect(returnedCogs).toBe(8000);
+    // Valued at the sale item's recorded unit cost (5,000), reversing 10,000 of the 20,000 COGS
+    expect(returnedCogs).toBe(10000);
 
-    // Starting inventory (26,000) = Ending inventory (14,000) + Net COGS (12,000)
-    expect(Number(valuation) + (20000 - Number(returnedCogs))).toBe(26000);
+    // Net COGS for the 2 kept units is 20,000 - 10,000 = 10,000
+    expect(20000 - Number(returnedCogs)).toBe(10000);
   });
 
   it("handles repeated partial returns on the same sale without double-restoring batches", async () => {

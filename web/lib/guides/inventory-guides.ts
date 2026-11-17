@@ -232,10 +232,31 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "If it is really a different product, put the size or strength in the name, or fill in 'Strength / Size' under Additional Details. The warning disappears once the two differ, for example 200ml and 500ml.",
       "If it is the same product, close the form and edit the existing one instead, from the pencil beside its name in the catalog.",
       "A barcode can only belong to one product. Typing or scanning a barcode that is already in use stops the save and tells you which product has it.",
+      "To clean up products that are already duplicated, open the Inventory filter in the catalog and choose 'Possible Duplicates'. It lists every product that shares a name and size, or a barcode, with another.",
     ],
     proTip:
       "The check runs against the products on the till you are using. If two tills add the same product while offline, the duplicate only shows up after they sync, so rename or merge it then.",
     videoPlaceholderText: "Video Walkthrough: Spotting a duplicate and telling two sizes apart",
+  },
+  {
+    id: "service-categories",
+    title: "Service Categories: Pick, Rename and Tidy Up in One Place",
+    category: "Inventory",
+    badge: "New",
+    readTime: "1 min read",
+    videoDuration: "1:00",
+    summary:
+      "Pick a service's category from the ones you already use instead of retyping it, so 'Consultation' and 'consultation' never become two categories. Rename or remove a category for all its services at once.",
+    steps: [
+      "Open Inventory, then Services, and tap Add Service (or the pencil on an existing one).",
+      "Click the Category box. Your existing categories are listed; pick one, or type a new name and choose 'Create' to add it.",
+      "If you type a name that only differs by capital letters from an existing category, DumosRx uses the existing one.",
+      "To tidy up, open 'Services actions' beside the search box and choose 'Manage categories'. In Settings, on the Services tab, use the pencil to rename a category on every service that uses it, or the bin to remove it. Removed categories leave those services as Uncategorized.",
+      "The same 'Services actions' menu has 'Export services list' to download the services you are looking at as CSV, Excel or PDF.",
+    ],
+    proTip:
+      "Rename a category once here instead of editing services one by one. The new name shows on the POS service tiles and the services list straight away.",
+    videoPlaceholderText: "Video Walkthrough: Choosing, renaming and removing service categories",
   },
   {
     id: "product-icons",

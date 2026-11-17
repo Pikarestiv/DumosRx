@@ -144,7 +144,7 @@ export function StaffList({
                             {`${user.first_name || ""} ${user.last_name || ""}`.trim()}
                           </span>
                           {isMainAccount && (
-                            <Badge className="h-5 px-1.5 text-[9px] bg-primary shrink-0">
+                            <Badge className="h-5 px-1.5 text-[10px] bg-primary shrink-0">
                               Main Account
                             </Badge>
                           )}

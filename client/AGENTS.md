@@ -4833,6 +4833,10 @@ Call sites (all read the key once, unconditionally, at the top level):
   when the store toggle is on and the key is not; no chip when the store
   toggle is off. `display_stock_levels` is unchanged: a store-wide "no
   numbers at the till for anyone, owners included" switch on top of the key.
+  The tile subtitle also acts as a disambiguator (A-186): when `generic_name`
+  and `strength` are absent or placeholders, it falls back to
+  `barcode · category_name` (or barcode/category alone, or short 8-char id)
+  so imported catalog variants with long names never render identically.
 - `lib/hooks/use-pos-cart.ts` — the two "only N units available" toasts
   become "Not enough stock for that quantity". This reaches barcode scan,
   prescription dispense and held-sale recall too, since they go through
@@ -5727,7 +5731,9 @@ same tab session still gets its own fresh one-time retry.
   already has — `Sub total` renders only when tax or a discount makes it differ
   from `Total`, `Total paid` only when it differs from `Total`, there is
   change, or the sale was on credit (a settled credit sale's only record that
-  it was paid is that line — caught in review, after the first cut hid it) — and the boxed heading is a quote-only thing, because "Proforma
+  it was paid is that line — caught in review, after the first cut hid it) —
+  and a part-paid or credit sale (`total > amountPaid`) prints `Balance due:`
+  with the outstanding debt amount (A-269) — and the boxed heading is a quote-only thing, because "Proforma
   Invoice" is a legal distinction a buyer must see while "Receipt" above an
   `RCT-` number is not. A tax invoice says so in its meta label
   (`Tax invoice no:`) rather than in a 14mm box. Meta rows pair into two
@@ -5742,6 +5748,8 @@ same tab session still gets its own fresh one-time retry.
   office lasers cannot print the outer 4-5mm and many inkjets have a 12-15mm
   bottom dead zone, and Chrome clips rather than scales, so the footer would
   silently vanish.
+
+- **The receipt number is the searchable transaction_number** (A-270). `ReceiptTransaction` carries `transactionNumber` / `transaction_number`, `ReceiptView` prints it as `Receipt no:`, and the barcode encodes `transactionNumber` instead of the internal `sale.id` UUID. This ensures the printed number and the scanned barcode both match the `transaction_number` search field in POS sales history, while legacy receipts and short UUIDs remain searchable in history via backward-compatible indexing.
 
 - **The receipt footer's default lives in the field, not the renderer**
   (2026-10-15). `ReceiptView` printed `receipt_footer || "Thank you for your
@@ -7689,7 +7697,7 @@ The product detail panel's Batches tab (`product-batch-history.tsx`) lets a user
 
 - **What it writes:** one `update("stock_batches", id, { cost_price })`, rounded to 2 dp, so it syncs as a cost-only UPDATE. A cost-only push is *not* quantity-only, so the server applies its normal strict `_version` check (`SyncEndpointTest::test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells`); no server change was needed. The server does not validate the value, so the client range check (`isValidBatchCostPrice`: finite, 0 to 1,000,000,000) is the only one. An unchanged cost writes nothing.
 - **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`. Without `view_cost_fields` the History tab prints the row without either cost (`describeAuditDetails(..., canViewCost)`; the permission is part of the query key). The Activity Log detail panel does not gate them yet (A-380).
-- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), the cost of future sales via that average, and the cost a later return restocks at (A-374). **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
+- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), and the cost of future sales via that average. **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), customer return valuation (which uses the sale-time `sale_items.cost_price` snapshot to guarantee full returns net COGS to zero, per A-374), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
 - Expired, sold-out and inactive batches are editable on purpose: a zero-quantity batch still feeds Last Bought Price and return valuation.
 
 ## "Average cost" always carries a tooltip
@@ -7826,7 +7834,7 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 - **`<ProductImage>`** (`components/products/product-image.tsx`) is the one renderer: CDN URL from config + key, fixed box, `loading="lazy"`, `crossOrigin="anonymous"` (the service worker needs a CORS response to cache it), category icon on no key, disabled feature, `showImage={false}` or a load error. A new key retries after a failed one.
 - **The upload path** (`lib/hooks/use-product-image-upload.ts`): `compressProductImage()` (`lib/product-images/compress.ts`: non-image or >5 MB rejected, fit in 512x512, WebP stepping quality down to <=120 KB, JPEG when the browser cannot encode WebP, refused above the server's `max_bytes`) → presign → `PUT` to the upload URL → confirm → local write. Offline it refuses before any request with `OFFLINE_IMAGE_MESSAGE`; product saving never depends on it.
 - **Service worker:** product image requests (destination `image`, path `/stores/*/products/*/*.{webp,jpg,png}` on any origin) are cache-first in `dumosrx-product-images-v1`, trimmed to the newest 500, and exempt from `activate()`'s cache cleanup. Keys are immutable (a replacement gets a new key), so there is no revalidation. `CACHE_VERSION` was deliberately not bumped: the shell's strategy is unchanged. Tauri does not run the service worker and relies on the webview HTTP cache.
-- **Zoom and fallback.** `<ProductImage zoom="full"|"corner">` opens `ProductImageLightbox`; the POS tile uses `corner` because the tile is itself a button. The icon fallback gets `productName` so it uses `getProductIcon`.
+- **Zoom and fallback.** `<ProductImage zoom="full"|"overlay">` opens `ProductImageLightbox`; the POS tile uses `overlay` (hover-centred button, corner on touch) because the tile is itself a button. The icon fallback gets `productName` so it uses `getProductIcon`.
 - **`stores.pos_show_product_images`** (default 1) is the Register Configs toggle "Show product images in POS grid"; it is only listed while the feature is enabled. The POS tile reads it from `storeProfile` directly.
 - **The catalog detail panel now shows the live list row** (`product-database.tsx` resolves the selected product by id from the current list), so an image change, or any other edit, shows without reselecting.
 - The Orders tab shows every PO to anyone holding `view_activity_log`,
@@ -7961,3 +7969,45 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 - Products without an assigned category (`category_id` or `category_name` is null or empty) are labelled "Uncategorized" in tables and POS cards.
 - Both the POS category tab bar (`usePOSProductFilter`, `pos-category-filter.tsx`) and the Catalog filter bar (`product-database.tsx`, `product-database-filters.tsx`) use `UNCATEGORIZED_CATEGORY_VALUE = "__uncategorized__"` from `client/lib/constants/categories.ts` as a reserved filter sentinel.
 - When any product in the active catalog has no category, the "Uncategorized" filter option is dynamically appended to category choices. Selecting it filters to rows where `category_id` or `category_name` is empty. The sentinel is never stored in the database or sent to the server.
+
+- The catalog's Inventory filter has a "Possible Duplicates (N)" option. `findDuplicateProductIds`
+  returns every product sharing a name+strength or a non-empty barcode with another, and
+  `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.
+  It is the way to find duplicates that offline tills created before they synced.
+
+## Sentry identity (2026-11-17)
+
+- Every client event carries the store and the staff member: tags `store_id`, `store_name`, `store_type`,
+  `staff_name`, `staff_role` plus the Sentry user (`id`, `username`, `name`, `role`), all set in one place,
+  `applySentryIdentity` (`lib/utils/sentry-identity.ts`), called from `StoreProvider` whenever the signed-in
+  user or the store profile changes. It used to be set only inside the login call, so a till restoring a saved
+  session after a reload sent events with no user at all (DUMOSRX-CLIENT-2J had none).
+- Tags show in Sentry's alert emails and can be searched (`store_name:"..."`); they are the staff member's name
+  and the store's name, never an email address or PIN.
+
+## Service categories (2026-11-17)
+
+- `services.category` stays free text; there is no services category table and no schema change.
+  Service categories are deliberately separate from product `categories` so "Consultation" never
+  appears in the product category picker or product filters.
+- The service form uses `CategoryCombobox` with its `options` prop (the distinct categories of this
+  store's services, via `useServiceCategories`), and saves through `resolveServiceCategory`, which
+  reuses an existing spelling when only case or spacing differs. Case variants already in the data are
+  grouped by `groupServiceCategories` under their most-used spelling; stored values are not rewritten
+  until someone renames the category (`renameServiceCategory`, `clearServiceCategory` update each
+  service through the sync-aware `update()` helper, scoped to the active store).
+- The services tab has a "Services actions" menu beside the search (`ServicesActionsMenu`, same place as the
+  catalog's Product actions): "Export services list" (CSV/XLSX/PDF of the rows on screen, gated by
+  `export_product_list`) and "Manage categories", which opens Settings → Categories on its Services tab
+  (`/settings/categories?type=services`). That page (`CategoriesTabs`) has Products and Services tabs; the
+  Services tab is `ServiceCategoriesCard`, the rename/remove manager. The services list and its category
+  cells follow the store's capitalisation setting like the product catalog.
+- Backward compatibility (§11): nothing about the stored shape changed, so older bundles keep working;
+  they just keep their free-text input.
+
+## Mobile keyboard and touch targets (2026-11-17)
+
+- While the on-screen keyboard is open `useKeyboardViewport` sets `data-keyboard-open` on `<html>`. Secondary chrome hides with the `[[data-keyboard-open]_&]:hidden` variant: the PO vendor summary bar, the Add Product "Save & Add Another" button and the dialog description. New forms should do the same so the field being typed in and its results keep most of the visible height.
+- Touch sizing is applied in the shared primitives with Tailwind's `pointer-coarse:` variant (Button 40-44px, Select trigger, Tabs pill). Bare text links and small buttons keep their look and grow only the hit area with `pointer-coarse:-my-3 pointer-coarse:py-3`.
+- A product name in a mobile list row wraps to two lines (`line-clamp-2`) instead of clipping; `truncate` on a flex container does not ellipsise its children.
+- `e2e/mobile-ux.spec.ts` guards this at 375px: no sideways scroll on the main routes, wrapped catalog names, 40px+ primary buttons, and the POS search, Add Product name field and PO item search staying above a simulated 300px keyboard (it fakes `visualViewport.height`, which is how iOS and Android Chrome report an open keyboard).

@@ -27,4 +27,5 @@ export const CATALOG_STATUS_FILTERS = [
   "low_stock",
   "out_of_stock",
   "stock_owed",
+  "possible_duplicates",
 ];

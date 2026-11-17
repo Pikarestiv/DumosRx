@@ -8,6 +8,45 @@
   (4) Deep-link URL navigation was extracted into `client/components/products/use-product-database-navigation.ts` to keep `product-database.tsx` strictly under 350 lines (now ~330 lines).
 - **Coverage:** `client/__tests__/uncategorized-products-filter.test.tsx` (covers POS hook filtering, POS category bar rendering, catalog filter pill mapping, and product list filtering for uncategorized products).
 - **Compat:** No schema or server API changes.
+### A-269 — a part-paid sale printed "Total paid" with no balance owing
+- **Fixed:** 2026-11-17, client only, TDD. Found during receipt auditing (PR #343).
+- **Was:** `ReceiptView` in `client/components/pos/receipt-view.tsx` printed `Total paid` and `Change` (when overpaid). On a credit or partial payment where `amountPaid < total`, it printed a smaller `Total paid` but nothing stating what was still owed, leaving the customer without printed proof of their remaining debt amount.
+- **Now:** `ReceiptView` unconditionally prints a prominent `Balance due:` line with the exact formatted difference (`total - amountPaid`) whenever `transaction.total > transaction.amountPaid`. It renders in both thermal (80mm) and A4 formats and is omitted on fully paid or overpaid sales and quotes.
+- **Coverage:** `client/__tests__/receipt-part-paid-balance-due.test.tsx` (tests part-paid sales, 100% credit sales with amountPaid 0, fully paid, overpaid, both thermal and A4 layouts, and quotes) and `client/__tests__/receipt-a4-width.test.tsx`.
+- **Compat:** pure UI display fix, no schema or API changes.
+### A-270 — the receipt number a customer reads out cannot be searched for
+- **Fixed:** 2026-11-17, client only, TDD. Found during receipt audit (Issue #227).
+- **Was:** `ReceiptView` (`client/components/pos/receipt-view.tsx`) printed `RCT-<shortId>` (`shortId = sale.id.split("-")[0]`) and the foot barcode encoded the raw `sale.id` UUID. Sales history (`pos-transaction-history.tsx:163-167`) searched `transaction_number` (`TXN-…`), `customer_name`, and `item_names`. `transaction_number` was never printed on the receipt or encoded in the barcode, so customer-provided receipt numbers and scanned receipt barcodes could not be found in sales history.
+- **Now:**
+  (1) Added `transactionNumber` and `transaction_number` to `ReceiptTransaction`.
+  (2) `buildReceiptTransaction`, `saleToReceiptTransaction`, and `cartToReceiptTransaction` populate `transactionNumber`.
+  (3) `ReceiptView` displays `transactionNumber` as the receipt number (`Receipt no: TXN-...`) and encodes `transactionNumber` in the footer barcode, falling back to `RCT-<shortId>` / UUID only for legacy transactions without a transaction number.
+  (4) `pos-transaction-history.tsx` search index includes `receipt_number` (`RCT-<shortId>`), `short_id`, and `sale_id`, so legacy printed receipts and scanned UUID barcodes remain fully searchable alongside modern `TXN-...` numbers.
+- **Coverage:** `client/__tests__/receipt-transaction-number-searchable.test.tsx` (tests `buildReceiptTransaction`, `saleToReceiptTransaction`, `ReceiptView` number formatting, barcode value encoding, fallback behavior, and multi-field fuzzy sales history lookup).
+- **Compat:** no schema, storage or API changes. Full backwards compatibility for legacy `RCT-...` receipts.
+### A-374 — a customer return valued restocked units at the batch's current cost instead of the cost recorded on the sale
+- **Fixed:** 2026-11-17, client only, TDD. Found during batch cost correction review.
+- **Was:** `recordReturnDisposition()` and `restoreBatchQuantity()` in `client/lib/db/queries/returns.ts` queried `stock_batches.cost_price` at return time for the `return` movement's `unit_cost` and `total_cost`, and returned COGS in BI (`bi-metrics.ts:88`), monthly trends (`report-trends.ts:40`), and P&L (`reports.ts:175`) preferred `(SELECT SUM(sm.total_cost) FROM stock_movements ...)` over the sale's cost basis. The sale's COGS was recorded on `sale_items.cost_price` at sale time. When a batch cost was corrected, audited, or differed from the sale's blended average cost, a full return failed to net the sale's COGS to zero, creating negative net COGS or phantom profit.
+- **Now:**
+  (1) `recordReturnDisposition()` and `restoreBatchQuantity()` value `stock_movements` (both return movements and discard damage adjustments) directly from `costPrice` (the sale item's recorded unit cost basis), falling back to `stock_batches.cost_price` only if `costPrice` is absent or zero.
+  (2) `getBIMetrics` (`bi-metrics.ts:88`), `getAdvancedMonthlySalesData` (`report-trends.ts:40`), and `fetchProfitLossReportData` (`reports.ts:175`) calculate returned COGS primarily from `ri.quantity * si.avg_cost_price` (the sale item's recorded unit cost), falling back to `stock_movements.total_cost` if the sale line cost is missing. Net COGS exactly reverses to zero upon full return.
+- **Coverage:** `client/__tests__/returns-cost-basis-sale-item.test.ts` (restocking after batch cost correction, discard damage loss after batch cost correction, and multi-batch blended average return), and updated `client/__tests__/returns-fefo-costing.test.ts`.
+- **Compat:** no schema, storage or API changes. Recomputes report profit figures consistently against the original sale cost basis.
+### A-186 — the POS product tile showed nothing distinguishing two similar products, leading to reported "duplicate products"
+- **Fixed:** 2026-11-17, client only, TDD. Found during catalog reconciliation at Nest Pharmacy A2 (PR #345).
+- **Was:** `POSProductCard` rendered `{product.name}` under `line-clamp-2` and subtitle `{[product.generic_name, product.strength].filter(Boolean).join(" • ")}` (previously `{product.generic_name || "Generic"} • {product.strength || "-"}`). For bulk-imported or retail products lacking generic name and strength, the subtitle was empty or `Generic • -`. Two variants with long names differing late in the string (e.g. `CARO WHITE CUP B/S CREAM` vs `CARO WHITE CUP S/S CREAM`) appeared visually identical on the POS grid, causing cashiers to ring up the wrong variant.
+- **Now:** `POSProductCard` computes a robust subtitle disambiguator:
+  (1) Real `generic_name` and `strength` (filtering out placeholder `"Generic"` or `"-"`).
+  (2) When absent, falls back to `barcode · category_name` (e.g. `2189 · Cosmetics`, or barcode `2190`, or category name).
+  (3) When barcode and category are also absent, falls back to the product's 8-character ID prefix.
+- **Coverage:** `client/__tests__/pos-product-card-disambiguator.test.tsx` (tests generic+strength, generic only, strength only, barcode+category fallback, barcode fallback, category fallback, placeholder "Generic"/"-" bypass, and short id fallback).
+- **Compat:** pure UI display fix, reads existing `POSProduct` fields (`barcode`, `category_name`, `id`), no schema or API changes.
+### A-317 — dead GET /stock-movements and GET /stock-adjustments routes handed any staff member tenant-wide stock ledgers without permissions
+- **Fixed:** 2026-11-17, laravel-server only, TDD. Found during stock quantity visibility auditing (PR #346).
+- **Was:** `GET /stock-movements` and `GET /stock-adjustments` sat in the `auth:sanctum` group with no `permission:` middleware and used `ledgerUserIds()` spanning all stores of the tenant owner. Any authenticated staff member (e.g. cashier) could fetch signed quantities, adjustments, reasons, and user names across every store the tenant owned, bypassing role-level stock quantity hiding. No modern client or web code called either endpoint (clients read movements from offline-first local SQLite).
+- **Now:** Removed the two dead routes from `routes/api.php`, deleted dead `StockMovementController.php`, and pinned 404 behavior for both paths in `LegacyCloudCrudEndpointsRemovedTest.php`.
+- **Coverage:** `laravel-server/tests/Feature/LegacyCloudCrudEndpointsRemovedTest.php` (tests that `/api/v1/stock-movements` and `/api/v1/stock-adjustments` return 404).
+- **Compat:** pure dead code removal; no shipped client calls these endpoints.
 
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.

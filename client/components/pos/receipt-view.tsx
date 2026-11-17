@@ -22,6 +22,8 @@ export interface ReceiptItem {
 
 export interface ReceiptTransaction {
   id: string;
+  transactionNumber?: string;
+  transaction_number?: string;
   date: string;
   cashier?: string;
   items: ReceiptItem[];
@@ -86,13 +88,14 @@ export function ReceiptView({
   const showBarcode = storeProfile?.show_barcode_on_receipt !== 0;
   const footerMessage = storeProfile?.receipt_footer ?? RECEIPT_FOOTER_DEFAULT;
 
-  const shortId = transaction.id.split("-")[0].toUpperCase();
+  const txnNo = transaction.transactionNumber || transaction.transaction_number;
+  const shortId = transaction.id ? transaction.id.split("-")[0].toUpperCase() : "";
   const invoiceNo =
     documentType === "tax"
-      ? `INV-${shortId}`
+      ? (txnNo ? `INV-${txnNo.replace(/^TXN-/, "")}` : `INV-${shortId}`)
       : documentType === "quote"
-        ? `QTE-${shortId}`
-        : `RCT-${shortId}`;
+        ? (txnNo ? `QTE-${txnNo.replace(/^TXN-/, "")}` : `QTE-${shortId}`)
+        : (txnNo || `RCT-${shortId}`);
   const invoiceNoLabel =
     documentType === "tax"
       ? "Tax invoice no:"
@@ -301,12 +304,18 @@ export function ReceiptView({
                 <span>{formatCurrency(transaction.change)}</span>
               </div>
             )}
+            {transaction.total > transaction.amountPaid && (
+              <div className="flex justify-between font-bold text-lg">
+                <span>Balance due:</span>
+                <span>{formatCurrency(transaction.total - transaction.amountPaid)}</span>
+              </div>
+            )}
           </div>
 
           {showBarcode && (
             <div className="flex flex-col items-center justify-center my-2 overflow-hidden">
               <Barcode
-                value={transaction.id}
+                value={txnNo || transaction.id}
                 width={isThermal ? 1 : 1.2}
                 height={isThermal ? 30 : 30}
                 fontSize={isThermal ? 8 : 10}

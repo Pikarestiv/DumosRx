@@ -1,25 +1,11 @@
-import { useState } from "react";
-import { Barcode, ChevronDown, Settings2 } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
-import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
-import { Button } from "@/components/ui/button";
+import { FilterPill } from "@/components/ui/filter-pill";
+import { catalogStatusLabel } from "./catalog-status";
+import { ProductActionsMenu } from "./product-actions-menu";
 import {
   UNCATEGORIZED_CATEGORY_VALUE,
   UNCATEGORIZED_CATEGORY_LABEL,
 } from "@/lib/constants/categories";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useImportExportActions } from "@/components/stock-batch/import-export-actions";
-import { useBulkShowOnlineActions } from "./bulk-show-online-actions";
-import { useAuth } from "@/lib/context/auth-context";
-import { useStore } from "@/lib/context/store-context";
-import { useHasPermission } from "@/lib/hooks/use-permissions";
-import { BarcodeBulkPrintDialog } from "@/components/stock-batch/barcode-bulk-print-dialog";
 import type { Product } from "./types";
 
 interface ProductDatabaseFiltersProps {
@@ -32,6 +18,7 @@ interface ProductDatabaseFiltersProps {
   categories: string[];
   statuses: string[];
   owedCount?: number;
+  duplicateCount?: number;
   onManageCategories: () => void;
   onProductsChanged: () => void;
   // Currently-filtered product ids, so Export and the bulk online-visibility action both default to what's on screen — undef…
@@ -50,20 +37,12 @@ export function ProductDatabaseFilters({
   categories,
   statuses,
   owedCount = 0,
+  duplicateCount = 0,
   onManageCategories,
   onProductsChanged,
   filteredProductIds,
   labelProducts,
 }: ProductDatabaseFiltersProps) {
-  const { canManageStockBatch } = useAuth();
-  const { storeProfile } = useStore();
-  const canPrintLabels = useHasPermission("print_product_labels");
-  const [showLabels, setShowLabels] = useState(false);
-  const importExport = useImportExportActions({ onImported: onProductsChanged, filteredProductIds });
-  const bulkOnline = useBulkShowOnlineActions({ onUpdated: onProductsChanged, filteredProductIds });
-  // Only meaningful once the store actually has a public storefront - hidden
-  // otherwise rather than offering an action with nowhere to publish to.
-  const hasOnlineStore = storeProfile?.online_store_enabled === 1;
   // Search bar + filter pills render standalone above the card on mobile (see ProductDatabase).
   // This whole panel is desktop-only to avoid leaving an empty padded/bordered row on mobile.
   return (
@@ -75,54 +54,13 @@ export function ProductDatabaseFilters({
           placeholder="Search by name or SKU"
           aria-label="Search products"
         />
-        {(canManageStockBatch || (canPrintLabels && labelProducts)) && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5 text-[12px]">
-                Product actions
-                <ChevronDown className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canPrintLabels && labelProducts && (
-                <DropdownMenuItem onSelect={() => setShowLabels(true)}>
-                  <Barcode className="h-3.5 w-3.5" />
-                  Print barcode labels
-                </DropdownMenuItem>
-              )}
-              {canManageStockBatch && (
-                <>
-                  {importExport.menuItems}
-                  {hasOnlineStore && bulkOnline.menuItems}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={onManageCategories}>
-                    <Settings2 className="h-3.5 w-3.5" />
-                    Manage categories
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {canManageStockBatch && (
-          <>
-            {importExport.overlays}
-            {hasOnlineStore && bulkOnline.overlays}
-          </>
-        )}
-      </div>
-      {showLabels && labelProducts && (
-        <BarcodeBulkPrintDialog
-          isOpen
-          onClose={() => setShowLabels(false)}
-          products={labelProducts.map((p) => ({
-            id: p.id,
-            name: p.name,
-            barcode: p.barcode,
-            unit_price: p.sellingPrice,
-          }))}
+        <ProductActionsMenu
+          onManageCategories={onManageCategories}
+          onProductsChanged={onProductsChanged}
+          filteredProductIds={filteredProductIds}
+          labelProducts={labelProducts}
         />
-      )}
+      </div>
       <div className="flex items-center gap-2 flex-wrap">
         <FilterPill
           label="Category"
@@ -144,7 +82,7 @@ export function ProductDatabaseFilters({
           onValueChange={setStatusFilter}
           options={statuses.map((s) => ({
             value: s,
-            label: s === "stock_owed" ? `Stock Owed (${owedCount})` : formatFilterLabel(s),
+            label: catalogStatusLabel(s, { owed: owedCount, duplicates: duplicateCount }),
           }))}
         />
       </div>

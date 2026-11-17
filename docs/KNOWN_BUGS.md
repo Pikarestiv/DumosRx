@@ -55,12 +55,6 @@ suggested tackle order rather than a strict ranking.
 - **Evidence still worth gathering:** a device report from both of Cynthia's tills (`laravel-server/AGENTS.md`, "Remote device report"). Read `rewind_count`, "Batch edits the server refused" and "Batch costs on this device"; since A-271 `SHIELDED` marks rows the pull skips by the same rule it applies, plus orphans (unsynced, no queue row), which the pull overwrites until a crash-flagged boot re-queues them. Also ask her whether a conflict toast appears when she saves a cost, and whether the old price comes back.
 - **Other `decimal(10,2)` money columns:** A-271 widened the batch cost columns. Selling prices, sale and purchase-order totals and the rest of `decimal(10,2)` still refuse 100,000,000 or more, which leaves that row failing on every retry the same way. Fix: widen them together, or validate the value at entry.
 
-#### A-374. `client/` — a return values the restocked units at the batch's current cost, not the cost the sale recorded
-
-- **Found:** 2026-11-13, building the batch cost correction (`client/lib/db/queries/batch-cost-correction.ts`).
-- **What's wrong:** `recordReturnDisposition()` and `restoreBatchQuantity()` (`client/lib/db/queries/returns.ts:55`, `:111`) read `stock_batches.cost_price` at return time for the `return` movement's `unit_cost`/`total_cost`, and returned COGS in BI and the monthly trend (`bi-metrics.ts:88`, `report-trends.ts:40`) prefers that `total_cost`. The sale's own COGS comes from `sale_items.cost_price`, which is the product's *average* cost at sale time. So a full return does not net the sale's COGS to zero whenever the batch cost differs from that snapshot: after a batch cost correction, after a stock-audit cost correction, or simply because the average and the batch cost were never equal.
-- **Fix:** value the return movement from the returned `sale_items.cost_price` (already joined as `avg_cost_price` in the fallback branch) rather than the live batch cost. Changes reported profit for past returns on recompute, so ship it with a note to owners.
-
 #### A-211. `client/` — a stock count still records the difference it saw, not the number counted; a device behind sync is now warned, not prevented
 
 - **Found:** 2026-10-10, in review of the derived-stock-quantity design (`docs/superpowers/specs/2026-10-10-derived-stock-quantity-design.md`).
@@ -500,15 +494,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** low today. `OnlineOrder` soft-deletes and nothing hard-deletes one, so the missing cascade has not orphaned items; but nothing stops an item naming a missing order or product, or an order naming a missing store.
 - **Fix:** a new migration adding the three constraints (`online_order_id` cascading), preceded by a count of orphans on production, since an existing orphan makes the `ALTER` fail. `products` rows soft-delete, so `product_id` should not cascade.
 
-#### A-317. `laravel-server/` — `GET /stock-movements` and `GET /stock-adjustments` have no caller and hand any staff member the tenant-wide stock ledger
-
-- **Found:** 2026-10-23, while mapping every surface that shows stock quantities for the hide-quantities-by-role work.
-- **Issue:** #259
-- **Location:** `routes/api.php:168-169`, `app/Http/Controllers/Api/App/StockMovementController.php` (`index()`, `adjustments()`); the only references are `tests/Feature/StockMovementControllerTest.php`.
-- **What's wrong:** both routes sit in the plain `auth:sanctum` group with no `permission:` middleware, so any authenticated user, a cashier included, gets signed quantities, reasons and user names for every store the tenant owns (`ledgerUserIds()` spans all of the owner's stores, not the caller's active one). No code in `client/` or `web/` calls either URL; the client reads movements from local SQLite. `a9ba1a5c` removed the last client callers when it deleted the pre-offline-first cloud CRUD, so the routes have been dead since then. That commit kept the routes on purpose (read-only, tenant-scoped, outside the finding it was fixing); the missing permission gate was not part of that ruling.
-- **Why it is not urgent:** it needs a valid session and the data is the caller's own tenant. It does defeat any role-level "cannot see stock quantities" rule, because the numbers are one authenticated request away.
-- **Fix:** delete the two routes, the two controller methods and their tests. §11: no shipped client sends these requests today, but a bundle from before `a9ba1a5c` might; a 404 for those is harmless because that bundle's UI reads local data. If they are kept instead, gate them behind `view_reports` and scope them to the active store.
-
 #### A-315. `laravel-server/` — a `refresh`-only admin token is accepted as a general bearer on every `auth:sanctum` route
 
 - **Found:** 2026-10-23, fixing A-199. Confirmed with a throwaway test: a token minted with `['refresh']` sent as `Authorization: Bearer` to `GET /api/v1/user` returns 200.
@@ -558,29 +543,6 @@ suggested tackle order rather than a strict ranking.
 - **PHP generates this timestamp, in UTC** (`now()`/`updated_at` via Eloquent) — this is **not** an instance of root `AGENTS.md` §7's MySQL `SYSTEM` timezone gotcha (that only affects raw SQL `NOW()`/`CURRENT_TIMESTAMP()` run outside Laravel's PDO connections). No raw SQL is used here. A future reader should not go chasing the server clock for this one.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
-
-#### A-270. `client/` — the receipt number a customer reads out cannot be searched for
-
-- **Found:** 2026-10-15, while auditing the A4 receipt's length (see `client/AGENTS.md`, "The receipt earns every line it prints").
-- **What's wrong:** the receipt prints `RCT-<first 8 of sale.id>` (`receipt-view.tsx`'s `shortId`) and the foot barcode encodes the full `sale.id` UUID. Sales history searches `customer_name`, `transaction_number` and `item_names` (`pos-transaction-history.tsx:163-167`) — `transaction_number` is the `TXN-…` value set in `use-pos-payment.ts:169`, and it is **never printed anywhere**. So the one identifier a customer holds is the one identifier staff cannot look up, and the barcode is unscannable by design: nothing in the app has a scan path for it.
-- **Fix:** add `transaction_number` to `ReceiptTransaction`, print it as the receipt number, and barcode that instead of the UUID. That also makes the barcode worth the paper — until then `show_barcode_on_receipt` (2026-10-15) exists partly so a store can stop printing a decoration.
-- **Not urgent:** staff can find the sale by customer or item today. It is cheap and it removes a daily annoyance at the counter.
-
-#### A-269. `client/` — a part-paid sale prints "Total paid" with no balance owing
-
-- **Found:** 2026-10-15, in the same receipt audit.
-- **What's wrong:** `ReceiptView` prints `Total paid` and, when it is larger than the total, `Change`. A credit or partial payment prints a smaller `Total paid` and **nothing stating what is still owed**, so the customer's copy records neither the debt nor its amount. The reader has to subtract two numbers to learn they owe money.
-- **Fix:** a `Balance due` line whenever `amountPaid < total`, mirroring `Change`. One conditional block; it must not be toggleable (a customer needs it to dispute the debt).
-- **Noted while shortening the receipt**, which made the gap obvious: the shortening rules deliberately keep `Total paid` in exactly this case, so the line it needs beside it is the one that is missing.
-
-#### A-186. `client/` — the POS product tile shows nothing that distinguishes two similar products, so staff report "duplicate products" that do not exist
-
-- **Found:** 2026-10-08, investigating a production report of duplicate products at store `68e4c0e5-2354-4ff9-98e4-69d3b4c482fa` (Nest Pharmacy A2). No duplicate rows exist: the server holds 2,495 products against a 2,493-row QuickBooks source file whose Item Names and Item Numbers are 100% unique. What staff could not tell apart were genuinely distinct products rendering identically on the POS grid.
-- **Location:** `client/components/pos/pos-product-list.tsx`, the `POSProductCard` body (the name `div` and the subtitle `div` immediately under it); compare `client/components/products/catalog-row.tsx`, which does not have the problem.
-- **What's wrong:** the tile renders exactly four things — a category *icon*, `{product.name}` under `line-clamp-2`, the subtitle `{product.generic_name || "Generic"} • {product.strength || "-"}`, and then price plus stock. There is no barcode/SKU and no category text anywhere on the card. A bulk-imported product has neither `generic_name` nor `strength`, so on a freshly imported catalogue that subtitle line is the literal string `Generic • -` on **every** tile, carrying zero information while occupying the one slot that could have disambiguated. With a long name clamped to two lines, two products whose names differ late in the string are visually identical.
-- **Real examples from that store:** `CARO WHITE CUP B/S CREAM` vs `CARO WHITE CUP S/S CREAM` — one character apart, SKUs 2189 and 2190 — and the `CARO WHITE 200ML` / `300ML` / `500ML LOTION` family.
-- **Consequence:** this is a UX defect with a measured support cost, not a cosmetic one. It generated a "we have duplicate products" escalation that took a full catalogue reconciliation against the source file to disprove, and it means a cashier can ring up the wrong variant with no on-screen signal that they did. The Product Catalog screen is unaffected because `catalog-row.tsx` prints `{product.barcode || product.id.slice(0, 8)} · {product.category || "Uncategorized"}` as a subtitle under the name, which separates all of the above at a glance — so the same user, looking at the same data, can distinguish these products on one screen and not on the other.
-- **Fix:** give the tile a disambiguator. The cheapest version is to make the existing subtitle line conditional rather than placeholder-filled: show `barcode` (or `category_name`) when `generic_name`/`strength` are both absent, instead of rendering `Generic • -`. `POSProduct` already carries `barcode` and `category_name` (`client/lib/utils/search.ts` indexes both, and `usePOSProductFilter` reads `category_name`), so no new query or sync coverage is needed. Note that search already matches on `barcode`, so the SKU is a usable key the moment it is visible — today it is searchable but never displayed.
 
 #### A-259. `client/` — a resumed cycle-count draft never notices the catalog changing under it
 

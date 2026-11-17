@@ -213,6 +213,7 @@ export function usePOSPayment({
 
       const transaction = buildReceiptTransaction({
         saleId,
+        transactionNumber,
         selectedCustomer,
         cashierUser: user,
         cart,

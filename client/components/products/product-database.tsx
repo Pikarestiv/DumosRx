@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ProductDatabaseFilters } from "./product-database-filters";
+import { ProductActionsMenu } from "./product-actions-menu";
 import { AddProductDialog } from "./add-product-dialog";
 import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
@@ -12,12 +13,13 @@ import { getCategoryList } from "@/lib/db/queries/categories";
 import { useStore } from "@/lib/context/store-context";
 import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
-import { getExpiryStatus } from "@/lib/utils/date-utils";
 import { Product, transformProduct } from "./types";
 import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { SearchInput } from "@/components/ui/search-input";
-import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
+import { FilterPill } from "@/components/ui/filter-pill";
+import { catalogStatusLabel, matchesCatalogStatus } from "./catalog-status";
+import { findDuplicateProductIds } from "@/lib/utils/duplicate-product";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
@@ -133,6 +135,7 @@ export function ProductDatabase() {
   }, [fetchedCategories, isStore, hasUncategorizedProducts]);
 
   const statuses = CATALOG_STATUS_FILTERS;
+  const duplicateIds = useMemo(() => findDuplicateProductIds(products), [products]);
 
   const { handleAddProduct, isSaving } = useAddProduct({
     refetch: () => void refetch(),
@@ -144,52 +147,18 @@ export function ProductDatabase() {
     setShowAddDialog(true);
   }, []);
 
-  const preFilteredProducts = useMemo(() => {
-    const now = new Date();
-    return products.filter((product) => {
-      let matchesCategory = false;
-      if (categoryFilter === "all") {
-        matchesCategory = true;
-      } else if (categoryFilter === UNCATEGORIZED_CATEGORY_VALUE) {
-        matchesCategory = !product.categoryName || !product.categoryId;
-      } else {
-        matchesCategory = product.category === categoryFilter;
-      }
-
-      let matchesStatus =
-        statusFilter === "all" || product.status === statusFilter;
-
-      // Explicit overrides for inclusive filtering
-      if (
-        statusFilter === "low_stock" &&
-        product.stockQuantity <= product.reorderLevel
-      ) {
-        matchesStatus = true;
-      }
-      if (
-        statusFilter === "expired" &&
-        product.expiryDate &&
-        new Date(product.expiryDate) < now
-      ) {
-        matchesStatus = true;
-      }
-      if (
-        statusFilter === "expiring_soon" &&
-        product.expiryDate &&
-        getExpiryStatus(product.expiryDate) === "expiring_soon"
-      ) {
-        matchesStatus = true;
-      }
-      if (
-        statusFilter === "stock_owed" &&
-        (owedByProduct.get(product.id) ?? 0) > 0
-      ) {
-        matchesStatus = true;
-      }
-
-      return matchesCategory && matchesStatus;
-    });
-  }, [products, categoryFilter, statusFilter, owedByProduct]);
+  const preFilteredProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        const matchesCategory =
+          categoryFilter === "all" ||
+          (categoryFilter === UNCATEGORIZED_CATEGORY_VALUE
+            ? !product.categoryName || !product.categoryId
+            : product.category === categoryFilter);
+        return matchesCategory && matchesCatalogStatus(product, statusFilter, { owedByProduct, duplicateIds });
+      }),
+    [products, categoryFilter, statusFilter, owedByProduct, duplicateIds],
+  );
 
   const { results: searchedProducts, isFuzzyFallback } = useMemo(
     () =>
@@ -228,13 +197,21 @@ export function ProductDatabase() {
         {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout */}
         {!isDesktop && (
         <div className="lg:hidden space-y-3">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search by name or SKU"
-            aria-label="Search products"
-            inputClassName="bg-card border-border"
-          />
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search by name or SKU"
+              aria-label="Search products"
+              inputClassName="bg-card border-border"
+            />
+            <ProductActionsMenu
+              onManageCategories={() => router.push("/settings/categories")}
+              onProductsChanged={() => void refetch()}
+              filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
+              labelProducts={filteredProducts}
+            />
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <FilterPill
               label="Category"
@@ -257,7 +234,7 @@ export function ProductDatabase() {
               onValueChange={setStatusFilter}
               options={statuses.map((s) => ({
                 value: s,
-                label: s === "stock_owed" ? `Stock Owed (${owedByProduct.size})` : formatFilterLabel(s),
+                label: catalogStatusLabel(s, { owed: owedByProduct.size, duplicates: duplicateIds.size }),
               }))}
               className="bg-card"
             />
@@ -277,6 +254,7 @@ export function ProductDatabase() {
             categories={categories}
             statuses={statuses}
             owedCount={owedByProduct.size}
+            duplicateCount={duplicateIds.size}
             onManageCategories={() => router.push("/settings/categories")}
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}

@@ -18,6 +18,7 @@ interface CategoryComboboxProps {
   disabled?: boolean;
   className?: string;
   lastUsed?: string;
+  options?: readonly string[];
 }
 
 // Category picker backed by the real `categories` table - and by nothing else.
@@ -30,6 +31,7 @@ export function CategoryCombobox({
   disabled,
   className,
   lastUsed,
+  options,
 }: CategoryComboboxProps) {
   const capsClass = useUppercaseDisplayClass();
   const [open, setOpen] = React.useState(false);
@@ -42,11 +44,12 @@ export function CategoryCombobox({
   const { data: categories } = useQuery({
     ...queryKeys.categories.list(),
     queryFn: () => getCategoryList(),
+    enabled: !options,
   });
 
   const names = React.useMemo(
-    () => (categories ?? []).map((c) => c.name).filter(Boolean),
-    [categories],
+    () => options ? [...options] : (categories ?? []).map((c) => c.name).filter(Boolean),
+    [options, categories],
   );
 
   const filtered = React.useMemo(() => {

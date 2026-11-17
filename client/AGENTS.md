@@ -7955,3 +7955,9 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   also selects `barcode`). Two offline tills can still each create the same name
   or barcode before syncing; there is no server-side uniqueness rule, so this is
   a guard against typing mistakes, not a guarantee.
+
+## Uncategorized products filtering (2026-11-17, A-187)
+
+- Products without an assigned category (`category_id` or `category_name` is null or empty) are labelled "Uncategorized" in tables and POS cards.
+- Both the POS category tab bar (`usePOSProductFilter`, `pos-category-filter.tsx`) and the Catalog filter bar (`product-database.tsx`, `product-database-filters.tsx`) use `UNCATEGORIZED_CATEGORY_VALUE = "__uncategorized__"` from `client/lib/constants/categories.ts` as a reserved filter sentinel.
+- When any product in the active catalog has no category, the "Uncategorized" filter option is dynamically appended to category choices. Selecting it filters to rows where `category_id` or `category_name` is empty. The sentinel is never stored in the database or sent to the server.

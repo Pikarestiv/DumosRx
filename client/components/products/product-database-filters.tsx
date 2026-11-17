@@ -4,6 +4,10 @@ import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
 import { Button } from "@/components/ui/button";
 import {
+  UNCATEGORIZED_CATEGORY_VALUE,
+  UNCATEGORIZED_CATEGORY_LABEL,
+} from "@/lib/constants/categories";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -126,7 +130,12 @@ export function ProductDatabaseFilters({
           onValueChange={setCategoryFilter}
           options={categories.map((c) => ({
             value: c,
-            label: c === "all" ? "All" : c,
+            label:
+              c === "all"
+                ? "All"
+                : c === UNCATEGORIZED_CATEGORY_VALUE
+                  ? UNCATEGORIZED_CATEGORY_LABEL
+                  : c,
           }))}
         />
         <FilterPill

@@ -87,6 +87,8 @@ export interface ProductViewModel {
   name: string;
   genericName: string;
   category: string;
+  categoryId?: string | null;
+  categoryName?: string | null;
   nafdacNumber: string;
   strength: string;
   dosageForm: string;

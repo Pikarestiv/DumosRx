@@ -1,3 +1,14 @@
+### A-187 — a product with no category was labelled "Uncategorized" everywhere but could not be filtered to from anywhere
+- **Fixed:** 2026-11-17, client only, TDD. Found during catalog QA.
+- **Was:** In POS category tabs (`usePOSProductFilter`) and the product database catalog filters (`ProductDatabaseFilters`, `product-database.tsx`), filter options were populated only from non-empty category names. When products had null or empty categories, they displayed "Uncategorized" in tables and POS cards, but there was no way to filter to them — selecting categories only allowed picking assigned categories. If a user wanted to audit or assign categories to all unorganized products, they had to scan the entire catalog manually.
+- **Now:**
+  (1) Introduced `UNCATEGORIZED_CATEGORY_VALUE = "__uncategorized__"` and `UNCATEGORIZED_CATEGORY_LABEL = "Uncategorized"` in `client/lib/constants/categories.ts`.
+  (2) In POS (`usePOSProductFilter`), if any product has no category (`!p.category_name || p.category_name.trim() === ""`), an "Uncategorized" tab is dynamically appended to the category filter bar with the sentinel value `__uncategorized__`. Selecting it filters to only products lacking a category name without colliding with any actual category named "Uncategorized".
+  (3) In Product Database (`product-database.tsx`), `ProductDatabaseFilters` renders "Uncategorized" if any product in the store has no category (`!p.categoryName || !p.categoryId`). Selecting it filters the product list to products without a category.
+  (4) Deep-link URL navigation was extracted into `client/components/products/use-product-database-navigation.ts` to keep `product-database.tsx` strictly under 350 lines (now ~330 lines).
+- **Coverage:** `client/__tests__/uncategorized-products-filter.test.tsx` (covers POS hook filtering, POS category bar rendering, catalog filter pill mapping, and product list filtering for uncategorized products).
+- **Compat:** No schema or server API changes.
+
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
 - **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.

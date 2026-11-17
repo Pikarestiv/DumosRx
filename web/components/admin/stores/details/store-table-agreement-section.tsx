@@ -1,10 +1,11 @@
 "use client";
 
+import { ReportedAt } from "./reported-at";
+import { reportAge } from "@/lib/admin/report-age";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreTableAgreement } from "@/lib/api/admin-hooks-sync";
 import { catchingUpPhrase } from "@/lib/admin/sync-verdict";
-import { formatDateSafe } from "@/lib/utils/date-utils";
 import {
   COLUMN_LABEL,
   DeviceIdentity,
@@ -237,15 +238,17 @@ export function StoreTableAgreementSection({
               />
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <DeviceVerdict device={device} />
-                {device.reported_at && (
-                  <p className="text-xs tabular-nums text-muted-foreground">
-                    {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
-                  </p>
-                )}
+                {device.reported_at && <ReportedAt reportedAt={device.reported_at} />}
               </div>
             </div>
 
             <DisagreeingTables device={device} />
+            {device.diverged_tables.length > 0 && !device.stale && reportAge(device.reported_at ?? "")?.old && (
+              <p className="px-3 pb-2 text-xs text-amber-600 dark:text-amber-400">
+                This reading is old. If the till has synced since, it has probably caught up; the
+                figures above change when it next reports.
+              </p>
+            )}
           </div>
         ))}
       </div>

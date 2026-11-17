@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreQueueState } from "@/lib/api/admin-hooks-sync";
 import { syncReasonLabel } from "@/lib/api/admin-hooks-sync";
-import { formatDateSafe } from "@/lib/utils/date-utils";
+import { ReportedAt } from "./reported-at";
 import { StuckItemActions } from "./stuck-item-actions";
 import { DeviceVersionBadge } from "./store-detail-primitives";
 import type { DeviceQueueReport, StoreQueueState } from "@/lib/types/admin-platform";
@@ -135,11 +135,7 @@ export function StoreQueueStateSection({
               <Badge variant={device.stuck_count > 0 ? "destructive" : "secondary"}>
                 {`${device.stuck_count} stuck of ${device.queue_depth} queued`}
               </Badge>
-              {device.reported_at && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
-                </p>
-              )}
+              {device.reported_at && <ReportedAt reportedAt={device.reported_at} />}
             </div>
           </div>
 

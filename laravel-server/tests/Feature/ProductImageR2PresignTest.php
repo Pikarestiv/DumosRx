@@ -32,7 +32,7 @@ class ProductImageR2PresignTest extends TestCase
         parse_str($url['query'], $query);
         $this->assertSame('acct123.r2.cloudflarestorage.com', $url['host']);
         $this->assertSame('/product-images-incoming/'.$signed['key'], $url['path']);
-        $this->assertSame('300', $query['X-Amz-Expires']);
+        $this->assertContains((int) $query['X-Amz-Expires'], [299, 300], 'five minutes, less a second if the clock ticked while signing');
         $this->assertMatchesRegularExpression('#^test-access-key/\d{8}/auto/s3/aws4_request$#', $query['X-Amz-Credential']);
         $this->assertStringNotContainsString('test-secret', $signed['upload_url']);
     }

@@ -204,6 +204,15 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 3 — sync reliability, observability, latent hazards
 
+#### A-392. both — rows the cloud hard-deleted before A-281 stay on devices, so some "device holds more than the cloud" deltas never clear
+
+- **Found:** 2026-11-17, reading the Device Table Agreement panel for two of Cynthia's stores. **Inferred from the code and docs only; production was not queried.**
+- **What the panel showed:** Nest Agidi A2: `purchase_order_items` +48 on one device and +32 on another, `purchase_orders` +1; Nest Amawbia: `categories` +2; Nest Pharmacy: `purchase_order_items` +52. Positive deltas, which pull lag cannot produce (a device is never *ahead* by lag).
+- **Matches what happened:** the owner posted purchase orders on the wrong store and deleted them, and a category was renamed/replaced (the doc's worked example in `docs/DEVICE_TABLE_AGREEMENT.md` A-293 is the category `t`, created 05/10 and deleted 08/10). Both happened before A-281 (2026-10-18), when `Category`, `PurchaseOrder` and `PurchaseOrderItem` hard-deleted on the server while the device soft-deleted.
+- **What's wrong:** A-293's `purged_ids` prunes a local tombstone only when a `DELETE` is pushed **now** and the cloud has no such row. A delete the cloud accepted before 2026-11-09 was acknowledged once and is never pushed again, so (1) the till that made the delete keeps a tombstone the cloud lacks, counted by the digest, and (2) every *other* till of the store never learned of the delete at all (a hard delete reaches no pull), so it still holds the row **live**: a wrong-store purchase order and its lines that still show in Procurement. Different devices of one store reading different `+N` for the same table is the signature of (1) vs (2). A-281's own entry records that a Force Full Resync cannot help, because the cloud has no trace of the row.
+- **Consequence:** a permanent "Disagrees" on those tills; for (2) stale procurement records visible on a till. No sale or stock effect found.
+- **Fix, if wanted:** (1) a one-time, flagged client sweep that re-queues a `DELETE` for each local tombstone in the nine A-281 tables so the server answers with `purged_ids` and the till prunes it; first confirm on the server that a `DELETE` for an already-trashed row does not bump `updated_at` (a bump would make every other device re-pull it). (2) needs the cloud to say which of a device's ids it no longer holds: a new id-existence probe (a shared-contract addition, §11) or deleting the rows by hand on each till. The rows cannot be enumerated from the cloud.
+
 #### A-332. `client/` — ten Playwright e2e specs fail on `dev` and on the base commit, so the e2e suite is not a regression gate
 
 - **Found:** 2026-10-24, by the overall vet of the lint and refactor change set. All ten fail identically at `2f626dac`, before any of that work.

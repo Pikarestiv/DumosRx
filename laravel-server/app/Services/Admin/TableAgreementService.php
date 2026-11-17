@@ -75,7 +75,7 @@ class TableAgreementService
 
         $compared = $this->promote(
             $this->compare($rows),
-            $this->previousVerdicts($storeId, $deviceId),
+            $this->previousReadings($storeId, $deviceId),
         );
 
         return DeviceTableReport::updateOrCreate(
@@ -93,45 +93,80 @@ class TableAgreementService
     }
 
     /**
-     * This device's own last verdict per table. One reading cannot tell a
+     * This device's own last reading per table. One reading cannot tell a
      * device that is merely behind from one that has lost a row, because the
-     * snapshot is frozen before this push's own edits are accepted.
+     * snapshot is frozen before this push's own edits are accepted and before
+     * this round's pull.
      *
-     * @return array<string, string>
+     * @return array<string, array<string, mixed>>
      */
-    private function previousVerdicts(string $storeId, string $deviceId): array
+    private function previousReadings(string $storeId, string $deviceId): array
     {
         $previous = DeviceTableReport::where('store_id', $storeId)
             ->where('device_id', $deviceId)
             ->first();
 
-        $verdicts = [];
+        $readings = [];
 
         foreach ((array) ($previous->tables ?? []) as $row) {
             if (is_array($row) && isset($row['table'], $row['verdict'])) {
-                $verdicts[(string) $row['table']] = (string) $row['verdict'];
+                $readings[(string) $row['table']] = $row;
             }
         }
 
-        return $verdicts;
+        return $readings;
     }
 
     /**
+     * A `behind` table becomes `diverged` only when this device is stuck, not
+     * merely trailing a till that keeps writing. Every report is taken at the
+     * top of a push, before that round's pull, so a till that syncs every 15
+     * minutes beside a busy one reads behind on every reading. It is stuck
+     * only if it still holds less than the cloud already held at its last
+     * reading AND gained nothing since: a device that is pulling keeps
+     * gaining, and one that has lost a row stops gaining once the cloud is
+     * quiet. See docs/DEVICE_TABLE_AGREEMENT.md, "Lagging versus stuck".
+     *
      * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<string, string>  $previous
+     * @param  array<string, array<string, mixed>>  $previous
      * @return array<int, array<string, mixed>>
      */
     private function promote(array $rows, array $previous): array
     {
         return array_map(function (array $row) use ($previous) {
-            $was = $previous[$row['table']] ?? null;
+            $before = $previous[$row['table']] ?? null;
 
-            if ($row['verdict'] === self::BEHIND && in_array($was, [self::BEHIND, self::DIVERGED], true)) {
+            if ($row['verdict'] === self::BEHIND && $before !== null && $this->wasUnsettled($before) && $this->isStuck($row, $before)) {
                 $row['verdict'] = self::DIVERGED;
             }
 
             return $row;
         }, $rows);
+    }
+
+    /** @param array<string, mixed> $before */
+    private function wasUnsettled(array $before): bool
+    {
+        return in_array($before['verdict'] ?? null, [self::BEHIND, self::DIVERGED], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $before
+     */
+    private function isStuck(array $row, array $before): bool
+    {
+        if (! isset($before['device_rows'], $before['device_version_sum'], $before['server_rows'], $before['server_version_sum'])) {
+            return true;
+        }
+
+        $stillShortOfEarlierCloud = (int) $row['device_rows'] < (int) $before['server_rows']
+            || (int) $row['device_version_sum'] < (int) $before['server_version_sum'];
+
+        $gainedNothing = (int) $row['device_rows'] <= (int) $before['device_rows']
+            && (int) $row['device_version_sum'] <= (int) $before['device_version_sum'];
+
+        return $stillShortOfEarlierCloud && $gainedNothing;
     }
 
     /** Drops one device's snapshot; it returns when that device next reports. */
@@ -254,7 +289,7 @@ class TableAgreementService
      *
      * `behind` — the device holds no more than the cloud. Usually another
      * till's write that this device has not pulled yet. Only a second
-     * consecutive reading promotes it, in promote().
+     * consecutive reading that shows the device stuck promotes it, in promote().
      */
     private function verdict(int $rowDelta, int $versionDelta, int $pending): string
     {

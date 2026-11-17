@@ -69,4 +69,33 @@ describe("StoreSyncHealthSection", () => {
 
     expect(screen.getByText(/no refusals recorded/i)).toBeDefined();
   });
+
+  it("renders a recorded failure with its device id and device label", () => {
+    render(
+      <StoreSyncHealthSection
+        isLoading={false}
+        data={{
+          ...empty,
+          failures: {
+            data: [
+              {
+                id: "f1",
+                table_name: "products",
+                record_id: "prod-1",
+                operation: "INSERT",
+                reason: "version_conflict",
+                device_id: "DRX-TILL-1",
+                device_label: "Checkout Till (Windows)",
+                created_at: "2026-10-12T14:30:00Z",
+              },
+            ],
+            meta: undefined,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/DRX-TILL-1/)).toBeDefined();
+    expect(screen.getByText("Checkout Till (Windows)")).toBeDefined();
+  });
 });

@@ -17,6 +17,8 @@ class AdminSyncHealthTest extends TestCase
 
     protected User $superAdmin;
 
+    protected User $owner;
+
     protected Store $store;
 
     protected function setUp(): void
@@ -25,7 +27,7 @@ class AdminSyncHealthTest extends TestCase
 
         $this->superAdmin = $this->makeAdmin('super_admin');
 
-        $owner = User::create([
+        $this->owner = User::create([
             'first_name' => 'Sync',
             'last_name' => 'Owner',
             'email' => 'sync-owner@dumosrx.com',
@@ -34,7 +36,7 @@ class AdminSyncHealthTest extends TestCase
         ]);
 
         $this->store = Store::create([
-            'user_id' => $owner->id,
+            'user_id' => $this->owner->id,
             'name' => 'Sync Store',
             'device_id' => 'SYNC-STORE',
             'currency' => 'NGN',
@@ -162,6 +164,33 @@ class AdminSyncHealthTest extends TestCase
         $response->assertOk();
         $this->assertSame(4, $response->json('daily.0.accepted'));
         $this->assertSame(1, $response->json('daily.0.refused'));
+    }
+
+    public function test_the_drilldown_returns_device_id_and_resolved_device_label(): void
+    {
+        \App\Models\UserDevice::create([
+            'user_id' => $this->owner->id,
+            'device_id' => 'DRX-TEST-TILL',
+            'device_label' => 'Counter Tablet (Android)',
+            'last_seen_at' => now(),
+        ]);
+
+        SyncFailure::create([
+            'store_id' => $this->store->id,
+            'device_id' => 'DRX-TEST-TILL',
+            'table_name' => 'products',
+            'record_id' => 'prod-123',
+            'operation' => 'INSERT',
+            'reason' => 'version_conflict',
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->superAdmin)
+            ->getJson("/api/v1/admin/sync/stores/{$this->store->id}");
+
+        $response->assertOk();
+        $this->assertSame('DRX-TEST-TILL', $response->json('failures.data.0.device_id'));
+        $this->assertSame('Counter Tablet (Android)', $response->json('failures.data.0.device_label'));
     }
 
     /**

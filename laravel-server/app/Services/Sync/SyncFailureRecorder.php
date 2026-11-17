@@ -44,16 +44,17 @@ class SyncFailureRecorder
         ?string $storeId,
         ?string $userId,
         int $accepted,
-        array $remapped = []
+        array $remapped = [],
+        ?string $deviceId = null
     ): void {
         $reasons = array_map(fn ($entry) => $this->canonicalReason($entry['reason'] ?? null), $failed);
         $conflicted = count(array_intersect($reasons, self::CONFLICT_REASONS));
 
         try {
-            $this->recordFailures($failed, $changes, $storeId, $userId);
+            $this->recordFailures($failed, $changes, $storeId, $userId, $deviceId);
             // Accepted changes with a corrected reference: recorded as events,
             // absent from the response's `failed`, counted in neither tally.
-            $this->recordFailures($remapped, $changes, $storeId, $userId);
+            $this->recordFailures($remapped, $changes, $storeId, $userId, $deviceId);
         } catch (\Throwable $e) {
             Log::warning('Sync failure rows not recorded: '.$e->getMessage());
         }
@@ -77,7 +78,8 @@ class SyncFailureRecorder
         ?string $storeId,
         ?string $userId,
         string $reason,
-        int $changeCount
+        int $changeCount,
+        ?string $deviceId = null
     ): void {
         if (! $storeId) {
             return;
@@ -89,6 +91,7 @@ class SyncFailureRecorder
                 [],
                 $storeId,
                 $userId,
+                $deviceId,
             );
         } catch (\Throwable $e) {
             Log::warning('Rejected-push failure row not recorded: '.$e->getMessage());
@@ -143,7 +146,7 @@ class SyncFailureRecorder
         return self::FALLBACK_REASON;
     }
 
-    private function recordFailures(array $failed, array $changes, ?string $storeId, ?string $userId): void
+    private function recordFailures(array $failed, array $changes, ?string $storeId, ?string $userId, ?string $deviceId = null): void
     {
         if ($failed === []) {
             return;
@@ -162,6 +165,7 @@ class SyncFailureRecorder
                 'id' => (string) Str::uuid(),
                 'store_id' => $storeId,
                 'user_id' => $userId,
+                'device_id' => $deviceId,
                 'table_name' => Str::limit((string) ($entry['table_name'] ?? 'unknown'), 180, ''),
                 'record_id' => $entry['record_id'] ?? null,
                 'operation' => $operations[$this->key($entry)] ?? null,

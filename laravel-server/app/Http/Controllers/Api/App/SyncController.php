@@ -559,7 +559,8 @@ class SyncController extends Controller
                     $request->user() ? $this->ownership()->resolvePushStoreId($request, $request->user()) : null,
                     $request->user()?->id,
                     $processed,
-                    $crossStoreGuard->remapped()
+                    $crossStoreGuard->remapped(),
+                    $request->header('X-Device-Id')
                 );
             } catch (\Throwable $e) {
                 Log::warning('Sync failure recording skipped: '.$e->getMessage());

@@ -96,9 +96,14 @@ class SyncPushFailureRecordingTest extends TestCase
         return $store;
     }
 
-    private function push(User $actor, string $table, string $recordId, array $payload, string $operation = 'INSERT')
+    private function push(User $actor, string $table, string $recordId, array $payload, string $operation = 'INSERT', ?string $deviceId = null)
     {
-        return $this->actingAs($actor)->postJson('/api/v1/app/sync/push', [
+        $headers = [];
+        if ($deviceId !== null) {
+            $headers['X-Device-Id'] = $deviceId;
+        }
+
+        return $this->actingAs($actor)->withHeaders($headers)->postJson('/api/v1/app/sync/push', [
             'setup' => true,
             'changes' => [
                 [
@@ -159,6 +164,20 @@ class SyncPushFailureRecordingTest extends TestCase
         ]);
     }
 
+    public function test_push_refusal_records_device_id_from_header(): void
+    {
+        $foreign = $this->foreignStore();
+        $recordId = 'payment-device-header';
+
+        $this->push($this->owner, 'customer_payments', $recordId, $this->paymentPayload($recordId, $foreign->id), 'INSERT', 'DRX-HEADER-TILL')
+            ->assertStatus(200);
+
+        $this->assertDatabaseHas('sync_failures', [
+            'record_id' => $recordId,
+            'device_id' => 'DRX-HEADER-TILL',
+        ]);
+    }
+
     public function test_failures_attribute_to_the_store_named_by_the_header(): void
     {
         $recordId = 'payment-header-attribution';
@@ -199,7 +218,7 @@ class SyncPushFailureRecordingTest extends TestCase
     {
         $this->app->instance(SyncFailureRecorder::class, new class extends SyncFailureRecorder
         {
-            public function recordPushOutcome(array $failed, array $changes, ?string $storeId, ?string $userId, int $accepted, array $remapped = []): void
+            public function recordPushOutcome(array $failed, array $changes, ?string $storeId, ?string $userId, int $accepted, array $remapped = [], ?string $deviceId = null): void
             {
                 throw new \RuntimeException('telemetry is down');
             }

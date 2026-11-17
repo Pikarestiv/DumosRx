@@ -76,6 +76,34 @@ class SyncFailureRecorderTest extends TestCase
         ]);
     }
 
+    public function test_it_records_device_id_when_provided(): void
+    {
+        $changes = [
+            ['table_name' => 'sales', 'record_id' => 'sale-dev-1', 'operation' => 'INSERT'],
+        ];
+        $failed = [
+            ['id' => null, 'table_name' => 'sales', 'record_id' => 'sale-dev-1', 'reason' => 'permission_denied'],
+        ];
+
+        $this->recorder()->recordPushOutcome($failed, $changes, self::STORE, null, 1, [], 'DRX-DEVICE-123');
+
+        $this->assertDatabaseHas('sync_failures', [
+            'record_id' => 'sale-dev-1',
+            'device_id' => 'DRX-DEVICE-123',
+        ]);
+    }
+
+    public function test_rejected_push_records_device_id_when_provided(): void
+    {
+        $this->recorder()->recordRejectedPush(self::STORE, null, 'sync_disabled', 2, 'DRX-DEVICE-REJECTED');
+
+        $this->assertDatabaseHas('sync_failures', [
+            'store_id' => self::STORE,
+            'reason' => 'sync_disabled',
+            'device_id' => 'DRX-DEVICE-REJECTED',
+        ]);
+    }
+
     /**
      * If the recorder returns early on an empty $failed, every successful push
      * goes uncounted and the success rate is dead on arrival -- the exact bug

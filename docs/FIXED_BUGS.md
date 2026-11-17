@@ -1,3 +1,14 @@
+### A-270 — the receipt number a customer reads out cannot be searched for
+- **Fixed:** 2026-11-17, client only, TDD. Found during receipt audit (Issue #227).
+- **Was:** `ReceiptView` (`client/components/pos/receipt-view.tsx`) printed `RCT-<shortId>` (`shortId = sale.id.split("-")[0]`) and the foot barcode encoded the raw `sale.id` UUID. Sales history (`pos-transaction-history.tsx:163-167`) searched `transaction_number` (`TXN-…`), `customer_name`, and `item_names`. `transaction_number` was never printed on the receipt or encoded in the barcode, so customer-provided receipt numbers and scanned receipt barcodes could not be found in sales history.
+- **Now:**
+  (1) Added `transactionNumber` and `transaction_number` to `ReceiptTransaction`.
+  (2) `buildReceiptTransaction`, `saleToReceiptTransaction`, and `cartToReceiptTransaction` populate `transactionNumber`.
+  (3) `ReceiptView` displays `transactionNumber` as the receipt number (`Receipt no: TXN-...`) and encodes `transactionNumber` in the footer barcode, falling back to `RCT-<shortId>` / UUID only for legacy transactions without a transaction number.
+  (4) `pos-transaction-history.tsx` search index includes `receipt_number` (`RCT-<shortId>`), `short_id`, and `sale_id`, so legacy printed receipts and scanned UUID barcodes remain fully searchable alongside modern `TXN-...` numbers.
+- **Coverage:** `client/__tests__/receipt-transaction-number-searchable.test.tsx` (tests `buildReceiptTransaction`, `saleToReceiptTransaction`, `ReceiptView` number formatting, barcode value encoding, fallback behavior, and multi-field fuzzy sales history lookup).
+- **Compat:** no schema, storage or API changes. Full backwards compatibility for legacy `RCT-...` receipts.
+
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
 - **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.

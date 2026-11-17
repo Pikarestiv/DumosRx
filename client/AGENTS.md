@@ -5743,6 +5743,8 @@ same tab session still gets its own fresh one-time retry.
   bottom dead zone, and Chrome clips rather than scales, so the footer would
   silently vanish.
 
+- **The receipt number is the searchable transaction_number** (A-270). `ReceiptTransaction` carries `transactionNumber` / `transaction_number`, `ReceiptView` prints it as `Receipt no:`, and the barcode encodes `transactionNumber` instead of the internal `sale.id` UUID. This ensures the printed number and the scanned barcode both match the `transaction_number` search field in POS sales history, while legacy receipts and short UUIDs remain searchable in history via backward-compatible indexing.
+
 - **The receipt footer's default lives in the field, not the renderer**
   (2026-10-15). `ReceiptView` printed `receipt_footer || "Thank you for your
   patronage!"`, so clearing the field just brought the text back and a store

@@ -559,13 +559,6 @@ suggested tackle order rather than a strict ranking.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
 
-#### A-270. `client/` — the receipt number a customer reads out cannot be searched for
-
-- **Found:** 2026-10-15, while auditing the A4 receipt's length (see `client/AGENTS.md`, "The receipt earns every line it prints").
-- **What's wrong:** the receipt prints `RCT-<first 8 of sale.id>` (`receipt-view.tsx`'s `shortId`) and the foot barcode encodes the full `sale.id` UUID. Sales history searches `customer_name`, `transaction_number` and `item_names` (`pos-transaction-history.tsx:163-167`) — `transaction_number` is the `TXN-…` value set in `use-pos-payment.ts:169`, and it is **never printed anywhere**. So the one identifier a customer holds is the one identifier staff cannot look up, and the barcode is unscannable by design: nothing in the app has a scan path for it.
-- **Fix:** add `transaction_number` to `ReceiptTransaction`, print it as the receipt number, and barcode that instead of the UUID. That also makes the barcode worth the paper — until then `show_barcode_on_receipt` (2026-10-15) exists partly so a store can stop printing a decoration.
-- **Not urgent:** staff can find the sale by customer or item today. It is cheap and it removes a daily annoyance at the counter.
-
 #### A-269. `client/` — a part-paid sale prints "Total paid" with no balance owing
 
 - **Found:** 2026-10-15, in the same receipt audit.

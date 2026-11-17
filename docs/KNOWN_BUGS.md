@@ -546,15 +546,6 @@ suggested tackle order rather than a strict ranking.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
 
-#### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
-
-- **Found:** 2026-10-23, in the independent review of A-307.
-- **Issue:** #251
-- **Details card:** `transaction-details-dialog.tsx` "Against list price" sums price adjustments over full line quantities and never shrinks after a return, while "Reseller markup" does, so "+200" can sit beside "Reseller markup: 150".
-- **Return dialog:** `return-dialog.tsx` reads the fresh sale at "Confirm Return & Refund", not at "Yes, Process Return", so a redemption between the two steps is stored correctly (the mutation re-reads) but its warning is not shown. `handleInitialSubmit` has no try/catch, so a failing `getSaleById` makes the button do nothing silently.
-- **File size:** `transaction-details-dialog.tsx` is 407 lines, over the 350 limit (`.agents/AGENTS.md` §4); split it.
-- **Fix:** shrink the list-price figure by returned quantity (or label it as the original sale), re-read at the second confirm and catch the failure with a toast, and extract the reseller block into its own component.
-
 #### A-341. `client/` — a settlement row's link to its purchase order is a raw id in `reason`
 - **Found:** 2026-10-26, second independent review of `feat/sell-at-zero-stock`.
 - **Issue:** since settlements name the sale they pay off (`reference_id` = sale id), the PO id survives only as text after `ADJUSTMENT_REASON_NOTE_SEPARATOR` in `stock_movements.reason` (`client/lib/db/queries/backorders.ts`, `settleBackordersOnReceipt()`). Nothing parses it, so the Stock Movements list cannot link a settlement to its delivery, and the reason shows a bare UUID.

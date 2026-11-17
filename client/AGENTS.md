@@ -7826,7 +7826,7 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 - **`<ProductImage>`** (`components/products/product-image.tsx`) is the one renderer: CDN URL from config + key, fixed box, `loading="lazy"`, `crossOrigin="anonymous"` (the service worker needs a CORS response to cache it), category icon on no key, disabled feature, `showImage={false}` or a load error. A new key retries after a failed one.
 - **The upload path** (`lib/hooks/use-product-image-upload.ts`): `compressProductImage()` (`lib/product-images/compress.ts`: non-image or >5 MB rejected, fit in 512x512, WebP stepping quality down to <=120 KB, JPEG when the browser cannot encode WebP, refused above the server's `max_bytes`) → presign → `PUT` to the upload URL → confirm → local write. Offline it refuses before any request with `OFFLINE_IMAGE_MESSAGE`; product saving never depends on it.
 - **Service worker:** product image requests (destination `image`, path `/stores/*/products/*/*.{webp,jpg,png}` on any origin) are cache-first in `dumosrx-product-images-v1`, trimmed to the newest 500, and exempt from `activate()`'s cache cleanup. Keys are immutable (a replacement gets a new key), so there is no revalidation. `CACHE_VERSION` was deliberately not bumped: the shell's strategy is unchanged. Tauri does not run the service worker and relies on the webview HTTP cache.
-- **Zoom and fallback.** `<ProductImage zoom="full"|"corner">` opens `ProductImageLightbox`; the POS tile uses `corner` because the tile is itself a button. The icon fallback gets `productName` so it uses `getProductIcon`.
+- **Zoom and fallback.** `<ProductImage zoom="full"|"overlay">` opens `ProductImageLightbox`; the POS tile uses `overlay` (hover-centred button, corner on touch) because the tile is itself a button. The icon fallback gets `productName` so it uses `getProductIcon`.
 - **`stores.pos_show_product_images`** (default 1) is the Register Configs toggle "Show product images in POS grid"; it is only listed while the feature is enabled. The POS tile reads it from `storeProfile` directly.
 - **The catalog detail panel now shows the live list row** (`product-database.tsx` resolves the selected product by id from the current list), so an image change, or any other edit, shows without reselecting.
 - The Orders tab shows every PO to anyone holding `view_activity_log`,
@@ -7955,6 +7955,10 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   also selects `barcode`). Two offline tills can still each create the same name
   or barcode before syncing; there is no server-side uniqueness rule, so this is
   a guard against typing mistakes, not a guarantee.
+- The catalog's Inventory filter has a "Possible Duplicates (N)" option. `findDuplicateProductIds`
+  returns every product sharing a name+strength or a non-empty barcode with another, and
+  `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.
+  It is the way to find duplicates that offline tills created before they synced.
 
 ## Mobile keyboard and touch targets (2026-11-17)
 

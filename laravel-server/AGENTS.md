@@ -2108,6 +2108,11 @@ existed.
   supplier onto the trashed namesake and revive that supplier's old phone,
   address and contact over it — a behaviour change nothing asked for. Pinned by
   `test_a_supplier_named_after_a_deleted_one_is_not_remapped_onto_it`.
+  For `users`, duplicate probe requires a non-empty string `email` or `username`
+  (never matching on `null` which Eloquent converts to `whereNull`, preventing
+  crafted inserts with null fields from matching store owners with null store_id)
+  and scopes matches to `$allowedUserIds` (the caller's tenant scope) so foreign
+  user IDs are never remapped into caller foreign keys (A-331).
 - **Reviving is not just `restore()` — the payload has to come with it
   (A-285).** The remap tells the client to tombstone the row it just created
   (`push.ts`'s `id_map` loop), so any column not carried onto the survivor is

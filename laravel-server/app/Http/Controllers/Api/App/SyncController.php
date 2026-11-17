@@ -240,7 +240,7 @@ class SyncController extends Controller
 
                         $exists = false;
 
-                        $conflict = $conflicts->findDuplicateInsertConflict($modelClass, $change['table_name'], $payload, $recordId);
+                        $conflict = $conflicts->findDuplicateInsertConflict($modelClass, $change['table_name'], $payload, $recordId, $allowedUserIds);
                         if ($conflict) {
                             $exists = true;
                             if (\method_exists($conflict, 'trashed') && $conflict->trashed()) {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ProductDatabaseFilters } from "@/components/products/product-database-filters";
 import { transformProduct, type Product } from "@/components/products/types";
 import type { ProductWithDetails } from "@/lib/types/product";
@@ -11,7 +12,7 @@ vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => granted.keys.has(key),
 }));
 vi.mock("@/lib/context/auth-context", () => ({
-  useAuth: () => ({ canManageStockBatch: false }),
+  useAuth: () => ({ canManageStockBatch: true }),
 }));
 vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { currency: "NGN", uppercase_display_enabled: 0 } }),
@@ -28,6 +29,7 @@ const product = (fields: Partial<ProductWithDetails>): Product =>
 
 function renderFilters(labelProducts?: Product[]) {
   return render(
+    <QueryClientProvider client={new QueryClient()}>
     <ProductDatabaseFilters
       searchTerm=""
       setSearchTerm={() => {}}
@@ -40,8 +42,17 @@ function renderFilters(labelProducts?: Product[]) {
       onManageCategories={() => {}}
       onProductsChanged={() => {}}
       labelProducts={labelProducts}
-    />,
+    />
+    </QueryClientProvider>,
   );
+}
+
+function openActionsMenu() {
+  fireEvent.pointerDown(screen.getByRole("button", { name: /product actions/i }), {
+    button: 0,
+    ctrlKey: false,
+    pointerType: "mouse",
+  });
 }
 
 beforeEach(() => {
@@ -56,13 +67,15 @@ beforeEach(() => {
 describe("ProductDatabaseFilters label printing", () => {
   it("hides Print labels from a user without print_product_labels", () => {
     renderFilters([product({ barcode: "5901234123457" })]);
-    expect(screen.queryByRole("button", { name: "Print labels" })).toBeNull();
+    openActionsMenu();
+    expect(screen.queryByRole("menuitem", { name: /print barcode labels/i })).toBeNull();
   });
 
   it("hides Print labels when no product list is passed in", () => {
     granted.keys = new Set(["print_product_labels"]);
     renderFilters(undefined);
-    expect(screen.queryByRole("button", { name: "Print labels" })).toBeNull();
+    openActionsMenu();
+    expect(screen.queryByRole("menuitem", { name: /print barcode labels/i })).toBeNull();
   });
 
   it("prints each filtered product's selling price on its label", () => {
@@ -72,7 +85,8 @@ describe("ProductDatabaseFilters label printing", () => {
       product({ id: "p2", name: "Vitamin C", selling_price: 2250, cost_price: 1000 }),
     ]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Print labels" }));
+    openActionsMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: /print barcode labels/i }));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: /print 2 labels/i }));
 
     const host = document.createElement("div");

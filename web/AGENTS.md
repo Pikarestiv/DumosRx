@@ -1046,6 +1046,10 @@ is the only place that mapping belongs.
   offline mode to build here.
 - **It does not register in development** — a worker holding the shell makes
   hot reloads behave strangely.
+- **Root `PwaRegistrar` respects the same guards:** `components/pwa-registrar.tsx`
+  registers `/sw.js` only in production (`process.env.NODE_ENV === "production"`)
+  and skips registration on `/admin*` paths so it does not register redundantly
+  alongside `AdminPwaRegistrar` (A-183).
 - **The server switcher is visible in production for super admins only.**
   `ServerSelector` stays hidden in production by default so a customer can
   never point their app at the wrong API; `allowInProduction` is opt-in and

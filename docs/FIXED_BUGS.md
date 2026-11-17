@@ -1,3 +1,13 @@
+### A-315 — a refresh-only admin token was accepted as a general bearer on every auth:sanctum route
+- **Fixed:** 2026-11-17, server only, TDD. Found during A-199 review.
+- **Was:** In `laravel-server/routes/api.php`, the protected route group used `auth:sanctum` without checking token abilities. Because Sanctum's guard only validates token existence and expiration rather than abilities, an admin session refresh token (`abilities: ['refresh']`) from the `drx_admin_session` cookie could be sent as an `Authorization: Bearer` header on general API routes (such as `/api/v1/user`), granting access without session rotation.
+- **Now:**
+  (1) Created `App\Http\Middleware\EnsureTokenCanAccessApi`, which ensures any present API token holds wildcard (`*`) abilities (while allowing `TransientToken` through for first-party session auth). Narrow tokens or refresh-only tokens are rejected with HTTP 403 (`Invalid token ability.`).
+  (2) Registered `token_ability` alias in `bootstrap/app.php` and attached `EnsureTokenCanAccessApi` to the `auth:sanctum` route group in `routes/api.php`.
+  (3) Documented token ability enforcement in `laravel-server/AGENTS.md` and `web/AGENTS.md`.
+- **Coverage:** `laravel-server/tests/Feature/GeneralApiTokenAbilitiesTest.php` (verifies rejection of `['refresh']` and narrow ability tokens with 403, acceptance of wildcard `['*']` tokens, and acceptance of first-party session auth).
+- **Compat:** Every token minted for API access carries `['*']`; only the admin refresh cookie carries `['refresh']`, which is used exclusively at `/admin/session/refresh`. No legitimate client sends narrow tokens as bearers.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

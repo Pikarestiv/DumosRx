@@ -505,14 +505,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** low today. `OnlineOrder` soft-deletes and nothing hard-deletes one, so the missing cascade has not orphaned items; but nothing stops an item naming a missing order or product, or an order naming a missing store.
 - **Fix:** a new migration adding the three constraints (`online_order_id` cascading), preceded by a count of orphans on production, since an existing orphan makes the `ALTER` fail. `products` rows soft-delete, so `product_id` should not cascade.
 
-#### A-315. `laravel-server/` — a `refresh`-only admin token is accepted as a general bearer on every `auth:sanctum` route
-
-- **Found:** 2026-10-23, fixing A-199. Confirmed with a throwaway test: a token minted with `['refresh']` sent as `Authorization: Bearer` to `GET /api/v1/user` returns 200.
-- **Location:** `routes/api.php`'s `auth:sanctum` group; no `abilities`/`ability` middleware alias is registered in `bootstrap/app.php`, and nothing else calls `tokenCan()`. The only ability check anywhere is `refreshAdminSession()`'s `can('refresh')` and, since A-199, `FullAccessToken::find()` on the three body-token endpoints.
-- **What's wrong:** `web/AGENTS.md` and the refresh endpoint's OpenAPI text described the `drx_admin_session` token as "never a general bearer credential". The ability is only a label: anyone who holds the raw value has a full session for 30 days, with no rotation, because rotation only happens on `/admin/session/refresh`.
-- **Why it is not urgent:** the token lives only in an `HttpOnly`, `SameSite=Strict` cookie and never appears in a JSON response, so page script cannot read it. Exposure needs the cookie itself (a compromised browser profile, a proxy log). It also matters for any future narrow token, which would inherit the same problem; that is half of why the on-till inspection credential is not a Sanctum token.
-- **Fix:** a small middleware on the `auth:sanctum` group that refuses a token without the `*` ability (`$request->user()->currentAccessToken()?->can('*')`, letting a `TransientToken` through for first-party session auth). §11: every token minted today is `['*']` or `['refresh']`, so no shipped client sends a narrow token as a bearer. Confirm that against `personal_access_tokens.abilities` on production before shipping. Pin it with the probe above as a test.
-
 #### A-319. `client/` — `/inventory` has no route guard at all
 
 - **Found:** 2026-10-23, while specifying `view_stock_quantities` (request #2). Logged as a finding, not a bug to fix now: that feature keeps the page reachable on purpose.

@@ -119,6 +119,7 @@ Two properties matter for reading one correctly:
   frozen Device and Cloud figures, with a badge saying which it is, but nothing
   subtracts them — a difference computed against a till that holds no copy of
   the store is the A-249/A-252 false alarm.
+- **Every device header says how old its reading is** ("Reported 3 h ago · 17/11/2026 14:12", the exact time beside it per the timestamps rule). From six hours the age turns amber, and a device that disagrees on an old reading carries a line saying it has probably caught up since. The snapshot itself is still frozen until the device next reports; the age is what tells a reader whether to trust it. The same header is used by the stock agreement and queue-state panels.
 - **Every state carries a word, not just a colour**: `Still syncing`,
   `Catching up`, `Disagrees`, `Same rows, other edits` (with the signed version
   sum beneath), and `N queued` where the queue is what explains the drift.

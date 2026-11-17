@@ -1,7 +1,9 @@
 {
+  "id": "/dashboard",
   "name": "DumosRx",
   "short_name": "DumosRx",
-  "start_url": "/dashboard",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png?v=20260527",

@@ -7,6 +7,16 @@
 - **Coverage:** `client/__tests__/init-database-migrations.test.ts` (verifies migration success, null-supplier insert capability, and scratch table removal when starting with a pre-existing `purchase_orders_nullable_supplier` scratch table).
 - **Compat:** Pure client-side migration resilience fix; no schema or server API changes.
 
+### A-182 — the site-wide PWA's start_url was a cross-origin bounce, opening outside its own scope
+- **Fixed:** 2026-11-17, web only, TDD. Found during Admin PWA scope review (Issue #232).
+- **Was:** `web/public/site.webmanifest` set `start_url: "/dashboard"` with no `scope` and no `id`. `/dashboard` is a client-side redirect component to `app.dumosrx.com`. Installing the site as a PWA from `dumosrx.com` launched a window that immediately bounced cross-origin and landed out of scope, causing browsers to display navigation URL chrome.
+- **Now:**
+  (1) Added `"id": "/dashboard"` (the id installed copies already have, so they stay the same app) and `"scope": "/"` to `web/public/site.webmanifest`.
+  (2) Changed `"start_url": "/"` so the installed marketing PWA opens cleanly in-scope on `dumosrx.com`.
+  (3) Documented the manifest configuration in `web/AGENTS.md`.
+- **Coverage:** `web/__tests__/site-manifest.test.ts` (verifies manifest id, start_url, scope, standalone display, and root layout metadata linking).
+- **Compat:** Pure manifest configuration change; `id` stays `/dashboard` so existing installs keep their identity and can pick up the new `start_url`. Browsers that ignore `id` (iOS) are unaffected.
+
 ### A-183 — the root service worker registered in development and on /admin/ pages
 - **Fixed:** 2026-11-17, web only, TDD. Found during Admin PWA scope review (Issue #233).
 - **Was:** `components/pwa-registrar.tsx` registered `/sw.js` unconditionally across all routes (mounted in root `app/layout.tsx`) without a `process.env.NODE_ENV !== "production"` check or path check. This caused service workers to claim clients in `next dev` (interfering with hot reload) and register redundantly on `/admin*` pages where `AdminPwaRegistrar` already manages `/admin-sw.js` scoped to `/admin/`.

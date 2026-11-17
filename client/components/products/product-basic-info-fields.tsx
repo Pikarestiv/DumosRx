@@ -113,7 +113,7 @@ export function ProductBasicInfoFields({
         <div className="space-y-2">
           <FieldLabel
             htmlFor="reorderLevel"
-            hint="Always entered in base units (see Packaging & Units below), not bulk units. You'll be alerted when stock falls to or below this number."
+            hint="You'll be alerted when stock falls to or below this number. Always entered in base units (see Packaging & Units below), not bulk units."
           >
             Reorder Level{" "}
             {formData.baseUnit ? `(in ${formData.baseUnit}s)` : "(in base units)"}
@@ -134,7 +134,7 @@ export function ProductBasicInfoFields({
         <div className="space-y-2 md:col-span-2">
           <FieldLabel
             htmlFor="barcode"
-            hint="The code printed on the pack. Scan it here once, then scan it at the till to add this product to a sale."
+            hint="The code printed on the pack. Scan it here once, then scan it in point of sale screen to add this product to a sale."
           >
             Barcode (Optional)
           </FieldLabel>

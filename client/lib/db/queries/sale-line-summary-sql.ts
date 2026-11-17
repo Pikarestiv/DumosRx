@@ -13,6 +13,9 @@ export const SALE_LINE_NAMES_SQL = `(SELECT GROUP_CONCAT(line_name, '||') FROM (
 export const SALE_LINE_COUNT_SQL = `((SELECT COUNT(*) FROM sale_items si WHERE ${LIVE_ITEM})
         + (SELECT COUNT(*) FROM sale_services ss WHERE ${LIVE_SERVICE}))`;
 
+export const SALE_HAS_PRODUCT_LINES_SQL = `EXISTS (SELECT 1 FROM sale_items si WHERE ${LIVE_ITEM})`;
+export const SALE_HAS_SERVICE_LINES_SQL = `EXISTS (SELECT 1 FROM sale_services ss WHERE ${LIVE_SERVICE})`;
+
 /** Units sold across live product and service lines on sale `s`. */
 export const SALE_UNIT_COUNT_SQL = `(COALESCE((SELECT SUM(quantity) FROM sale_items si WHERE ${LIVE_ITEM}), 0)
         + COALESCE((SELECT SUM(quantity) FROM sale_services ss WHERE ${LIVE_SERVICE}), 0))`;

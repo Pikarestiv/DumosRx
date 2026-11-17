@@ -14,3 +14,10 @@ export const ADD_BUTTON =
   `inline-flex h-11 w-11 shrink-0 items-center justify-center border rounded-[var(--sf-button-radius)] [background:var(--sf-add-bg)] [color:var(--sf-add-fg)] [border-color:var(--sf-add-border)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS_RING}`;
 
 export const CARD_SURFACE = "overflow-hidden border border-black/10 bg-white rounded-[var(--sf-card-radius)]";
+
+export const categoryChip = (selected: boolean) =>
+  `inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors ${FOCUS_RING} ${
+    selected
+      ? "border-[color:var(--sf-ink)] bg-[color:var(--sf-ink)] text-[color:var(--sf-page)]"
+      : "border-black/15 bg-white hover:border-[color:var(--sf-ink)]"
+  }`;

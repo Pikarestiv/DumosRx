@@ -37,7 +37,7 @@ export const pluralForm = (locale: StorefrontLocale, count: number): "one" | "ot
 
 export function translatePlural(
   locale: StorefrontLocale,
-  base: "products.count" | "products.viewAll" | "shop.count",
+  base: "products.count" | "products.viewAll" | "shop.count" | "services.count",
   count: number,
   vars?: MessageVars,
 ): string {

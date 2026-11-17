@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DumosRx: Prescriptions</title>
+<style>*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0}.-right-1{right:-.25rem}.-top-1{top:-.25rem}.bottom-0{bottom:0}.left-1\/2{left:50%}.right-1\.5{right:.375rem}.top-0{top:0}.top-1\.5{top:.375rem}.z-10{z-index:10}.z-20{z-index:20}.z-\[3\]{z-index:3}.z-\[4\]{z-index:4}.z-\[6\]{z-index:6}.-mx-4{margin-left:-1rem;margin-right:-1rem}.mx-5{margin-left:1.25rem;margin-right:1.25rem}.mx-auto{margin-left:auto;margin-right:auto}.-mt-\[30px\]{margin-top:-30px}.mb-0\.5{margin-bottom:.125rem}.mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-2\.5{margin-bottom:.625rem}.mb-3{margin-bottom:.75rem}.mb-3\.5{margin-bottom:.875rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.mb-7{margin-bottom:1.75rem}.mb-\[18px\]{margin-bottom:18px}.ml-auto{margin-left:auto}.mt-0\.5{margin-top:.125rem}.mt-4{margin-top:1rem}.block{display:block}.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}.h-1\.5{height:.375rem}.h-10{height:2.5rem}.h-11{height:2.75rem}.h-2{height:.5rem}.h-2\.5{height:.625rem}.h-3{height:.75rem}.h-3\.5{height:.875rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-\[15px\]{height:15px}.h-\[17px\]{height:17px}.h-\[21px\]{height:21px}.h-\[22px\]{height:22px}.h-\[26px\]{height:26px}.h-\[34px\]{height:34px}.h-\[38px\]{height:38px}.h-\[52px\]{height:52px}.h-\[844px\]{height:844px}.max-h-\[86\%\]{max-height:86%}.min-h-0{min-height:0}.min-h-\[880px\]{min-height:880px}.w-1\.5{width:.375rem}.w-10{width:2.5rem}.w-11{width:2.75rem}.w-2{width:.5rem}.w-2\.5{width:.625rem}.w-3{width:.75rem}.w-3\.5{width:.875rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-\[120px\]{width:120px}.w-\[15px\]{width:15px}.w-\[17px\]{width:17px}.w-\[21px\]{width:21px}.w-\[22px\]{width:22px}.w-\[34px\]{width:34px}.w-\[38px\]{width:38px}.w-\[390px\]{width:390px}.w-\[52px\]{width:52px}.w-\[560px\]{width:560px}.w-fit{width:-moz-fit-content;width:fit-content}.w-full{width:100%}.min-w-0{min-width:0}.min-w-\[140px\]{min-width:140px}.min-w-\[16px\]{min-width:16px}.max-w-\[1400px\]{max-width:1400px}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.-translate-x-1\/2{--tw-translate-x:-50%;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-\[1fr_380px\]{grid-template-columns:1fr 380px}.grid-cols-\[76px_1fr\]{grid-template-columns:76px 1fr}.flex-col{flex-direction:column}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-around{justify-content:space-around}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-3\.5{gap:.875rem}.gap-4{gap:1rem}.gap-5{gap:1.25rem}.gap-\[3px\]{gap:3px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-2xl{border-radius:1rem}.rounded-\[10px\]{border-radius:10px}.rounded-\[11px\]{border-radius:11px}.rounded-\[14px\]{border-radius:14px}.rounded-\[20px\]{border-radius:20px}.rounded-\[44px\]{border-radius:44px}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.rounded-xl{border-radius:.75rem}.rounded-b-2xl{border-bottom-right-radius:1rem;border-bottom-left-radius:1rem}.border{border-width:1px}.border-0{border-width:0}.border-2{border-width:2px}.border-4{border-width:4px}.border-\[1\.5px\]{border-width:1.5px}.border-\[10px\]{border-width:10px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\[\#1A1D23\]{--tw-border-opacity:1;border-color:rgb(26 29 35/var(--tw-border-opacity,1))}.border-\[\#2054E0\]{--tw-border-opacity:1;border-color:rgb(32 84 224/var(--tw-border-opacity,1))}.border-\[\#D3F2E1\]{--tw-border-opacity:1;border-color:rgb(211 242 225/var(--tw-border-opacity,1))}.border-\[\#E6EAF2\]{--tw-border-opacity:1;border-color:rgb(230 234 242/var(--tw-border-opacity,1))}.border-\[\#FBD5D2\]{--tw-border-opacity:1;border-color:rgb(251 213 210/var(--tw-border-opacity,1))}.border-\[\#FEE3B3\]{--tw-border-opacity:1;border-color:rgb(254 227 179/var(--tw-border-opacity,1))}.border-\[\#FFFFFF\]{--tw-border-opacity:1;border-color:rgb(255 255 255/var(--tw-border-opacity,1))}.border-transparent{border-color:transparent}.bg-\[\#12B76A\]{--tw-bg-opacity:1;background-color:rgb(18 183 106/var(--tw-bg-opacity,1))}.bg-\[\#1A1D23\]{--tw-bg-opacity:1;background-color:rgb(26 29 35/var(--tw-bg-opacity,1))}.bg-\[\#2054E0\]{--tw-bg-opacity:1;background-color:rgb(32 84 224/var(--tw-bg-opacity,1))}.bg-\[\#DCE3EE\]{--tw-bg-opacity:1;background-color:rgb(220 227 238/var(--tw-bg-opacity,1))}.bg-\[\#EAF0FE\]{--tw-bg-opacity:1;background-color:rgb(234 240 254/var(--tw-bg-opacity,1))}.bg-\[\#ECFDF3\]{--tw-bg-opacity:1;background-color:rgb(236 253 243/var(--tw-bg-opacity,1))}.bg-\[\#F04438\]{--tw-bg-opacity:1;background-color:rgb(240 68 56/var(--tw-bg-opacity,1))}.bg-\[\#F3F7FF\]{--tw-bg-opacity:1;background-color:rgb(243 247 255/var(--tw-bg-opacity,1))}.bg-\[\#F5F8FC\]{--tw-bg-opacity:1;background-color:rgb(245 248 252/var(--tw-bg-opacity,1))}.bg-\[\#FEF3F2\]{--tw-bg-opacity:1;background-color:rgb(254 243 242/var(--tw-bg-opacity,1))}.bg-\[\#FFFAEB\]{--tw-bg-opacity:1;background-color:rgb(255 250 235/var(--tw-bg-opacity,1))}.bg-\[\#FFFFFF\]{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-\[rgba\(28\2c 25\2c 23\2c 0\.45\)\]{background-color:rgba(28,25,23,.45)}.bg-transparent{background-color:transparent}.p-1{padding:.25rem}.p-3{padding:.75rem}.p-3\.5{padding:.875rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-\[18px\]{padding:18px}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-3\.5{padding-left:.875rem;padding-right:.875rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-\[22px\]{padding-left:22px;padding-right:22px}.px-\[3px\]{padding-left:3px;padding-right:3px}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-10{padding-top:2.5rem;padding-bottom:2.5rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-3\.5{padding-top:.875rem;padding-bottom:.875rem}.py-5{padding-top:1.25rem;padding-bottom:1.25rem}.py-8{padding-top:2rem;padding-bottom:2rem}.pb-3{padding-bottom:.75rem}.pb-3\.5{padding-bottom:.875rem}.pb-4{padding-bottom:1rem}.pb-8{padding-bottom:2rem}.pb-\[100px\]{padding-bottom:100px}.pl-2\.5{padding-left:.625rem}.pr-3{padding-right:.75rem}.pt-2\.5{padding-top:.625rem}.pt-4{padding-top:1rem}.pt-5{padding-top:1.25rem}.text-center{text-align:center}.font-\[\'Inter\'\]{font-family:Inter}.font-\[\'Playfair_Display\'\]{font-family:Playfair Display}.text-2xl{font-size:1.5rem;line-height:2rem}.text-\[10\.5px\]{font-size:10.5px}.text-\[10px\]{font-size:10px}.text-\[11\.5px\]{font-size:11.5px}.text-\[11px\]{font-size:11px}.text-\[12\.5px\]{font-size:12.5px}.text-\[12px\]{font-size:12px}.text-\[13\.5px\]{font-size:13.5px}.text-\[13px\]{font-size:13px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[16px\]{font-size:16px}.text-\[17px\]{font-size:17px}.text-\[19px\]{font-size:19px}.text-\[22px\]{font-size:22px}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xs{font-size:.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-tight{letter-spacing:-.025em}.tracking-wide{letter-spacing:.025em}.text-\[\#067647\]{--tw-text-opacity:1;color:rgb(6 118 71/var(--tw-text-opacity,1))}.text-\[\#101828\]{--tw-text-opacity:1;color:rgb(16 24 40/var(--tw-text-opacity,1))}.text-\[\#153C9E\]{--tw-text-opacity:1;color:rgb(21 60 158/var(--tw-text-opacity,1))}.text-\[\#2054E0\]{--tw-text-opacity:1;color:rgb(32 84 224/var(--tw-text-opacity,1))}.text-\[\#667085\]{--tw-text-opacity:1;color:rgb(102 112 133/var(--tw-text-opacity,1))}.text-\[\#98A2B3\]{--tw-text-opacity:1;color:rgb(152 162 179/var(--tw-text-opacity,1))}.text-\[\#B42318\]{--tw-text-opacity:1;color:rgb(180 35 24/var(--tw-text-opacity,1))}.text-\[\#B54708\]{--tw-text-opacity:1;color:rgb(181 71 8/var(--tw-text-opacity,1))}.text-\[\#F04438\]{--tw-text-opacity:1;color:rgb(240 68 56/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.shadow-\[0_1px_2px_rgba\(28\2c 25\2c 23\2c 0\.04\)\2c 0_1px_3px_rgba\(28\2c 25\2c 23\2c 0\.03\)\]{--tw-shadow:0 1px 2px rgba(28,25,23,.04),0 1px 3px rgba(28,25,23,.03);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color),0 1px 3px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_1px_2px_rgba\(28\2c 25\2c 23\2c 0\.04\)\]{--tw-shadow:0 1px 2px rgba(28,25,23,.04);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_1px_2px_rgba\(32\2c 84\2c 224\2c 0\.3\)\]{--tw-shadow:0 1px 2px rgba(32,84,224,.3);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_20px_60px_rgba\(28\2c 25\2c 23\2c 0\.16\)\]{--tw-shadow:0 20px 60px rgba(28,25,23,.16);--tw-shadow-colored:0 20px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_30px_60px_rgba\(28\2c 25\2c 23\2c 0\.35\)\]{--tw-shadow:0 30px 60px rgba(28,25,23,.35);--tw-shadow-colored:0 30px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_6px_16px_rgba\(32\2c 84\2c 224\2c 0\.4\)\]{--tw-shadow:0 6px 16px rgba(32,84,224,.4);--tw-shadow-colored:0 6px 16px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_8px_24px_rgba\(28\2c 25\2c 23\2c 0\.18\)\]{--tw-shadow:0 8px 24px rgba(28,25,23,.18);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.\[scrollbar-width\:none\]{scrollbar-width:none}.after\:absolute:after{content:var(--tw-content);position:absolute}.after\:-inset-1:after{content:var(--tw-content);inset:-.25rem}@keyframes ping{75%,to{content:var(--tw-content);transform:scale(2);opacity:0}}.after\:animate-ping:after{content:var(--tw-content);animation:ping 1s cubic-bezier(0,0,.2,1) infinite}.after\:rounded-full:after{content:var(--tw-content);border-radius:9999px}.after\:border:after{content:var(--tw-content);border-width:1px}.after\:border-\[\#12B76A\]\/50:after{content:var(--tw-content);border-color:rgba(18,183,106,.5)}.after\:content-\[\'\'\]:after{--tw-content:"";content:var(--tw-content)}.hover\:border-\[\#12B76A\]:hover{--tw-border-opacity:1;border-color:rgb(18 183 106/var(--tw-border-opacity,1))}.hover\:border-\[\#2054E0\]:hover{--tw-border-opacity:1;border-color:rgb(32 84 224/var(--tw-border-opacity,1))}.hover\:border-\[\#F79009\]:hover{--tw-border-opacity:1;border-color:rgb(247 144 9/var(--tw-border-opacity,1))}.hover\:bg-\[\#153C9E\]:hover{--tw-bg-opacity:1;background-color:rgb(21 60 158/var(--tw-bg-opacity,1))}.hover\:bg-\[\#F5F8FC\]:hover{--tw-bg-opacity:1;background-color:rgb(245 248 252/var(--tw-bg-opacity,1))}.focus\:border-\[\#2054E0\]:focus{--tw-border-opacity:1;border-color:rgb(32 84 224/var(--tw-border-opacity,1))}.\[\&\.open\]\:flex.open{display:flex}.\[\&\:\:-webkit-scrollbar\]\:hidden::-webkit-scrollbar{display:none}.\[\&_svg\]\:h-\[19px\] svg{height:19px}.\[\&_svg\]\:w-\[19px\] svg{width:19px}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-['Inter'] bg-[#DCE3EE] text-[#101828] antialiased py-8 px-6">
+
+<div class="flex justify-center mb-7">
+  <div class="inline-flex bg-[#FFFFFF] border border-[#E6EAF2] rounded-full p-1 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] switcher">
+    <button class="border-0 bg-[#2054E0] text-white px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('desktop', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+      Desktop
+    </button>
+    <button class="border-0 bg-transparent text-[#98A2B3] px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('mobile', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      Mobile
+    </button>
+  </div>
+</div>
+
+<div class="max-w-[1400px] mx-auto">
+
+<!-- ============ DESKTOP VIEW ============ -->
+<div class="view" id="view-desktop">
+<div class="grid grid-cols-[76px_1fr] bg-[#F5F8FC] rounded-[20px] overflow-hidden shadow-[0_20px_60px_rgba(28,25,23,0.16)] min-h-[880px] border border-[#E6EAF2] relative" id="desktop-app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="bg-[#FFFFFF] border-r border-[#E6EAF2] flex flex-col items-center py-5 gap-1.5">
+    <div class="w-9 h-9 rounded-[10px] bg-[#2054E0] flex items-center justify-center text-white font-['Playfair_Display'] font-bold text-[15px] mb-[18px]">Rx</div>
+
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#153C9E] bg-[#EAF0FE] cursor-pointer relative [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Prescriptions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+      <div class="absolute -top-1 -right-1 min-w-[16px] h-4 px-[3px] rounded-full bg-[#F04438] text-white text-[10px] font-bold flex items-center justify-center border-2 border-[#FFFFFF]" id="side-badge-count">4</div>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Patients">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </div>
+
+    <div class="flex-1"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-[#12B76A] mb-4 relative after:content-[''] after:absolute after:-inset-1 after:rounded-full after:border after:border-[#12B76A]/50 after:animate-ping" title="Synced"></div>
+    <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold">JO</div>
+  </div>
+
+  <!-- PAGE CONTENT -->
+  <div class="flex flex-col min-h-0 p-6 pb-8">
+
+    <div class="flex items-center gap-3 mb-5">
+      <div>
+        <div class="text-[12px] text-[#98A2B3] font-medium mb-0.5">DumosRx · Awka Main Pharmacy</div>
+        <div class="text-[22px] font-['Playfair_Display'] font-bold">Prescriptions</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2.5">
+        <div class="w-[38px] h-[38px] rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center cursor-pointer relative shrink-0 text-[#667085]">
+          <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <div class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#F04438] border-[1.5px] border-[#FFFFFF]"></div>
+        </div>
+        <button class="flex items-center gap-2 bg-[#2054E0] text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] shadow-[0_1px_2px_rgba(32,84,224,0.3)] hover:bg-[#153C9E]" onclick="openModal('newRx')">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+          New Prescription
+        </button>
+      </div>
+    </div>
+
+    <!-- INSIGHTS STRIP -->
+    <div class="grid grid-cols-4 gap-4 mb-5">
+      <div class="bg-[#FFFFFF] border border-[#FEE3B3] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-[#F79009]" onclick="setRxFilter('pending')">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Needs verification</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#FFFAEB] text-[#B54708]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5 text-[#B54708]" id="stat-pending">3</div>
+        <div class="text-xs text-[#98A2B3]">awaiting pharmacist review</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-[#2054E0]" onclick="setRxFilter('refill_due')">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Refills due</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F5F8FC] text-[#667085]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5" id="stat-refill">3</div>
+        <div class="text-xs text-[#98A2B3]">within the next 7 days</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#D3F2E1] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)] cursor-pointer hover:border-[#12B76A]" onclick="setRxFilter('ready')">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Ready for pickup</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#ECFDF3] text-[#067647]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5 text-[#067647]" id="stat-ready">2</div>
+        <div class="text-xs text-[#98A2B3]">notify patients waiting</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(28,25,23,0.04),0_1px_3px_rgba(28,25,23,0.03)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Filled today</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F5F8FC] text-[#667085]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8v4h8V3z"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5">18</div>
+        <div class="text-xs font-semibold text-[#067647]">↑ 12% vs yesterday</div>
+      </div>
+    </div>
+
+    <!-- FILTER CHIPS (replaces the old Queue / Refills / History tabs) -->
+    <div class="flex items-center gap-2 mb-4">
+      <div class="flex gap-1.5 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 overflow-x-auto" id="d-rx-filters">
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap rx-filter-chip bg-[#2054E0] text-white" data-status="all" onclick="setRxFilter('all')">All</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap rx-filter-chip text-[#98A2B3]" data-status="pending" onclick="setRxFilter('pending')">Needs verification</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap rx-filter-chip text-[#98A2B3]" data-status="refill_due" onclick="setRxFilter('refill_due')">Refills due</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap rx-filter-chip text-[#98A2B3]" data-status="ready" onclick="setRxFilter('ready')">Ready for pickup</div>
+        <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap rx-filter-chip text-[#98A2B3]" data-status="filled" onclick="setRxFilter('filled')">History</div>
+      </div>
+    </div>
+
+    <!-- MASTER-DETAIL -->
+    <div class="grid grid-cols-[1fr_380px] gap-5 flex-1 min-h-0">
+
+      <!-- LIST -->
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col min-h-0">
+        <div class="p-4 pb-3 border-b border-[#E6EAF2]">
+          <div class="flex items-center gap-2 bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
+            <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search by patient or medication" class="border-0 outline-none text-[13px] w-full bg-transparent" id="d-rx-search" oninput="renderRxList()">
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3" id="d-rx-list"></div>
+      </div>
+
+      <!-- DETAIL PANEL -->
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex flex-col min-h-0" id="d-rx-detail-panel"></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP NEW PRESCRIPTION MODAL -->
+<div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(28,25,23,0.45)] z-20 items-center justify-center" id="modal-newRx">
+  <div class="w-[560px] max-h-[86%] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(28,25,23,0.18)] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-5 border-b border-[#E6EAF2]">
+      <div class="text-[17px] font-['Playfair_Display'] font-bold">New Prescription</div>
+      <div class="w-[34px] h-[34px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer" onclick="closeModal('newRx')">
+        <svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="px-6 py-5 overflow-y-auto flex flex-col gap-4">
+      <div>
+        <label class="text-[12.5px] font-semibold mb-1.5 block">Patient</label>
+        <input type="text" placeholder="Search patient by name or phone" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Medication</label>
+          <input type="text" placeholder="e.g. Amoxicillin" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Strength</label>
+          <input type="text" placeholder="e.g. 500mg" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+      </div>
+      <div>
+        <label class="text-[12.5px] font-semibold mb-1.5 block">Directions (Sig)</label>
+        <input type="text" placeholder="e.g. Take 1 capsule by mouth 3x daily for 7 days" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Quantity</label>
+          <input type="text" placeholder="e.g. 21" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Refills authorized</label>
+          <input type="text" placeholder="e.g. 2" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Prescriber</label>
+          <input type="text" placeholder="e.g. Dr. Chukwu" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Payer / Insurance</label>
+          <input type="text" placeholder="e.g. NHIS, Cash" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+      </div>
+      <div class="text-[11.5px] text-[#667085] bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-3 flex gap-2 items-start">
+        <svg class="w-[15px] h-[15px] text-[#2054E0] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        New prescriptions enter the queue as "Needs verification" until a pharmacist reviews and approves them.
+      </div>
+    </div>
+    <div class="px-6 py-5 border-t border-[#E6EAF2]">
+      <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-[#153C9E]" onclick="closeModal('newRx')">Add to Queue</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ============ MOBILE VIEW ============ -->
+<div class="view hidden" id="view-mobile">
+  <div class="flex justify-center" id="mobile-phone-wrap">
+    <div class="w-[390px] bg-[#F5F8FC] rounded-[44px] border-[10px] border-[#1A1D23] shadow-[0_30px_60px_rgba(28,25,23,0.35)] overflow-hidden relative">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[26px] bg-[#1A1D23] rounded-b-2xl z-[6]"></div>
+      <div class="h-[844px] flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] sticky top-0 z-[3]">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="text-[11.5px] text-[#98A2B3] font-medium">DumosRx · Awka Main</div>
+              <div class="text-lg font-['Playfair_Display'] font-bold">Prescriptions</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center relative shrink-0 text-[#667085]">
+                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                <div class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#F04438] border border-[#FFFFFF]"></div>
+              </div>
+              <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold shrink-0">JO</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 bg-[#ECFDF3] border border-[#D3F2E1] rounded-full px-3 py-1.5 w-fit">
+              <div class="w-2 h-2 rounded-full bg-[#12B76A]"></div>
+              <span class="text-[11.5px] font-semibold text-[#067647]">Synced · 2 min ago</span>
+            </div>
+            <button class="flex items-center gap-1.5 bg-[#2054E0] text-white text-[12px] font-semibold pl-2.5 pr-3 py-1.5 rounded-full shrink-0" onclick="openMobileNewRx()">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+              New
+            </button>
+          </div>
+        </div>
+
+        <div class="px-4 pt-4 pb-[100px]">
+
+          <div class="text-[12.5px] font-semibold text-[#667085] mb-2.5">Today at a glance</div>
+          <div class="flex gap-2.5 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#FEE3B3] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Needs verification</div>
+              <div class="text-[19px] font-semibold text-[#B54708]">3</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Refills due</div>
+              <div class="text-[19px] font-semibold">3</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#D3F2E1] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Ready for pickup</div>
+              <div class="text-[19px] font-semibold text-[#067647]">2</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(28,25,23,0.04)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Filled today</div>
+              <div class="text-[19px] font-semibold">18</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 mb-3.5">
+            <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search by patient or medication" class="border-0 outline-none text-[13px] w-full bg-transparent" id="m-rx-search" oninput="renderRxList()">
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" id="m-rx-filters">
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 rx-filter-chip bg-[#2054E0] text-white" data-status="all" onclick="setRxFilter('all')">All</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 rx-filter-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-status="pending" onclick="setRxFilter('pending')">Needs verification</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 rx-filter-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-status="refill_due" onclick="setRxFilter('refill_due')">Refills due</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 rx-filter-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-status="ready" onclick="setRxFilter('ready')">Ready for pickup</div>
+            <div class="px-4 py-2 rounded-lg text-[13px] font-semibold cursor-pointer whitespace-nowrap shrink-0 rx-filter-chip text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]" data-status="filled" onclick="setRxFilter('filled')">History</div>
+          </div>
+
+          <div id="m-rx-list"></div>
+
+        </div>
+      </div>
+
+      <!-- MOBILE RX DETAIL: full-screen push -->
+      <div class="hidden absolute inset-0 bg-[#F5F8FC] z-10 flex-col" id="mobile-rx-detail-overlay">
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] flex items-center gap-3">
+          <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center text-[#667085] shrink-0 cursor-pointer" onclick="closeMobileRxDetail()">
+            <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <div class="text-[15px] font-semibold">Prescription detail</div>
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 pt-4 pb-8" id="m-rx-detail-panel"></div>
+      </div>
+
+      <!-- MOBILE NEW PRESCRIPTION: full-screen push -->
+      <div class="hidden absolute inset-0 bg-[#F5F8FC] z-10 flex-col" id="mobile-newrx-overlay">
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] flex items-center gap-3">
+          <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center text-[#667085] shrink-0 cursor-pointer" onclick="closeMobileNewRx()">
+            <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <div class="text-[15px] font-['Playfair_Display'] font-bold">New Prescription</div>
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 pt-4 pb-8 flex flex-col gap-3.5">
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Patient</label>
+            <input type="text" placeholder="Search patient by name or phone" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Medication</label>
+            <input type="text" placeholder="e.g. Amoxicillin" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Strength</label>
+            <input type="text" placeholder="e.g. 500mg" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Directions (Sig)</label>
+            <input type="text" placeholder="e.g. Take 1 capsule 3x daily" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[12.5px] font-semibold mb-1.5 block">Quantity</label>
+              <input type="text" placeholder="21" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+            </div>
+            <div>
+              <label class="text-[12.5px] font-semibold mb-1.5 block">Refills</label>
+              <input type="text" placeholder="2" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+            </div>
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Prescriber</label>
+            <input type="text" placeholder="e.g. Dr. Chukwu" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+          </div>
+          <div class="text-[11.5px] text-[#667085] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-3 flex gap-2 items-start">
+            <svg class="w-[15px] h-[15px] text-[#2054E0] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            New prescriptions enter the queue as "Needs verification" until reviewed.
+          </div>
+          <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer" onclick="closeMobileNewRx()">Add to Queue</button>
+        </div>
+      </div>
+
+      <!-- BOTTOM NAV -->
+      <div class="flex items-center justify-around bg-[#FFFFFF] border-t border-[#E6EAF2] px-2 pt-2.5 pb-3.5 sticky bottom-0 z-[4]">
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          <span class="text-[10px] font-semibold">Home</span>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#2054E0] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+          <span class="text-[10px] font-semibold">Rx</span>
+        </div>
+        <div class="w-[52px] h-[52px] rounded-full bg-[#2054E0] flex items-center justify-center text-white -mt-[30px] shadow-[0_6px_16px_rgba(32,84,224,0.4)] border-4 border-[#FFFFFF] cursor-pointer" onclick="openMobileNewRx()">
+          <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+          <span class="text-[10px] font-semibold">Inventory</span>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          <span class="text-[10px] font-semibold">More</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function showView(name, btn){
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + name).classList.remove('hidden');
+  document.querySelectorAll('.switcher button').forEach(b => {
+    b.classList.remove('bg-[#2054E0]','text-white');
+    b.classList.add('bg-transparent','text-[#98A2B3]');
+  });
+  btn.classList.add('bg-[#2054E0]','text-white');
+  btn.classList.remove('bg-transparent','text-[#98A2B3]');
+}
+
+function openModal(name){ document.getElementById('modal-' + name).classList.add('open'); }
+function closeModal(name){ document.getElementById('modal-' + name).classList.remove('open'); }
+
+function openMobileNewRx(){
+  document.getElementById('mobile-newrx-overlay').classList.remove('hidden');
+  document.getElementById('mobile-newrx-overlay').classList.add('flex');
+}
+function closeMobileNewRx(){
+  document.getElementById('mobile-newrx-overlay').classList.add('hidden');
+  document.getElementById('mobile-newrx-overlay').classList.remove('flex');
+}
+function openMobileRxDetail(){
+  document.getElementById('mobile-rx-detail-overlay').classList.remove('hidden');
+  document.getElementById('mobile-rx-detail-overlay').classList.add('flex');
+}
+function closeMobileRxDetail(){
+  document.getElementById('mobile-rx-detail-overlay').classList.add('hidden');
+  document.getElementById('mobile-rx-detail-overlay').classList.remove('flex');
+}
+
+// ================= PRESCRIPTION DATA =================
+const RX_LIST = [
+  { id:'rx1', patient:'Ifeoma Adiele', initials:'IA', dob:'14 Mar 1990', phone:'0803 555 0142',
+    med:'Amoxicillin', dosage:'500mg', sig:'1 capsule by mouth 3x daily for 7 days', qty:21,
+    refillsAuth:0, refillsLeft:0, prescriber:'Dr. Chukwu', payer:'Cash', status:'pending', date:'Today, 2:10 PM', flagged:false },
+  { id:'rx2', patient:'Tunde Bakare', initials:'TB', dob:'02 Jul 1975', phone:'0805 222 9981',
+    med:'Lisinopril', dosage:'10mg', sig:'1 tablet by mouth once daily', qty:30,
+    refillsAuth:5, refillsLeft:3, prescriber:'Dr. Okoro', payer:'NHIS', status:'ready', date:'Today, 11:40 AM', flagged:false },
+  { id:'rx3', patient:'Ngozi Eze', initials:'NE', dob:'21 Nov 1988', phone:'0812 444 1123',
+    med:'Metformin', dosage:'500mg', sig:'1 tablet by mouth twice daily with food', qty:60,
+    refillsAuth:6, refillsLeft:2, prescriber:'Dr. Adebayo', payer:'HMO, Reliance', status:'refill_due', date:'Due in 3 days', flagged:false },
+  { id:'rx4', patient:'Emeka Obi', initials:'EO', dob:'09 Feb 1965', phone:'0706 811 2290',
+    med:'Atorvastatin', dosage:'20mg', sig:'1 tablet by mouth at bedtime', qty:30,
+    refillsAuth:3, refillsLeft:1, prescriber:'Dr. Nwachukwu', payer:'Cash', status:'filled', date:'Yesterday, 4:52 PM', flagged:false },
+  { id:'rx5', patient:'Chiamaka Nwosu', initials:'CN', dob:'30 Sep 1992', phone:'0813 900 4471',
+    med:'Sertraline', dosage:'50mg', sig:'1 tablet by mouth once daily', qty:30,
+    refillsAuth:2, refillsLeft:2, prescriber:'Dr. Balogun', payer:'NHIS', status:'pending', date:'Today, 9:05 AM',
+    flagged:true, flagReason:'Potential interaction with active Tramadol prescription: pharmacist review required before dispensing.' },
+  { id:'rx6', patient:'Bola Yusuf', initials:'BY', dob:'17 May 1998', phone:'0902 113 7765',
+    med:'Albuterol Inhaler', dosage:'90mcg', sig:'2 puffs every 4–6 hours as needed', qty:1,
+    refillsAuth:1, refillsLeft:1, prescriber:'Dr. Chukwu', payer:'Cash', status:'ready', date:'Today, 1:15 PM', flagged:false },
+  { id:'rx7', patient:'Kelechi Umeh', initials:'KU', dob:'12 Dec 1980', phone:'0817 662 0031',
+    med:'Losartan', dosage:'50mg', sig:'1 tablet by mouth once daily', qty:30,
+    refillsAuth:5, refillsLeft:1, prescriber:'Dr. Okoro', payer:'HMO, Avon', status:'refill_due', date:'Due today', flagged:false },
+  { id:'rx8', patient:'Aisha Bello', initials:'AB', dob:'04 Jan 1970', phone:'0708 224 5590',
+    med:'Omeprazole', dosage:'20mg', sig:'1 capsule by mouth before breakfast', qty:30,
+    refillsAuth:2, refillsLeft:0, prescriber:'Dr. Adebayo', payer:'Cash', status:'filled', date:'3 days ago', flagged:false },
+  { id:'rx9', patient:'Daniel Okafor', initials:'DO', dob:'26 Aug 1995', phone:'0810 337 8820',
+    med:'Amlodipine', dosage:'5mg', sig:'1 tablet by mouth once daily', qty:30,
+    refillsAuth:3, refillsLeft:3, prescriber:'Dr. Nwachukwu', payer:'NHIS', status:'pending', date:'Today, 10:30 AM', flagged:false },
+  { id:'rx10', patient:'Grace Chukwu', initials:'GC', dob:'19 Apr 1983', phone:'0805 991 0034',
+    med:'Ciprofloxacin', dosage:'500mg', sig:'1 tablet by mouth twice daily for 5 days', qty:10,
+    refillsAuth:0, refillsLeft:0, prescriber:'Dr. Balogun', payer:'Cash', status:'refill_due', date:'Overdue by 2 days', flagged:false }
+];
+
+const STATUS_META = {
+  pending:   { label:'Needs verification', badgeClass:'bg-[#FFFAEB] text-[#B54708]' },
+  refill_due:{ label:'Refill due',         badgeClass:'bg-[#F5F8FC] text-[#667085]' },
+  ready:     { label:'Ready for pickup',   badgeClass:'bg-[#ECFDF3] text-[#067647]' },
+  filled:    { label:'Filled',             badgeClass:'bg-[#F5F8FC] text-[#667085]' }
+};
+
+let currentFilter = 'all';
+let currentRxId = null;
+
+function setRxFilter(status){
+  currentFilter = status;
+  document.querySelectorAll('.rx-filter-chip').forEach(chip => {
+    const active = chip.dataset.status === status;
+    chip.classList.toggle('bg-[#2054E0]', active);
+    chip.classList.toggle('text-white', active);
+    chip.classList.toggle('bg-[#FFFFFF]', !active);
+    chip.classList.toggle('border', !active);
+    chip.classList.toggle('border-[#E6EAF2]', !active);
+    chip.classList.toggle('text-[#98A2B3]', !active);
+  });
+  renderRxList();
+}
+
+function rxRowHtml(rx, ctx){
+  const meta = STATUS_META[rx.status];
+  const onclick = ctx === 'mobile' ? `selectRx('${rx.id}'); openMobileRxDetail();` : `selectRx('${rx.id}')`;
+  const isActive = ctx === 'desktop' && rx.id === currentRxId;
+  return `
+    <div class="flex items-center gap-3 p-3 rounded-xl cursor-pointer border ${isActive ? 'border-[#2054E0] bg-[#F3F7FF]' : 'border-transparent hover:bg-[#F5F8FC]'} mb-1" onclick="${onclick}">
+      <div class="w-10 h-10 rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[12px] font-bold shrink-0">${rx.initials}</div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5">
+          <div class="text-[13px] font-semibold truncate">${rx.patient}</div>
+          ${rx.flagged ? '<svg class="w-3.5 h-3.5 text-[#F04438] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>' : ''}
+        </div>
+        <div class="text-[11.5px] text-[#667085] truncate">${rx.med} ${rx.dosage} · ${rx.date}</div>
+      </div>
+      <span class="text-[10.5px] font-semibold px-2.5 py-1 rounded-md shrink-0 whitespace-nowrap ${meta.badgeClass}">${meta.label}</span>
+    </div>`;
+}
+
+function renderRxList(){
+  const dSearch = (document.getElementById('d-rx-search')?.value || '').toLowerCase();
+  const mSearch = (document.getElementById('m-rx-search')?.value || '').toLowerCase();
+
+  const matches = (rx, q) => !q || rx.patient.toLowerCase().includes(q) || rx.med.toLowerCase().includes(q);
+  const filtered = (q) => RX_LIST.filter(rx => (currentFilter === 'all' || rx.status === currentFilter) && matches(rx, q));
+
+  const dList = filtered(dSearch);
+  const mList = filtered(mSearch);
+
+  document.getElementById('d-rx-list').innerHTML = dList.length
+    ? dList.map(rx => rxRowHtml(rx, 'desktop')).join('')
+    : `<div class="text-center text-[12.5px] text-[#98A2B3] py-10">No prescriptions match.</div>`;
+
+  document.getElementById('m-rx-list').innerHTML = mList.length
+    ? mList.map(rx => rxRowHtml(rx, 'mobile')).join('')
+    : `<div class="text-center text-[12.5px] text-[#98A2B3] py-10">No prescriptions match.</div>`;
+
+  if(!currentRxId && dList.length) selectRx(dList[0].id);
+}
+
+function actionButtonHtml(rx){
+  if(rx.status === 'pending'){
+    return `<button class="w-full bg-[#2054E0] text-white border-0 py-3 rounded-xl text-[13.5px] font-bold cursor-pointer hover:bg-[#153C9E]" onclick="advanceRxStatus('${rx.id}','ready')">Verify &amp; Approve</button>`;
+  }
+  if(rx.status === 'refill_due'){
+    return `<button class="w-full bg-[#2054E0] text-white border-0 py-3 rounded-xl text-[13.5px] font-bold cursor-pointer hover:bg-[#153C9E]" onclick="advanceRxStatus('${rx.id}','pending')">Process Refill</button>`;
+  }
+  if(rx.status === 'ready'){
+    return `<button class="w-full bg-[#2054E0] text-white border-0 py-3 rounded-xl text-[13.5px] font-bold cursor-pointer hover:bg-[#153C9E]" onclick="advanceRxStatus('${rx.id}','filled')">Mark Picked Up</button>`;
+  }
+  return `<button class="w-full bg-[#F5F8FC] text-[#667085] border-0 py-3 rounded-xl text-[13.5px] font-bold cursor-pointer" disabled>Completed</button>`;
+}
+
+function rxDetailHtml(rx){
+  const meta = STATUS_META[rx.status];
+  const flagBanner = rx.flagged ? `
+    <div class="mx-5 mt-4 mb-1 bg-[#FEF3F2] border border-[#FBD5D2] text-[#B42318] rounded-xl px-3.5 py-3 text-[12px] font-medium flex gap-2 items-start">
+      <svg class="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+      ${rx.flagReason}
+    </div>` : '';
+
+  return `
+    <div class="p-5 pb-4 border-b border-[#E6EAF2]">
+      <div class="flex items-start justify-between mb-1">
+        <div>
+          <div class="text-[16px] font-semibold">${rx.patient}</div>
+          <div class="text-[12px] text-[#98A2B3]">DOB ${rx.dob} · ${rx.phone}</div>
+        </div>
+        <span class="text-[10.5px] font-semibold px-2.5 py-1 rounded-md ${meta.badgeClass}">${meta.label}</span>
+      </div>
+    </div>
+    ${flagBanner}
+    <div class="flex-1 overflow-y-auto p-5">
+      <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Medication</div>
+      <div class="text-[15px] font-semibold mb-1">${rx.med} ${rx.dosage}</div>
+      <div class="text-[12.5px] text-[#667085] mb-4">${rx.sig}</div>
+
+      <div class="grid grid-cols-2 gap-3.5 mb-5">
+        <div>
+          <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Quantity</div>
+          <div class="text-[13.5px] font-semibold">${rx.qty} units</div>
+        </div>
+        <div>
+          <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Refills</div>
+          <div class="text-[13.5px] font-semibold">${rx.refillsLeft} of ${rx.refillsAuth} left</div>
+        </div>
+        <div>
+          <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Prescriber</div>
+          <div class="text-[13.5px] font-semibold">${rx.prescriber}</div>
+        </div>
+        <div>
+          <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Payer</div>
+          <div class="text-[13.5px] font-semibold">${rx.payer}</div>
+        </div>
+      </div>
+
+      <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-2.5">Status timeline</div>
+      <div class="flex flex-col gap-3 mb-1">
+        ${rxTimelineStep('Received', true)}
+        ${rxTimelineStep('Verified', rx.status !== 'pending')}
+        ${rxTimelineStep('Filled', rx.status === 'filled' || rx.status === 'ready')}
+        ${rxTimelineStep('Picked up', rx.status === 'filled')}
+      </div>
+    </div>
+    <div class="p-5 pt-4 border-t border-[#E6EAF2]">
+      ${actionButtonHtml(rx)}
+    </div>`;
+}
+
+function rxTimelineStep(label, done){
+  return `
+    <div class="flex items-center gap-2.5">
+      <div class="w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${done ? 'bg-[#2054E0] text-white' : 'bg-[#F5F8FC] text-[#98A2B3]'}">
+        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <div class="text-[12.5px] ${done ? 'font-semibold text-[#101828]' : 'text-[#98A2B3]'}">${label}</div>
+    </div>`;
+}
+
+function selectRx(id){
+  currentRxId = id;
+  const rx = RX_LIST.find(r => r.id === id);
+  if(!rx) return;
+  const html = rxDetailHtml(rx);
+  document.getElementById('d-rx-detail-panel').innerHTML = html;
+  document.getElementById('m-rx-detail-panel').innerHTML = html;
+  renderRxList(); // refresh highlight state on desktop rows
+}
+
+function advanceRxStatus(id, newStatus){
+  const rx = RX_LIST.find(r => r.id === id);
+  if(!rx) return;
+  rx.status = newStatus;
+  rx.date = 'Just now';
+  updateInsightStats();
+  selectRx(id);
+}
+
+function updateInsightStats(){
+  document.getElementById('stat-pending').textContent = RX_LIST.filter(r => r.status === 'pending').length;
+  document.getElementById('stat-refill').textContent = RX_LIST.filter(r => r.status === 'refill_due').length;
+  document.getElementById('stat-ready').textContent = RX_LIST.filter(r => r.status === 'ready').length;
+  document.getElementById('side-badge-count').textContent = RX_LIST.filter(r => r.status === 'pending').length;
+}
+
+// init
+updateInsightStats();
+renderRxList();
+</script>
+
+</body>
+</html>

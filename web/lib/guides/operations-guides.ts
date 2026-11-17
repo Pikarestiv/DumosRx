@@ -99,5 +99,26 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
       "Products without a price show 'Price on request' with an Ask button that opens WhatsApp with a ready-made message, so a WhatsApp number turns every unpriced item into a lead. With no WhatsApp number, the button becomes a Call link to the store phone.",
     videoPlaceholderText: "Video Walkthrough: Choosing a style, accent colour, hours and language for your storefront",
   },
+  {
+    id: "online-service-bookings",
+    title: "Take Service Bookings on Your Storefront",
+    category: "Online Storefront",
+    badge: "New Feature",
+    readTime: "2 min read",
+    videoDuration: "2:15",
+    summary:
+      "Let customers book your services online from the same cart as your products. They pay now or at the store, get an order code that doubles as their booking code, and you see the booking in Online Orders on the till.",
+    steps: [
+      "Add your services with a price in Inventory > Services on the till. Give each one a category so customers can filter them.",
+      "Ask DumosRx support to switch on 'Show this store's services on the storefront'. Your Services section then appears under Products, with category filters and a count.",
+      "A customer taps + on a service to add it to the cart, alongside any products, and checks out with their name and phone number (an email is optional and gets a confirmation).",
+      "They choose how to pay: pay at the store, transfer or mobile money if you have given payment details, or online where you accept online payment.",
+      "They get an order code, a confirmation page they can print, and, if they gave an email, a confirmation email. There is no time slot to pick: call them on the number they gave to arrange a time.",
+      "On the till, open Online Orders. Booked services show with a Booking badge. When the customer comes in, press 'Fulfill & Deduct Stock' and the sale is recorded with the service lines, without touching stock.",
+    ],
+    proTip:
+      "A service with no price shows 'Price on request' and an Enquire on WhatsApp button instead of +, which suits services you quote case by case. Ask customers for feedback using the phone or email they booked with.",
+    videoPlaceholderText: "Video Walkthrough: Listing services online, taking a booking, and fulfilling it at the till",
+  },
 ];
 

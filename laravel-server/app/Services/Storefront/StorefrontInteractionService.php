@@ -30,7 +30,7 @@ class StorefrontInteractionService
                 $q->where('id', $identifier)
                     ->orWhere('paystack_reference', $identifier);
             })
-            ->with(['items.product', 'store'])
+            ->with(['items.product', 'serviceItems.service', 'store'])
             ->first();
 
         if (! $order) {
@@ -68,7 +68,12 @@ class StorefrontInteractionService
                 'items' => $order->items->map(fn ($item) => [
                     'product_name' => $item->product->name ?? 'Medicine Item',
                     'quantity' => $item->quantity,
-                ]),
+                    'is_service' => false,
+                ])->concat($order->serviceItems->map(fn ($item) => [
+                    'product_name' => $item->service->name ?? 'Service',
+                    'quantity' => $item->quantity,
+                    'is_service' => true,
+                ]))->values(),
             ],
         ]);
     }

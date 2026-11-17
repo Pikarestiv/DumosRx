@@ -88,4 +88,47 @@ describe("cart repricing", () => {
     expect(result.current.pricesStale).toBe(true);
     expect(useCartStore.getState().carts.shop.map((i) => i.id)).toEqual(["deep-120"]);
   });
+
+  it("reprices a booked service from the services list and drops one the store stopped offering", async () => {
+    const service = (id: string, price = 100) => ({ ...item(id, price), kind: "service" as const });
+    act(() => useCartStore.setState({ carts: { shop: [item("p1"), service("svc-kept"), service("svc-gone")] } }));
+    getMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith("/services")
+          ? { data: { data: [{ id: "svc-kept", name: "Scaling", price: 25000 }, { id: "svc-other", name: "Other", price: 1 }] } }
+          : { data: { data: [{ id: "p1", selling_price: 100 }], store: { currency: "NGN", online_payment_available: true } } },
+      ),
+    );
+
+    const { result } = renderHook(() => useCartRepricing("shop"));
+    await waitFor(() => expect(result.current.pricesLoading).toBe(false));
+
+    expect(useCartStore.getState().carts.shop).toEqual([item("p1"), { ...service("svc-kept"), price: 25000 }]);
+    expect(result.current.onlinePaymentAvailable).toBe(true);
+  });
+
+  it("asks for products and services at the same time", async () => {
+    act(() => useCartStore.setState({ carts: { shop: [item("p1"), { ...item("svc"), kind: "service" as const }] } }));
+    getMock.mockReturnValue(new Promise(() => {}));
+
+    renderHook(() => useCartRepricing("shop"));
+
+    await waitFor(() => expect(getMock.mock.calls.map(([url]) => url)).toEqual(["/storefront/shop/products", "/storefront/shop/services"]));
+  });
+
+  it("still confirms product prices, and keeps the booking as it was, when only the services lookup fails", async () => {
+    const booking = { ...item("svc", 900), kind: "service" as const };
+    act(() => useCartStore.setState({ carts: { shop: [item("p1", 100), booking] } }));
+    getMock.mockImplementation((url: string) =>
+      url.endsWith("/services")
+        ? Promise.reject(new Error("offline"))
+        : Promise.resolve({ data: { data: [{ id: "p1", selling_price: 120 }], store: {} } }),
+    );
+
+    const { result } = renderHook(() => useCartRepricing("shop"));
+    await waitFor(() => expect(result.current.pricesLoading).toBe(false));
+
+    expect(result.current.pricesStale).toBe(false);
+    expect(useCartStore.getState().carts.shop).toEqual([{ ...item("p1"), price: 120 }, booking]);
+  });
 });

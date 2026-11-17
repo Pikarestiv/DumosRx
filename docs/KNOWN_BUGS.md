@@ -47,8 +47,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
 - **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
 
-
-
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.
@@ -450,6 +448,16 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-393. `client/` — a product price edit is logged with the new price only
+- **Found:** 2026-11-17, auditing service activity logging for the storefront booking work.
+- **What's wrong:** a product edit goes through `update()`, whose audit row holds the values written, so the Activity Log shows the new selling price but not the one it replaced. Services now record `previous_price` beside it (`updateServiceDetails()`); products do not.
+- **Fix:** read the current `selling_price` before the update in the product edit path and pass it as `auditDetails: { previous_price }`, as `updateServiceDetails()` does.
+
+#### A-394. `client/` — a till older than 2026-11-17 fulfils a storefront booking without its service lines
+- **Found:** 2026-11-17, building storefront service bookings.
+- **What's wrong:** `GET /app/online-orders` keeps booked services out of `items` (in `service_items`) so an older till never meets a line without a product. That till's fulfil path still writes the sale at the order's full `total_amount`, so the sale carries the service revenue with no `sale_services` line to explain it.
+- **Fix / retire:** update the till; no server change is planned. Goes away once no active `user_devices` row reports an `app_version` older than the release carrying this change.
+
 #### A-372. `client/` + `web/` — a store owner's customer-referral link never credits the referrer
 - **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
 - **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
@@ -544,15 +552,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** the standalone window is out of scope from the first navigation. Browsers handle that inconsistently — typically by showing an in-app browser chrome bar, or by treating subsequent navigation as a plain tab — so the "installed app" feel is lost, and the user is left looking at a URL bar in what should be a standalone window. This was the visible half of A-181's symptom and it is **not** fixed by A-181: installing from anywhere on `dumosrx.com` outside `/admin` still does this.
 - **Fix:** decide what the marketing-site PWA is actually for. Three options, in order of preference: (a) drop `manifest` from the root layout entirely and let store owners install the real app from `app.dumosrx.com`, which has its own `client/public/manifest.json` with `start_url: "/"` — the app they want is served from that origin anyway; (b) keep it installable but point `start_url` at `/` with an explicit `scope: "/"`, so it is honestly a marketing-site shortcut; (c) keep `/dashboard` but make it a real page rather than a redirect. Whichever is chosen, add an explicit `id` — without one, the id defaults to `start_url`, so changing `start_url` later orphans every already-installed copy rather than updating it.
 
-#### A-183. `web/` — the root service worker registers in development and on `/admin/` pages, the two things `admin-sw.js` deliberately avoids
-
-- **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).
-- **Location:** `components/pwa-registrar.tsx` (mounted in `app/layout.tsx`, i.e. on every route) and `public/sw.js`.
-- **What's wrong:** `PwaRegistrar` calls `navigator.serviceWorker.register("/sw.js")` with no `scope` (so `/`) and **no `NODE_ENV` guard**. `AdminPwaRegistrar` was given both precautions on purpose — see the Admin PWA section of `web/AGENTS.md` — and this one predates that reasoning. On an admin page both workers register; `/admin/` wins control by longest-scope match, so behaviour is correct but the registration is pointless.
-- **What this is *not*:** a cache-poisoning risk. `public/sw.js` has an empty `fetch` handler and caches nothing at all, so the hazard `web/AGENTS.md` documents for this host — `index.html` returned `200 OK` for any unknown path, plus an FTP deploy that deletes old hashed chunks, yielding a sticky `Unexpected token '<'` — does not apply to it. This was checked, not assumed. **It does mean `sw.js` must never be given caching** without reading that section first; `web/` has no `chunk-error.ts` recovery the way `client/` does.
-- **Consequence as it stands:** a worker claims clients during `next dev`, which is exactly the hot-reload weirdness the admin registrar's guard exists to prevent, and it registers redundantly on admin pages.
-- **Fix:** add the `process.env.NODE_ENV !== "production"` early return to `PwaRegistrar`, and skip registration when `location.pathname` starts with `/admin` so the two workers never both register on one page. Worth resolving together with A-182, since if the site-wide manifest goes away there may be no reason to keep `sw.js` at all — its only stated purpose is qualifying the site as installable.
-
 #### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
 
 - **Found:** 2026-10-23, in the independent review of A-307.
@@ -569,6 +568,20 @@ suggested tackle order rather than a strict ranking.
 
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
+
+#### A-395. `client/` and `laravel-server/` — the store-owner app still calls the account manager "Contact Specialist"
+
+- **Found:** 2026-11-17, reviewing A-180, which unified the web admin panel on "Account Manager" but did not touch the store-owner app or the API docs.
+- **Location:** `client/components/settings/store/contact-specialist-card.tsx:48` ("Your Contact Specialist"), `client/components/help/help-page.tsx:187` ("View your Contact Specialist in Business Info"), `client/components/settings/settings-mobile-menu.tsx:66` ("Business details & contact specialist"), and the OpenAPI summaries in `laravel-server/app/Http/Controllers/Api/AccountManagerController.php:18` and `laravel-server/app/Http/Controllers/Api/Admin/AdminStoreController.php:392,408` ("contact specialist / account manager").
+- **What's wrong:** a store owner reads "Contact Specialist" while the admin who is that person reads "Account Manager" in the panel, so support conversations name one relationship two ways. Cosmetic; the field and API are already `account_manager` throughout.
+- **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
+
+#### A-396. `client/` — a desktop crash between dropping `purchase_orders` and renaming the scratch table strands every purchase order
+
+- **Found:** 2026-11-17, in the independent review of the A-306 fix.
+- **Location:** `relaxPurchaseOrdersSupplierIdNullable()` in `client/lib/db/schema-migrations.ts` (`DROP TABLE purchase_orders` then `RENAME`), Tauri path only, where each statement is written straight to disk.
+- **What's wrong:** if the process dies after the drop and before the rename, the next boot recreates an empty `purchase_orders` whose `supplier_id` is already nullable, so the migration's `NOT NULL` match never fires again and the rows stay in `purchase_orders_nullable_supplier`. Unsynced orders are lost; synced ones are not re-pulled because the watermarks are current.
+- **Fix:** on boot, if the scratch table exists and `purchase_orders` is empty or lacks its rows, copy the scratch rows back before dropping it. Probability is very low.
 
 ---
 

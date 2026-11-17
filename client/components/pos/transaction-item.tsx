@@ -4,6 +4,7 @@ import { Receipt, RotateCcw, Banknote, CreditCard, ArrowLeftRight, Pill, Handsha
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
+import { capitalizeWords } from '@/lib/hooks/use-uppercase-display';
 import { PriceAdjustmentBadge } from '@/components/pos/price-adjustment-badge';
 import { deriveSaleStockOwedStatus } from '@/lib/db/queries/backorders';
 import type { SaleWithDetails } from '@/lib/types/sale';
@@ -187,7 +188,7 @@ function TransactionItemInner({
           <div className="font-bold text-[15px] text-foreground mb-0.5 truncate flex items-center gap-1.5">
             <span className="truncate">
               Sale #{sale.transaction_number} &middot;{" "}
-              {sale.customer_name || "Walk-in"}
+              {sale.customer_name ? capitalizeWords(sale.customer_name) : "Walk-in"}
             </span>
             {!!sale.prescription_id && (
               <Badge

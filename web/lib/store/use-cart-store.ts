@@ -6,16 +6,9 @@ export interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  kind?: "service";
 }
 
-/**
- * Carts are partitioned per storefront slug. A single global `items` array
- * (the pre-2026-09 shape) meant items added at /s/pharmacy-a were still
- * in the cart at /s/pharmacy-b and were submitted to *that* store's
- * /storefront/<slug>/checkout with foreign product_ids. Every action is
- * therefore scoped by `storeSlug`; prefer the `useCart(storeSlug)` hook
- * below over touching `carts` directly.
- */
 interface CartStore {
   carts: Record<string, CartItem[]>;
   addItem: (storeSlug: string, item: CartItem) => void;
@@ -24,11 +17,6 @@ interface CartStore {
   clearCart: (storeSlug: string) => void;
   /** Carry a cart to another scope when that scope is still empty (a brand cart becoming its main branch's cart). */
   moveCart: (from: string, to: string) => void;
-  /**
-   * Reconcile locally cached prices against the live catalog. `prices` maps
-   * product_id -> current selling price; any cart item missing from the map
-   * is no longer purchasable at this store and is dropped.
-   */
   reconcilePrices: (storeSlug: string, prices: Record<string, number>) => void;
 }
 
@@ -84,10 +72,6 @@ export const useCartStore = create<CartStore>()(
     {
       name: 'dumosrx-cart',
       version: 2,
-      // v1 persisted a flat, store-less `items` array. There is no way to
-      // tell which storefront those items came from, so they're dropped
-      // rather than being silently attributed to whichever store the
-      // customer happens to open next - which is the bug being fixed.
       migrate: () => ({ carts: {} }) as CartStore,
     }
   )

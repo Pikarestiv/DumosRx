@@ -3,7 +3,7 @@
 ._*
 .DS_Store
 
-refs/*
+refs/untracked/*
 
 # Worktrees for isolated agent work
 .worktrees/

@@ -7,6 +7,15 @@ export interface OnlineOrderItem {
   product?: { name: string };
 }
 
+export interface OnlineOrderServiceItem {
+  id: string;
+  service_id: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  service?: { name: string } | null;
+}
+
 export interface OnlineOrder {
   id: string;
   customer_name?: string;
@@ -20,4 +29,5 @@ export interface OnlineOrder {
   order_status: "pending" | "fulfilled" | string;
   created_at: string;
   items: OnlineOrderItem[];
+  service_items?: OnlineOrderServiceItem[];
 }

@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class AdminTillCode extends Model
 {
@@ -28,13 +30,29 @@ class AdminTillCode extends Model
         'revoked_at' => 'datetime',
     ];
 
+    public const LIFETIME_DAYS = 90;
+
     public function scopeActive($query)
     {
-        return $query->whereNull('revoked_at')
-            ->where(function ($q) {
-                $q->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            });
+        $query->whereNull('revoked_at');
+        $legacyCutoff = now()->subDays(self::LIFETIME_DAYS);
+
+        if (! self::hasExpiresAtColumn()) {
+            return $query->where('created_at', '>', $legacyCutoff);
+        }
+
+        return $query->where(fn ($q) => $q->where('expires_at', '>', now())
+            ->orWhere(fn ($legacy) => $legacy->whereNull('expires_at')->where('created_at', '>', $legacyCutoff)));
+    }
+
+    public static function hasExpiresAtColumn(): bool
+    {
+        return Schema::hasColumn((new self)->getTable(), 'expires_at');
+    }
+
+    public function effectiveExpiresAt(): ?CarbonInterface
+    {
+        return $this->expires_at ?? $this->created_at?->copy()->addDays(self::LIFETIME_DAYS);
     }
 
     /**

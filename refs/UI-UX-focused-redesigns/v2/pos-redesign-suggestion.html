@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockFlow: Point of Sale</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+</head>
+<body class="font-['Inter'] bg-[#DCE3EE] text-[#101828] antialiased pt-8 px-0 pb-20">
+
+<div class="flex justify-center mb-7">
+  <div class="inline-flex bg-[#FFFFFF] border border-[#E6EAF2] rounded-full p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] switcher">
+    <button class="border-0 bg-transparent px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] text-[#667085] cursor-pointer flex items-center gap-1.5 [&.active]:bg-[#2054E0] [&.active]:text-white active" onclick="showView('mobile', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      Mobile
+    </button>
+    <button class="border-0 bg-transparent px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] text-[#667085] cursor-pointer flex items-center gap-1.5 [&.active]:bg-[#2054E0] [&.active]:text-white" onclick="showView('desktop', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+      Desktop
+    </button>
+  </div>
+</div>
+
+<div class="max-w-[1360px] mx-auto px-6">
+
+<!-- ============ MOBILE VIEW ============ -->
+<div class="hidden [&.active]:block active view" id="view-mobile">
+  <div class="flex justify-center">
+    <div class="w-[390px] bg-[#F5F8FC] rounded-[44px] border-[10px] border-[#1A1D23] shadow-[0_30px_60px_rgba(16,24,40,0.35)] overflow-hidden relative">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[26px] bg-[#1A1D23] rounded-b-2xl z-[6]"></div>
+      <div class="h-[844px] flex flex-col relative">
+
+        <div class="flex items-center gap-2.5 px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2]">
+          <div class="w-[34px] h-[34px] rounded-lg flex items-center justify-center bg-[#F5F8FC] text-[#667085] shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <div class="text-base font-semibold mr-auto">Point of sale</div>
+          <div class="w-[38px] h-[38px] rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center cursor-pointer relative shrink-0 text-[#667085] [&_svg]:w-[17px] [&_svg]:h-[17px]" style="width:36px;height:36px;" onclick="openSheet('held')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 4v16"/></svg>
+            <div class="absolute -top-1 -right-1 min-w-[16px] h-4 px-[3px] rounded-full bg-[#F04438] text-white text-[10px] font-bold flex items-center justify-center border-2 border-[#F5F8FC]">2</div>
+          </div>
+        </div>
+
+        <div class="flex bg-[#FFFFFF] px-4 pb-3 gap-2 border-b border-[#E6EAF2]">
+          <div class="flex-1 text-center py-2.5 rounded-lg text-[13px] font-semibold text-[#667085] bg-[#F5F8FC] cursor-pointer [&.active]:bg-[#2054E0] [&.active]:text-white active" id="tabbtn-products" onclick="switchTab('products')">Products</div>
+          <div class="flex-1 text-center py-2.5 rounded-lg text-[13px] font-semibold text-[#667085] bg-[#F5F8FC] cursor-pointer [&.active]:bg-[#2054E0] [&.active]:text-white" id="tabbtn-sales" onclick="switchTab('sales')">Recent sales</div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 pt-3.5 pb-[130px] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" id="tab-products">
+
+          <div class="flex items-center gap-2.5 px-[13px] py-[11px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl mb-3" onclick="openSheet('customer')">
+            <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0" id="mobile-cust-avatar">WI</div>
+            <div>
+              <div class="text-[12.5px] font-semibold" id="mobile-cust-name">Walk-in customer</div>
+              <div class="text-[11px] text-[#667085]" id="mobile-cust-sub">Tap to search or add customer</div>
+            </div>
+            <svg class="ml-auto w-[15px] h-[15px] text-[#98A2B3]" id="mobile-cust-clear" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" onclick="event.stopPropagation(); resetToWalkIn();"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            <svg class="ml-auto w-[15px] h-[15px] text-[#98A2B3]" id="mobile-cust-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+
+          <div class="flex gap-1 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 mb-3.5">
+            <div class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-3.5 [&_svg]:h-3.5 [&.active]:bg-[#2054E0] [&.active]:text-white [&.active_svg]:text-white active" id="modebtn-standard-mobile" onclick="switchMode('standard','mobile')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+              Standard
+            </div>
+            <div class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-3.5 [&_svg]:h-3.5 [&.active]:bg-[#2054E0] [&.active]:text-white [&.active_svg]:text-white" id="modebtn-speed-mobile" onclick="switchMode('speed','mobile')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Retail speed
+            </div>
+          </div>
+
+          <div id="mode-standard-mobile">
+          <div class="flex gap-2 mb-3">
+            <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] px-3.5 py-[11px] [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[13.5px] [&_input]:w-full [&_input]:bg-transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" placeholder="Search products or SKU">
+            </div>
+            <button class="bg-[#2054E0] text-white border-0 w-[42px] h-[42px] rounded-[11px] flex items-center justify-center shrink-0 [&_svg]:w-[19px] [&_svg]:h-[19px]">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10"/></svg>
+            </button>
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div class="px-3.5 py-[7px] rounded-full border border-[#2054E0] bg-[#2054E0] text-[12.5px] font-semibold text-white whitespace-nowrap cursor-pointer">All</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Beverages</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Pharmacy</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Snacks</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Household</div>
+          </div>
+
+          <div class="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-[13px] [&_svg]:h-[13px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2"/></svg>
+            Goes well with cart
+          </div>
+          <div class="flex gap-2.5 overflow-x-auto -mx-4 mb-[18px] px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div class="min-w-[112px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl p-[9px] shrink-0">
+              <div class="w-full h-12 rounded-lg bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] mb-[7px] [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/></svg></div>
+              <div class="text-[11px] font-semibold leading-tight">Bottled water 50cl</div>
+              <div class="text-[10.5px] text-[#667085]">₦200 <span class="text-[#98A2B3] font-medium">· 88 left</span></div>
+            </div>
+            <div class="min-w-[112px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl p-[9px] shrink-0">
+              <div class="w-full h-12 rounded-lg bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] mb-[7px] [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+              <div class="text-[11px] font-semibold leading-tight">Nylon bag (medium)</div>
+              <div class="text-[10.5px] text-[#667085]">₦50 <span class="text-[#98A2B3] font-medium">· 240 left</span></div>
+            </div>
+            <div class="min-w-[112px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl p-[9px] shrink-0">
+              <div class="w-full h-12 rounded-lg bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] mb-[7px] [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/></svg></div>
+              <div class="text-[11px] font-semibold leading-tight">Recharge card ₦100</div>
+              <div class="text-[10.5px] text-[#667085]">₦100 <span class="text-[#98A2B3] font-medium">· 60 left</span></div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-[13px] [&_svg]:h-[13px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+            Recently sold
+          </div>
+          <div class="grid grid-cols-2 gap-[11px]" style="margin-bottom:18px;">
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-[11px] relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="absolute -top-[7px] -right-[7px] w-[22px] h-[22px] rounded-full bg-[#2054E0] text-white text-[11px] font-bold flex items-center justify-center border-2 border-[#F5F8FC]">2</div>
+              <div class="w-full h-16 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2 [&_svg]:w-[21px] [&_svg]:h-[21px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/><path d="M8 6V4h8v2"/></svg></div>
+              <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Paracetamol 500mg</div>
+              <div class="flex items-center justify-between">
+                <div class="text-[12.5px] font-bold text-[#153C9E]">₦500</div>
+                <div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">42 left</div>
+              </div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-[11px] relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="w-full h-16 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2 [&_svg]:w-[21px] [&_svg]:h-[21px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h14l-2 18H7L5 3z"/><path d="M9 8h6"/></svg></div>
+              <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Coke 50cl bottle</div>
+              <div class="flex items-center justify-between">
+                <div class="text-[12.5px] font-bold text-[#153C9E]">₦400</div>
+                <div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">120 left</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-[13px] [&_svg]:h-[13px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"/></svg>
+            All products
+          </div>
+          <div class="grid grid-cols-2 gap-[11px]">
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-[11px] relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="w-full h-16 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2 [&_svg]:w-[21px] [&_svg]:h-[21px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/></svg></div>
+              <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Amoxicillin 250mg</div>
+              <div class="flex items-center justify-between">
+                <div class="text-[12.5px] font-bold text-[#153C9E]">₦1,200</div>
+                <div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFFAEB] text-[#B54708]">4 left</div>
+              </div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-[11px] relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] opacity-50">
+              <div class="w-full h-16 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2 [&_svg]:w-[21px] [&_svg]:h-[21px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+              <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Vitamin C tablets</div>
+              <div class="flex items-center justify-between">
+                <div class="text-[12.5px] font-bold text-[#153C9E]">₦900</div>
+                <div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FEF3F2] text-[#B42318]">Out</div>
+              </div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-[11px] relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="w-full h-16 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2 [&_svg]:w-[21px] [&_svg]:h-[21px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/></svg></div>
+              <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Rice 5kg bag</div>
+              <div class="flex items-center justify-between">
+                <div class="text-[12.5px] font-bold text-[#153C9E]">₦6,500</div>
+                <div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">18 left</div>
+              </div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-[11px] relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="w-full h-16 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2 [&_svg]:w-[21px] [&_svg]:h-[21px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div>
+              <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Cooking oil 5L</div>
+              <div class="flex items-center justify-between">
+                <div class="text-[12.5px] font-bold text-[#153C9E]">₦8,200</div>
+                <div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">9 left</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <div id="mode-speed-mobile" style="display:none;">
+            <div class="flex gap-2 mb-3.5">
+              <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border-[1.5px] border-[#2054E0] rounded-[11px] px-4 py-[14px] [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[14.5px] [&_input]:font-medium [&_input]:w-full [&_input]:bg-transparent">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Scan barcode or type SKU" autofocus>
+              </div>
+              <button class="bg-[#2054E0] text-white border-0 w-[50px] h-[50px] rounded-[11px] flex items-center justify-center shrink-0 [&_svg]:w-[22px] [&_svg]:h-[22px]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10"/></svg>
+              </button>
+            </div>
+
+            <div class="flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-[#E6EAF2] rounded-xl cursor-pointer mb-3.5 text-[#153C9E] [&_span]:text-[12.5px] [&_span]:font-semibold" onclick="toggleCustomAmt('mobile')">
+              <div class="w-8 h-8 rounded-lg bg-[#EAF0FE] flex items-center justify-center shrink-0 [&_svg]:w-[15px] [&_svg]:h-[15px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+              <span>Custom amount item</span>
+            </div>
+            <div class="hidden [&.open]:flex flex-col gap-3 p-3 bg-[#F5F8FC] border border-[#E6EAF2] rounded-xl mb-3.5" id="custom-amt-form-mobile">
+              <div class="flex gap-2.5 [&_.field-input]:flex-1">
+                <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Amount, e.g. 500">
+              </div>
+              <div class="flex gap-2.5 [&_.field-input]:flex-1">
+                <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Label (optional), e.g. Repair fee">
+              </div>
+              <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]">Add to cart</button>
+            </div>
+
+            <div class="flex items-center gap-1.5 text-[12.5px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-[13px] [&_svg]:h-[13px]">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Top sellers · tap to add
+            </div>
+            <div class="grid grid-cols-2 gap-[11px]">
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-4 px-3.5 relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] [&_.m-product-name]:text-[13.5px] [&_.m-product-name]:mb-2 [&_.m-product-price]:text-sm">
+                <div class="absolute -top-[7px] -right-[7px] w-[22px] h-[22px] rounded-full bg-[#2054E0] text-white text-[11px] font-bold flex items-center justify-center border-2 border-[#F5F8FC]">2</div>
+                <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Paracetamol 500mg</div>
+                <div class="flex items-center justify-between"><div class="text-[12.5px] font-bold text-[#153C9E]">₦500</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">42 left</div></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-4 px-3.5 relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] [&_.m-product-name]:text-[13.5px] [&_.m-product-name]:mb-2 [&_.m-product-price]:text-sm">
+                <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Coke 50cl bottle</div>
+                <div class="flex items-center justify-between"><div class="text-[12.5px] font-bold text-[#153C9E]">₦400</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">120 left</div></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-4 px-3.5 relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] [&_.m-product-name]:text-[13.5px] [&_.m-product-name]:mb-2 [&_.m-product-price]:text-sm">
+                <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Bottled water 50cl</div>
+                <div class="flex items-center justify-between"><div class="text-[12.5px] font-bold text-[#153C9E]">₦200</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">88 left</div></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-4 px-3.5 relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] [&_.m-product-name]:text-[13.5px] [&_.m-product-name]:mb-2 [&_.m-product-price]:text-sm">
+                <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Recharge card ₦100</div>
+                <div class="flex items-center justify-between"><div class="text-[12.5px] font-bold text-[#153C9E]">₦100</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">60 left</div></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-4 px-3.5 relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] [&_.m-product-name]:text-[13.5px] [&_.m-product-name]:mb-2 [&_.m-product-price]:text-sm">
+                <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Nylon bag (medium)</div>
+                <div class="flex items-center justify-between"><div class="text-[12.5px] font-bold text-[#153C9E]">₦50</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">240 left</div></div>
+              </div>
+              <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] p-4 px-3.5 relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] [&_.m-product-name]:text-[13.5px] [&_.m-product-name]:mb-2 [&_.m-product-price]:text-sm">
+                <div class="text-[12.5px] font-semibold leading-tight mb-[5px]">Bread loaf (large)</div>
+                <div class="flex items-center justify-between"><div class="text-[12.5px] font-bold text-[#153C9E]">₦1,100</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">14 left</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 pt-3.5 pb-[130px] [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" id="tab-sales" style="display:none;">
+          <div class="grid grid-cols-2 gap-2.5 mb-3.5">
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3 px-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-[5px]">Today's sales</div>
+              <div class="text-[17px] font-semibold">₦284,500</div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3 px-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-[5px]">Transactions</div>
+              <div class="text-[17px] font-semibold">37</div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mb-3.5">
+            <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] px-[13px] py-2.5 [&_svg]:w-[15px] [&_svg]:h-[15px] [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[13px] [&_input]:w-full [&_input]:bg-transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" placeholder="Search receipt or customer">
+            </div>
+            <div class="w-10 h-10 rounded-[11px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center text-[#667085] shrink-0 [&_svg]:w-4 [&_svg]:h-4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></div>
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" style="margin-bottom:4px;">
+            <div class="px-3.5 py-[7px] rounded-full border border-[#2054E0] bg-[#2054E0] text-[12.5px] font-semibold text-white whitespace-nowrap cursor-pointer">Today</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">This week</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Cash</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Card</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Transfer</div>
+          </div>
+
+          <div class="text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide my-3.5 mb-2">Today</div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#ECFDF3] text-[#067647] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1042 · Walk-in</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">2:14 pm · 4 items · Cash</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦12,000</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#ECFDF3] text-[#067647]">Completed</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#EAF0FE] text-[#153C9E] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1041 · Bola Adeyemi</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">1:02 pm · 2 items · Transfer</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦8,500</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#ECFDF3] text-[#067647]">Completed</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#F0F9FF] text-[#026AA2] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1040 · Chidi Okeke</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">11:47 am · 6 items · Card</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦21,300</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#FFFAEB] text-[#B54708]">Resumed hold</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#ECFDF3] text-[#067647] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1039 · Walk-in</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">10:30 am · 1 item · Cash</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦400</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#FEF3F2] text-[#B42318]">Refunded</div>
+            </div>
+          </div>
+
+          <div class="text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide my-3.5 mb-2">Yesterday</div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#ECFDF3] text-[#067647] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1038 · Walk-in</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">5:52 pm · 3 items · Cash</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦4,200</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#ECFDF3] text-[#067647]">Completed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- floating cart bar -->
+        <div class="absolute left-3 right-3 bottom-3.5 bg-[#2054E0] rounded-2xl px-4 py-3 flex items-center gap-3 shadow-[0_8px_24px_rgba(16,24,40,0.14)] cursor-pointer z-[5]" onclick="openSheet('cart')">
+          <div class="w-9 h-9 rounded-[10px] bg-white/[0.18] flex items-center justify-center text-white shrink-0 relative [&_svg]:w-[17px] [&_svg]:h-[17px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+            <div class="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full bg-white text-[#153C9E] text-[10px] font-extrabold flex items-center justify-center">3</div>
+          </div>
+          <div class="text-white">
+            <div class="text-[11.5px] opacity-85">3 items</div>
+            <div class="text-[15px] font-bold">₦2,100</div>
+          </div>
+          <div class="ml-auto text-white [&_svg]:w-[18px] [&_svg]:h-[18px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 15l-6-6-6 6"/></svg></div>
+        </div>
+
+        <!-- CART SHEET -->
+        <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-10 items-end" id="sheet-cart">
+          <div class="bg-[#FFFFFF] w-full max-h-[88%] rounded-t-[24px] flex flex-col overflow-hidden">
+            <div class="w-9 h-1 bg-[#E6EAF2] rounded-full mx-auto mt-2.5 mb-1"></div>
+            <div class="flex items-center justify-between px-[18px] pt-2 pb-3 border-b border-[#E6EAF2]">
+              <div class="text-[15px] font-semibold">Current sale · 3 items</div>
+              <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="closeSheet('cart')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+            </div>
+            <div class="flex-1 overflow-y-auto px-[18px] py-1">
+              <div class="flex items-center gap-2.5 py-3 border-b border-[#E6EAF2]">
+                <div class="w-10 h-10 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></div>
+                <div style="flex:1;">
+                  <div class="text-[12.5px] font-semibold mb-0.5">Paracetamol 500mg</div>
+                  <div class="text-[11.5px] text-[#667085]">₦500 each</div>
+                </div>
+                <div class="flex items-center border border-[#E6EAF2] rounded-lg overflow-hidden shrink-0 [&_button]:w-6 [&_button]:h-6 [&_button]:border-0 [&_button]:bg-[#F5F8FC] [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:cursor-pointer [&_button]:text-[#667085] [&_button_svg]:w-[11px] [&_button_svg]:h-[11px] [&_span]:w-[22px] [&_span]:text-center [&_span]:text-xs [&_span]:font-semibold">
+                  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+                  <span>2</span>
+                  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg></button>
+                </div>
+                <div class="text-[13px] font-bold min-w-[52px] text-right">₦1,000</div>
+              </div>
+              <div class="flex items-center gap-2.5 py-3 border-b border-[#E6EAF2]">
+                <div class="w-10 h-10 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h14l-2 18H7L5 3z"/></svg></div>
+                <div style="flex:1;">
+                  <div class="text-[12.5px] font-semibold mb-0.5">Coke 50cl bottle</div>
+                  <div class="text-[11.5px] text-[#667085]">₦400 each</div>
+                </div>
+                <div class="flex items-center border border-[#E6EAF2] rounded-lg overflow-hidden shrink-0 [&_button]:w-6 [&_button]:h-6 [&_button]:border-0 [&_button]:bg-[#F5F8FC] [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:cursor-pointer [&_button]:text-[#667085] [&_button_svg]:w-[11px] [&_button_svg]:h-[11px] [&_span]:w-[22px] [&_span]:text-center [&_span]:text-xs [&_span]:font-semibold">
+                  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+                  <span>1</span>
+                  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg></button>
+                </div>
+                <div class="text-[13px] font-bold min-w-[52px] text-right">₦400</div>
+              </div>
+              <div class="flex items-center gap-2.5 py-3 border-b border-[#E6EAF2]" style="border-bottom:none;">
+                <div class="w-10 h-10 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+                <div style="flex:1;">
+                  <div class="text-[12.5px] font-semibold mb-0.5">Bottled water 50cl</div>
+                  <div class="text-[11.5px] text-[#667085]">₦200 each</div>
+                </div>
+                <div class="flex items-center border border-[#E6EAF2] rounded-lg overflow-hidden shrink-0 [&_button]:w-6 [&_button]:h-6 [&_button]:border-0 [&_button]:bg-[#F5F8FC] [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:cursor-pointer [&_button]:text-[#667085] [&_button_svg]:w-[11px] [&_button_svg]:h-[11px] [&_span]:w-[22px] [&_span]:text-center [&_span]:text-xs [&_span]:font-semibold">
+                  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+                  <span>1</span>
+                  <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg></button>
+                </div>
+                <div class="text-[13px] font-bold min-w-[52px] text-right">₦700</div>
+              </div>
+            </div>
+            <div class="px-[18px] pt-3.5 pb-5 border-t border-[#E6EAF2]">
+              <div class="flex justify-between text-[12.5px] text-[#667085] mb-2"><span>Subtotal</span><span>₦2,100</span></div>
+              <div class="flex justify-between text-[12.5px] text-[#667085] mb-2"><span class="text-[#2054E0] font-semibold cursor-pointer">+ Add discount</span><span>₦0</span></div>
+              <div class="flex justify-between text-base font-bold text-[#101828] mt-1.5 pt-2.5 border-t border-dashed border-[#E6EAF2]"><span>Total</span><span>₦2,100</span></div>
+              <div class="grid grid-cols-2 gap-2.5 my-3.5">
+                <div class="flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>Hold sale</div>
+                <div class="flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="openSheet('request')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v5"/></svg>Request item</div>
+              </div>
+              <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]">Charge ₦2,100 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- HELD SALES SHEET -->
+        <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-10 items-end" id="sheet-held">
+          <div class="bg-[#FFFFFF] w-full max-h-[88%] rounded-t-[24px] flex flex-col overflow-hidden" style="max-height:60%;">
+            <div class="w-9 h-1 bg-[#E6EAF2] rounded-full mx-auto mt-2.5 mb-1"></div>
+            <div class="flex items-center justify-between px-[18px] pt-2 pb-3 border-b border-[#E6EAF2]">
+              <div class="text-[15px] font-semibold">Held sales · 2</div>
+              <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="closeSheet('held')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+            </div>
+            <div class="flex-1 overflow-y-auto px-[18px] py-1">
+              <div class="flex items-center gap-2.5 py-3 border-b border-[#E6EAF2]">
+                <div class="w-10 h-10 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div>
+                <div style="flex:1;">
+                  <div class="text-[12.5px] font-semibold mb-0.5">Held sale · Bola Adeyemi</div>
+                  <div class="text-[11.5px] text-[#667085]">4 items · held 6 min ago</div>
+                </div>
+                <div class="text-[13px] font-bold min-w-[52px] text-right text-[#2054E0]">₦3,400</div>
+              </div>
+              <div class="flex items-center gap-2.5 py-3 border-b border-[#E6EAF2]" style="border-bottom:none;">
+                <div class="w-10 h-10 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div>
+                <div style="flex:1;">
+                  <div class="text-[12.5px] font-semibold mb-0.5">Held sale · Walk-in</div>
+                  <div class="text-[11.5px] text-[#667085]">2 items · held 22 min ago</div>
+                </div>
+                <div class="text-[13px] font-bold min-w-[52px] text-right text-[#2054E0]">₦1,150</div>
+              </div>
+            </div>
+            <div class="px-[18px] pt-3.5 pb-5 border-t border-[#E6EAF2]">
+              <div class="text-center text-[11px] text-[#98A2B3] my-1 mb-2.5">Tap a held sale to resume it in the current cart</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REQUEST ITEM SHEET -->
+        <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-10 items-end" id="sheet-request">
+          <div class="bg-[#FFFFFF] w-full max-h-[88%] rounded-t-[24px] flex flex-col overflow-hidden" style="max-height:70%;">
+            <div class="w-9 h-1 bg-[#E6EAF2] rounded-full mx-auto mt-2.5 mb-1"></div>
+            <div class="flex items-center justify-between px-[18px] pt-2 pb-3 border-b border-[#E6EAF2]">
+              <div class="text-[15px] font-semibold">Request item</div>
+              <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="closeSheet('request')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+            </div>
+            <div class="flex-1 overflow-y-auto px-[18px] py-1" style="padding-top:14px; padding-bottom:6px;">
+              <label class="text-[12.5px] font-semibold mb-1.5 block">Item name</label>
+              <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="e.g. Peak milk 400g tin" style="margin-bottom:14px;">
+              <label class="text-[12.5px] font-semibold mb-1.5 block">Quantity a customer asked for</label>
+              <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="e.g. 3" style="margin-bottom:14px;">
+              <label class="text-[12.5px] font-semibold mb-1.5 block">Note (optional)</label>
+              <textarea class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0] resize-none min-h-[70px]" placeholder="Any extra detail, e.g. brand or size"></textarea>
+            </div>
+            <div class="px-[18px] pt-3.5 pb-5 border-t border-[#E6EAF2]">
+              <div class="text-[11.5px] text-[#667085] bg-[#F3F7FF] border border-[#D6E2FC] rounded-[10px] px-3 py-2.5 flex gap-2 items-start [&_svg]:w-[15px] [&_svg]:h-[15px] [&_svg]:text-[#153C9E] [&_svg]:shrink-0 [&_svg]:mt-0.5" style="margin-bottom:14px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                This gets logged for restocking and sent to your manager right away.
+              </div>
+              <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]" onclick="closeSheet('request')">Send request <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CUSTOMER SEARCH SHEET -->
+        <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-10 items-end" id="sheet-customer">
+          <div class="bg-[#FFFFFF] w-full max-h-[88%] rounded-t-[24px] flex flex-col overflow-hidden" style="max-height:82%;">
+            <div class="w-9 h-1 bg-[#E6EAF2] rounded-full mx-auto mt-2.5 mb-1"></div>
+            <div class="flex items-center justify-between px-[18px] pt-2 pb-3 border-b border-[#E6EAF2]">
+              <div class="text-[15px] font-semibold">Select customer</div>
+              <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="closeSheet('customer')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+            </div>
+            <div class="flex-1 overflow-y-auto px-[18px] py-1" style="padding-top:14px;">
+              <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] px-3.5 py-[11px] [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[13.5px] [&_input]:w-full [&_input]:bg-transparent" style="margin-bottom:14px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" placeholder="Search by name or phone number">
+              </div>
+
+              <div class="flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-[#E6EAF2] rounded-xl cursor-pointer mb-3.5 text-[#153C9E] [&_span]:text-[12.5px] [&_span]:font-semibold" onclick="toggleCustForm('mobile')">
+                <div class="w-8 h-8 rounded-lg bg-[#EAF0FE] flex items-center justify-center shrink-0 [&_svg]:w-[15px] [&_svg]:h-[15px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
+                <span>Add new customer</span>
+              </div>
+              <div class="hidden [&.open]:flex flex-col gap-3 p-3 bg-[#F5F8FC] border border-[#E6EAF2] rounded-xl mb-3.5" id="cust-form-mobile">
+                <div class="flex gap-2.5 [&_.field-input]:flex-1">
+                  <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Full name">
+                </div>
+                <div class="flex gap-2.5 [&_.field-input]:flex-1">
+                  <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Phone number">
+                </div>
+                <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]" onclick="selectCustomer('New customer','NC','Just added', 'mobile')">Save &amp; select</button>
+              </div>
+
+              <div class="text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide mt-0.5 mb-2">Frequent customers</div>
+              <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px] [&_.cust-row-tag]:bg-[#F5F8FC] [&_.cust-row-tag]:text-[#98A2B3]" onclick="resetToWalkIn(); closeSheet('customer');">
+                <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">WI</div>
+                <div>
+                  <div class="text-[13px] font-semibold">Walk-in customer</div>
+                  <div class="text-[11.5px] text-[#667085] mt-0.5">No account needed</div>
+                </div>
+                <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">Default</div>
+              </div>
+              <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px]" onclick="selectCustomer('Bola Adeyemi','BA','+234 803 555 0142', 'mobile'); closeSheet('customer');">
+                <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">BA</div>
+                <div>
+                  <div class="text-[13px] font-semibold">Bola Adeyemi</div>
+                  <div class="text-[11.5px] text-[#667085] mt-0.5">+234 803 555 0142</div>
+                </div>
+                <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">₦1,500 credit</div>
+              </div>
+              <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px]" onclick="selectCustomer('Chidi Okeke','CO','+234 706 222 9981', 'mobile'); closeSheet('customer');">
+                <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">CO</div>
+                <div>
+                  <div class="text-[13px] font-semibold">Chidi Okeke</div>
+                  <div class="text-[11.5px] text-[#667085] mt-0.5">+234 706 222 9981</div>
+                </div>
+                <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">320 pts</div>
+              </div>
+              <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px]" onclick="selectCustomer('Ngozi Umeh','NU','+234 812 444 1123', 'mobile'); closeSheet('customer');">
+                <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">NU</div>
+                <div>
+                  <div class="text-[13px] font-semibold">Ngozi Umeh</div>
+                  <div class="text-[11.5px] text-[#667085] mt-0.5">+234 812 444 1123</div>
+                </div>
+                <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">Frequent buyer</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DESKTOP VIEW ============ -->
+<div class="hidden [&.active]:block view" id="view-desktop">
+  <div class="grid grid-cols-[76px_1fr] bg-[#F5F8FC] rounded-[20px] overflow-hidden shadow-[0_20px_60px_rgba(16,24,40,0.18)] min-h-[860px] border border-[#C9D3E4] relative">
+    <div class="bg-[#FFFFFF] border-r border-[#E6EAF2] flex flex-col items-center py-5 gap-1.5">
+      <div class="w-9 h-9 rounded-[10px] bg-[#2054E0] flex items-center justify-center text-white font-['Space_Grotesk'] font-bold text-base mb-[18px]">S</div>
+      <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></div>
+      <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#153C9E] bg-[#EAF0FE] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l2-5h14l2 5M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 13a3 3 0 006 0"/></svg></div>
+      <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg></div>
+      <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg></div>
+      <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
+      <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
+      <div class="flex-1"></div>
+      <div class="w-2.5 h-2.5 rounded-full bg-[#12B76A] mb-4 relative after:content-[''] after:absolute after:-inset-1 after:rounded-full after:border after:border-[#12B76A]/50 after:animate-ping"></div>
+      <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold">JO</div>
+    </div>
+
+    <div class="grid grid-cols-[1fr_380px] max-[1400px]:grid-cols-[1fr_340px] min-h-full">
+      <div class="p-5 px-6 border-r border-[#E6EAF2] flex flex-col min-h-0">
+        <div class="flex items-center gap-2.5 mb-4">
+          <div class="text-lg font-semibold mr-auto">Point of sale</div>
+          <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[13.5px] [&_input]:w-full [&_input]:bg-transparent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search products or SKU">
+          </div>
+          <button class="bg-[#2054E0] text-white border-0 w-10 h-10 rounded-[10px] flex items-center justify-center cursor-pointer shrink-0 [&_svg]:w-[18px] [&_svg]:h-[18px] hover:bg-[#153C9E]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10"/></svg></button>
+          <div class="w-[38px] h-[38px] rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center cursor-pointer relative shrink-0 text-[#667085] [&_svg]:w-[17px] [&_svg]:h-[17px]" onclick="openModal('held')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 4v16"/></svg>
+            <div class="absolute -top-1 -right-1 min-w-[16px] h-4 px-[3px] rounded-full bg-[#F04438] text-white text-[10px] font-bold flex items-center justify-center border-2 border-[#F5F8FC]">2</div>
+          </div>
+        </div>
+
+        <div class="inline-flex gap-1 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 mb-4 w-fit">
+          <div class="px-5 py-2 rounded-lg text-[13px] font-semibold text-[#667085] cursor-pointer [&.active]:bg-[#2054E0] [&.active]:text-white active" id="desktabbtn-products" onclick="switchDeskTab('products')">Products</div>
+          <div class="px-5 py-2 rounded-lg text-[13px] font-semibold text-[#667085] cursor-pointer [&.active]:bg-[#2054E0] [&.active]:text-white" id="desktabbtn-sales" onclick="switchDeskTab('sales')">Recent sales</div>
+        </div>
+
+        <div id="desk-tab-products" style="display:flex; flex-direction:column; min-height:0; flex:1;">
+
+        <div class="flex gap-1 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 mb-3.5" style="max-width:340px;">
+          <div class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-3.5 [&_svg]:h-3.5 [&.active]:bg-[#2054E0] [&.active]:text-white [&.active_svg]:text-white active" id="modebtn-standard-desktop" onclick="switchMode('standard','desktop')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Standard
+          </div>
+          <div class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-3.5 [&_svg]:h-3.5 [&.active]:bg-[#2054E0] [&.active]:text-white [&.active_svg]:text-white" id="modebtn-speed-desktop" onclick="switchMode('speed','desktop')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Retail speed
+          </div>
+        </div>
+
+        <div id="desk-mode-standard" class="flex flex-col min-h-0">
+        <div class="flex gap-2 mb-[18px] overflow-x-auto">
+          <div class="px-3.5 py-[7px] rounded-full border border-[#2054E0] bg-[#2054E0] text-[12.5px] font-semibold text-white whitespace-nowrap cursor-pointer">All</div>
+          <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Beverages</div>
+          <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Pharmacy</div>
+          <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Snacks</div>
+          <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Household</div>
+          <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Stationery</div>
+        </div>
+
+        <div class="flex items-center gap-1.5 text-[13px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-3.5 [&_svg]:h-3.5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2"/></svg>
+          Goes well with cart
+        </div>
+        <div class="flex gap-3 overflow-x-auto mb-5 pb-0.5">
+          <div class="min-w-[132px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl p-2.5 shrink-0 cursor-pointer">
+            <div class="w-full h-14 rounded-lg bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] mb-2 [&_svg]:w-[22px] [&_svg]:h-[22px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/></svg></div>
+            <div class="text-xs font-semibold leading-tight mb-0.5">Bottled water 50cl</div>
+            <div class="text-[11.5px] text-[#667085]">₦200 <span class="text-[#98A2B3] font-medium">· 88 left</span></div>
+          </div>
+          <div class="min-w-[132px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl p-2.5 shrink-0 cursor-pointer">
+            <div class="w-full h-14 rounded-lg bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] mb-2 [&_svg]:w-[22px] [&_svg]:h-[22px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+            <div class="text-xs font-semibold leading-tight mb-0.5">Nylon bag (medium)</div>
+            <div class="text-[11.5px] text-[#667085]">₦50 <span class="text-[#98A2B3] font-medium">· 240 left</span></div>
+          </div>
+          <div class="min-w-[132px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl p-2.5 shrink-0 cursor-pointer">
+            <div class="w-full h-14 rounded-lg bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] mb-2 [&_svg]:w-[22px] [&_svg]:h-[22px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/></svg></div>
+            <div class="text-xs font-semibold leading-tight mb-0.5">Recharge card ₦100</div>
+            <div class="text-[11.5px] text-[#667085]">₦100 <span class="text-[#98A2B3] font-medium">· 60 left</span></div>
+          </div>
+          <div class="min-w-[132px] bg-[#F3F7FF] border border-[#D6E2FC] rounded-xl p-2.5 shrink-0 cursor-pointer">
+            <div class="w-full h-14 rounded-lg bg-[#EAF0FE] flex items-center justify-center text-[#153C9E] mb-2 [&_svg]:w-[22px] [&_svg]:h-[22px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div>
+            <div class="text-xs font-semibold leading-tight mb-0.5">Hand sanitizer 60ml</div>
+            <div class="text-[11.5px] text-[#667085]">₦350 <span class="text-[#98A2B3] font-medium">· 33 left</span></div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 text-[13px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-3.5 [&_svg]:h-3.5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+          Recently sold
+        </div>
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3.5 overflow-y-auto pb-3" style="margin-bottom:22px; max-height:200px;">
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#2054E0] text-white text-xs font-bold flex items-center justify-center border-2 border-[#F5F8FC]">2</div>
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/><path d="M8 6V4h8v2"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Paracetamol 500mg</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦500</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">42 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h14l-2 18H7L5 3z"/><path d="M9 8h6"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Coke 50cl bottle</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦400</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">120 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#2054E0] text-white text-xs font-bold flex items-center justify-center border-2 border-[#F5F8FC]">1</div>
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Bottled water 50cl</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦200</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">88 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Bread loaf (large)</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦1,100</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">14 left</div></div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 text-[13px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-3.5 [&_svg]:h-3.5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8"/></svg>
+          All products
+        </div>
+        <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3.5 overflow-y-auto pb-3">
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Amoxicillin 250mg</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦1,200</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFFAEB] text-[#B54708]">4 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-not-allowed relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] opacity-50">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Vitamin C tablets</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦900</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FEF3F2] text-[#B42318]">Out</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Rice 5kg bag</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦6,500</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">18 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Cooking oil 5L</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦8,200</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">9 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Milo 500g tin</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦3,400</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">27 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Detergent 1kg</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦1,800</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">31 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h14l-2 18H7L5 3z"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Fanta 50cl bottle</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦400</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">64 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Panadol Extra</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦700</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFFAEB] text-[#B54708]">6 left</div></div>
+          </div>
+          <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-3 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0]">
+            <div class="w-full h-[72px] rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center mb-2.5 [&_svg]:w-6 [&_svg]:h-6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/></svg></div>
+            <div class="text-[13px] font-semibold leading-tight mb-1">Spaghetti 500g</div>
+            <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦850</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">40 left</div></div>
+          </div>
+        </div>
+        </div>
+
+        <div id="desk-mode-speed" style="display:none; flex-direction:column; min-height:0; flex:1;">
+          <div class="flex items-center gap-2.5 mb-4" style="margin-bottom:16px;">
+            <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border-[1.5px] border-[#2054E0] rounded-[10px] px-4 py-3 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[14.5px] [&_input]:font-medium [&_input]:w-full [&_input]:bg-transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" placeholder="Scan barcode or type SKU" autofocus>
+            </div>
+            <button class="bg-[#2054E0] text-white border-0 w-[46px] h-[46px] rounded-[10px] flex items-center justify-center cursor-pointer shrink-0 [&_svg]:w-5 [&_svg]:h-5 hover:bg-[#153C9E]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M7 12h10"/></svg></button>
+          </div>
+
+          <div class="flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-[#E6EAF2] rounded-xl cursor-pointer mb-3.5 text-[#153C9E] [&_span]:text-[12.5px] [&_span]:font-semibold" onclick="toggleCustomAmt('desktop')" style="max-width:280px;">
+            <div class="w-8 h-8 rounded-lg bg-[#EAF0FE] flex items-center justify-center shrink-0 [&_svg]:w-[15px] [&_svg]:h-[15px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+            <span>Custom amount item</span>
+          </div>
+          <div class="hidden [&.open]:flex flex-col gap-3 p-3 bg-[#F5F8FC] border border-[#E6EAF2] rounded-xl mb-3.5" id="custom-amt-form-desktop" style="max-width:280px;">
+            <div class="flex gap-2.5 [&_.field-input]:flex-1">
+              <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Amount, e.g. 500">
+            </div>
+            <div class="flex gap-2.5 [&_.field-input]:flex-1">
+              <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Label (optional), e.g. Repair fee">
+            </div>
+            <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]">Add to cart</button>
+          </div>
+
+          <div class="flex items-center gap-1.5 text-[13px] font-semibold text-[#667085] mb-2.5 [&_svg]:w-3.5 [&_svg]:h-3.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Top sellers · click to add
+          </div>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3.5 overflow-y-auto pb-3">
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-[#2054E0] text-white text-xs font-bold flex items-center justify-center border-2 border-[#F5F8FC]">2</div>
+              <div class="text-[13px] font-semibold leading-tight mb-1">Paracetamol 500mg</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦500</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">42 left</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="text-[13px] font-semibold leading-tight mb-1">Coke 50cl bottle</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦400</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">120 left</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="text-[13px] font-semibold leading-tight mb-1">Bottled water 50cl</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦200</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">88 left</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="text-[13px] font-semibold leading-tight mb-1">Recharge card ₦100</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦100</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">60 left</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="text-[13px] font-semibold leading-tight mb-1">Nylon bag (medium)</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦50</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">240 left</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="text-[13px] font-semibold leading-tight mb-1">Bread loaf (large)</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦1,100</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">14 left</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="text-[13px] font-semibold leading-tight mb-1">Fanta 50cl bottle</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦400</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">64 left</div></div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl p-4 px-3.5 cursor-pointer relative shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] transition-colors hover:border-[#2054E0] [&_.product-name]:text-[13.5px] [&_.product-name]:mb-2 [&_.product-price]:text-sm">
+              <div class="text-[13px] font-semibold leading-tight mb-1">Milo 500g tin</div>
+              <div class="flex items-center justify-between"><div class="text-[13.5px] font-bold text-[#153C9E]">₦3,400</div><div class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ECFDF3] text-[#067647]">27 left</div></div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div id="desk-tab-sales" style="display:none; flex-direction:column; min-height:0; flex:1;">
+          <div class="grid grid-cols-2 gap-2.5 mb-3.5" style="grid-template-columns:repeat(4,1fr);">
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3 px-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-[5px]">Today's sales</div>
+              <div class="text-[17px] font-semibold">₦284,500</div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3 px-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-[5px]">Transactions</div>
+              <div class="text-[17px] font-semibold">37</div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3 px-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-[5px]">Refunded</div>
+              <div class="text-[17px] font-semibold">1</div>
+            </div>
+            <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-xl p-3 px-3.5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-[5px]">Avg. basket</div>
+              <div class="text-[17px] font-semibold">₦7,690</div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mb-3.5">
+            <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] px-[13px] py-2.5 [&_svg]:w-[15px] [&_svg]:h-[15px] [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[13px] [&_input]:w-full [&_input]:bg-transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input type="text" placeholder="Search receipt or customer">
+            </div>
+            <div class="w-10 h-10 rounded-[11px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center text-[#667085] shrink-0 [&_svg]:w-4 [&_svg]:h-4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg></div>
+          </div>
+
+          <div class="flex gap-2 mb-[18px] overflow-x-auto" style="margin-bottom:6px;">
+            <div class="px-3.5 py-[7px] rounded-full border border-[#2054E0] bg-[#2054E0] text-[12.5px] font-semibold text-white whitespace-nowrap cursor-pointer">Today</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">This week</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Cash</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Card</div>
+            <div class="px-3.5 py-[7px] rounded-full border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] whitespace-nowrap cursor-pointer">Transfer</div>
+          </div>
+
+          <div class="text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide my-3.5 mb-2">Today</div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#ECFDF3] text-[#067647] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1042 · Walk-in</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">2:14 pm · 4 items · Cash</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦12,000</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#ECFDF3] text-[#067647]">Completed</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#EAF0FE] text-[#153C9E] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1041 · Bola Adeyemi</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">1:02 pm · 2 items · Transfer</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦8,500</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#ECFDF3] text-[#067647]">Completed</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#F0F9FF] text-[#026AA2] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1040 · Chidi Okeke</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">11:47 am · 6 items · Card</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦21,300</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#FFFAEB] text-[#B54708]">Resumed hold</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#ECFDF3] text-[#067647] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1039 · Walk-in</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">10:30 am · 1 item · Cash</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦400</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#FEF3F2] text-[#B42318]">Refunded</div>
+            </div>
+          </div>
+
+          <div class="text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide my-3.5 mb-2">Yesterday</div>
+          <div class="flex items-center gap-3 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[13px] px-3.5 py-3 mb-2.5 cursor-pointer">
+            <div class="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center shrink-0 bg-[#ECFDF3] text-[#067647] [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg></div>
+            <div>
+              <div class="text-[12.5px] font-semibold">Sale #1038 · Walk-in</div>
+              <div class="text-[11px] text-[#98A2B3] mt-0.5">5:52 pm · 3 items · Cash</div>
+            </div>
+            <div class="ml-auto text-right">
+              <div class="text-[13px] font-bold">₦4,200</div>
+              <div class="text-[10px] font-bold px-[7px] py-0.5 rounded-md mt-[3px] inline-block bg-[#ECFDF3] text-[#067647]">Completed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col bg-[#FFFFFF] min-h-0">
+        <div class="px-5 pt-[18px] pb-3.5 border-b border-[#E6EAF2]">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-[15px] font-semibold">Current sale</div>
+            <div class="text-xs text-[#98A2B3]">3 items</div>
+          </div>
+          <div class="flex items-center gap-2.5 px-3 py-2.5 bg-[#F3F7FF] border border-[#D6E2FC] rounded-[10px] cursor-pointer [&_svg]:ml-auto [&_svg]:w-[15px] [&_svg]:h-[15px] [&_svg]:text-[#98A2B3] [&_svg]:shrink-0" onclick="openModal('customer')">
+            <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0" id="desktop-cust-avatar">WI</div>
+            <div>
+              <div class="text-[12.5px] font-semibold" id="desktop-cust-name">Walk-in customer</div>
+              <div class="text-[11px] text-[#667085]" id="desktop-cust-sub">Tap to search or add</div>
+            </div>
+            <svg id="desktop-cust-clear" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" onclick="event.stopPropagation(); resetToWalkIn();"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            <svg id="desktop-cust-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-5 py-1.5 min-h-[120px]">
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-10 h-10 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg></div>
+            <div style="flex:1;">
+              <div class="text-[12.5px] font-semibold mb-0.5">Paracetamol 500mg</div>
+              <div class="text-[11.5px] text-[#667085]">₦500 each</div>
+            </div>
+            <div class="flex items-center border border-[#E6EAF2] rounded-lg overflow-hidden shrink-0 [&_button]:w-6 [&_button]:h-6 [&_button]:border-0 [&_button]:bg-[#F5F8FC] [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:cursor-pointer [&_button]:text-[#667085] [&_button_svg]:w-[11px] [&_button_svg]:h-[11px] [&_span]:w-[22px] [&_span]:text-center [&_span]:text-xs [&_span]:font-semibold">
+              <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+              <span>2</span>
+              <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="text-[13px] font-bold min-w-[56px] text-right">₦1,000</div>
+            <div class="text-[#98A2B3] cursor-pointer shrink-0 [&_svg]:w-3.5 [&_svg]:h-3.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]">
+            <div class="w-10 h-10 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h14l-2 18H7L5 3z"/></svg></div>
+            <div style="flex:1;">
+              <div class="text-[12.5px] font-semibold mb-0.5">Coke 50cl bottle</div>
+              <div class="text-[11.5px] text-[#667085]">₦400 each</div>
+            </div>
+            <div class="flex items-center border border-[#E6EAF2] rounded-lg overflow-hidden shrink-0 [&_button]:w-6 [&_button]:h-6 [&_button]:border-0 [&_button]:bg-[#F5F8FC] [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:cursor-pointer [&_button]:text-[#667085] [&_button_svg]:w-[11px] [&_button_svg]:h-[11px] [&_span]:w-[22px] [&_span]:text-center [&_span]:text-xs [&_span]:font-semibold">
+              <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+              <span>1</span>
+              <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="text-[13px] font-bold min-w-[56px] text-right">₦400</div>
+            <div class="text-[#98A2B3] cursor-pointer shrink-0 [&_svg]:w-3.5 [&_svg]:h-3.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+          </div>
+          <div class="flex items-center gap-3 py-3 border-b border-[#E6EAF2]" style="border-bottom:none;">
+            <div class="w-10 h-10 rounded-lg bg-[#F0F9FF] text-[#026AA2] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+            <div style="flex:1;">
+              <div class="text-[12.5px] font-semibold mb-0.5">Bottled water 50cl</div>
+              <div class="text-[11.5px] text-[#667085]">₦200 each</div>
+            </div>
+            <div class="flex items-center border border-[#E6EAF2] rounded-lg overflow-hidden shrink-0 [&_button]:w-6 [&_button]:h-6 [&_button]:border-0 [&_button]:bg-[#F5F8FC] [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:cursor-pointer [&_button]:text-[#667085] [&_button_svg]:w-[11px] [&_button_svg]:h-[11px] [&_span]:w-[22px] [&_span]:text-center [&_span]:text-xs [&_span]:font-semibold">
+              <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+              <span>1</span>
+              <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg></button>
+            </div>
+            <div class="text-[13px] font-bold min-w-[56px] text-right">₦200</div>
+            <div class="text-[#98A2B3] cursor-pointer shrink-0 [&_svg]:w-3.5 [&_svg]:h-3.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+          </div>
+        </div>
+
+        <div class="border-t border-[#E6EAF2] px-5 pt-4 pb-5">
+          <div class="flex items-center gap-1.5 text-[11.5px] font-semibold text-[#B54708] bg-[#FFFAEB] px-2.5 py-1.5 rounded-lg w-fit mb-3 cursor-pointer [&_svg]:w-[13px] [&_svg]:h-[13px]">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            2 sales on hold, view
+          </div>
+          <div class="flex justify-between text-[12.5px] text-[#667085] mb-2"><span>Subtotal</span><span>₦1,600</span></div>
+          <div class="flex justify-between text-[12.5px] text-[#667085] mb-2"><span class="text-[#2054E0] font-semibold cursor-pointer">+ Add discount</span><span>₦0</span></div>
+          <div class="flex justify-between text-[12.5px] text-[#667085] mb-2"><span>Tax</span><span>₦0</span></div>
+          <div class="flex justify-between text-base font-bold text-[#101828] mt-1.5 pt-2.5 border-t border-dashed border-[#E6EAF2]"><span>Total</span><span>₦1,600</span></div>
+          <div class="grid grid-cols-2 gap-2.5 my-3.5">
+            <div class="flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>Hold sale</div>
+            <div class="flex items-center justify-center gap-1.5 p-2.5 rounded-[10px] border border-[#E6EAF2] bg-[#FFFFFF] text-[12.5px] font-semibold text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="openModal('request')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v5"/></svg>Request item</div>
+          </div>
+          <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]">Charge ₦1,600 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESKTOP REQUEST ITEM MODAL -->
+    <!-- DESKTOP HELD SALES MODAL -->
+    <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-20 items-center justify-center" id="modal-held">
+      <div class="w-[440px] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF2]">
+          <div class="text-[15px] font-semibold">Held sales · 2</div>
+          <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="closeModal('held')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        </div>
+        <div class="px-5 py-[18px] max-h-[400px] overflow-y-auto">
+          <div class="flex items-center gap-2.5 py-3 border-b border-[#E6EAF2] cursor-pointer">
+            <div class="w-10 h-10 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div>
+            <div style="flex:1;">
+              <div class="text-[12.5px] font-semibold mb-0.5">Held sale · Bola Adeyemi</div>
+              <div class="text-[11.5px] text-[#667085]">4 items · held 6 min ago</div>
+            </div>
+            <div class="text-[13px] font-bold min-w-[52px] text-right text-[#2054E0]">₦3,400</div>
+          </div>
+          <div class="flex items-center gap-2.5 py-3 cursor-pointer">
+            <div class="w-10 h-10 rounded-lg bg-[#FFFAEB] text-[#B54708] flex items-center justify-center shrink-0 [&_svg]:w-[17px] [&_svg]:h-[17px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div>
+            <div style="flex:1;">
+              <div class="text-[12.5px] font-semibold mb-0.5">Held sale · Walk-in</div>
+              <div class="text-[11.5px] text-[#667085]">2 items · held 22 min ago</div>
+            </div>
+            <div class="text-[13px] font-bold min-w-[52px] text-right text-[#2054E0]">₦1,150</div>
+          </div>
+        </div>
+        <div class="px-5 pt-3.5 pb-5 border-t border-[#E6EAF2]">
+          <div class="text-center text-[11px] text-[#98A2B3]">Click a held sale to resume it in the current cart</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-20 items-center justify-center" id="modal-request">
+      <div class="w-[420px] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)]">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF2]">
+          <div class="text-[15px] font-semibold">Request item</div>
+          <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="closeModal('request')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        </div>
+        <div class="px-5 py-[18px] flex flex-col gap-3.5">
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Item name</label>
+            <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="e.g. Peak milk 400g tin">
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Quantity a customer asked for</label>
+            <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="e.g. 3">
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Note (optional)</label>
+            <textarea class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0] resize-none min-h-[70px]" placeholder="Any extra detail, e.g. brand or size"></textarea>
+          </div>
+          <div class="text-[11.5px] text-[#667085] bg-[#F3F7FF] border border-[#D6E2FC] rounded-[10px] px-3 py-2.5 flex gap-2 items-start [&_svg]:w-[15px] [&_svg]:h-[15px] [&_svg]:text-[#153C9E] [&_svg]:shrink-0 [&_svg]:mt-0.5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            This gets logged for restocking and sent to your manager right away.
+          </div>
+        </div>
+        <div class="px-5 pt-3.5 pb-5">
+          <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]" onclick="closeModal('request')">Send request <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESKTOP CUSTOMER SEARCH MODAL -->
+    <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-20 items-center justify-center" id="modal-customer">
+      <div class="w-[420px] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.14)]" style="width:440px;">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-[#E6EAF2]">
+          <div class="text-[15px] font-semibold">Select customer</div>
+          <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer [&_svg]:w-[15px] [&_svg]:h-[15px]" onclick="closeModal('customer')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+        </div>
+        <div class="px-5 py-[18px] flex flex-col gap-3.5" style="max-height:480px; overflow-y:auto;">
+          <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] px-[13px] py-2.5 [&_svg]:w-[15px] [&_svg]:h-[15px] [&_svg]:text-[#98A2B3] [&_svg]:shrink-0 [&_input]:border-0 [&_input]:outline-none [&_input]:text-[13px] [&_input]:w-full [&_input]:bg-transparent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search by name or phone number">
+          </div>
+
+          <div class="flex items-center gap-2.5 px-3 py-[11px] border border-dashed border-[#E6EAF2] rounded-xl cursor-pointer mb-3.5 text-[#153C9E] [&_span]:text-[12.5px] [&_span]:font-semibold" onclick="toggleCustForm('desktop')" style="margin-top:2px;">
+            <div class="w-8 h-8 rounded-lg bg-[#EAF0FE] flex items-center justify-center shrink-0 [&_svg]:w-[15px] [&_svg]:h-[15px]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
+            <span>Add new customer</span>
+          </div>
+          <div class="hidden [&.open]:flex flex-col gap-3 p-3 bg-[#F5F8FC] border border-[#E6EAF2] rounded-xl mb-3.5" id="cust-form-desktop">
+            <div class="flex gap-2.5 [&_.field-input]:flex-1">
+              <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Full name">
+              <input class="w-full border border-[#E6EAF2] rounded-[10px] px-[13px] py-2.5 text-[13px] outline-none focus:border-[#2054E0]" type="text" placeholder="Phone number">
+            </div>
+            <button class="w-full bg-[#2054E0] text-white border-0 p-3.5 rounded-xl text-[15px] font-bold cursor-pointer flex items-center justify-center gap-2 shadow-[0_1px_2px_rgba(32,84,224,0.25)] hover:bg-[#153C9E]" onclick="selectCustomer('New customer','NC','Just added', 'desktop')">Save &amp; select</button>
+          </div>
+
+          <div class="text-[11.5px] font-bold text-[#98A2B3] uppercase tracking-wide mt-0.5 mb-2">Frequent customers</div>
+          <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px] [&_.cust-row-tag]:bg-[#F5F8FC] [&_.cust-row-tag]:text-[#98A2B3]" onclick="resetToWalkIn(); closeModal('customer');">
+            <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">WI</div>
+            <div>
+              <div class="text-[13px] font-semibold">Walk-in customer</div>
+              <div class="text-[11.5px] text-[#667085] mt-0.5">No account needed</div>
+            </div>
+            <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">Default</div>
+          </div>
+          <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px]" onclick="selectCustomer('Bola Adeyemi','BA','+234 803 555 0142', 'desktop'); closeModal('customer');">
+            <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">BA</div>
+            <div>
+              <div class="text-[13px] font-semibold">Bola Adeyemi</div>
+              <div class="text-[11.5px] text-[#667085] mt-0.5">+234 803 555 0142</div>
+            </div>
+            <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">₦1,500 credit</div>
+          </div>
+          <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px]" onclick="selectCustomer('Chidi Okeke','CO','+234 706 222 9981', 'desktop'); closeModal('customer');">
+            <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">CO</div>
+            <div>
+              <div class="text-[13px] font-semibold">Chidi Okeke</div>
+              <div class="text-[11.5px] text-[#667085] mt-0.5">+234 706 222 9981</div>
+            </div>
+            <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">320 pts</div>
+          </div>
+          <div class="flex items-center gap-3 px-3 py-[11px] border border-[#E6EAF2] rounded-xl mb-2.5 cursor-pointer hover:border-[#2054E0] hover:bg-[#F3F7FF] [&_.customer-avatar]:w-9 [&_.customer-avatar]:h-9 [&_.customer-avatar]:text-[12.5px]" onclick="selectCustomer('Ngozi Umeh','NU','+234 812 444 1123', 'desktop'); closeModal('customer');">
+            <div class="w-[30px] h-[30px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-[11.5px] font-bold shrink-0">NU</div>
+            <div>
+              <div class="text-[13px] font-semibold">Ngozi Umeh</div>
+              <div class="text-[11.5px] text-[#667085] mt-0.5">+234 812 444 1123</div>
+            </div>
+            <div class="ml-auto text-[10.5px] font-bold px-2 py-[3px] rounded-md whitespace-nowrap bg-[#ECFDF3] text-[#067647]">Frequent buyer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function showView(name, btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.switcher button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function openSheet(name){ document.getElementById('sheet-'+name).classList.add('open'); }
+function closeSheet(name){ document.getElementById('sheet-'+name).classList.remove('open'); }
+function openModal(name){ document.getElementById('modal-'+name).classList.add('open'); }
+function closeModal(name){ document.getElementById('modal-'+name).classList.remove('open'); }
+function switchTab(name){
+  document.getElementById('tab-products').style.display = name==='products' ? 'block' : 'none';
+  document.getElementById('tab-sales').style.display = name==='sales' ? 'block' : 'none';
+  document.getElementById('tabbtn-products').classList.toggle('active', name==='products');
+  document.getElementById('tabbtn-sales').classList.toggle('active', name==='sales');
+}
+function switchDeskTab(name){
+  document.getElementById('desk-tab-products').style.display = name==='products' ? 'flex' : 'none';
+  document.getElementById('desk-tab-sales').style.display = name==='sales' ? 'flex' : 'none';
+  document.getElementById('desktabbtn-products').classList.toggle('active', name==='products');
+  document.getElementById('desktabbtn-sales').classList.toggle('active', name==='sales');
+}
+function toggleCustForm(ctx){
+  document.getElementById('cust-form-'+ctx).classList.toggle('open');
+}
+function toggleCustomAmt(ctx){
+  document.getElementById('custom-amt-form-'+ctx).classList.toggle('open');
+}
+function switchMode(mode, ctx){
+  var standardId = ctx==='mobile' ? 'mode-standard-mobile' : 'desk-mode-standard';
+  var speedId = ctx==='mobile' ? 'mode-speed-mobile' : 'desk-mode-speed';
+  var display = ctx==='mobile' ? 'block' : 'flex';
+  document.getElementById(standardId).style.display = mode==='standard' ? display : 'none';
+  document.getElementById(speedId).style.display = mode==='speed' ? display : 'none';
+  document.getElementById('modebtn-standard-'+ctx).classList.toggle('active', mode==='standard');
+  document.getElementById('modebtn-speed-'+ctx).classList.toggle('active', mode==='speed');
+}
+function selectCustomer(name, initials, sub){
+  document.getElementById('mobile-cust-avatar').textContent = initials;
+  document.getElementById('mobile-cust-name').textContent = name;
+  document.getElementById('mobile-cust-sub').textContent = sub;
+  document.getElementById('mobile-cust-clear').style.display = 'block';
+  document.getElementById('mobile-cust-chev').style.display = 'none';
+
+  document.getElementById('desktop-cust-avatar').textContent = initials;
+  document.getElementById('desktop-cust-name').textContent = name;
+  document.getElementById('desktop-cust-sub').textContent = sub;
+  document.getElementById('desktop-cust-clear').style.display = 'block';
+  document.getElementById('desktop-cust-chev').style.display = 'none';
+
+  closeSheet('customer');
+  closeModal('customer');
+}
+function resetToWalkIn(){
+  document.getElementById('mobile-cust-avatar').textContent = 'WI';
+  document.getElementById('mobile-cust-name').textContent = 'Walk-in customer';
+  document.getElementById('mobile-cust-sub').textContent = 'Tap to search or add customer';
+  document.getElementById('mobile-cust-clear').style.display = 'none';
+  document.getElementById('mobile-cust-chev').style.display = 'block';
+
+  document.getElementById('desktop-cust-avatar').textContent = 'WI';
+  document.getElementById('desktop-cust-name').textContent = 'Walk-in customer';
+  document.getElementById('desktop-cust-sub').textContent = 'Tap to search or add';
+  document.getElementById('desktop-cust-clear').style.display = 'none';
+  document.getElementById('desktop-cust-chev').style.display = 'block';
+
+  closeSheet('customer');
+  closeModal('customer');
+}
+</script>
+
+</body>
+</html>

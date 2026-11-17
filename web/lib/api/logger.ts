@@ -57,6 +57,26 @@ const isSensitiveKey = (lowerKey: string) =>
   SENSITIVE_KEY_NAMES.has(lowerKey) ||
   SENSITIVE_KEY_FRAGMENTS.some((fragment) => lowerKey.includes(fragment));
 
+const SENSITIVE_VALUE_PATTERNS = [
+  /\$2[aby]\$\d{2}\$[./A-Za-z0-9]+/g,
+  /\$argon2(?:id|[id])\$[^\s,)]+/g,
+  /\beyJpdiI6[A-Za-z0-9+/=]+/g,
+  /\bBearer\s+[A-Za-z0-9\-._~+/]+=*/gi,
+];
+
+export const maskSensitiveString = (str: string): string => {
+  let masked = str;
+  for (const pattern of SENSITIVE_VALUE_PATTERNS) {
+    masked = masked.replace(pattern, (match) => {
+      if (match.toLowerCase().startsWith("bearer ")) {
+        return "Bearer ********";
+      }
+      return "********";
+    });
+  }
+  return masked;
+};
+
 export const sanitizePayload = (payload: unknown): unknown => {
   if (!payload) return payload;
   
@@ -88,18 +108,26 @@ export const sanitizePayload = (payload: unknown): unknown => {
           sanitized[key] = "********";
         } else if (typeof sanitized[key] === "object") {
           sanitized[key] = sanitizePayload(sanitized[key]);
+        } else if (typeof sanitized[key] === "string") {
+          sanitized[key] = maskSensitiveString(sanitized[key] as string);
         }
       }
       return sanitized;
     }
+    if (typeof parsed === "string") {
+      return maskSensitiveString(parsed);
+    }
     return parsed;
   } catch (_) {
-    return payload;
+    return typeof payload === "string" ? maskSensitiveString(payload) : payload;
   }
 };
 
 // Rate limiting & deduplication
 let recentErrors: Array<{ timestamp: number; key: string }> = [];
+export const resetErrorRateLimiter = () => {
+  recentErrors = [];
+};
 const cleanRecentErrors = () => {
   const now = Date.now();
   recentErrors = recentErrors.filter(e => now - e.timestamp < 60000);

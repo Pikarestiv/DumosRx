@@ -214,14 +214,12 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const method = originalRequest?.method?.toUpperCase();
     const url = originalRequest?.url;
-    const rawServerMessage =
-      typeof error.response?.data?.message === "string" ? error.response.data.message : undefined;
     const serverMessage = presentableErrorMessage(status, error.response?.data);
     if (serverMessage) {
       error.message = serverMessage;
     }
 
-    const errorMessage = rawServerMessage || error.message || "Unknown error";
+    const errorMessage = serverMessage || error.message || "Unknown error";
     const errorDetails = error.response?.data || error.stack;
 
     // Add to buffer
@@ -245,7 +243,7 @@ apiClient.interceptors.response.use(
           "color: #ef4444; font-weight: bold;"
         );
         console.error("Message:", errorMessage);
-        console.log("Details:", errorDetails);
+        console.log("Details:", sanitizePayload(errorDetails));
         console.log("Request Payload:", originalRequest ? sanitizePayload(originalRequest.data) : null);
         console.groupEnd();
       } else {

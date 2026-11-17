@@ -1,3 +1,15 @@
+### A-231 — unhandled server exceptions, bcrypt hashes, and encrypted credentials reached console.error and telemetry
+- **Fixed:** 2026-11-17, web only, TDD. Found during second adversarial review of release batch (Issue #217).
+- **Was:** `web/lib/api/base-client.ts` kept `rawServerMessage` and passed it directly to `console.error` (in production and development) and telemetry (`reportClientError`). While A-224 prevented `error.message` from rendering SQL exceptions on screen cards, the raw exception (containing SQL query, database host/schema, bcrypt hash, and encrypted till code) still reached the browser console and telemetry payload. Furthermore, `sanitizePayload` only masked by key name, leaving sensitive strings in unmasked object keys untouched.
+- **Now:**
+  (1) `base-client.ts` response interceptor uses `serverMessage || error.message || "Unknown error"` for `errorMessage`, ensuring production `console.error`, dev console, `addLogToBuffer`, and telemetry root `message` run through the same presentable message gate as UI cards instead of outputting raw SQL exception strings.
+  (2) `base-client.ts` dev logging now passes `errorDetails` through `sanitizePayload(errorDetails)`.
+  (3) `logger.ts` extends `sanitizePayload()` with value-shape masking (`maskSensitiveString`), automatically redacting bcrypt hashes (`$2y$...`), Argon2 hashes, encrypted blobs (`eyJpdiI6...`), and Bearer tokens in any string value.
+  (4) Added `resetErrorRateLimiter()` in `logger.ts` to support deterministic telemetry testing.
+  (5) Updated `web/AGENTS.md` console and telemetry gating documentation.
+- **Coverage:** `web/__tests__/admin-server-error-disclosure.test.tsx` (tests that unhandled SQL exceptions and credentials never leak into `console.error`, verifies `sanitizePayload` value shape redaction for bcrypt/ciphertext/bearer tokens, and asserts telemetry receives presentable messages with masked details).
+- **Compat:** Pure client-side logging and telemetry sanitization; no API or database changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

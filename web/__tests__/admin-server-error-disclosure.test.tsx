@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AxiosAdapter } from "axios";
 import { apiClient, presentableErrorMessage, SERVER_FAULT_MESSAGE } from "@/lib/api/base-client";
+import { sanitizePayload, resetErrorRateLimiter } from "@/lib/api/logger";
 import { TillCodesCard } from "@/components/admin/views/till-codes-card";
 import type { AdminTillCode } from "@/lib/api/admin-hooks-till-codes";
 
@@ -56,6 +57,7 @@ const messageFromRequest = async (status: number, data: unknown): Promise<string
 
 describe("server error disclosure in the admin panel", () => {
   beforeEach(() => {
+    resetErrorRateLimiter();
     state.failure = null;
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -116,5 +118,58 @@ describe("server error disclosure in the admin panel", () => {
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent(SERVER_FAULT_MESSAGE);
     });
+  });
+
+  it("does not leak raw SQL exception or credentials into console.error", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await messageFromRequest(500, {
+      message: SQL_EXCEPTION,
+      exception: "Illuminate\\Database\\QueryException",
+      file: "/home/vendor/laravel/framework/src/Illuminate/Database/Connection.php",
+      line: 825,
+    });
+
+    const loggedStrings = errorSpy.mock.calls.flat().map((arg) => String(arg));
+    const leakedLog = loggedStrings.find(
+      (log) => log.includes("SQLSTATE") || log.includes("$2y$12$") || log.includes("dumomvte_dumosrx_dev_db"),
+    );
+
+    expect(leakedLog).toBeUndefined();
+    expect(loggedStrings.some((log) => log.includes(SERVER_FAULT_MESSAGE))).toBe(true);
+  });
+
+  it("masks sensitive value shapes in sanitizePayload (bcrypt hashes, encrypted blobs, bearer tokens)", () => {
+    const sanitizedObj = sanitizePayload({
+      message: SQL_EXCEPTION,
+      authHeader: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+    }) as Record<string, string>;
+
+    expect(sanitizedObj.message).not.toContain("$2y$12$");
+    expect(sanitizedObj.message).not.toContain("eyJpdiI6");
+    expect(sanitizedObj.message).toContain("values (********, ********)");
+    expect(sanitizedObj.authHeader).toBe("Bearer ********");
+
+    const sanitizedString = sanitizePayload(SQL_EXCEPTION);
+    expect(sanitizedString).not.toContain("$2y$12$");
+    expect(sanitizedString).not.toContain("eyJpdiI6");
+  });
+
+  it("sends presentable message to client-error telemetry POST rather than raw exception", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "logged" })));
+
+    await messageFromRequest(500, {
+      message: SQL_EXCEPTION,
+      exception: "Illuminate\\Database\\QueryException",
+    });
+
+    const telemetryCall = fetchSpy.mock.calls.find((call) => String(call[0]).includes("/logs/client-error"));
+    expect(telemetryCall).toBeDefined();
+
+    const body = JSON.parse(telemetryCall![1]?.body as string);
+    expect(body.message).toBe(SERVER_FAULT_MESSAGE);
+    expect(body.message).not.toContain("SQLSTATE");
+    expect(JSON.stringify(body)).not.toContain("$2y$12$");
+    expect(JSON.stringify(body)).not.toContain("eyJpdiI6");
   });
 });

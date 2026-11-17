@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'account_status' => \App\Http\Middleware\CheckAccountStatus::class,
             'restrict_api_docs' => \App\Http\Middleware\RestrictApiDocs::class,
+            'token_ability' => \App\Http\Middleware\EnsureTokenCanAccessApi::class,
         ]);
         // This app has no "login" route at all (it's API-only; every client
         // is the Next.js app, the desktop app, or a superadmin panel talking

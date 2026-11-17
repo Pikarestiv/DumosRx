@@ -790,15 +790,16 @@ impersonation/handoff subsystem, which is separate again) is in
 `POST /auth/handoff`, `/auth/handoff/consume` and `/admin/restore-session`
 authenticate off a token in the **request body**, not the `Authorization`
 header, so Sanctum's guard never sees it and its expiry is not enforced.
-(The guard checks expiry only; it never checks abilities, for bearers
-either: see A-315.) `PersonalAccessToken::findToken()` checks neither. Every
-such read goes through `App\Support\FullAccessToken::find()`, which returns
-the token only if it exists, records abilities, has the `*` ability and has
-not lapsed by `TokenLifetime::hasLapsed()`. That is the one expiry rule, the
-same pair of checks as Sanctum's guard (`expires_at`, plus the global
-`sanctum.expiration` if it is ever set again), and `refreshAdminSession()`
-uses it too. A refresh-only (`['refresh']`) token or an expired one is refused
-(A-199, 2026-10-23). Coverage: `AuthHandoffTest`, `RestoreSessionTest`.
+(The guard checks expiry only, while `EnsureTokenCanAccessApi` enforces
+wildcard `*` abilities for bearers across the `auth:sanctum` group: see A-315.)
+`PersonalAccessToken::findToken()` checks neither. Every such read goes through
+`App\Support\FullAccessToken::find()`, which returns the token only if it exists,
+records abilities, has the `*` ability and has not lapsed by
+`TokenLifetime::hasLapsed()`. That is the one expiry rule, the same pair of checks
+as Sanctum's guard (`expires_at`, plus the global `sanctum.expiration` if it is
+ever set again), and `refreshAdminSession()` uses it too. A refresh-only
+(`['refresh']`) token or an expired one is refused (A-199, 2026-10-23). Coverage:
+`AuthHandoffTest`, `RestoreSessionTest`.
 
 - **Why the body token cannot simply be the bearer.** The handoff exists
   because `dumosrx.com` and `app.dumosrx.com` are different origins with no
@@ -2790,10 +2791,10 @@ token. That is deliberate and must not be "simplified" back to Sanctum:
   A-199 (fixed 2026-10-23) neither checked its abilities, so any
   narrowly-scoped Sanctum token read off a till would have laundered into a
   durable full superadmin session. They now go through `FullAccessToken::find()`
-  (see "Body-token endpoints" under the admin auth section), but a narrow
-  Sanctum token is still a general bearer on every `auth:sanctum` route
-  (A-315), so the till credential staying out of Sanctum is still what keeps
-  it narrow.
+  (see "Body-token endpoints" under the admin auth section), while
+  `EnsureTokenCanAccessApi` ensures narrow Sanctum tokens cannot be used as
+  general bearers on `auth:sanctum` routes (A-315). The till credential staying
+  out of Sanctum entirely remains defence in depth.
 - An opaque id is not a `PersonalAccessToken`, so `findToken()` never resolves
   it and both laundering paths are dead by construction.
 - It is also less code: no `ability` middleware alias (which is **not**

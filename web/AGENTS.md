@@ -77,12 +77,11 @@ together). The current design:
   header for general API routes — that was the actual vulnerability.
   `PersonalAccessToken::findToken()` is called directly, only inside
   `refreshAdminSession()`/`logout()`, on the cookie's raw value.
-- **"`refresh`-ability-scoped" is enforced only where the cookie is read.**
-  Nothing on the `auth:sanctum` routes checks abilities, so the same token
-  sent as `Authorization: Bearer` is accepted everywhere (A-315 in
-  `docs/KNOWN_BUGS.md`). The cookie's `HttpOnly`/`SameSite=Strict` is what
-  keeps it out of reach today; don't build anything that assumes the
-  ability alone confines it.
+- **"`refresh`-ability-scoped" is enforced on general API routes (A-315).**
+  `EnsureTokenCanAccessApi` gates the `auth:sanctum` group and rejects any token
+  without the `*` ability (403), so a `refresh`-only token sent as
+  `Authorization: Bearer` cannot access general API endpoints. The cookie's
+  `HttpOnly`/`SameSite=Strict` provides additional defence in depth.
 
 - **Dashboard-shell access gate (`checkCanAccessAdmin`, fixed 2026-10-02,
   A-141):** `use-admin-auth-store.ts`'s `checkCanAccessAdmin(user)` decides

@@ -136,7 +136,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Protected Routes
-    Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {
+    Route::middleware(['auth:sanctum', 'token_ability', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/user', [AuthController::class, 'user']);
         Route::get('/account-manager', [\App\Http\Controllers\Api\AccountManagerController::class, 'show']);

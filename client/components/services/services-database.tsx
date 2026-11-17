@@ -15,6 +15,9 @@ import { getServices } from "@/lib/db/queries/services";
 import { ServicesList } from "./services-list";
 import { ServiceFormDialog } from "./service-form-dialog";
 import { ServiceDeleteDialog } from "./service-delete-dialog";
+import { ServiceCategoriesDialog } from "./service-categories-dialog";
+import { Button } from "@/components/ui/button";
+import { groupServiceCategories, sameServiceCategory } from "@/lib/utils/service-category";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Service } from "@/lib/types/service";
 
@@ -34,6 +37,7 @@ export function ServicesDatabase() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
 
@@ -68,16 +72,12 @@ export function ServicesDatabase() {
   });
 
   const categories = useMemo(() => {
-    const set = new Set<string>();
-    for (const s of rawServices) {
-      if (s.category?.trim()) set.add(s.category.trim());
-    }
-    return ["all", ...Array.from(set).sort()];
+    return ["all", ...groupServiceCategories(rawServices).map((group) => group.name)];
   }, [rawServices]);
 
   const filteredServices = useMemo(() => {
     return rawServices.filter((s) => {
-      if (categoryFilter !== "all" && s.category !== categoryFilter)
+      if (categoryFilter !== "all" && !sameServiceCategory(s.category, categoryFilter))
         return false;
       if (statusFilter === "active" && !s.is_active) return false;
       if (statusFilter === "inactive" && s.is_active) return false;
@@ -148,6 +148,11 @@ export function ServicesDatabase() {
               ]}
               className="bg-card"
             />
+              {canManageServices && categories.length > 1 && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCategoriesOpen(true)}>
+                  Manage categories
+                </Button>
+              )}
           </div>
         </div>
       )}
@@ -187,6 +192,11 @@ export function ServicesDatabase() {
                   { value: "inactive", label: "Inactive" },
                 ]}
               />
+              {canManageServices && categories.length > 1 && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setCategoriesOpen(true)}>
+                  Manage categories
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -244,6 +254,10 @@ export function ServicesDatabase() {
           onOpenChange={setFormOpen}
           service={editingService}
         />
+      )}
+
+      {canManageServices && (
+        <ServiceCategoriesDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
       )}
 
       {canDeleteServices && (

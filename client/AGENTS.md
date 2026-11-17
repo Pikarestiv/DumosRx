@@ -7955,3 +7955,20 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   also selects `barcode`). Two offline tills can still each create the same name
   or barcode before syncing; there is no server-side uniqueness rule, so this is
   a guard against typing mistakes, not a guarantee.
+
+## Service categories (2026-11-17)
+
+- `services.category` stays free text; there is no services category table and no schema change.
+  Service categories are deliberately separate from product `categories` so "Consultation" never
+  appears in the product category picker or product filters.
+- The service form uses `CategoryCombobox` with its `options` prop (the distinct categories of this
+  store's services, via `useServiceCategories`), and saves through `resolveServiceCategory`, which
+  reuses an existing spelling when only case or spacing differs. Case variants already in the data are
+  grouped by `groupServiceCategories` under their most-used spelling; stored values are not rewritten
+  until someone renames the category (`renameServiceCategory`, `clearServiceCategory` update each
+  service through the sync-aware `update()` helper, scoped to the active store).
+- "Manage categories" (services tab, managers only) opens `ServiceCategoriesDialog`. The services list
+  and its category cells follow the store's capitalisation setting like the product catalog.
+- Backward compatibility (§11): nothing about the stored shape changed, so older bundles keep working;
+  they just keep their free-text input.
+

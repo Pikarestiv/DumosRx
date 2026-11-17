@@ -238,6 +238,25 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     videoPlaceholderText: "Video Walkthrough: Spotting a duplicate and telling two sizes apart",
   },
   {
+    id: "service-categories",
+    title: "Service Categories: Pick, Rename and Tidy Up in One Place",
+    category: "Inventory",
+    badge: "New",
+    readTime: "1 min read",
+    videoDuration: "1:00",
+    summary:
+      "Pick a service's category from the ones you already use instead of retyping it, so 'Consultation' and 'consultation' never become two categories. Rename or remove a category for all its services at once.",
+    steps: [
+      "Open Inventory, then Services, and tap Add Service (or the pencil on an existing one).",
+      "Click the Category box. Your existing categories are listed; pick one, or type a new name and choose 'Create' to add it.",
+      "If you type a name that only differs by capital letters from an existing category, DumosRx uses the existing one.",
+      "To tidy up, tap 'Manage categories' beside the filters. Use the pencil to rename a category on every service that uses it, or the bin to remove it. Removed categories leave those services as Uncategorized.",
+    ],
+    proTip:
+      "Rename a category once here instead of editing services one by one. The new name shows on the POS service tiles and the services list straight away.",
+    videoPlaceholderText: "Video Walkthrough: Choosing, renaming and removing service categories",
+  },
+  {
     id: "product-icons",
     title: "Product Icons: A Fitting Picture for Every Product Without a Photo",
     category: "Inventory",

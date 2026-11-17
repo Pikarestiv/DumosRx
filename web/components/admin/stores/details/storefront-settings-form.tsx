@@ -247,7 +247,7 @@ export function StorefrontSettingsForm({ store, accent, onAccentChange, editable
           <span>
             Show this store's services on the storefront
             <span className="block text-xs text-muted-foreground">
-              Lists every active service with its price and an Enquire on WhatsApp button. Services cannot be ordered online yet.
+              Lists every active service with its price. Customers book a service through the cart, on its own or with products, and pay online, by transfer or at the store. A service with no price shows Enquire on WhatsApp instead.
             </span>
           </span>
         </label>

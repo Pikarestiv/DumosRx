@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/lib/store/use-cart-store";
+import { checkoutLine, isServiceLine } from "@/lib/storefront-cart-lines";
 import { useCartRepricing } from "@/lib/store/use-cart-repricing";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import {
 } from "@/components/storefront/checkout-reference-panels";
 import { CheckoutContactFields, type FulfilmentMethod } from "@/components/storefront/checkout-contact-fields";
 import { CheckoutPaymentMethod } from "@/components/storefront/checkout-payment-method";
-import { availablePaymentMethods } from "@/lib/storefront-checkout";
+import { availablePaymentMethods, orderFields, wasRefunded, type PendingCheckout } from "@/lib/storefront-checkout";
 import { parseStorefrontScope } from "@/lib/storefront-scope";
 import { readSavedCheckoutDetails, saveCheckoutDetails } from "@/lib/use-saved-checkout-details";
 
@@ -28,33 +29,6 @@ interface CheckoutFormProps {
   deliveryNote?: string | null;
   payOnDelivery?: boolean;
 }
-
-interface PendingCheckout {
-  formData: {
-    customer_name: string;
-    customer_phone: string;
-    customer_address: string;
-    customer_email: string;
-    fulfilment_method: FulfilmentMethod;
-    payment_method: string;
-  };
-  items: { product_id: string; quantity: number }[];
-}
-
-const orderFields = (form: PendingCheckout["formData"]) => ({
-  customer_name: form.customer_name,
-  customer_phone: form.customer_phone,
-  payment_method: form.payment_method,
-  fulfilment_method: form.fulfilment_method,
-  ...(form.customer_email.trim() ? { customer_email: form.customer_email.trim() } : {}),
-  ...(form.fulfilment_method === "delivery" && form.customer_address.trim() ? { customer_address: form.customer_address.trim() } : {}),
-});
-
-const wasRefunded = (error: unknown): boolean => {
-  const response = (error as { response?: { status?: number; data?: { refunded?: boolean } } } | null)
-    ?.response;
-  return response?.status === 422 && response?.data?.refunded === true;
-};
 
 export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable = false, deliveryNote, payOnDelivery = false }: CheckoutFormProps) {
   const { t, money } = useStorefrontI18n();
@@ -214,10 +188,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
     let redirectStarted = false;
 
     try {
-      const items = cart.items.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity
-      }));
+      const items = cart.items.map(checkoutLine);
 
       if (submitted.payment_method === 'paystack') {
         sessionStorage.setItem(pendingStorageKey, JSON.stringify({ formData: submitted, items }));
@@ -339,7 +310,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
           <CardContent className="space-y-4">
             {cart.items.map(item => (
               <div key={item.id} className="flex justify-between text-sm">
-                <span>{toDisplayTitle(item.name)} (x{item.quantity})</span>
+                <span>{toDisplayTitle(item.name)} (x{item.quantity}){isServiceLine(item) ? ` · ${t("booking.tag")}` : ""}</span>
                 <span className="font-medium">{money(item.price * item.quantity, currency)}</span>
               </div>
             ))}

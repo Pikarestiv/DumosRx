@@ -4,6 +4,8 @@ import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provi
 import { apiClient } from "@/lib/api/base-client";
 import { parseStorefrontScope } from "@/lib/storefront-scope";
 import { useCartStore } from "@/lib/store/use-cart-store";
+import { isServiceLine } from "@/lib/storefront-cart-lines";
+import type { StorefrontService } from "@/lib/api/storefront-services";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 
 const MAX_REPRICED_ITEMS = 100;
@@ -13,12 +15,6 @@ interface CatalogResponse {
   store?: { currency?: string | null; online_payment_available?: boolean };
 }
 
-/**
- * Re-prices a storefront cart against the live catalog on mount: the server
- * prices an order from product_id + quantity, never from the cart's cached
- * prices. See docs/KNOWN_BUGS.md history for why a failure here has to be
- * surfaced rather than presented as confirmed pricing.
- */
 export function useCartRepricing(storeSlug: string) {
   const i18n = useStorefrontI18n();
   const latestI18n = useRef(i18n);
@@ -61,6 +57,16 @@ export function useCartRepricing(storeSlug: string) {
         const prices: Record<string, number> = {};
         for (const product of data.data ?? []) {
           prices[product.id] = parseFloat(String(product.selling_price));
+        }
+        if (items.some(isServiceLine)) {
+          const { data: services } = await apiClient.get<{ data?: StorefrontService[] }>(`/storefront/${slug}/services`, {
+            params: branch ? { branch } : {},
+          });
+          if (cancelled) return;
+          const booked = new Set(items.filter(isServiceLine).map((item) => item.id));
+          for (const service of services.data ?? []) {
+            if (booked.has(service.id)) prices[service.id] = Number(service.price);
+          }
         }
         for (const item of items.slice(MAX_REPRICED_ITEMS)) prices[item.id] = item.price;
 

@@ -64,9 +64,16 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "stock.out": "Rupture de stock",
 
   "services.heading": "Services",
-  "services.subtitle": "Écrivez à la boutique pour réserver ou vous renseigner.",
+  "services.subtitle": "Ajoutez un service au panier pour le réserver, seul ou avec des articles. Payez maintenant en ligne, ou à la boutique lors de votre visite.",
   "services.enquire": "Se renseigner sur WhatsApp",
   "services.enquireMessage": "Bonjour, je souhaite me renseigner sur {name}.",
+  "services.count.one": "{count} service",
+  "services.count.other": "{count} services",
+  "services.book.aria": "Réserver : {name}",
+  "services.more.aria": "Afficher les {count} services",
+  "products.more.aria": "Voir tous les articles de la boutique",
+  "grid.more": "autres",
+  "booking.tag": "Réservation",
 
   "steps.heading": "Comment commander",
   "steps.choose.title": "Choisissez",
@@ -77,6 +84,11 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "steps.collect.title": "Retirez",
   "steps.collect.body.pharmacy": "Notre équipe prépare votre commande et peut vous appeler au numéro indiqué pour la confirmer.",
   "steps.collect.body.retail": "La boutique prépare votre commande et peut vous appeler au numéro indiqué pour la confirmer.",
+  "steps.choose.body.services": "Ajoutez des articles ou des services au panier. Un service dans le panier est une réservation : pas de créneau à choisir, la boutique vous contacte pour l'organiser.",
+  "steps.choose.rxNote": "Les médicaments sur ordonnance exigent une ordonnance valide au retrait.",
+  "steps.pay.body.services": "Payez maintenant, en ligne ou par virement ou mobile money si la boutique le propose, ou à la boutique au retrait de votre commande ou lors de votre service.",
+  "steps.collect.title.services": "Retirez ou venez",
+  "steps.collect.body.services": "La boutique prépare votre commande ou confirme votre réservation et peut vous appeler au numéro indiqué. Votre code de commande est aussi votre code de réservation.",
 
   "footer.powered": "Propulsé par {host}",
 
@@ -179,6 +191,8 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "order.contact": "Une question ? Contactez {store} : {phone}",
   "order.backToStore": "Retour à la boutique",
   "order.loading": "Chargement de votre commande…",
+  "order.print": "Imprimer la confirmation",
+  "order.bookingNote": "Votre réservation est enregistrée sous ce code. La boutique vous contactera pour fixer un moment ; présentez le code lors de votre visite.",
   "order.notFound": "Impossible de trouver cette commande. Vérifiez le lien ou contactez la boutique.",
   "order.meta": "Votre commande — {name}",
 

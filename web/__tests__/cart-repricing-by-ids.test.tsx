@@ -88,4 +88,22 @@ describe("cart repricing", () => {
     expect(result.current.pricesStale).toBe(true);
     expect(useCartStore.getState().carts.shop.map((i) => i.id)).toEqual(["deep-120"]);
   });
+
+  it("reprices a booked service from the services list and drops one the store stopped offering", async () => {
+    const service = (id: string, price = 100) => ({ ...item(id, price), kind: "service" as const });
+    act(() => useCartStore.setState({ carts: { shop: [item("p1"), service("svc-kept"), service("svc-gone")] } }));
+    getMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.endsWith("/services")
+          ? { data: { data: [{ id: "svc-kept", name: "Scaling", price: 25000 }, { id: "svc-other", name: "Other", price: 1 }] } }
+          : { data: { data: [{ id: "p1", selling_price: 100 }], store: { currency: "NGN", online_payment_available: true } } },
+      ),
+    );
+
+    const { result } = renderHook(() => useCartRepricing("shop"));
+    await waitFor(() => expect(result.current.pricesLoading).toBe(false));
+
+    expect(useCartStore.getState().carts.shop).toEqual([item("p1"), { ...service("svc-kept"), price: 25000 }]);
+    expect(result.current.onlinePaymentAvailable).toBe(true);
+  });
 });

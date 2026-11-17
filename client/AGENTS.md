@@ -8018,3 +8018,16 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 - Touch sizing is applied in the shared primitives with Tailwind's `pointer-coarse:` variant (Button 40-44px, Select trigger, Tabs pill). Bare text links and small buttons keep their look and grow only the hit area with `pointer-coarse:-my-3 pointer-coarse:py-3`.
 - A product name in a mobile list row wraps to two lines (`line-clamp-2`) instead of clipping; `truncate` on a flex container does not ellipsise its children.
 - `e2e/mobile-ux.spec.ts` guards this at 375px: no sideways scroll on the main routes, wrapped catalog names, 40px+ primary buttons, and the POS search, Add Product name field and PO item search staying above a simulated 300px keyboard (it fakes `visualViewport.height`, which is how iOS and Android Chrome report an open keyboard).
+
+## Retail value beside inventory value (2026-11-17)
+
+- A store that does not enter cost prices (Cutis) sees an Inventory Value of 0, because the cost figure is
+  `SUM(quantity * cost_price)`. `getStockBatchStats` now also returns `total_retail_value`:
+  per product, on-hand quantity (all non-deleted batches of this store, floored at zero) times
+  `products.selling_price`. It is a projection, not an accounting figure, and it is separate from the three
+  cost-based value computations above, which still must agree with each other.
+- `describeStockValue()` (`lib/utils/stock-value-display.ts`) decides what the dashboard Inventory Value card
+  and the inventory overview card show: cost value with a "Worth X at selling price" caption when costs exist;
+  the selling-price value with "At selling price (no cost prices set)" when the cost value is 0.
+  The BI dashboard and the valuation report are still cost-only.
+

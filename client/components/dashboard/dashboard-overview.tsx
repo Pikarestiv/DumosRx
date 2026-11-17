@@ -1,5 +1,6 @@
 "use client";
 
+import { describeStockValue } from "@/lib/utils/stock-value-display";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
@@ -92,6 +93,12 @@ export function DashboardOverview() {
     setSelectedActivity(activity);
   };
 
+  const inventoryValue = describeStockValue(
+    stock_batchStats.totalStockBatchValue,
+    stock_batchStats.totalRetailValue,
+    (amount) => formatMetricCurrency(amount, storeProfile?.currency),
+  );
+
   const statsCards = [
     isCashier
       ? {
@@ -132,11 +139,8 @@ export function DashboardOverview() {
         }
       : {
           title: "Inventory Value",
-          value: formatMetricCurrency(
-            stock_batchStats.totalStockBatchValue,
-            storeProfile?.currency,
-          ),
-          comparison: "Calculated stock value",
+          value: formatMetricCurrency(inventoryValue.value, storeProfile?.currency),
+          comparison: inventoryValue.caption ?? "Calculated stock value",
           icon: TrendingUp,
           colorScheme: "amber" as const,
           href: "/inventory/overview",

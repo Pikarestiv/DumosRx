@@ -20,6 +20,7 @@ import {
 import type { NewProductPayload } from "@/lib/types/product";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { useDuplicateProducts } from "@/lib/hooks/use-duplicate-products";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -94,6 +95,7 @@ export function AddProductDialog({
   }
 
   const isPharmacy = storeType === "pharmacy";
+  const { sameBarcode } = useDuplicateProducts(formData);
 
   const suggestions = useProductSuggestions(
     isPharmacy,
@@ -107,6 +109,11 @@ export function AddProductDialog({
     // Validation
     if (!formData.name) {
       setAlertMessage("Please enter a name");
+      return;
+    }
+
+    if (sameBarcode) {
+      setAlertMessage(`This barcode already belongs to "${sameBarcode.name}". Each barcode can only be on one ${t("product").toLowerCase()}.`);
       return;
     }
 

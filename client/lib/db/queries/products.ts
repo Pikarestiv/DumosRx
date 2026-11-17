@@ -100,7 +100,7 @@ export async function getProductByName(name: string) {
 export async function getProductList() {
   const storeId = getActiveStoreId();
   return query<Product>(
-    `SELECT p.id, p.name, p.generic_name, p.category_id, c.name as category_name, p.manufacturer, p.strength, p.dosage_form
+    `SELECT p.id, p.name, p.generic_name, p.category_id, c.name as category_name, p.manufacturer, p.strength, p.dosage_form, p.barcode
      FROM products p
      LEFT JOIN categories c ON c.id = p.category_id AND c._deleted = 0
      WHERE p._deleted = 0${storeId ? " AND p.store_id = ?" : ""}

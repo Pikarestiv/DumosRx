@@ -7,6 +7,7 @@ import type { Product } from "./types";
 import { FieldLabel } from "./field-label";
 import { getCurrencySymbol } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
+import { useDuplicateProducts } from "@/lib/hooks/use-duplicate-products";
 
 interface Props {
   formData: Product;
@@ -27,6 +28,7 @@ export function ProductBasicInfoFields({
 }: Props) {
   const { storeProfile } = useStore();
   const currencySymbol = getCurrencySymbol(storeProfile?.currency);
+  const { sameName, sameBarcode } = useDuplicateProducts(formData);
   return (
     <div className="space-y-4">
       <h3 className="font-serif font-bold text-lg border-b pb-2">
@@ -63,6 +65,13 @@ export function ProductBasicInfoFields({
             }}
             placeholder={`e.g., ${isPharmacy ? "Panadol Extra" : "Product Name"}`}
           />
+          {sameName && (
+            <p role="status" className="text-[12px] text-amber-700 dark:text-amber-400">
+              &ldquo;{sameName.name}&rdquo; already exists
+              {sameName.category_name ? ` in ${sameName.category_name}` : ""}. Add a size or strength to tell
+              them apart, or edit the existing {t("product").toLowerCase()}.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -147,6 +156,12 @@ export function ProductBasicInfoFields({
               <ScanLine className="h-4 w-4" />
             </Button>
           </div>
+          {sameBarcode && (
+            <p role="alert" className="text-[12px] text-destructive">
+              This barcode already belongs to &ldquo;{sameBarcode.name}&rdquo;. Each barcode can only be on one{" "}
+              {t("product").toLowerCase()}.
+            </p>
+          )}
         </div>
       </div>
     </div>

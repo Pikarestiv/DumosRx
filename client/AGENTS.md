@@ -7941,3 +7941,17 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   an immediate purchase skips the Sent step.
 - The PDF download is `usePoPdfDownload`; it keeps the lazy `@react-pdf/renderer`
   imports, which `heavy-dependency-laziness.test.ts` pins.
+
+## Duplicate products (2026-11-17)
+
+- Names are not unique on purpose: two real products can share a name and
+  differ by strength/size. `findDuplicateProducts` (`lib/utils/duplicate-product.ts`)
+  calls a product a duplicate only when the trimmed, case-insensitive name AND
+  strength match (both empty counts as a match). The Add/Edit form then shows an
+  inline warning under the name field; saving is still allowed.
+- A barcode is different: the same non-empty barcode on a second product is a
+  validation error, because scanning at the till has to resolve to one product.
+- The check runs on this device's local catalog (`getProductList`, which now
+  also selects `barcode`). Two offline tills can still each create the same name
+  or barcode before syncing; there is no server-side uniqueness rule, so this is
+  a guard against typing mistakes, not a guarantee.

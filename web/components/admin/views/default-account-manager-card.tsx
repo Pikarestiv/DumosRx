@@ -34,11 +34,11 @@ export function DefaultAccountManagerCard() {
     setIsSaving(true);
     try {
       await webApiClient.updateSystemConfig("default_account_manager_id", selected);
-      toast.success("Default contact specialist updated", {
+      toast.success("Default account manager updated", {
         description: "Applies to any store with no referrer and no explicit assignment.",
       });
     } catch {
-      toast.error("Failed to update the default contact specialist.");
+      toast.error("Failed to update the default account manager.");
     } finally {
       setIsSaving(false);
     }
@@ -46,7 +46,7 @@ export function DefaultAccountManagerCard() {
 
   return (
     <div className="bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-6">
-      <h3 className="text-lg font-black mb-1">Default Contact Specialist</h3>
+      <h3 className="text-lg font-black mb-1">Default Account Manager</h3>
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 font-medium">
         Shown to any store with no referring platform staff and no explicit
         per-store assignment (see the Account Manager field on a store's

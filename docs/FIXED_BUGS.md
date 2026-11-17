@@ -1,3 +1,15 @@
+### A-180 — the admin panel called one concept three things: "Account Manager", "Contact Specialist", and a component that contradicted itself
+- **Fixed:** 2026-11-17, web only, TDD. Found while writing partner SOP documentation (Issue #234).
+- **Was:** In the web admin panel, the relationship was called "Account Manager" in Settings tabs (`app/admin/settings/[[...tab]]/settings-client.tsx`) and in API fields (`account_manager` / `account_manager_is_explicit`), but the store detail card rendered `DetailCard title="Contact Specialist"` (`account-manager-card.tsx`), and the settings card rendered `Default Contact Specialist` while referencing "see the Account Manager field" in its own body (`default-account-manager-card.tsx`), contradicting itself.
+- **Now:**
+  (1) Standardized on "Account Manager" across the web admin panel.
+  (2) `AccountManagerCard` (`web/components/admin/stores/details/account-manager-card.tsx`) now renders `DetailCard title="Account Manager"`, uses "No account manager resolved.", and displays "Account manager updated" upon saving.
+  (3) `DefaultAccountManagerCard` (`web/components/admin/views/default-account-manager-card.tsx`) now renders heading "Default Account Manager", with consistent toast messages.
+  (4) Updated `docs/partner-sop/DumosRx-Partner-SOP.docx` (section 1) to document that the relationship is unified as Account Manager across the panel.
+  (5) Updated `web/AGENTS.md` store detail documentation.
+- **Coverage:** `web/__tests__/admin-account-manager-cards.test.tsx` (tests for title rendering, unassigned copy, save mutation toasts for both `AccountManagerCard` and `DefaultAccountManagerCard`).
+- **Compat:** Pure UI string standardization; no API or schema changes.
+
 ### A-208 — an admin till access code never expired, so a forgotten one stayed a working credential for ever
 - **Fixed:** 2026-11-17, server and web, TDD. Found during the super_admin code-visibility review (A-207).
 - **Was:** `AdminTillCode::scopeActive()` matched only `whereNull('revoked_at')`. The session opened by a till code expired after four hours, but the code itself had no lifetime. It remained valid from issue until explicitly revoked. With codes recoverable by super admins (A-207), a forgotten code became a durable, readable credential with growing risk over time.

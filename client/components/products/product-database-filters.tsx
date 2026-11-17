@@ -1,5 +1,6 @@
 import { SearchInput } from "@/components/ui/search-input";
-import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
+import { FilterPill } from "@/components/ui/filter-pill";
+import { catalogStatusLabel } from "./catalog-status";
 import { ProductActionsMenu } from "./product-actions-menu";
 import type { Product } from "./types";
 
@@ -13,6 +14,7 @@ interface ProductDatabaseFiltersProps {
   categories: string[];
   statuses: string[];
   owedCount?: number;
+  duplicateCount?: number;
   onManageCategories: () => void;
   onProductsChanged: () => void;
   // Currently-filtered product ids, so Export and the bulk online-visibility action both default to what's on screen — undef…
@@ -31,6 +33,7 @@ export function ProductDatabaseFilters({
   categories,
   statuses,
   owedCount = 0,
+  duplicateCount = 0,
   onManageCategories,
   onProductsChanged,
   filteredProductIds,
@@ -70,7 +73,7 @@ export function ProductDatabaseFilters({
           onValueChange={setStatusFilter}
           options={statuses.map((s) => ({
             value: s,
-            label: s === "stock_owed" ? `Stock Owed (${owedCount})` : formatFilterLabel(s),
+            label: catalogStatusLabel(s, { owed: owedCount, duplicates: duplicateCount }),
           }))}
         />
       </div>

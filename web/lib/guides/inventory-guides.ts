@@ -232,6 +232,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "If it is really a different product, put the size or strength in the name, or fill in 'Strength / Size' under Additional Details. The warning disappears once the two differ, for example 200ml and 500ml.",
       "If it is the same product, close the form and edit the existing one instead, from the pencil beside its name in the catalog.",
       "A barcode can only belong to one product. Typing or scanning a barcode that is already in use stops the save and tells you which product has it.",
+      "To clean up products that are already duplicated, open the Inventory filter in the catalog and choose 'Possible Duplicates'. It lists every product that shares a name and size, or a barcode, with another.",
     ],
     proTip:
       "The check runs against the products on the till you are using. If two tills add the same product while offline, the duplicate only shows up after they sync, so rename or merge it then.",

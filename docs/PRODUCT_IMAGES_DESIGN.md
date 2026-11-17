@@ -61,6 +61,20 @@ server has checked (size cap, magic bytes of the declared type) are copied to
 the public bucket under a server-chosen `Content-Type`. Nothing a caller
 uploads is publicly reachable until it has passed confirm.
 
+## Cloudflare resources (account `dumostechng@gmail.com`)
+
+| Environment | Public bucket (custom domain) | Incoming bucket |
+| --- | --- | --- |
+| Dev | `dumosrx-dev-product-images` (`images-dev.dumostech.com`) | `dumosrx-dev-product-images-incoming` |
+| Production | `dumosrx-product-images` (`images.dumostech.com`) | `dumosrx-product-images-incoming` |
+
+Production was created on 2026-11-17 with the same shape as dev: CORS `GET`/`HEAD` for
+`app.dumosrx.com`, `dumosrx.com`, `www.dumosrx.com` and the Tauri origins on the public bucket,
+`PUT` with `Content-Type` for the app and Tauri origins on the incoming bucket (24 hour expiry
+rule), r.dev public URLs off. The feature stays off in production until the server `.env`
+has `PRODUCT_IMAGES_ENABLED=true`, the bucket names, `R2_PUBLIC_BASE_URL=https://images.dumostech.com`
+and an R2 token scoped to the two production buckets (Object Read & Write).
+
 ## Flows (all online-only)
 
 1. **Config.** `GET /api/v1/app/product-images/config` returns

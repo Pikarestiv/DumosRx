@@ -23,7 +23,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/db/queries/inventory", () => ({
   getExpiringBatches: () =>
     Promise.resolve([
-      { id: "b1", name: "Amoxil", batch_number: "B-77", expiry_date: "2099-01-01", stock_quantity: 43, base_unit: "tab" },
+      { id: "b1", name: "Amoxil", batch_number: "B-77", expiry_date: "2099-01-01", stock_quantity: 7391, base_unit: "tab" },
     ]),
 }));
 
@@ -54,14 +54,14 @@ describe("Needs attention and view_stock_quantities", () => {
   it("shows on-hand and batch quantities with the permission", async () => {
     const view = await renderPanel(true);
     expect(view.getByText(/3 tabs left · Reorder at 20 tabs/)).toBeTruthy();
-    expect(view.getByText(/Batch B-77/).textContent).toContain("43 tabs");
+    expect(view.getByText(/Batch B-77/).textContent).toContain("7391 tabs");
   });
 
   it("shows only the band and the reorder point without it", async () => {
     const view = await renderPanel(false);
     expect(view.getByText("Low stock · Reorder at 20 tabs")).toBeTruthy();
     const batchLine = view.getByText(/Batch B-77/).textContent ?? "";
-    expect(batchLine).not.toContain("43");
-    expect(view.container.textContent).not.toMatch(/\b3 tabs|43/);
+    expect(batchLine).not.toContain("7391");
+    expect(view.container.textContent).not.toMatch(/\b3 tabs|7391/);
   });
 });

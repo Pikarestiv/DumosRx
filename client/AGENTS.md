@@ -7181,6 +7181,17 @@ is taken. `GET /app/online-orders` is now bounded to 50 newest-first with a
 `has_more` flag; the modal renders whatever it's given, so a deeper history
 needs a real paginated view.
 
+**Booked services (2026-11-17).** A storefront order can carry service lines.
+The server returns them in `service_items` (each with `service.name`), never in
+`items`, so a bundle older than this change only ever sees product lines; see
+`laravel-server/AGENTS.md`, "Storefront service bookings". The modal lists them
+under the products with a "Booking" badge, the stock check ignores them, and
+fulfilment writes one `sale_services` row per line (name and price snapshotted
+from the order) in the same local transaction as the sale, with no stock
+movement (`use-fulfill-online-order-mutation.test.ts`). An older till that
+fulfils a mixed order records the sale at the order's full total but without
+the service lines.
+
 ## Publishing products to the online storefront
 
 `products.show_online` defaults **on** since storefront Phase 1 (2026-11-02);
@@ -8011,6 +8022,24 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   cells follow the store's capitalisation setting like the product catalog.
 - Backward compatibility (§11): nothing about the stored shape changed, so older bundles keep working;
   they just keep their free-text input.
+
+## Services parity with products (2026-11-17)
+
+- **Inventory services table** sorts by any header (name, code, category, price, status) with the shared
+  `useSortableData` + `SortableHeaderCell`, like the product catalog. Mobile cards stay in catalogue order.
+- **POS services tab** uses `POSCategoryFilter`, the products tab's chip row (outlined when inactive), and
+  each service card draws `CategoryIcon` from its category, the same matcher the product cards use.
+- **Recent Sales "Sale Type"** offers Product, Service, Reseller and Store Markup. `getRecentSales()` returns
+  `has_product_lines`/`has_service_lines` (`SALE_HAS_*_LINES_SQL` in `sale-line-summary-sql.ts`, live lines
+  only); `matchesSaleTypeFilter()` (`lib/utils/sale-type-filter.ts`) applies the choice, and a mixed sale
+  matches both Product and Service.
+- **Recent Sales customer names** are shown through `capitalizeWords()` ("chidimma mgbeke" reads
+  "Chidimma Mgbeke"); the stored name and the search keep the original text.
+- **Activity Log for services.** Create, edit and delete go through `insert()`/`update()`/`softDelete()`, so
+  each writes an `audit_logs` row; the log reads them as "Created a service" and so on (`describe-activity.ts`).
+  `updateServiceDetails()` adds `previous_price` to the UPDATE row when the price actually changed, so a price
+  change shows old and new (`service-inventory-tab.test.ts`). Product price edits still log only the new price
+  (`docs/KNOWN_BUGS.md`).
 
 ## Mobile keyboard and touch targets (2026-11-17)
 

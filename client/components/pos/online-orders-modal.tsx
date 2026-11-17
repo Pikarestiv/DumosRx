@@ -174,6 +174,15 @@ export function OnlineOrdersModal() {
                             <div role="cell" className="py-1 text-right w-[100px] shrink-0">{formatCurrency(Number(item.subtotal), currencyCode)}</div>
                           </div>
                         ))}
+                        {(order.service_items ?? []).map((line) => (
+                          <div key={line.id} role="row" className="flex items-center gap-2">
+                            <div role="cell" className={`py-1 flex-1 ${capsClass}`}>
+                              {line.service?.name || "Service"} <Badge variant="outline" className="ml-1 text-[10px] uppercase">Booking</Badge>
+                            </div>
+                            <div role="cell" className="py-1 text-right w-[60px] shrink-0">x{line.quantity}</div>
+                            <div role="cell" className="py-1 text-right w-[100px] shrink-0">{formatCurrency(Number(line.subtotal), currencyCode)}</div>
+                          </div>
+                        ))}
                       </div>
                       <div role="rowgroup">
                         <div role="row" className="flex items-center gap-2 border-t font-semibold">

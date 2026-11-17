@@ -1,7 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { Sparkles, Layers } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { CategoryIcon } from "./category-icon";
 import { formatCurrency } from "@/lib/utils";
 import type { Service } from "@/lib/types/service";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
@@ -36,9 +37,11 @@ export const POSServiceCard = memo(function POSServiceCard({
         </div>
       )}
 
-      {/* Icon Area */}
-      <div className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-1.5 sm:mb-2.5 mt-4">
-        <Layers className="h-4 w-4 sm:h-5 sm:w-5" />
+      <div
+        data-testid="service-category-icon"
+        className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-1.5 sm:mb-2.5 mt-4"
+      >
+        <CategoryIcon categoryName={service.category} productName={service.name} className="h-4 w-4 sm:h-5 sm:w-5" />
       </div>
 
       <div className={`text-[11.5px] sm:text-[13px] font-semibold leading-tight mb-0.5 sm:mb-1 line-clamp-2 ${capsClass}`}>

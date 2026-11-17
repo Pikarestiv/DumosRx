@@ -458,6 +458,16 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-393. `client/` — a product price edit is logged with the new price only
+- **Found:** 2026-11-17, auditing service activity logging for the storefront booking work.
+- **What's wrong:** a product edit goes through `update()`, whose audit row holds the values written, so the Activity Log shows the new selling price but not the one it replaced. Services now record `previous_price` beside it (`updateServiceDetails()`); products do not.
+- **Fix:** read the current `selling_price` before the update in the product edit path and pass it as `auditDetails: { previous_price }`, as `updateServiceDetails()` does.
+
+#### A-394. `client/` — a till older than 2026-11-17 fulfils a storefront booking without its service lines
+- **Found:** 2026-11-17, building storefront service bookings.
+- **What's wrong:** `GET /app/online-orders` keeps booked services out of `items` (in `service_items`) so an older till never meets a line without a product. That till's fulfil path still writes the sale at the order's full `total_amount`, so the sale carries the service revenue with no `sale_services` line to explain it.
+- **Fix / retire:** update the till; no server change is planned. Goes away once no active `user_devices` row reports an `app_version` older than the release carrying this change.
+
 #### A-372. `client/` + `web/` — a store owner's customer-referral link never credits the referrer
 - **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
 - **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.

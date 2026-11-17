@@ -120,4 +120,21 @@ async function recordLocalOnlineSale({
       recordShortfallAsOwed,
     });
   }
+
+  for (const line of order.service_items ?? []) {
+    await insert(
+      "sale_services",
+      {
+        store_id: storeId,
+        sale_id: saleId,
+        service_id: line.service_id,
+        service_name: line.service?.name || "Service",
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        total_price: line.subtotal,
+        notes: null,
+      },
+      { correlationId: saleId },
+    );
+  }
 }

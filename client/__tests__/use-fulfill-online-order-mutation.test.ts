@@ -108,6 +108,33 @@ describe("useFulfillOnlineOrderMutation", () => {
     expect(batchRows[0]?.values[0][0]).toBe(8); // 10 - 2
   });
 
+  it("records booked services as sale_services lines without touching stock", async () => {
+    seedProductWithBatch("p1", 500, 10);
+    const { useFulfillOnlineOrderMutation } = await import(
+      "@/lib/hooks/use-fulfill-online-order-mutation"
+    );
+    const { result } = renderHook(() => useFulfillOnlineOrderMutation(), { wrapper });
+    const booking: OnlineOrder = {
+      ...order,
+      id: "order-booking",
+      total_amount: 30000,
+      service_items: [
+        { id: "os1", service_id: "svc1", quantity: 1, unit_price: 25000, subtotal: 25000, service: { name: "Scaling" } },
+      ],
+    };
+
+    await act(async () => {
+      await result.current.mutateAsync({ order: booking, storeId: "store1", cashierId: "cashier1" });
+    });
+
+    const serviceRows = db.exec(
+      `SELECT ss.service_id, ss.service_name, ss.quantity, ss.total_price FROM sale_services ss JOIN sales s ON s.id = ss.sale_id WHERE s.transaction_number = 'ONL-order-booking'`,
+    );
+    expect(serviceRows[0]?.values).toEqual([["svc1", "Scaling", 1, 25000]]);
+    const batchRows = db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`);
+    expect(batchRows[0]?.values[0][0]).toBe(8);
+  });
+
   it("generates a distinct transaction_number per fulfillment (not derived from a shared order-id prefix)", async () => {
     seedProductWithBatch("p1", 500, 10);
     const { useFulfillOnlineOrderMutation } = await import(

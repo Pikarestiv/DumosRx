@@ -78,6 +78,27 @@ describe("sales history counts and names service lines (A-365)", () => {
     expect((await sales.getSaleByTransactionNumber("TXN-s2"))?.item_count).toBe(3);
   });
 
+  it("tells Recent Sales which kinds of line a sale carries, ignoring voided lines", async () => {
+    seedSale("k1");
+    seedItem("ki1", "k1", 1);
+    seedSale("k2");
+    seedService("ks1", "k2", "Consultation", 1);
+    seedService("ks2", "k2", "Voided Scan", 1, 1);
+    seedSale("k3");
+    seedItem("ki2", "k3", 1);
+    seedService("ks3", "k3", "Fitting", 1);
+    seedSale("k4");
+    seedService("ks4", "k4", "Voided only", 1, 1);
+
+    const byId = new Map((await sales.getRecentSales()).map((r) => [r.id, r]));
+    const kinds = (id: string) => [byId.get(id)?.has_product_lines, byId.get(id)?.has_service_lines];
+
+    expect(kinds("k1")).toEqual([1, 0]);
+    expect(kinds("k2")).toEqual([0, 1]);
+    expect(kinds("k3")).toEqual([1, 1]);
+    expect(kinds("k4")).toEqual([0, 0]);
+  });
+
   it("counts a services-only sale looked up by id or transaction number", async () => {
     seedSale("s3");
     seedService("ss5", "s3", "Consultation", 2);

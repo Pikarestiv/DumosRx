@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { ServicesList } from "@/components/services/services-list";
 import type { Service } from "@/lib/types/service";
@@ -93,6 +93,21 @@ describe("ServicesList responsive layout", () => {
     expect(screen.getByText("Category")).toBeDefined();
     expect(screen.getByText("Price")).toBeDefined();
     expect(screen.getByText("Status")).toBeDefined();
+  });
+
+  it("sorts the desktop table by a clicked header and flips on a second click", () => {
+    mockUseMediaQuery.mockReturnValue(true);
+    const { container } = render(<ServicesList services={mockServices} currencyCode="NGN" />);
+    const firstRowName = () => container.querySelector("tbody tr td")?.textContent ?? "";
+
+    fireEvent.click(screen.getByRole("button", { name: /price/i }));
+    expect(firstRowName()).toContain("Doctor Consultation");
+
+    fireEvent.click(screen.getByRole("button", { name: /price/i }));
+    expect(firstRowName()).toContain("Full Body Massage");
+
+    fireEvent.click(screen.getByRole("button", { name: /service name/i }));
+    expect(firstRowName()).toContain("Doctor Consultation");
   });
 });
 

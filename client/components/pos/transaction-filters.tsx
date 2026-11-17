@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { FilterPill } from "@/components/ui/filter-pill";
+import { SALE_TYPE_OPTIONS } from "@/lib/utils/sale-type-filter";
 
 interface TransactionFiltersProps {
   searchQuery: string;
@@ -21,11 +22,6 @@ const PAYMENT_OPTIONS = [
   { value: "Cash", label: "Cash" },
   { value: "Card", label: "Card" },
   { value: "Transfer", label: "Transfer" },
-];
-
-const SALE_TYPE_OPTIONS = [
-  { value: "Reseller", label: "Reseller" },
-  { value: "StoreMarkup", label: "Store Markup" },
 ];
 
 const STOCK_OWED_OPTIONS = [

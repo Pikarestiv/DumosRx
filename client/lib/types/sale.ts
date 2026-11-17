@@ -55,6 +55,8 @@ export interface SaleWithDetails extends Sale {
   /** "||"-joined product and service names for this sale's lines, for searching by
    * item without a separate fetch - see getRecentSales(). */
   item_names?: string;
+  has_product_lines?: number;
+  has_service_lines?: number;
   stock_originally_owed?: number;
   stock_settled?: number;
   // Legacy/alternate field names some older records or views may use in

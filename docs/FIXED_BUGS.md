@@ -1,3 +1,12 @@
+### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
+- **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
+- **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.
+- **Now:**
+  (1) Added `await adapter.run("DROP TABLE IF EXISTS purchase_orders_nullable_supplier")` before table creation in `relaxPurchaseOrdersSupplierIdNullable()`.
+  (2) The rebuild can now cleanly retry and complete even if an earlier attempt crashed mid-migration and left the scratch table behind.
+- **Coverage:** `client/__tests__/init-database-migrations.test.ts` (verifies migration success, null-supplier insert capability, and scratch table removal when starting with a pre-existing `purchase_orders_nullable_supplier` scratch table).
+- **Compat:** Pure client-side migration resilience fix; no schema or server API changes.
+
 ### A-180 — the admin panel called one concept three things: "Account Manager", "Contact Specialist", and a component that contradicted itself
 - **Fixed:** 2026-11-17, web only, TDD. Found while writing partner SOP documentation (Issue #234).
 - **Was:** In the web admin panel, the relationship was called "Account Manager" in Settings tabs (`app/admin/settings/[[...tab]]/settings-client.tsx`) and in API fields (`account_manager` / `account_manager_is_explicit`), but the store detail card rendered `DetailCard title="Contact Specialist"` (`account-manager-card.tsx`), and the settings card rendered `Default Contact Specialist` while referencing "see the Account Manager field" in its own body (`default-account-manager-card.tsx`), contradicting itself.

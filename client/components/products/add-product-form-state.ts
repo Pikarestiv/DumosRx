@@ -10,7 +10,7 @@ export function emptyProductForm(initialData?: Partial<Product>): Product {
     id: "",
     name: initialData?.name || "",
     genericName: initialData?.genericName || "",
-    category: "",
+    category: initialData?.category || "",
     nafdacNumber: "",
     strength: initialData?.strength || "",
     dosageForm: initialData?.dosageForm || "",

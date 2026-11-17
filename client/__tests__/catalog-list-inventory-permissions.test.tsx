@@ -122,6 +122,7 @@ function renderList() {
       isFuzzyFallback={false}
       formatCurrency={(n: number) => `N${n}`}
       onSelectProduct={vi.fn()}
+      onEditProduct={vi.fn()}
       sortKey={null}
       sortDirection="asc"
       onToggleSort={vi.fn()}

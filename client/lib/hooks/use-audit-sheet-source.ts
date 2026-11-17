@@ -5,27 +5,12 @@ import { queryKeys } from "@/lib/query-keys";
 import type { ProductWithDetails } from "@/lib/types/product";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import {
-  mergeFreshLastAuditedAt,
   shouldRebuildAuditSheet,
+  toAuditItem,
+  reconcileAuditDraftWithCatalog,
 } from "@/components/stock-batch/audit-derivations";
 import { useStockAuditDraftStore } from "./use-stock-audit-draft";
 import { usePreAuditSync } from "./use-pre-audit-sync";
-
-function toAuditItem(p: ProductWithDetails): AuditItem {
-  return {
-    id: p.id,
-    name: p.name,
-    sku: p.barcode || `SKU-${p.id.substring(0, 6)}`,
-    category: p.category_name || "Uncategorized",
-    systemQty: p.stock_quantity || 0,
-    costPrice: p.cost_price ?? undefined,
-    sellingPrice: p.selling_price ?? undefined,
-    countedQty: undefined,
-    countedCostPrice: p.cost_price ?? undefined,
-    countedSellingPrice: p.selling_price ?? undefined,
-    lastAuditedAt: p.last_audited_at ?? null,
-  };
-}
 
 export function useAuditSheetSource() {
   const items = useStockAuditDraftStore((state) => state.items);
@@ -51,13 +36,13 @@ export function useAuditSheetSource() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawProducts, items.length, draftRestored, sheetMayBuild]);
 
-  // Refresh "Last Counted" in place without touching counts in progress.
-  // Rationale: docs/CLIENT_COMMENTS.md#stock-audits-last-audited-refresh
+  // Reconcile draft against catalog: append new products, mark deleted products,
+  // and keep uncounted stock/prices fresh (A-259).
   useEffect(() => {
-    if (!draftRestored || !rawProducts || rawProducts.length === 0) return;
-    setItems((prev) => mergeFreshLastAuditedAt(prev, rawProducts));
+    if (!sheetMayBuild || !draftRestored || !rawProducts || rawProducts.length === 0) return;
+    setItems((prev) => reconcileAuditDraftWithCatalog(prev, rawProducts));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawProducts, draftRestored]);
+  }, [rawProducts, draftRestored, sheetMayBuild]);
 
   return { isLoading: isLoading || !draftRestored, presync };
 }

@@ -173,8 +173,9 @@ export async function fetchProfitLossReportData(dateFrom?: string, dateTo?: stri
     `SELECT strftime('%Y-%m', r.created_at, 'localtime') as "Month",
        SUM(
          COALESCE(
+           ri.quantity * sic.avg_cost_price,
            (SELECT SUM(sm.total_cost) FROM stock_movements sm WHERE sm.reference_id = r.id AND sm.reference_type = 'return' AND sm.product_id = ri.product_id AND (sm._deleted = 0 OR sm._deleted IS NULL)),
-           ri.quantity * IFNULL(sic.avg_cost_price, 0)
+           0
          )
        ) as returned_cogs
      FROM return_items ri

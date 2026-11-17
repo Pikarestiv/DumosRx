@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Globe } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -23,17 +22,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useBulkShowOnlineMutation } from "@/lib/hooks/use-bulk-show-online-mutation";
 
-interface BulkShowOnlineActionProps {
+interface BulkShowOnlineActionsProps {
   onUpdated: () => void;
   // The catalog table's currently-filtered product ids, so this acts on "what's on screen" exactly like Export does — undefi…
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-bulk-show-online-action-tsx-L28
   filteredProductIds?: string[];
 }
 
-export function BulkShowOnlineAction({
+export function useBulkShowOnlineActions({
   onUpdated,
   filteredProductIds,
-}: BulkShowOnlineActionProps) {
+}: BulkShowOnlineActionsProps): { menuItems: ReactNode; overlays: ReactNode } {
   const [pendingShowOnline, setPendingShowOnline] = useState<boolean | null>(null);
   const mutation = useBulkShowOnlineMutation();
   const isFiltered = filteredProductIds !== undefined;
@@ -69,37 +68,30 @@ export function BulkShowOnlineAction({
     );
   };
 
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-1.5 text-[12px]"
-            disabled={mutation.isPending}
-          >
-            <Globe className="h-3.5 w-3.5" />
-            Online
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {isFiltered && (
-            <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-              Filter active: applies to {filteredProductIds.length} shown product
-              {filteredProductIds.length === 1 ? "" : "s"}
-            </div>
-          )}
-          <DropdownMenuItem onClick={() => setPendingShowOnline(true)}>
-            Show online
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setPendingShowOnline(false)}>
-            Hide online
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+  const menuItems = (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger disabled={mutation.isPending}>
+        <Globe className="h-3.5 w-3.5" />
+        Show or hide in online store
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        {isFiltered && (
+          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+            Filter active: applies to {filteredProductIds.length} shown product
+            {filteredProductIds.length === 1 ? "" : "s"}
+          </div>
+        )}
+        <DropdownMenuItem onSelect={() => setPendingShowOnline(true)}>
+          Show online
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setPendingShowOnline(false)}>
+          Hide online
+        </DropdownMenuItem>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
 
+  const overlays = (
       <AlertDialog
         open={pendingShowOnline !== null}
         onOpenChange={(open) => {
@@ -125,6 +117,7 @@ export function BulkShowOnlineAction({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
   );
+
+  return { menuItems, overlays };
 }

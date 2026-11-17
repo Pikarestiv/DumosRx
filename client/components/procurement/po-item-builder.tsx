@@ -200,8 +200,8 @@ export function POItemBuilder({
           <Input
             value={itemFilter}
             onChange={(e) => setItemFilter(e.target.value)}
-            placeholder="Filter items in this order"
-            aria-label="Filter items in this order"
+            placeholder="Search items in this purchase order"
+            aria-label="Search items in this purchase order"
             className="pl-9 pr-9 h-9 text-[12.5px] rounded-[10px]"
           />
           {itemFilter && (

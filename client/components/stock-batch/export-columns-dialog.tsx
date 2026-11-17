@@ -5,9 +5,10 @@ import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { EXPORT_COLUMNS } from "@/lib/utils/product-import-export";
+import { getExportColumns } from "@/lib/utils/product-import-export";
 import type { ExportableProduct } from "@/lib/db/queries/product-export";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { useHasPermission } from "@/lib/hooks/use-permissions";
 
 const STORAGE_KEY = STORAGE_KEYS.exportColumns;
 
@@ -35,10 +36,15 @@ export function ExportColumnsDialog({
   onOpenChange,
   onConfirm,
 }: ExportColumnsDialogProps) {
-  const allKeys = EXPORT_COLUMNS.map((c) => c.key);
-  const [selected, setSelected] = useState<Set<keyof ExportableProduct>>(
-    () => new Set(getStoredExportColumns() ?? allKeys),
-  );
+  const canViewCost = useHasPermission("view_cost_fields");
+  const availableColumns = getExportColumns(canViewCost);
+  const availableKeys = availableColumns.map((c) => c.key);
+
+  const [selected, setSelected] = useState<Set<keyof ExportableProduct>>(() => {
+    const stored = getStoredExportColumns();
+    if (!stored) return new Set(availableKeys);
+    return new Set(stored.filter((k) => availableKeys.includes(k)));
+  });
 
   const toggle = (key: keyof ExportableProduct) => {
     setSelected((prev) => {
@@ -50,9 +56,9 @@ export function ExportColumnsDialog({
   };
 
   const handleConfirm = () => {
-    const columns = EXPORT_COLUMNS.map((c) => c.key).filter((key) =>
-      selected.has(key),
-    );
+    const columns = availableColumns
+      .map((c) => c.key)
+      .filter((key) => selected.has(key));
     setStoredExportColumns(columns);
     onConfirm(columns);
     onOpenChange(false);
@@ -75,7 +81,7 @@ export function ExportColumnsDialog({
       }
     >
       <div className="flex flex-col gap-3 p-4">
-        {EXPORT_COLUMNS.map((column) => (
+        {availableColumns.map((column) => (
           <div key={column.key} className="flex items-center gap-2">
             <Checkbox
               id={`export-col-${column.key}`}

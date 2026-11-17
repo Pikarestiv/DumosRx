@@ -24,6 +24,7 @@ import { ProductPricingInfo } from "./product-details/product-pricing-info";
 import { ProductStockInfo } from "./product-details/product-stock-info";
 import { ProductBatchHistory } from "./product-details/product-batch-history";
 import { ProductHistory } from "./product-details/product-history";
+import { ProductImageSection } from "./product-details/product-image-section";
 import { ProductDetailTabNav } from "./product-detail-tab-nav";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
@@ -212,6 +213,12 @@ export function CatalogDetailPanel({
         <div className="flex-1 overflow-y-auto stable-scrollbar p-4">
           <TabsContent value="details" className="mt-0">
             <div className="flex flex-col gap-4 pb-4">
+              <ProductImageSection
+                productId={product.id}
+                productName={product.name}
+                imageKey={product.imageKey}
+                categoryName={product.category}
+              />
               <ProductBasicInfo product={product} creator={creator} />
               <ProductSupplierInfo product={product} />
               <ProductPricingInfo

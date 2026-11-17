@@ -1,5 +1,6 @@
 import type { AuditItem } from "./stock-audits";
 import type { StockAuditSubmission } from "@/lib/db/queries/inventory";
+import type { ProductWithDetails } from "@/lib/types/product";
 
 export const ALL_AUDIT_CATEGORIES = "__all__";
 
@@ -191,7 +192,7 @@ export const AUDIT_SORT_ACCESSORS = {
 export type AuditSortKey = keyof typeof AUDIT_SORT_ACCESSORS;
 
 export function selectAdjustedAuditItems(countedItems: AuditItem[]): AuditItem[] {
-  return countedItems.filter(differsFromSystem);
+  return countedItems.filter((item) => !item.isDeleted && differsFromSystem(item));
 }
 
 /** True once any row differs from the values the count opened with, i.e. the
@@ -205,18 +206,25 @@ export function hasUnsavedAuditEdits(items: AuditItem[]): boolean {
 export function toStockAuditSubmissions(
   items: AuditItem[],
 ): StockAuditSubmission[] {
-  return items.map((item) => ({
-    productId: item.id,
-    systemQty: item.systemQty,
-    countedQty: item.countedQty,
-    baselineQty: item.baselineQty,
-    systemCostPrice: item.costPrice,
-    countedCostPrice: item.countedCostPrice ?? item.costPrice,
-    systemSellingPrice: item.sellingPrice,
-    countedSellingPrice: item.countedSellingPrice ?? item.sellingPrice,
-    reason: item.reason,
-  }));
+  return items
+    .filter((item) => !item.isDeleted)
+    .map((item) => ({
+      productId: item.id,
+      systemQty: item.systemQty,
+      countedQty: item.countedQty,
+      baselineQty: item.baselineQty,
+      systemCostPrice: item.costPrice,
+      countedCostPrice: item.countedCostPrice ?? item.costPrice,
+      systemSellingPrice: item.sellingPrice,
+      countedSellingPrice: item.countedSellingPrice ?? item.sellingPrice,
+      reason: item.reason,
+    }));
 }
+
+export {
+  toAuditItem,
+  reconcileAuditDraftWithCatalog,
+} from "./audit-reconciliation";
 
 /** The typed figure, applied before the live re-read resolves so typing
  * never waits on the database. */

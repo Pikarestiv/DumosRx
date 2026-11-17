@@ -40,7 +40,6 @@ function renderRow(
       product={product}
       isSelected={false}
       isDesktop
-      isPharmacy
       capsClass=""
       categoryOptions={["Analgesics"]}
       canEdit
@@ -59,6 +58,7 @@ function renderRow(
       onSaveReorderLevel={vi.fn()}
       onPrintLabel={onPrintLabel}
       onDeleteProduct={onDeleteProduct}
+      onEditProduct={vi.fn()}
       {...overrides}
     />,
   );

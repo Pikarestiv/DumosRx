@@ -25,6 +25,7 @@ vi.mock("@/lib/context/store-context", () => ({
 
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
+  useDisplayName: () => (value: string) => value,
 }));
 
 vi.mock("@/components/products/product-delete-dialog", () => ({

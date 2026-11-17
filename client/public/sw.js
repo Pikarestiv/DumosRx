@@ -85,8 +85,37 @@ function computeCachePrunePlan(cachedPathnames, currentUrls, previouslyRetained)
   return { deleted: [...deleted], retained: [...retained] };
 }
 
+const PRODUCT_IMAGE_CACHE = "dumosrx-product-images-v1";
+const PRODUCT_IMAGE_CACHE_LIMIT = 500;
+const PRODUCT_IMAGE_PATH = /\/stores\/[^/]+\/products\/[^/]+\/[^/]+\.(webp|jpg|png)$/;
+
+function isProductImageRequest(request) {
+  return request.method === "GET" && request.destination === "image" && PRODUCT_IMAGE_PATH.test(new URL(request.url).pathname);
+}
+
+function productImageEvictions(cachedUrls, limit) {
+  return cachedUrls.slice(0, Math.max(0, cachedUrls.length - limit));
+}
+
+async function productImageResponse(request) {
+  const cache = await caches.open(PRODUCT_IMAGE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response.ok && response.type !== "opaque") {
+    await cache.put(request, response.clone());
+    const keys = await cache.keys();
+    await Promise.all(productImageEvictions(keys, PRODUCT_IMAGE_CACHE_LIMIT).map((key) => cache.delete(key)));
+  }
+  return response;
+}
+
 self.__swInternals = {
   computeCachePrunePlan,
+  isProductImageRequest,
+  productImageEvictions,
+  PRODUCT_IMAGE_CACHE,
   RETAINED_RECORD_KEY,
   NAVIGATE_NETWORK_TIMEOUT_MS,
 };
@@ -172,7 +201,7 @@ self.addEventListener("activate", (event) => {
       const cacheNames = await caches.keys();
       await Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_VERSION)
+          .filter((name) => name !== CACHE_VERSION && name !== PRODUCT_IMAGE_CACHE)
           .map((name) => caches.delete(name)),
       );
 
@@ -237,6 +266,11 @@ self.addEventListener("fetch", (event) => {
   // Only GET requests are cacheable; a mutating request (POST/PUT/etc, e.g.
   // every API write) must always hit the network.
   if (request.method !== "GET") return;
+
+  if (isProductImageRequest(request)) {
+    event.respondWith(productImageResponse(request));
+    return;
+  }
 
   // Leave cross-origin requests alone entirely - this covers the API server
   // (a separate domain, e.g. api.dumosrx.com), analytics, fonts, etc. Only

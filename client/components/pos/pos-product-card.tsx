@@ -15,7 +15,7 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
-import { CategoryIcon } from "./category-icon";
+import { ProductImage } from "@/components/products/product-image";
 
 type PosGroup = "suggestion" | "recent" | "common" | "standard";
 export type GroupedProduct = POSProduct & { posGroup: PosGroup };
@@ -70,6 +70,27 @@ export const POSProductCard = memo(function POSProductCard({
   const isBlocked = isOutOfStock && !isSaleWithoutStockEnabled(storeProfile?.allow_sale_without_stock);
   const capsClass = useUppercaseDisplayClass();
 
+  const hasRealGeneric =
+    Boolean(product.generic_name) &&
+    product.generic_name.trim().toLowerCase() !== "generic";
+  const hasRealStrength =
+    Boolean(product.strength) &&
+    product.strength.trim() !== "-";
+
+  const genericAndStrength = [
+    hasRealGeneric ? product.generic_name : null,
+    hasRealStrength ? product.strength : null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
+  const barcodeAndCategory = [product.barcode, product.category_name]
+    .filter(Boolean)
+    .join(" · ");
+
+  const fallbackId = product.id ? product.id.slice(0, 8) : "";
+  const subtitle = genericAndStrength || barcodeAndCategory || fallbackId;
+
   return (
     <button
       type="button"
@@ -86,10 +107,18 @@ export const POSProductCard = memo(function POSProductCard({
           </div>
         )}
 
-        {/* Icon Area */}
-        <div className="w-full h-10 sm:h-14 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 flex items-center justify-center mb-1.5 sm:mb-2.5">
-          <CategoryIcon categoryName={product.category_name} className="h-4 w-4 sm:h-5 sm:w-5" />
-        </div>
+        <ProductImage
+          imageKey={product.image_key}
+          categoryName={product.category_name}
+          productName={product.name}
+          alt=""
+          sizePx={56}
+          fit="contain"
+          zoom="overlay"
+          showImage={storeProfile?.pos_show_product_images !== 0}
+          className="w-full h-12 sm:h-20 rounded-lg sm:rounded-xl bg-primary/5 text-primary/70 mb-1.5 sm:mb-2.5"
+          iconClassName="h-4 w-4 sm:h-5 sm:w-5"
+        />
 
         <TooltipProvider delayDuration={1000}>
           <Tooltip>
@@ -108,7 +137,7 @@ export const POSProductCard = memo(function POSProductCard({
         </TooltipProvider>
 
         <div className="text-[10px] sm:text-[11px] text-muted-foreground truncate mb-1 sm:mb-2">
-          {[product.generic_name, product.strength].filter(Boolean).join(" • ")}
+          {subtitle || "\u00A0"}
         </div>
       </div>
 

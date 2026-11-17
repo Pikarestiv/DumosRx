@@ -8,4 +8,5 @@ export interface StorefrontProduct {
   in_stock?: boolean;
   category?: { id?: string; name: string };
   image?: string | null;
+  image_url?: string | null;
 }

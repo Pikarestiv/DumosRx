@@ -4909,4 +4909,85 @@ Any query assembling the tenant's allowed user IDs for sync authorization must u
 - **Admin Purge Sweeper:**
   - `PurgedUserRowSweeper::sweepOrphanedChildren()` cascades sweeps to `sale_services` and `return_services` when parent transactions are purged.
 
+## Product images (2026-11-14)
+
+Design and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`. The server-side rules:
+
+- **Two buckets.** Browsers `PUT` into the private incoming bucket
+  (`r2_incoming` disk, `R2_INCOMING_BUCKET`); confirm re-validates the bytes
+  (size cap and magic bytes for the declared type) and writes them to the
+  public bucket (`r2` disk, `R2_BUCKET`, served through `R2_PUBLIC_BASE_URL`)
+  with a server-chosen `Content-Type` and an immutable `Cache-Control`. This is
+  not optional: the AWS SDK refuses to sign `Content-Type` or
+  `Content-Length` into a presigned URL (`SignatureV4::getHeaderBlacklist()` /
+  `getPresignHeaderDenyList()`), and R2 has no POST policy, so a presigned PUT
+  cannot stop a caller uploading any bytes with any type. Anything uploaded
+  but never confirmed sits only in the private bucket until the sweep.
+- **`products.image_key` is server-owned.** It is in
+  `PushPayloadNormalizer::PRODUCT_SYNC_FORBIDDEN_FIELDS`, stripped from every
+  push, and written only by `ProductImageService` with `_synced_at` stamped
+  and no `_version` bump (the A-245 exemption for a stripped column). Do not
+  start accepting it from sync.
+- **The feature is off until configured and migrated.**
+  `ProductImageService::isEnabled()` needs `PRODUCT_IMAGES_ENABLED`, a
+  non-empty `R2_PUBLIC_BASE_URL` and the `products.image_key` column (A-225
+  probe, cached per request; the service is bound `scoped`). Off means the
+  write endpoints 404 and `GET /app/product-images/config` says
+  `enabled: false`. The same migration adds `stores.pos_show_product_images`,
+  and the client only shows that toggle while the feature is enabled, so no
+  current client pushes the store column to a server that lacks it.
+- **Authorization** (`ProductImageAccess`): a product outside the caller's
+  stores, or with no `store_id`, is a 404 before any permission check; then
+  `manage_products` via the caller's permission group (owners/admins pass).
+  No plan gate: images are available on every plan.
+- **Keys** are `stores/{store_id}/products/{product_id}/{uuid}.{ext}`, issued
+  only by presign and remembered in the cache for the 5 minute URL lifetime;
+  confirm accepts only a key issued for that product, and only once.
+- **Storefront:** `StorefrontProductResource::image_url` is derived, never
+  stored; `image_key` is in `Product::STOREFRONT_PUBLISHED_FIELDS`, so a change
+  schedules a storefront rebuild like a price change.
+- **`product-images:prune-orphans [--dry-run]`** runs daily at 04:30: incoming
+  objects older than an hour, and public objects older than 24 hours that no
+  product (trashed included) references. It lists the bucket under `stores/`;
+  at fleet scale that listing will want paging by store.
+- **Dependency:** `league/flysystem-aws-s3-v3` (pulls `aws/aws-sdk-php`, a
+  large vendor tree for the FTP deploy).
+
+## Nightly database backup (2026-11-17)
+
+Whole-database disaster recovery, separate from the per-store manual backups
+(`BackupController`, `backups:prune`).
+
+- `backups:database` runs at 23:00 Africa/Lagos (`routes/console.php`). `DatabaseDumper`
+  writes a gzipped SQL dump of every table in the connection's own database from one
+  transaction snapshot (PHP, no `mysqldump` needed on the shared host). `BackupEncryptor`
+  encrypts it; `DatabaseBackupService` uploads and verifies it.
+- **MySQL `Schema::getTables()` lists every schema on the server**, not just the current
+  one, so the dumper filters to `getDatabaseName()`. Without that the dump died on another
+  database's `cache` table.
+- **Encryption key custody.** The server holds only a public key (`BACKUP_ENCRYPTION_PUBLIC_KEY`).
+  Each backup gets a random data key, sealed to that public key (libsodium sealed box), and the
+  data is encrypted in chunks with secretstream. The matching key pair lives offline in the
+  owner's password manager: a stolen server and stolen bucket still cannot read a backup.
+  Create the pair with `php artisan backups:keygen` on your own machine.
+- **Bucket and token.** `dumosrx-db-backups` is private. `R2_BACKUP_ACCESS_KEY_ID`/`R2_BACKUP_SECRET_ACCESS_KEY`
+  must be an R2 token scoped to that bucket with **Object Read & Write** only; do not give it
+  Admin. Retention is an R2 lifecycle rule, not code: `daily/` objects expire after 30 days,
+  `monthly/` after 365 (the first of each month also writes `monthly/YYYY-MM.sql.gz.enc`).
+  Keys are `daily/YYYY/MM/YYYYMMDD-HHMMSS.sql.gz.enc`.
+- The command is a no-op until `R2_BACKUP_BUCKET` and the public key are set. A failure
+  (dump, encrypt, upload, size mismatch, or an encrypted file under `BACKUP_MIN_BYTES`)
+  is logged critical, emailed to the admins via `AdminAlertService`, and exits non-zero.
+  There is no alert for a night that never ran (for example the scheduler stopped);
+  check `daily/` in the bucket for yesterday's file.
+- **Restore drill** (rehearse against a scratch database, never production):
+  1. Download the newest object from `dumosrx-db-backups` in the Cloudflare dashboard.
+  2. On your machine: `php artisan backups:decrypt backup.sql.gz.enc backup.sql.gz --secret-key-file=keypair.txt`.
+  3. `gunzip backup.sql.gz` and import it into an empty MySQL database
+     (`mysql scratch_db < backup.sql`). It drops and recreates each table, so it must not
+     be pointed at a live database.
+  4. Spot-check row counts of `stores`, `users` and `sales` against production.
+- The restore import itself has not been rehearsed yet; the dump and the decrypt round trip
+  are covered by `tests/Feature/Backup`, and the dumper has been run read-only against a
+  local MySQL database (75 tables dumped).
 

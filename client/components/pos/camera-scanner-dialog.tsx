@@ -21,7 +21,7 @@ interface CameraScannerDialogProps {
   onScanSuccess: (barcode: string) => void;
 }
 
-type ScanState = "prompt" | "requesting" | "scanning" | "denied" | "error";
+type ScanState = "prompt" | "requesting" | "starting" | "scanning" | "denied" | "error";
 
 const READER_ELEMENT_ID = "camera-scanner-reader";
 
@@ -55,7 +55,9 @@ export function CameraScannerDialog({
   onScanSuccess,
 }: CameraScannerDialogProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const [state, setState] = useState<ScanState>("prompt");
+  const [state, setState] = useState<ScanState>(() =>
+    isOpen && cameraWasAllowedBefore() ? "starting" : "prompt",
+  );
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [cameraCount, setCameraCount] = useState(0);
@@ -77,15 +79,15 @@ export function CameraScannerDialog({
   }, []);
 
   const startScanner = useCallback(
-    async (cameraIndex = 0) => {
-      setState("requesting");
+    async (cameraIndex = 0, permissionKnown = false) => {
+      setState(permissionKnown ? "starting" : "requesting");
       const session = sessionRef.current;
       try {
         const { Html5Qrcode } = await import("html5-qrcode");
-        const cameras = await Html5Qrcode.getCameras();
         if (session !== sessionRef.current) return;
-        setCameraCount(cameras.length);
-        const camera = cameras[cameraIndex] ?? cameras[0];
+        const cameras = cameraIndex > 0 ? await Html5Qrcode.getCameras() : [];
+        if (session !== sessionRef.current) return;
+        const camera = cameras[cameraIndex];
 
         const scanner = new Html5Qrcode(READER_ELEMENT_ID, { verbose: false });
         scannerRef.current = scanner;
@@ -109,6 +111,9 @@ export function CameraScannerDialog({
         }
         rememberCameraAllowed(true);
         setState("scanning");
+        void Html5Qrcode.getCameras().then((all) => {
+          if (session === sessionRef.current) setCameraCount(all.length);
+        });
         setTorchSupported(
           Boolean(scanner.getRunningTrackCameraCapabilities().torchFeature().isSupported()),
         );
@@ -129,6 +134,8 @@ export function CameraScannerDialog({
       setState("prompt");
       setTorchOn(false);
       setTorchSupported(false);
+    } else if (cameraWasAllowedBefore()) {
+      setState("starting");
     }
   }
 
@@ -147,8 +154,8 @@ export function CameraScannerDialog({
     void cameraPermissionState().then((permission) => {
       if (cancelled) return;
       const remembered = permission === null && cameraWasAllowedBefore();
-      if (permission === "granted" || remembered) void startScannerRef.current(0);
-      else if (permission === "denied") setState("denied");
+      if (permission === "granted" || remembered) void startScannerRef.current(0, true);
+      else setState(permission === "denied" ? "denied" : "prompt");
     });
     return () => {
       cancelled = true;
@@ -251,6 +258,13 @@ export function CameraScannerDialog({
               </p>
             </div>
             <Button onClick={() => void startScanner(0)}>Enable Camera</Button>
+          </div>
+        )}
+
+        {state === "starting" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-card">
+            <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            <p className="text-sm text-muted-foreground">Starting camera...</p>
           </div>
         )}
 

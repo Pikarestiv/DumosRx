@@ -262,6 +262,7 @@ export async function applyLoyaltyPointsForSale(params: {
 
 export function buildReceiptTransaction(params: {
   saleId: string;
+  transactionNumber?: string;
   selectedCustomer: Customer | null;
   cashierUser: { first_name?: string; last_name?: string; username?: string } | null;
   cart: CartItem[];
@@ -275,6 +276,7 @@ export function buildReceiptTransaction(params: {
 }): ReceiptTransaction {
   const {
     saleId,
+    transactionNumber,
     selectedCustomer,
     cashierUser,
     cart,
@@ -294,6 +296,8 @@ export function buildReceiptTransaction(params: {
   return {
     ...cartToReceiptTransaction(cart, subtotal, tax, discount, total, selectedCustomer, cashier),
     id: saleId,
+    transactionNumber,
+    transaction_number: transactionNumber,
     paymentMethod,
     paymentSplits: paymentMethod === "mixed" ? paymentSplits : undefined,
     amountPaid:

@@ -96,7 +96,7 @@ export const OPERATIONS_GUIDES: GuideItem[] = [
       "Press 'Save look & details'. Your storefront updates within about 15 minutes, once the next site rebuild finishes.",
     ],
     proTip:
-      "Products without a price show 'Price on request' with an Ask button that opens WhatsApp with a ready-made message, so a WhatsApp number turns every unpriced item into a lead.",
+      "Products without a price show 'Price on request' with an Ask button that opens WhatsApp with a ready-made message, so a WhatsApp number turns every unpriced item into a lead. With no WhatsApp number, the button becomes a Call link to the store phone.",
     videoPlaceholderText: "Video Walkthrough: Choosing a style, accent colour, hours and language for your storefront",
   },
 ];

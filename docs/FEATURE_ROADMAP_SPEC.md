@@ -64,19 +64,22 @@ The review concluded the sync engine should **not** be rewritten: every defect t
 
 ## 🟠 Medium (3–5 days)
 
-### Product & Service Images Feature
+### Service Images
 
-- **Description:** Support uploading and displaying product photos and service banner/thumbnail images across the POS catalog, inventory tables, and customer-facing storefronts.
-- **Value:**
-  - Speeds up cashier recognition on touchscreens in high-volume retail, beauty salons, spas, and supermarkets where item names are similar.
-  - Directly enhances the public online storefront with visual product showcases.
-  - Provides visual line items on digital receipts and customer-facing displays.
-- **Architectural & Offline Constraints:**
-  - **No raw binary blobs in SQLite/MySQL:** Never store image base64 strings directly in SQLite or MySQL rows to avoid severe database bloat and sync engine throttling.
-  - **Cloud Media Storage & CDN:** Uploads are dispatched to S3-compatible cloud storage (e.g., Cloudflare R2 or GCS) via signed URLs from `laravel-server`, saving only optimized public CDN URLs in `products.image_url` and `services.image_url`.
-  - **Offline Client Caching:** Client Tauri/PWA caches thumbnail-sized WebP assets locally (via Cache Storage / IndexedDB), ensuring images remain available even when the till loses internet connection.
-  - **Graceful Fallbacks & Low-Spec Mode:** Defaults back to lightweight category SVG icons whenever an image is missing or offline. Adds a store display setting toggle ("Show images in POS grid") so low-memory devices can disable images for maximum rendering speed.
-- **Effort:** ~3–4 days (storage endpoints, image resizing pipeline, local cache adapter, catalog/POS card thumbnail components).
+- **Current state:** product images shipped 2026-11-14 (`docs/PRODUCT_IMAGES_DESIGN.md`): one image per product in the catalog, POS tiles and storefront cards, stored in Cloudflare R2.
+- **Remaining:** service images (`services.image_key` with the same presign/confirm/delete shape under `/app/services/{id}/image`), images on receipts and the customer display, and a "Download all images for offline" action for tills that must work offline from first launch.
+- **Effort:** ~1–2 days.
+
+### Product images: offline-first pending upload (follow-up to the product images PR)
+
+- **Description:** Let a till attach a product photo while offline, including to a product created offline, and have it upload and relink itself once the device is online and the product has synced.
+- **Today:** Upload, replace and remove are online-only, and an upload needs the product to exist on the server, so a product created offline cannot take a photo until it has synced (the panel says it has not finished syncing).
+- **Shape:**
+  - Keep the compressed image (at most 120KB) on the device, in IndexedDB beside the local database, and render it from there straight away.
+  - A pending-upload queue (one entry per product; a new pick replaces the pending one; deleting the product clears it) uploads when online and the product has synced, then writes the returned `image_key` locally and drops the local copy.
+  - Reuse the existing compress, presign, PUT and confirm path; failures retry with backoff and surface a "photo not uploaded yet" marker rather than blocking the sale or the product save.
+- **Constraints:** `image_key` stays server-owned (never pushed by sync); the pending blob is never synced between devices, so other tills see the photo only after the upload lands; cap pending storage and show the device's pending count.
+- **Effort:** ~2 days. Build after the R2 bucket pipeline has been verified on dev.
 
 ### Migration from other systems: what the product import does not cover yet
 

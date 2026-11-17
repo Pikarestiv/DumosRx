@@ -20,3 +20,5 @@ Schedule::command('storefront:expire-unpaid-orders')->everyFiveMinutes()->withou
 Schedule::command('subscriptions:expire')->dailyAt('02:00');
 Schedule::command('sync:prune-failures')->dailyAt('03:30');
 Schedule::command('sanctum:prune-expired --hours=24')->dailyAt('04:00');
+Schedule::command('product-images:prune-orphans')->dailyAt('04:30');
+Schedule::command('backups:database')->dailyAt('23:00')->timezone('Africa/Lagos')->withoutOverlapping();

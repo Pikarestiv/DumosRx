@@ -25,6 +25,11 @@ export function whatsappLink(number: string | null | undefined, message?: string
   return `https://wa.me/${digits}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
 }
 
+export function phoneLink(number: string | null | undefined): string | null {
+  const digits = (number ?? "").replace(/[^\d+]/g, "");
+  return digits === "" ? null : `tel:${digits}`;
+}
+
 export function withoutStock(product: StorefrontProduct): StorefrontProduct {
   const rest = { ...product };
   delete rest.stock_quantity;

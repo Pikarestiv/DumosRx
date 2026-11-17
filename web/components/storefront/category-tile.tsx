@@ -1,6 +1,22 @@
+"use client";
+
+import { useState } from "react";
 import {
+  AirVent,
+  Bath,
   Box,
+  Candy,
+  Cookie,
+  CookingPot,
+  CupSoda,
+  Flower2,
   FlaskRound,
+  HeartPulse,
+  Layers,
+  Scissors,
+  Syringe,
+  Wheat,
+  Wine,
   Droplet,
   Lightbulb,
   Pill,
@@ -24,24 +40,51 @@ const ICONS: Record<CategoryIcon, LucideIcon> = {
   tools: Wrench,
   basket: ShoppingBasket,
   box: Box,
+  perfume: Flower2,
+  bath: Bath,
+  wipes: Layers,
+  hair: Scissors,
+  wine: Wine,
+  drink: CupSoda,
+  sweet: Candy,
+  biscuit: Cookie,
+  grain: Wheat,
+  sauce: CookingPot,
+  device: HeartPulse,
+  air: AirVent,
+  syringe: Syringe,
 };
 
 interface CategoryTileProps {
   category?: string | null;
   image?: string | null;
   alt: string;
+  productName?: string | null;
 }
 
-export function CategoryTile({ category, image, alt }: CategoryTileProps) {
-  if (image) {
+export function CategoryTile({ category, image, alt, productName }: CategoryTileProps) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+
+  if (image && failedImage !== image) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- static export arbitrary data URI
-      <img src={image} alt={alt} className="aspect-[4/3] w-full object-cover" />
+      <div className="aspect-[4/3] w-full" style={{ background: categoryTint(category ?? "") }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static export arbitrary data URI */}
+        <img
+          src={image}
+          alt={alt}
+          width={512}
+          height={512}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailedImage(image)}
+          className="h-full w-full object-contain"
+        />
+      </div>
     );
   }
 
   const label = category ? toDisplayTitle(correctCategoryName(category)) : null;
-  const Icon = ICONS[categoryIcon(category ?? "")];
+  const Icon = ICONS[categoryIcon(category ?? "", productName)];
 
   return (
     <div

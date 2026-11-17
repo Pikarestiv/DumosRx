@@ -168,9 +168,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/alerts', [NotificationController::class, 'index']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
 
-        // Stock Movements, Adjustments & Purchase Orders
-        Route::get('/stock-movements', [\App\Http\Controllers\Api\App\StockMovementController::class, 'index']);
-        Route::get('/stock-adjustments', [\App\Http\Controllers\Api\App\StockMovementController::class, 'adjustments']);
+        // Purchase Orders
         Route::get('/purchase-orders', [\App\Http\Controllers\Api\App\PurchaseOrderController::class, 'index']);
 
         Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
@@ -376,6 +374,13 @@ Route::prefix('v1')->group(function () {
             Route::post('/audit-sessions/{session}/takeover', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'takeover']);
             Route::post('/audit-sessions/{session}/complete', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'complete']);
             Route::post('/audit-sessions/{session}/abandon', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'abandon']);
+
+            Route::get('/product-images/config', [\App\Http\Controllers\Api\App\ProductImageController::class, 'config']);
+            Route::middleware('throttle:product-images')->group(function () {
+                Route::post('/products/{product}/image/presign', [\App\Http\Controllers\Api\App\ProductImageController::class, 'presign']);
+                Route::post('/products/{product}/image/confirm', [\App\Http\Controllers\Api\App\ProductImageController::class, 'confirm']);
+                Route::delete('/products/{product}/image', [\App\Http\Controllers\Api\App\ProductImageController::class, 'destroy']);
+            });
         });
 
     });

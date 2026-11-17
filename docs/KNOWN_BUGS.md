@@ -47,41 +47,13 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
 - **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
 
-#### A-380. `client/` — the Activity Log detail panel prints every logged field, batch cost included, to anyone with `view_activity_log`
 
-- **Found:** 2026-11-13, reviewing the batch cost correction (PR #308); pre-existing.
-- **What's wrong:** `client/components/activity-log/activity-log-detail-panel.tsx` parses an entry's `details` and lists every key. A `BATCH_COST_CORRECTED` row carries `cost_price` and `previous_cost_price`, and a `stock_batches` insert or update carries `cost_price`, so a role with `view_activity_log` but without `view_cost_fields` reads batch costs there. The product History tab hides them since A-379; this panel does not.
-- **Fix:** read `view_cost_fields` in the panel and drop cost keys (`cost_price`, `previous_cost_price`, `counted_cost_price`, `unit_cost`, `total_cost`) from the listed fields when it is withheld.
-
-#### A-381. `client/` — the Cycle Count ledger shows cost and cost difference to anyone who can count stock
-
-- **Found:** 2026-11-13, in the release review of #312–#314; pre-existing.
-- **What's wrong:** `client/components/stock-batch/audit-ledger-row-cells.tsx` renders the cost price, the counted cost (read-only text when `canEditProductCost` is false) and the cost difference for every row. Only editing is gated (`edit_product_cost`); seeing the figures needs nothing beyond `perform_stock_audit`, so a role without `view_cost_fields` reads every product's cost there.
-- **Fix:** read `view_cost_fields` in `audit-ledger-step.tsx` and hide the three cost cells and their headers when it is withheld.
-
-#### A-382. `client/` — the product export's Cost Price column ignores `view_cost_fields`
-
-- **Found:** 2026-11-13, same review; pre-existing.
-- **What's wrong:** `EXPORT_COLUMNS` in `client/lib/utils/product-import-export.ts` always offers "Cost Price" (the batch average from `lib/db/queries/product-export.ts`), and the toolbar (`components/stock-batch/import-export-toolbar.tsx`) gates the export on `export_product_list` only.
-- **Fix:** drop the `costPrice` column from the column picker and the file when the user lacks `view_cost_fields`.
-
-#### A-383. `client/` — the Inventory Valuation report export carries Cost Price for anyone with report access
-
-- **Found:** 2026-11-13, same review; pre-existing.
-- **What's wrong:** the `stock_batches` report in `client/lib/hooks/use-report-export.ts` always exports "Cost Price" (and "Stock Value", which is derived from it). The Report Center gates it on `export_reports` / `view_financial_reports`, not `view_cost_fields`.
-- **Fix:** omit the cost columns, or hide the report, when `view_cost_fields` is withheld.
 
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.
 - **Evidence still worth gathering:** a device report from both of Cynthia's tills (`laravel-server/AGENTS.md`, "Remote device report"). Read `rewind_count`, "Batch edits the server refused" and "Batch costs on this device"; since A-271 `SHIELDED` marks rows the pull skips by the same rule it applies, plus orphans (unsynced, no queue row), which the pull overwrites until a crash-flagged boot re-queues them. Also ask her whether a conflict toast appears when she saves a cost, and whether the old price comes back.
 - **Other `decimal(10,2)` money columns:** A-271 widened the batch cost columns. Selling prices, sale and purchase-order totals and the rest of `decimal(10,2)` still refuse 100,000,000 or more, which leaves that row failing on every retry the same way. Fix: widen them together, or validate the value at entry.
-
-#### A-374. `client/` — a return values the restocked units at the batch's current cost, not the cost the sale recorded
-
-- **Found:** 2026-11-13, building the batch cost correction (`client/lib/db/queries/batch-cost-correction.ts`).
-- **What's wrong:** `recordReturnDisposition()` and `restoreBatchQuantity()` (`client/lib/db/queries/returns.ts:55`, `:111`) read `stock_batches.cost_price` at return time for the `return` movement's `unit_cost`/`total_cost`, and returned COGS in BI and the monthly trend (`bi-metrics.ts:88`, `report-trends.ts:40`) prefers that `total_cost`. The sale's own COGS comes from `sale_items.cost_price`, which is the product's *average* cost at sale time. So a full return does not net the sale's COGS to zero whenever the batch cost differs from that snapshot: after a batch cost correction, after a stock-audit cost correction, or simply because the average and the batch cost were never equal.
-- **Fix:** value the return movement from the returned `sale_items.cost_price` (already joined as `avg_cost_price` in the fallback branch) rather than the live batch cost. Changes reported profit for past returns on recompute, so ship it with a note to owners.
 
 #### A-211. `client/` — a stock count still records the difference it saw, not the number counted; a device behind sync is now warned, not prevented
 
@@ -522,15 +494,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** low today. `OnlineOrder` soft-deletes and nothing hard-deletes one, so the missing cascade has not orphaned items; but nothing stops an item naming a missing order or product, or an order naming a missing store.
 - **Fix:** a new migration adding the three constraints (`online_order_id` cascading), preceded by a count of orphans on production, since an existing orphan makes the `ALTER` fail. `products` rows soft-delete, so `product_id` should not cascade.
 
-#### A-317. `laravel-server/` — `GET /stock-movements` and `GET /stock-adjustments` have no caller and hand any staff member the tenant-wide stock ledger
-
-- **Found:** 2026-10-23, while mapping every surface that shows stock quantities for the hide-quantities-by-role work.
-- **Issue:** #259
-- **Location:** `routes/api.php:168-169`, `app/Http/Controllers/Api/App/StockMovementController.php` (`index()`, `adjustments()`); the only references are `tests/Feature/StockMovementControllerTest.php`.
-- **What's wrong:** both routes sit in the plain `auth:sanctum` group with no `permission:` middleware, so any authenticated user, a cashier included, gets signed quantities, reasons and user names for every store the tenant owns (`ledgerUserIds()` spans all of the owner's stores, not the caller's active one). No code in `client/` or `web/` calls either URL; the client reads movements from local SQLite. `a9ba1a5c` removed the last client callers when it deleted the pre-offline-first cloud CRUD, so the routes have been dead since then. That commit kept the routes on purpose (read-only, tenant-scoped, outside the finding it was fixing); the missing permission gate was not part of that ruling.
-- **Why it is not urgent:** it needs a valid session and the data is the caller's own tenant. It does defeat any role-level "cannot see stock quantities" rule, because the numbers are one authenticated request away.
-- **Fix:** delete the two routes, the two controller methods and their tests. §11: no shipped client sends these requests today, but a bundle from before `a9ba1a5c` might; a 404 for those is harmless because that bundle's UI reads local data. If they are kept instead, gate them behind `view_reports` and scope them to the active store.
-
 #### A-315. `laravel-server/` — a `refresh`-only admin token is accepted as a general bearer on every `auth:sanctum` route
 
 - **Found:** 2026-10-23, fixing A-199. Confirmed with a throwaway test: a token minted with `['refresh']` sent as `Authorization: Bearer` to `GET /api/v1/user` returns 200.
@@ -580,48 +543,6 @@ suggested tackle order rather than a strict ranking.
 - **PHP generates this timestamp, in UTC** (`now()`/`updated_at` via Eloquent) — this is **not** an instance of root `AGENTS.md` §7's MySQL `SYSTEM` timezone gotcha (that only affects raw SQL `NOW()`/`CURRENT_TIMESTAMP()` run outside Laravel's PDO connections). No raw SQL is used here. A future reader should not go chasing the server clock for this one.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
-
-#### A-270. `client/` — the receipt number a customer reads out cannot be searched for
-
-- **Found:** 2026-10-15, while auditing the A4 receipt's length (see `client/AGENTS.md`, "The receipt earns every line it prints").
-- **What's wrong:** the receipt prints `RCT-<first 8 of sale.id>` (`receipt-view.tsx`'s `shortId`) and the foot barcode encodes the full `sale.id` UUID. Sales history searches `customer_name`, `transaction_number` and `item_names` (`pos-transaction-history.tsx:163-167`) — `transaction_number` is the `TXN-…` value set in `use-pos-payment.ts:169`, and it is **never printed anywhere**. So the one identifier a customer holds is the one identifier staff cannot look up, and the barcode is unscannable by design: nothing in the app has a scan path for it.
-- **Fix:** add `transaction_number` to `ReceiptTransaction`, print it as the receipt number, and barcode that instead of the UUID. That also makes the barcode worth the paper — until then `show_barcode_on_receipt` (2026-10-15) exists partly so a store can stop printing a decoration.
-- **Not urgent:** staff can find the sale by customer or item today. It is cheap and it removes a daily annoyance at the counter.
-
-#### A-269. `client/` — a part-paid sale prints "Total paid" with no balance owing
-
-- **Found:** 2026-10-15, in the same receipt audit.
-- **What's wrong:** `ReceiptView` prints `Total paid` and, when it is larger than the total, `Change`. A credit or partial payment prints a smaller `Total paid` and **nothing stating what is still owed**, so the customer's copy records neither the debt nor its amount. The reader has to subtract two numbers to learn they owe money.
-- **Fix:** a `Balance due` line whenever `amountPaid < total`, mirroring `Change`. One conditional block; it must not be toggleable (a customer needs it to dispute the debt).
-- **Noted while shortening the receipt**, which made the gap obvious: the shortening rules deliberately keep `Total paid` in exactly this case, so the line it needs beside it is the one that is missing.
-
-#### A-186. `client/` — the POS product tile shows nothing that distinguishes two similar products, so staff report "duplicate products" that do not exist
-
-- **Found:** 2026-10-08, investigating a production report of duplicate products at store `68e4c0e5-2354-4ff9-98e4-69d3b4c482fa` (Nest Pharmacy A2). No duplicate rows exist: the server holds 2,495 products against a 2,493-row QuickBooks source file whose Item Names and Item Numbers are 100% unique. What staff could not tell apart were genuinely distinct products rendering identically on the POS grid.
-- **Location:** `client/components/pos/pos-product-list.tsx`, the `POSProductCard` body (the name `div` and the subtitle `div` immediately under it); compare `client/components/products/catalog-row.tsx`, which does not have the problem.
-- **What's wrong:** the tile renders exactly four things — a category *icon*, `{product.name}` under `line-clamp-2`, the subtitle `{product.generic_name || "Generic"} • {product.strength || "-"}`, and then price plus stock. There is no barcode/SKU and no category text anywhere on the card. A bulk-imported product has neither `generic_name` nor `strength`, so on a freshly imported catalogue that subtitle line is the literal string `Generic • -` on **every** tile, carrying zero information while occupying the one slot that could have disambiguated. With a long name clamped to two lines, two products whose names differ late in the string are visually identical.
-- **Real examples from that store:** `CARO WHITE CUP B/S CREAM` vs `CARO WHITE CUP S/S CREAM` — one character apart, SKUs 2189 and 2190 — and the `CARO WHITE 200ML` / `300ML` / `500ML LOTION` family.
-- **Consequence:** this is a UX defect with a measured support cost, not a cosmetic one. It generated a "we have duplicate products" escalation that took a full catalogue reconciliation against the source file to disprove, and it means a cashier can ring up the wrong variant with no on-screen signal that they did. The Product Catalog screen is unaffected because `catalog-row.tsx` prints `{product.barcode || product.id.slice(0, 8)} · {product.category || "Uncategorized"}` as a subtitle under the name, which separates all of the above at a glance — so the same user, looking at the same data, can distinguish these products on one screen and not on the other.
-- **Fix:** give the tile a disambiguator. The cheapest version is to make the existing subtitle line conditional rather than placeholder-filled: show `barcode` (or `category_name`) when `generic_name`/`strength` are both absent, instead of rendering `Generic • -`. `POSProduct` already carries `barcode` and `category_name` (`client/lib/utils/search.ts` indexes both, and `usePOSProductFilter` reads `category_name`), so no new query or sync coverage is needed. Note that search already matches on `barcode`, so the SKU is a usable key the moment it is visible — today it is searchable but never displayed.
-
-#### A-187. `client/` — a product with no category is labelled "Uncategorized" everywhere but cannot be filtered to from anywhere
-
-- **Found:** 2026-10-08, during the same investigation as A-186. Verified live against the store's catalog: the Product Catalog's Category pill offers All, beverages, busicuit, cosmetics, drinks, drugs, machine, perfume, provision, soap, sweet, tea, toiletries — 12 real categories and no Uncategorized option — while a large share of that store's catalogue has `category_id IS NULL` after a partial import.
-- **Location:** `client/components/pos/pos-category-filter.tsx` and `client/lib/hooks/use-pos-product-filter.ts` (POS); `client/components/products/product-database.tsx` and `product-database-filters.tsx` (Product Catalog). The label the UI does show comes from `client/components/products/types.ts` (`category: apiData.category_name || "Uncategorized"`) and is rendered by `catalog-row.tsx`.
-- **What's wrong, and the two mechanisms are different:**
-  - **POS.** `usePOSProductFilter()` builds the chip list by walking the loaded products and adding `product.category_name` only `if (product.category_name)`, so an uncategorized product contributes nothing to the list. `POSCategoryFilter` then renders an "All" tab plus one tab per name in that list and nothing else. Filtering is `p.category_name === categoryFilter`, which no null value can ever match.
-  - **Product Catalog.** The options do not come from the products at all — `product-database.tsx` builds `categories` from `getCategoryList()` (the `categories` table) prefixed with `"all"`, falling back to a hardcoded five/six-name default list when the store has no categories. Since the list is sourced from the category rows rather than from the products, an "Uncategorized" option is structurally impossible there, not merely omitted.
-- **Consequence:** the UI names a state it cannot select. A store that bulk-imported without categories has no way to enumerate the gap it needs to fix — those products are reachable only by scrolling the full "All" list or by already knowing a product's name to search for. That is exactly the audit the store owner wants after a partial import, and it is also why the uncategorized tail stays uncategorized.
-- **Fix:** add an explicit sentinel option to both filters (a reserved value such as `"__uncategorized__"`, matched by a `switch`/`Map` rather than a dynamic lookup per `.agents/AGENTS.md` §8) that filters to `category_name == null`. On the POS side, append the chip when any loaded product lacks a `category_name`; on the Catalog side it has to be appended to the `categories` array independently of `getCategoryList()`, and `preFilteredProducts`' `product.category === categoryFilter` test needs a branch for it — note that `types.ts` has already collapsed null into the *string* `"Uncategorized"` by that point, so a filter keyed on the display string would also match a real category a store happened to name "Uncategorized". Filter on the raw `category_name`/`category_id`, not the label.
-
-#### A-259. `client/` — a resumed cycle-count draft never notices the catalog changing under it
-
-- **Found:** 2026-10-13, while verifying the cycle-count tick/resume behaviour.
-- **Location:** `client/components/stock-batch/stock-audits.tsx:131-150` — the effect that builds `items` is gated on `items.length === 0`, deliberately, so a background refetch cannot clobber counts in progress.
-- **What's wrong:** that gate also means a draft resumed hours or days later is a frozen snapshot of the catalog as it was when the count began. A product created since is absent from the sheet (it simply cannot be counted until the draft is cleared), and a product soft-deleted since still has an editable row — `applyStockAdjustmentDelta` takes no `_deleted` guard, so submitting it writes an `AUDIT-` batch against a dead product id.
-- **Consequence:** low frequency and low severity. Stock figures stay correct either way: `submitStockAudit` re-reads the live quantity inside the transaction (`client/lib/db/queries/inventory.ts:665-671`), so a stale `systemQty` in the draft never mis-posts a delta — this is about coverage of the count, not corruption of it.
-- **Mitigation already in place:** the "Start over" control added 2026-10-13 (same file, the export dropdown) clears the draft and reloads the sheet from the current catalog, so there is a user-reachable fix.
-- **Fix if taken further:** reconcile the resumed draft against `rawProducts` on load — append rows for new products, mark soft-deleted ones un-submittable — rather than all-or-nothing rebuilding.
 
 #### A-182. `web/` — the site-wide PWA's `start_url` is a cross-origin bounce, so installing `dumosrx.com` yields a window that navigates out of its own scope on launch
 

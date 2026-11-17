@@ -188,6 +188,13 @@ describe("StorefrontCatalogView", () => {
     expect(screen.getByRole("link", { name: /ask about the price of face cream/i }).getAttribute("href")).toContain("wa.me/2348000000000");
   });
 
+  it("offers a Call link to the store phone when an unpriced product has no WhatsApp number", async () => {
+    respond = () => page([product("p9", "Face Cream", "Creams", 0)], 1, 1, 1);
+    render(<StorefrontCatalogView storeSlug="grace" currency="NGN" phone="0800 000 0000" initialData={respond(new URLSearchParams()) as PaginatedStorefrontProducts} />);
+
+    expect(screen.getByRole("link", { name: /call to ask the price of face cream/i }).getAttribute("href")).toBe("tel:08000000000");
+  });
+
   it("shows placeholders instead of an empty state while the first load is under way", async () => {
     renderCatalog(null);
 

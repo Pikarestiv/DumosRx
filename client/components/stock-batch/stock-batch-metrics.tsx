@@ -9,6 +9,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 
+import { describeStockValue } from "@/lib/utils/stock-value-display";
 import { useStore } from "@/lib/context/store-context";
 import { useStockMoM } from "@/lib/hooks/use-analytics";
 import { useMyTodaySales } from "@/lib/hooks/use-my-today-sales";
@@ -16,6 +17,7 @@ import { HorizontalScrollFade } from "@/components/ui/scroll-fade";
 
 interface StockBatchMetricsProps {
   stock_batchValue: number;
+  retailValue?: number;
   totalProducts: number;
   lowStockCount: number;
   expiringCount: number;
@@ -25,6 +27,7 @@ interface StockBatchMetricsProps {
 
 export function StockBatchMetrics({
   stock_batchValue,
+  retailValue = 0,
   totalProducts,
   lowStockCount,
   expiringCount,
@@ -35,6 +38,7 @@ export function StockBatchMetrics({
   const { data: momData } = useStockMoM();
   const { isCashier, totalToday } = useMyTodaySales();
   const expiryDays = storeProfile?.expiry_warning_days || 90;
+  const stockValue = describeStockValue(stock_batchValue, retailValue, formatCurrency);
 
   return (
     <div className="-mx-4 sm:mx-0 px-4 sm:px-0">
@@ -55,25 +59,28 @@ export function StockBatchMetrics({
           <MetricCard
             className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
             title="Total stock value"
-            value={formatCurrency(stock_batchValue)}
+            value={formatCurrency(stockValue.value)}
             icon={<Wallet className="h-4 w-4" />}
             iconBgClass="bg-blue-50 text-blue-700"
             description={
-              momData ? (
-                <>
-                  <span className={momData.percentChange >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                    {momData.percentChange >= 0 ? "+" : ""}{momData.percentChange.toFixed(1)}%
-                  </span> from last month
-                </>
-              ) : undefined
+              <>
+                {momData && stock_batchValue > 0 && (
+                  <>
+                    <span className={momData.percentChange >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                      {momData.percentChange >= 0 ? "+" : ""}{momData.percentChange.toFixed(1)}%
+                    </span> from last month{stockValue.caption ? " · " : ""}
+                  </>
+                )}
+                {stockValue.caption}
+              </>
             }
           />
         )}
 
-        {/* Total Products */}
+        {/* All Products */}
         <MetricCard
           className="min-w-[180px] sm:min-w-0 snap-center shrink-0 border-border"
-          title="Total products"
+          title="All products"
           value={totalProducts}
           icon={<Package className="h-4 w-4 hover-rotate-icon" />}
           iconBgClass="bg-sky-50 text-sky-700"

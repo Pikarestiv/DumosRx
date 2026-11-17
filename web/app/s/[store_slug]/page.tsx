@@ -79,6 +79,7 @@ export default async function StorefrontPage({
           storeSlug={store_slug}
           currency={store.currency}
           whatsapp={whatsapp}
+          phone={store.phone}
           catalogHref={catalogHref}
         />
         {storefront?.show_services ? <StorefrontServices storeSlug={store_slug} currency={store.currency} whatsapp={whatsapp} /> : null}

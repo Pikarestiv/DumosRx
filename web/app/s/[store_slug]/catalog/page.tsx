@@ -71,6 +71,7 @@ export default async function StorefrontCatalogPage({
           storeSlug={store_slug}
           currency={store.currency}
           whatsapp={storefront?.whatsapp}
+          phone={store.phone}
           initialData={initialCatalog}
         />
       </main>

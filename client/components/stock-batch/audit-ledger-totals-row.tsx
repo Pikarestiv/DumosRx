@@ -1,6 +1,7 @@
 import { isAuditLensActive, type AuditCountStatus } from "./audit-derivations";
 import {
   AUDIT_LEDGER_GRID_COLS as GRID_COLS,
+  AUDIT_LEDGER_GRID_COLS_NO_COST as GRID_COLS_NO_COST,
   diffBgClassName,
   diffClassName,
   formatDiffCurrency,
@@ -11,6 +12,7 @@ interface AuditLedgerTotalsRowProps {
   selectedCategory: string;
   countStatus: AuditCountStatus;
   search: string;
+  canViewCost?: boolean;
 }
 
 export function AuditLedgerTotalsRow({
@@ -18,11 +20,13 @@ export function AuditLedgerTotalsRow({
   selectedCategory,
   countStatus,
   search,
+  canViewCost = true,
 }: AuditLedgerTotalsRowProps) {
+  const gridCols = canViewCost ? GRID_COLS : GRID_COLS_NO_COST;
   return (
     <div
       role="row"
-      className={`grid ${GRID_COLS} border-t-2 border-border font-semibold`}
+      className={`grid ${gridCols} border-t-2 border-border font-semibold`}
     >
       <div
         role="cell"
@@ -45,14 +49,18 @@ export function AuditLedgerTotalsRow({
       >
         {totals.diffQty > 0 ? `+${totals.diffQty}` : totals.diffQty}
       </div>
-      <div role="cell" className="px-3 py-2" />
-      <div role="cell" className="px-3 py-2" />
-      <div
-        role="cell"
-        className={`px-3 py-2 text-right flex items-center justify-end ${diffClassName(totals.diffCost)} ${diffBgClassName(totals.diffCost)}`}
-      >
-        {formatDiffCurrency(totals.diffCost)}
-      </div>
+      {canViewCost && (
+        <>
+          <div role="cell" className="px-3 py-2" />
+          <div role="cell" className="px-3 py-2" />
+          <div
+            role="cell"
+            className={`px-3 py-2 text-right flex items-center justify-end ${diffClassName(totals.diffCost)} ${diffBgClassName(totals.diffCost)}`}
+          >
+            {formatDiffCurrency(totals.diffCost)}
+          </div>
+        </>
+      )}
       <div role="cell" className="px-3 py-2" />
       <div role="cell" className="px-3 py-2" />
       <div
@@ -61,6 +69,7 @@ export function AuditLedgerTotalsRow({
       >
         {formatDiffCurrency(totals.diffSelling)}
       </div>
+      <div role="cell" className="px-3 py-2" />
     </div>
   );
 }

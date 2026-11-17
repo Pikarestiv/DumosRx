@@ -94,3 +94,42 @@ describe("CategoryCombobox source", () => {
     expect(listbox.className).toContain("overflow-y-auto");
   });
 });
+
+describe("CategoryCombobox last used", () => {
+  beforeEach(() => {
+    getCategoryList.mockReset();
+  });
+
+  function renderWithLastUsed(value: string) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <CategoryCombobox value={value} onValueChange={vi.fn()} lastUsed="Perfumes" />
+      </QueryClientProvider>,
+    );
+  }
+
+  it("pins the last used category to the top while the field is empty", async () => {
+    getCategoryList.mockResolvedValue([
+      { id: "1", name: "Cement", productCount: 3 },
+      { id: "2", name: "Perfumes", productCount: 50 },
+    ]);
+    renderWithLastUsed("");
+    await openMenu();
+
+    const options = await screen.findAllByRole("option");
+    expect(options[0].textContent).toContain("Perfumes");
+    expect(options[0].textContent).toContain("Last used");
+  });
+
+  it("stops pinning once the user types", async () => {
+    getCategoryList.mockResolvedValue([
+      { id: "1", name: "Cement", productCount: 3 },
+      { id: "2", name: "Perfumes", productCount: 50 },
+    ]);
+    renderWithLastUsed("c");
+    await openMenu();
+
+    expect(screen.queryByText("Last used")).toBeNull();
+  });
+});

@@ -58,6 +58,7 @@ export function StockBatchManagement({
         <TabsContent value="overview" className="flex flex-col flex-1 min-h-0 mt-0 gap-6">
           <StockBatchMetrics
             stock_batchValue={stats.totalStockBatchValue}
+            retailValue={stats.totalRetailValue}
             totalProducts={stats.totalProducts}
             lowStockCount={stats.lowStockCount}
             expiringCount={stats.expiringSoonCount}

@@ -11,11 +11,11 @@ import { metadata } from "@/app/layout";
 describe("site.webmanifest configuration", () => {
   const manifestPath = path.resolve(__dirname, "../public/site.webmanifest");
 
-  it("declares an explicit id, start_url, and scope set to '/'", () => {
+  it("keeps the legacy install id while start_url and scope are root", () => {
     const raw = readFileSync(manifestPath, "utf8");
     const manifest = JSON.parse(raw);
 
-    expect(manifest.id).toBe("/");
+    expect(manifest.id).toBe("/dashboard");
     expect(manifest.start_url).toBe("/");
     expect(manifest.scope).toBe("/");
     expect(manifest.start_url).not.toBe("/dashboard");

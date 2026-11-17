@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DumosRx: Expenses</title>
+<style>*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0}.bottom-0{bottom:0}.left-1\/2{left:50%}.top-0{top:0}.z-10{z-index:10}.z-20{z-index:20}.z-\[3\]{z-index:3}.z-\[4\]{z-index:4}.z-\[6\]{z-index:6}.-mx-4{margin-left:-1rem;margin-right:-1rem}.mx-auto{margin-left:auto;margin-right:auto}.-mt-\[30px\]{margin-top:-30px}.mb-0\.5{margin-bottom:.125rem}.mb-1{margin-bottom:.25rem}.mb-1\.5{margin-bottom:.375rem}.mb-2{margin-bottom:.5rem}.mb-2\.5{margin-bottom:.625rem}.mb-3{margin-bottom:.75rem}.mb-3\.5{margin-bottom:.875rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.mb-7{margin-bottom:1.75rem}.mb-\[18px\]{margin-bottom:18px}.ml-auto{margin-left:auto}.mt-0\.5{margin-top:.125rem}.mt-2\.5{margin-top:.625rem}.block{display:block}.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}.h-1{height:.25rem}.h-11{height:2.75rem}.h-2{height:.5rem}.h-2\.5{height:.625rem}.h-3\.5{height:.875rem}.h-4{height:1rem}.h-8{height:2rem}.h-9{height:2.25rem}.h-\[15px\]{height:15px}.h-\[17px\]{height:17px}.h-\[21px\]{height:21px}.h-\[22px\]{height:22px}.h-\[26px\]{height:26px}.h-\[30px\]{height:30px}.h-\[34px\]{height:34px}.h-\[38px\]{height:38px}.h-\[52px\]{height:52px}.h-\[844px\]{height:844px}.max-h-\[86\%\]{max-height:86%}.min-h-0{min-height:0}.min-h-\[880px\]{min-height:880px}.w-11{width:2.75rem}.w-2{width:.5rem}.w-2\.5{width:.625rem}.w-3\.5{width:.875rem}.w-4{width:1rem}.w-8{width:2rem}.w-9{width:2.25rem}.w-\[120px\]{width:120px}.w-\[15px\]{width:15px}.w-\[17px\]{width:17px}.w-\[21px\]{width:21px}.w-\[22px\]{width:22px}.w-\[30px\]{width:30px}.w-\[34px\]{width:34px}.w-\[38px\]{width:38px}.w-\[390px\]{width:390px}.w-\[440px\]{width:440px}.w-\[520px\]{width:520px}.w-\[52px\]{width:52px}.w-fit{width:-moz-fit-content;width:fit-content}.w-full{width:100%}.min-w-0{min-width:0}.min-w-\[140px\]{min-width:140px}.max-w-\[1400px\]{max-width:1400px}.flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.-translate-x-1\/2{--tw-translate-x:-50%;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-pointer{cursor:pointer}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-\[110px_150px_1fr_130px_120px\]{grid-template-columns:110px 150px 1fr 130px 120px}.grid-cols-\[76px_1fr\]{grid-template-columns:76px 1fr}.flex-col{flex-direction:column}.items-start{align-items:flex-start}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.justify-around{justify-content:space-around}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.gap-3\.5{gap:.875rem}.gap-4{gap:1rem}.gap-\[3px\]{gap:3px}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.rounded-2xl{border-radius:1rem}.rounded-\[10px\]{border-radius:10px}.rounded-\[11px\]{border-radius:11px}.rounded-\[14px\]{border-radius:14px}.rounded-\[20px\]{border-radius:20px}.rounded-\[44px\]{border-radius:44px}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.rounded-xl{border-radius:.75rem}.rounded-b-2xl{border-bottom-right-radius:1rem;border-bottom-left-radius:1rem}.rounded-t-\[24px\]{border-top-left-radius:24px;border-top-right-radius:24px}.border{border-width:1px}.border-0{border-width:0}.border-4{border-width:4px}.border-\[10px\]{border-width:10px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-t{border-top-width:1px}.border-\[\#1A1D23\]{--tw-border-opacity:1;border-color:rgb(26 29 35/var(--tw-border-opacity,1))}.border-\[\#D3F2E1\]{--tw-border-opacity:1;border-color:rgb(211 242 225/var(--tw-border-opacity,1))}.border-\[\#E6EAF2\]{--tw-border-opacity:1;border-color:rgb(230 234 242/var(--tw-border-opacity,1))}.border-\[\#FBD5D2\]{--tw-border-opacity:1;border-color:rgb(251 213 210/var(--tw-border-opacity,1))}.border-\[\#FFFFFF\]{--tw-border-opacity:1;border-color:rgb(255 255 255/var(--tw-border-opacity,1))}.bg-\[\#12B76A\]{--tw-bg-opacity:1;background-color:rgb(18 183 106/var(--tw-bg-opacity,1))}.bg-\[\#1A1D23\]{--tw-bg-opacity:1;background-color:rgb(26 29 35/var(--tw-bg-opacity,1))}.bg-\[\#2054E0\]{--tw-bg-opacity:1;background-color:rgb(32 84 224/var(--tw-bg-opacity,1))}.bg-\[\#DCE3EE\]{--tw-bg-opacity:1;background-color:rgb(220 227 238/var(--tw-bg-opacity,1))}.bg-\[\#E6EAF2\]{--tw-bg-opacity:1;background-color:rgb(230 234 242/var(--tw-bg-opacity,1))}.bg-\[\#EAF0FE\]{--tw-bg-opacity:1;background-color:rgb(234 240 254/var(--tw-bg-opacity,1))}.bg-\[\#ECFDF3\]{--tw-bg-opacity:1;background-color:rgb(236 253 243/var(--tw-bg-opacity,1))}.bg-\[\#F0F9FF\]{--tw-bg-opacity:1;background-color:rgb(240 249 255/var(--tw-bg-opacity,1))}.bg-\[\#F5F8FC\]{--tw-bg-opacity:1;background-color:rgb(245 248 252/var(--tw-bg-opacity,1))}.bg-\[\#FEF3F2\]{--tw-bg-opacity:1;background-color:rgb(254 243 242/var(--tw-bg-opacity,1))}.bg-\[\#FFFAEB\]{--tw-bg-opacity:1;background-color:rgb(255 250 235/var(--tw-bg-opacity,1))}.bg-\[\#FFFFFF\]{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-\[rgba\(16\2c 24\2c 40\2c 0\.42\)\]{background-color:rgba(16,24,40,.42)}.bg-\[rgba\(16\2c 24\2c 40\2c 0\.45\)\]{background-color:rgba(16,24,40,.45)}.bg-transparent{background-color:transparent}.p-1{padding:.25rem}.p-3{padding:.75rem}.p-3\.5{padding:.875rem}.p-6{padding:1.5rem}.p-\[18px\]{padding:18px}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-3\.5{padding-left:.875rem;padding-right:.875rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-\[18px\]{padding-left:18px;padding-right:18px}.px-\[22px\]{padding-left:22px;padding-right:22px}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-14{padding-top:3.5rem;padding-bottom:3.5rem}.py-16{padding-top:4rem;padding-bottom:4rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-3\.5{padding-top:.875rem;padding-bottom:.875rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-5{padding-top:1.25rem;padding-bottom:1.25rem}.py-8{padding-top:2rem;padding-bottom:2rem}.pb-3{padding-bottom:.75rem}.pb-3\.5{padding-bottom:.875rem}.pb-6{padding-bottom:1.5rem}.pb-8{padding-bottom:2rem}.pb-\[100px\]{padding-bottom:100px}.pl-2\.5{padding-left:.625rem}.pr-3{padding-right:.75rem}.pt-2{padding-top:.5rem}.pt-2\.5{padding-top:.625rem}.pt-3\.5{padding-top:.875rem}.pt-4{padding-top:1rem}.pt-5{padding-top:1.25rem}.text-center{text-align:center}.text-right{text-align:right}.font-\[\'Inter\'\]{font-family:Inter}.font-\[\'Playfair_Display\'\]{font-family:Playfair Display}.text-2xl{font-size:1.5rem;line-height:2rem}.text-\[10px\]{font-size:10px}.text-\[11\.5px\]{font-size:11.5px}.text-\[11px\]{font-size:11px}.text-\[12\.5px\]{font-size:12.5px}.text-\[12px\]{font-size:12px}.text-\[13\.5px\]{font-size:13.5px}.text-\[13px\]{font-size:13px}.text-\[14px\]{font-size:14px}.text-\[15px\]{font-size:15px}.text-\[16px\]{font-size:16px}.text-\[17px\]{font-size:17px}.text-\[19px\]{font-size:19px}.text-\[22px\]{font-size:22px}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xs{font-size:.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.tracking-tight{letter-spacing:-.025em}.tracking-wide{letter-spacing:.025em}.text-\[\#026AA2\]{--tw-text-opacity:1;color:rgb(2 106 162/var(--tw-text-opacity,1))}.text-\[\#067647\]{--tw-text-opacity:1;color:rgb(6 118 71/var(--tw-text-opacity,1))}.text-\[\#101828\]{--tw-text-opacity:1;color:rgb(16 24 40/var(--tw-text-opacity,1))}.text-\[\#153C9E\]{--tw-text-opacity:1;color:rgb(21 60 158/var(--tw-text-opacity,1))}.text-\[\#2054E0\]{--tw-text-opacity:1;color:rgb(32 84 224/var(--tw-text-opacity,1))}.text-\[\#344054\]{--tw-text-opacity:1;color:rgb(52 64 84/var(--tw-text-opacity,1))}.text-\[\#667085\]{--tw-text-opacity:1;color:rgb(102 112 133/var(--tw-text-opacity,1))}.text-\[\#98A2B3\]{--tw-text-opacity:1;color:rgb(152 162 179/var(--tw-text-opacity,1))}.text-\[\#B42318\]{--tw-text-opacity:1;color:rgb(180 35 24/var(--tw-text-opacity,1))}.text-\[\#B54708\]{--tw-text-opacity:1;color:rgb(181 71 8/var(--tw-text-opacity,1))}.text-\[\#E6EAF2\]{--tw-text-opacity:1;color:rgb(230 234 242/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.shadow-\[0_1px_2px_rgba\(16\2c 24\2c 40\2c 0\.04\)\2c 0_1px_3px_rgba\(16\2c 24\2c 40\2c 0\.03\)\]{--tw-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.03);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color),0 1px 3px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_1px_2px_rgba\(16\2c 24\2c 40\2c 0\.04\)\]{--tw-shadow:0 1px 2px rgba(16,24,40,.04);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_1px_2px_rgba\(32\2c 84\2c 224\2c 0\.3\)\]{--tw-shadow:0 1px 2px rgba(32,84,224,.3);--tw-shadow-colored:0 1px 2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_20px_60px_rgba\(16\2c 24\2c 40\2c 0\.16\)\]{--tw-shadow:0 20px 60px rgba(16,24,40,.16);--tw-shadow-colored:0 20px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_30px_60px_rgba\(16\2c 24\2c 40\2c 0\.35\)\]{--tw-shadow:0 30px 60px rgba(16,24,40,.35);--tw-shadow-colored:0 30px 60px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_6px_16px_rgba\(32\2c 84\2c 224\2c 0\.4\)\]{--tw-shadow:0 6px 16px rgba(32,84,224,.4);--tw-shadow-colored:0 6px 16px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-\[0_8px_24px_rgba\(16\2c 24\2c 40\2c 0\.18\)\]{--tw-shadow:0 8px 24px rgba(16,24,40,.18);--tw-shadow-colored:0 8px 24px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.outline-none{outline:2px solid transparent;outline-offset:2px}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.\[scrollbar-width\:none\]{scrollbar-width:none}.after\:absolute:after{content:var(--tw-content);position:absolute}.after\:-inset-1:after{content:var(--tw-content);inset:-.25rem}@keyframes ping{75%,to{content:var(--tw-content);transform:scale(2);opacity:0}}.after\:animate-ping:after{content:var(--tw-content);animation:ping 1s cubic-bezier(0,0,.2,1) infinite}.after\:rounded-full:after{content:var(--tw-content);border-radius:9999px}.after\:border:after{content:var(--tw-content);border-width:1px}.after\:border-\[\#12B76A\]\/50:after{content:var(--tw-content);border-color:rgba(18,183,106,.5)}.after\:content-\[\'\'\]:after{--tw-content:"";content:var(--tw-content)}.hover\:bg-\[\#153C9E\]:hover{--tw-bg-opacity:1;background-color:rgb(21 60 158/var(--tw-bg-opacity,1))}.hover\:bg-\[\#F5F8FC\]:hover{--tw-bg-opacity:1;background-color:rgb(245 248 252/var(--tw-bg-opacity,1))}.focus\:border-\[\#2054E0\]:focus{--tw-border-opacity:1;border-color:rgb(32 84 224/var(--tw-border-opacity,1))}.\[\&\.open\]\:flex.open{display:flex}.\[\&\:\:-webkit-scrollbar\]\:hidden::-webkit-scrollbar{display:none}.\[\&_svg\]\:h-\[19px\] svg{height:19px}.\[\&_svg\]\:w-\[19px\] svg{width:19px}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="font-['Inter'] bg-[#DCE3EE] text-[#101828] antialiased py-8 px-6">
+
+<div class="flex justify-center mb-7">
+  <div class="inline-flex bg-[#FFFFFF] border border-[#E6EAF2] rounded-full p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)] switcher">
+    <button class="border-0 bg-[#2054E0] text-white px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('desktop', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+      Desktop
+    </button>
+    <button class="border-0 bg-transparent text-[#98A2B3] px-[22px] py-2.5 rounded-full font-semibold text-[13.5px] cursor-pointer flex items-center gap-1.5" onclick="showView('mobile', this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+      Mobile
+    </button>
+  </div>
+</div>
+
+<div class="max-w-[1400px] mx-auto">
+
+<!-- ============ DESKTOP VIEW ============ -->
+<div class="view" id="view-desktop">
+<div class="grid grid-cols-[76px_1fr] bg-[#F5F8FC] rounded-[20px] overflow-hidden shadow-[0_20px_60px_rgba(16,24,40,0.16)] min-h-[880px] border border-[#E6EAF2] relative" id="desktop-app-shell">
+
+  <!-- SIDEBAR -->
+  <div class="bg-[#FFFFFF] border-r border-[#E6EAF2] flex flex-col items-center py-5 gap-1.5">
+    <div class="w-9 h-9 rounded-[10px] bg-[#2054E0] flex items-center justify-center text-white font-['Playfair_Display'] font-bold text-[15px] mb-[18px]">Rx</div>
+
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Prescriptions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Patients">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#153C9E] bg-[#EAF0FE] cursor-pointer relative [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Expenses">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h11l5 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 5v4h4"/><path d="M8 14h5"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+    </div>
+    <div class="w-11 h-11 rounded-[11px] flex items-center justify-center text-[#98A2B3] cursor-pointer [&_svg]:w-[19px] [&_svg]:h-[19px]" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </div>
+
+    <div class="flex-1"></div>
+    <div class="w-2.5 h-2.5 rounded-full bg-[#12B76A] mb-4 relative after:content-[''] after:absolute after:-inset-1 after:rounded-full after:border after:border-[#12B76A]/50 after:animate-ping" title="Synced"></div>
+    <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold">JO</div>
+  </div>
+
+  <!-- PAGE CONTENT -->
+  <div class="flex flex-col min-h-0 p-6 pb-8">
+
+    <div class="flex items-center gap-3 mb-5">
+      <div>
+        <div class="text-[12px] text-[#98A2B3] font-medium mb-0.5">DumosRx · Awka Main Pharmacy</div>
+        <div class="text-[22px] font-['Playfair_Display'] font-bold">Expenses</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2.5">
+        <div class="w-[38px] h-[38px] rounded-[10px] bg-[#FFFFFF] border border-[#E6EAF2] flex items-center justify-center cursor-pointer relative shrink-0 text-[#667085]">
+          <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        </div>
+        <button class="flex items-center gap-2 bg-[#2054E0] text-white text-[13px] font-semibold px-4 py-2.5 rounded-[10px] shadow-[0_1px_2px_rgba(32,84,224,0.3)] hover:bg-[#153C9E]" onclick="openModal('addExpense')">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+          Add Expense
+        </button>
+      </div>
+    </div>
+
+    <!-- INSIGHTS STRIP -->
+    <div class="grid grid-cols-4 gap-4 mb-5">
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Total expenses</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#EAF0FE] text-[#153C9E]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8v4h8V3z"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5" id="stat-total">₦0</div>
+        <div class="text-xs text-[#98A2B3]">all time</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">This month</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F0F9FF] text-[#026AA2]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5" id="stat-month">₦0</div>
+        <div class="text-xs text-[#98A2B3]">July 2026</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Top category</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F5F8FC] text-[#667085]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 4 4-7"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5" id="stat-topcat">N/A</div>
+        <div class="text-xs text-[#98A2B3]">highest spend this month</div>
+      </div>
+      <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-[18px] px-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.03)]">
+        <div class="flex items-center justify-between mb-3.5">
+          <div class="text-[12.5px] text-[#667085] font-medium">Transactions</div>
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-[#F5F8FC] text-[#667085]">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-semibold font-['Playfair_Display'] tracking-tight mb-1.5" id="stat-count">0</div>
+        <div class="text-xs text-[#98A2B3]">recorded all time</div>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="flex items-center gap-2.5 mb-4">
+      <div class="flex-1 flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5">
+        <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Search by description" class="border-0 outline-none text-[13px] w-full bg-transparent" id="d-exp-search" oninput="renderExpenses()">
+      </div>
+      <div class="flex gap-1.5 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[11px] p-1 overflow-x-auto" id="d-exp-cat-filters"></div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="bg-[#FFFFFF] border border-[#E6EAF2] rounded-2xl flex-1 min-h-0 flex flex-col">
+      <div class="grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 px-5 py-3 text-[11px] font-bold text-[#98A2B3] uppercase tracking-wide border-b border-[#E6EAF2]">
+        <div>Date</div><div>Category</div><div>Description</div><div>Method</div><div class="text-right">Amount</div>
+      </div>
+      <div class="flex-1 overflow-y-auto" id="d-exp-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP ADD EXPENSE MODAL -->
+<div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.45)] z-20 items-center justify-center" id="modal-addExpense">
+  <div class="w-[520px] max-h-[86%] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.18)] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-5 border-b border-[#E6EAF2]">
+      <div class="text-[17px] font-['Playfair_Display'] font-bold">Add Expense</div>
+      <div class="w-[34px] h-[34px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer" onclick="closeModal('addExpense')">
+        <svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="px-6 py-5 overflow-y-auto flex flex-col gap-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Date</label>
+          <input type="date" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Category</label>
+          <select class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0] bg-[#FFFFFF]">
+            <option>Rent</option><option>Inventory Purchase</option><option>Utilities</option><option>Salaries</option><option>Maintenance</option><option>Marketing</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-[12.5px] font-semibold mb-1.5 block">Description</label>
+        <input type="text" placeholder="e.g. July shop rent, Awka Main" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Amount</label>
+          <input type="text" placeholder="₦0.00" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+        </div>
+        <div>
+          <label class="text-[12.5px] font-semibold mb-1.5 block">Method</label>
+          <select class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0] bg-[#FFFFFF]">
+            <option>Cash</option><option>Bank Transfer</option><option>Card</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-[12.5px] font-semibold mb-1.5 block">Notes (optional)</label>
+        <input type="text" placeholder="Any extra detail" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+      </div>
+      <div class="text-[11.5px] text-[#667085] bg-[#F5F8FC] border border-[#E6EAF2] rounded-[10px] px-3.5 py-3 flex gap-2 items-start">
+        <svg class="w-[15px] h-[15px] text-[#2054E0] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        Attach a receipt later from the expense detail view. This demo doesn't include file upload yet.
+      </div>
+    </div>
+    <div class="px-6 py-5 border-t border-[#E6EAF2]">
+      <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer hover:bg-[#153C9E]" onclick="closeModal('addExpense')">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP EXPENSE DETAIL MODAL -->
+<div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.45)] z-20 items-center justify-center" id="modal-expDetail">
+  <div class="w-[440px] bg-[#FFFFFF] rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(16,24,40,0.18)]">
+    <div class="flex items-center justify-between px-6 py-5 border-b border-[#E6EAF2]">
+      <div class="text-[15px] font-semibold">Expense detail</div>
+      <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer" onclick="closeModal('expDetail')">
+        <svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="px-6 py-5" id="d-exp-detail-body"></div>
+    <div class="px-6 pb-6 flex gap-2.5">
+      <button class="flex-1 border border-[#E6EAF2] bg-[#FFFFFF] text-[#344054] py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer">Edit</button>
+      <button class="flex-1 border border-[#FBD5D2] bg-[#FEF3F2] text-[#B42318] py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer" onclick="deleteExpense()">Delete</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ============ MOBILE VIEW ============ -->
+<div class="view hidden" id="view-mobile">
+  <div class="flex justify-center" id="mobile-phone-wrap">
+    <div class="w-[390px] bg-[#F5F8FC] rounded-[44px] border-[10px] border-[#1A1D23] shadow-[0_30px_60px_rgba(16,24,40,0.35)] overflow-hidden relative">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[120px] h-[26px] bg-[#1A1D23] rounded-b-2xl z-[6]"></div>
+      <div class="h-[844px] flex flex-col overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] sticky top-0 z-[3]">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="text-[11.5px] text-[#98A2B3] font-medium">DumosRx · Awka Main</div>
+              <div class="text-lg font-['Playfair_Display'] font-bold">Expenses</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center relative shrink-0 text-[#667085]">
+                <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              </div>
+              <div class="w-[34px] h-[34px] rounded-full bg-[#EAF0FE] text-[#153C9E] flex items-center justify-center text-xs font-bold shrink-0">JO</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-1.5 bg-[#ECFDF3] border border-[#D3F2E1] rounded-full px-3 py-1.5 w-fit">
+              <div class="w-2 h-2 rounded-full bg-[#12B76A]"></div>
+              <span class="text-[11.5px] font-semibold text-[#067647]">Synced · 2 min ago</span>
+            </div>
+            <button class="flex items-center gap-1.5 bg-[#2054E0] text-white text-[12px] font-semibold pl-2.5 pr-3 py-1.5 rounded-full shrink-0" onclick="openMobileAddExpense()">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+              Add
+            </button>
+          </div>
+        </div>
+
+        <div class="px-4 pt-4 pb-[100px]">
+
+          <div class="text-[12.5px] font-semibold text-[#667085] mb-2.5">Overview</div>
+          <div class="flex gap-2.5 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Total (all time)</div>
+              <div class="text-[19px] font-semibold" id="m-stat-total">₦0</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">This month</div>
+              <div class="text-[19px] font-semibold" id="m-stat-month">₦0</div>
+            </div>
+            <div class="min-w-[140px] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[14px] p-3.5 shrink-0 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+              <div class="text-[11px] text-[#667085] font-medium mb-2">Top category</div>
+              <div class="text-[15px] font-semibold" id="m-stat-topcat">N/A</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 mb-3.5">
+            <svg class="w-4 h-4 text-[#98A2B3] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" placeholder="Search by description" class="border-0 outline-none text-[13px] w-full bg-transparent" id="m-exp-search" oninput="renderExpenses()">
+          </div>
+
+          <div class="flex gap-2 overflow-x-auto -mx-4 mb-4 px-4 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" id="m-exp-cat-filters"></div>
+
+          <div id="m-exp-list"></div>
+
+        </div>
+      </div>
+
+      <!-- MOBILE ADD EXPENSE: full-screen push -->
+      <div class="hidden absolute inset-0 bg-[#F5F8FC] z-10 flex-col" id="mobile-addexpense-overlay">
+        <div class="px-4 pt-5 pb-3 bg-[#FFFFFF] border-b border-[#E6EAF2] flex items-center gap-3">
+          <div class="w-[38px] h-[38px] rounded-[10px] bg-[#F5F8FC] flex items-center justify-center text-[#667085] shrink-0 cursor-pointer" onclick="closeMobileAddExpense()">
+            <svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <div class="text-[15px] font-['Playfair_Display'] font-bold">Add Expense</div>
+        </div>
+        <div class="flex-1 overflow-y-auto px-4 pt-4 pb-8 flex flex-col gap-3.5">
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Date</label>
+            <input type="date" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Category</label>
+            <select class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0] bg-[#FFFFFF]">
+              <option>Rent</option><option>Inventory Purchase</option><option>Utilities</option><option>Salaries</option><option>Maintenance</option><option>Marketing</option><option>Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[12.5px] font-semibold mb-1.5 block">Description</label>
+            <input type="text" placeholder="e.g. July shop rent" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[12.5px] font-semibold mb-1.5 block">Amount</label>
+              <input type="text" placeholder="₦0.00" class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0]">
+            </div>
+            <div>
+              <label class="text-[12.5px] font-semibold mb-1.5 block">Method</label>
+              <select class="w-full border border-[#E6EAF2] rounded-[10px] px-3.5 py-2.5 text-[13px] outline-none focus:border-[#2054E0] bg-[#FFFFFF]">
+                <option>Cash</option><option>Bank Transfer</option><option>Card</option>
+              </select>
+            </div>
+          </div>
+          <div class="text-[11.5px] text-[#667085] bg-[#FFFFFF] border border-[#E6EAF2] rounded-[10px] px-3.5 py-3 flex gap-2 items-start">
+            <svg class="w-[15px] h-[15px] text-[#2054E0] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            Attach a receipt later from the expense detail view.
+          </div>
+          <button class="w-full bg-[#2054E0] text-white border-0 py-3.5 rounded-xl text-[14px] font-bold cursor-pointer" onclick="closeMobileAddExpense()">Save Expense</button>
+        </div>
+      </div>
+
+      <!-- MOBILE EXPENSE DETAIL: bottom sheet -->
+      <div class="hidden [&.open]:flex absolute inset-0 bg-[rgba(16,24,40,0.42)] z-20 items-end" id="sheet-expDetail">
+        <div class="bg-[#FFFFFF] w-full rounded-t-[24px] overflow-hidden">
+          <div class="w-9 h-1 bg-[#E6EAF2] rounded-full mx-auto mt-2.5 mb-1"></div>
+          <div class="flex items-center justify-between px-[18px] pt-2 pb-3 border-b border-[#E6EAF2]">
+            <div class="text-[15px] font-semibold">Expense detail</div>
+            <div class="w-[30px] h-[30px] rounded-lg bg-[#F5F8FC] flex items-center justify-center text-[#667085] cursor-pointer" onclick="closeSheet('expDetail')">
+              <svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </div>
+          </div>
+          <div class="px-[18px] py-4" id="m-exp-detail-body"></div>
+          <div class="px-[18px] pb-6 flex gap-2.5">
+            <button class="flex-1 border border-[#E6EAF2] bg-[#FFFFFF] text-[#344054] py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer">Edit</button>
+            <button class="flex-1 border border-[#FBD5D2] bg-[#FEF3F2] text-[#B42318] py-2.5 rounded-xl text-[13px] font-semibold cursor-pointer" onclick="deleteExpense()">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM NAV -->
+      <div class="flex items-center justify-around bg-[#FFFFFF] border-t border-[#E6EAF2] px-2 pt-2.5 pb-3.5 sticky bottom-0 z-[4]">
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          <span class="text-[10px] font-semibold">Home</span>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+          <span class="text-[10px] font-semibold">Rx</span>
+        </div>
+        <div class="w-[52px] h-[52px] rounded-full bg-[#2054E0] flex items-center justify-center text-white -mt-[30px] shadow-[0_6px_16px_rgba(32,84,224,0.4)] border-4 border-[#FFFFFF] cursor-pointer" onclick="openMobileAddExpense()">
+          <svg class="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#2054E0] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h11l5 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 5v4h4"/><path d="M8 14h5"/></svg>
+          <span class="text-[10px] font-semibold">Expenses</span>
+        </div>
+        <div class="flex flex-col items-center gap-[3px] text-[#98A2B3] flex-1 cursor-pointer">
+          <svg class="w-[21px] h-[21px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          <span class="text-[10px] font-semibold">More</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+function showView(name, btn){
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + name).classList.remove('hidden');
+  document.querySelectorAll('.switcher button').forEach(b => {
+    b.classList.remove('bg-[#2054E0]','text-white');
+    b.classList.add('bg-transparent','text-[#98A2B3]');
+  });
+  btn.classList.add('bg-[#2054E0]','text-white');
+  btn.classList.remove('bg-transparent','text-[#98A2B3]');
+}
+
+function openModal(name){ document.getElementById('modal-' + name).classList.add('open'); }
+function closeModal(name){ document.getElementById('modal-' + name).classList.remove('open'); }
+function openSheet(name){ document.getElementById('sheet-' + name).classList.add('open'); }
+function closeSheet(name){ document.getElementById('sheet-' + name).classList.remove('open'); }
+
+function openMobileAddExpense(){
+  document.getElementById('mobile-addexpense-overlay').classList.remove('hidden');
+  document.getElementById('mobile-addexpense-overlay').classList.add('flex');
+}
+function closeMobileAddExpense(){
+  document.getElementById('mobile-addexpense-overlay').classList.add('hidden');
+  document.getElementById('mobile-addexpense-overlay').classList.remove('flex');
+}
+
+// ================= EXPENSE DATA =================
+const CATEGORY_META = {
+  'Rent':               { badgeClass:'bg-[#F0F9FF] text-[#026AA2]' },
+  'Inventory Purchase': { badgeClass:'bg-[#EAF0FE] text-[#153C9E]' },
+  'Utilities':          { badgeClass:'bg-[#FFFAEB] text-[#B54708]' },
+  'Salaries':           { badgeClass:'bg-[#ECFDF3] text-[#067647]' },
+  'Maintenance':        { badgeClass:'bg-[#F5F8FC] text-[#667085]' },
+  'Marketing':          { badgeClass:'bg-[#F5F8FC] text-[#667085]' },
+  'Other':              { badgeClass:'bg-[#F5F8FC] text-[#667085]' }
+};
+
+const METHOD_ICON = {
+  'Cash':           '<path d="M3 6h18v12H3z"/><circle cx="12" cy="12" r="3"/>',
+  'Bank Transfer':  '<path d="M21 12a9 9 0 11-2.64-6.36M21 4v6h-6"/>',
+  'Card':           '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>'
+};
+
+const EXPENSES = [
+  { id:'e1', date:'2026-07-20', category:'Rent', description:'July shop rent, Awka Main', method:'Bank Transfer', amount:450000 },
+  { id:'e2', date:'2026-07-19', category:'Inventory Purchase', description:'Stock restock, pharma wholesaler', method:'Bank Transfer', amount:1280000 },
+  { id:'e3', date:'2026-07-18', category:'Utilities', description:'NEPA / PHCN bill, July', method:'Cash', amount:85000 },
+  { id:'e4', date:'2026-07-17', category:'Salaries', description:'Staff salary, Chidi O.', method:'Bank Transfer', amount:180000 },
+  { id:'e5', date:'2026-07-15', category:'Maintenance', description:'AC repair, dispensary unit', method:'Cash', amount:35000 },
+  { id:'e6', date:'2026-07-12', category:'Marketing', description:'Facebook ads boost', method:'Card', amount:20000 },
+  { id:'e7', date:'2026-07-10', category:'Utilities', description:'Internet subscription', method:'Card', amount:25000 },
+  { id:'e8', date:'2026-07-05', category:'Other', description:'Office supplies', method:'Cash', amount:12500 }
+];
+
+let currentCatFilter = 'all';
+let currentExpId = null;
+
+function formatNaira(n){
+  return '₦' + n.toLocaleString('en-NG');
+}
+function formatDate(iso){
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+
+function renderCategoryFilters(){
+  const cats = ['all', ...Object.keys(CATEGORY_META)];
+  const chip = (cat) => {
+    const active = cat === currentCatFilter;
+    const label = cat === 'all' ? 'All' : cat;
+    return `<div class="px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold cursor-pointer whitespace-nowrap exp-filter-chip ${active ? 'bg-[#2054E0] text-white' : 'text-[#98A2B3]'}" data-cat="${cat}" onclick="setCatFilter('${cat}')">${label}</div>`;
+  };
+  const html = cats.map(chip).join('');
+  document.getElementById('d-exp-cat-filters').innerHTML = html;
+
+  const mobileChip = (cat) => {
+    const active = cat === currentCatFilter;
+    const label = cat === 'all' ? 'All' : cat;
+    return `<div class="px-3.5 py-1.5 rounded-lg text-[12.5px] font-semibold cursor-pointer whitespace-nowrap shrink-0 exp-filter-chip ${active ? 'bg-[#2054E0] text-white' : 'text-[#98A2B3] bg-[#FFFFFF] border border-[#E6EAF2]'}" data-cat="${cat}" onclick="setCatFilter('${cat}')">${label}</div>`;
+  };
+  document.getElementById('m-exp-cat-filters').innerHTML = cats.map(mobileChip).join('');
+}
+
+function setCatFilter(cat){
+  currentCatFilter = cat;
+  renderCategoryFilters();
+  renderExpenses();
+}
+
+function expRowHtml(e, ctx){
+  const meta = CATEGORY_META[e.category];
+  const onclick = ctx === 'mobile' ? `openExpenseDetail('${e.id}', 'mobile')` : `openExpenseDetail('${e.id}', 'desktop')`;
+  if(ctx === 'desktop'){
+    return `
+      <div class="grid grid-cols-[110px_150px_1fr_130px_120px] gap-2 px-5 py-3 items-center border-b border-[#E6EAF2] text-[13px] cursor-pointer hover:bg-[#F5F8FC]" onclick="${onclick}">
+        <div class="text-[#667085]">${formatDate(e.date)}</div>
+        <div><span class="text-[11px] font-semibold px-2 py-0.5 rounded-md ${meta.badgeClass}">${e.category}</span></div>
+        <div class="font-medium truncate">${e.description}</div>
+        <div class="flex items-center gap-1.5 text-[#667085]">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${METHOD_ICON[e.method]}</svg>
+          ${e.method}
+        </div>
+        <div class="text-right font-semibold">${formatNaira(e.amount)}</div>
+      </div>`;
+  }
+  return `
+    <div class="flex items-center gap-3 p-3 rounded-xl border border-[#E6EAF2] bg-[#FFFFFF] mb-2 cursor-pointer" onclick="${onclick}">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${meta.badgeClass}">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${METHOD_ICON[e.method]}</svg>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="text-[13px] font-semibold truncate">${e.description}</div>
+        <div class="text-[11px] text-[#98A2B3]">${e.category} · ${formatDate(e.date)} · ${e.method}</div>
+      </div>
+      <div class="text-[13px] font-semibold shrink-0">${formatNaira(e.amount)}</div>
+    </div>`;
+}
+
+function renderExpenses(){
+  const dq = (document.getElementById('d-exp-search')?.value || '').toLowerCase();
+  const mq = (document.getElementById('m-exp-search')?.value || '').toLowerCase();
+
+  const matches = (e, q) => (currentCatFilter === 'all' || e.category === currentCatFilter) && (!q || e.description.toLowerCase().includes(q));
+
+  const dList = EXPENSES.filter(e => matches(e, dq));
+  const mList = EXPENSES.filter(e => matches(e, mq));
+
+  document.getElementById('d-exp-list').innerHTML = dList.length
+    ? dList.map(e => expRowHtml(e, 'desktop')).join('')
+    : `<div class="text-center text-[12.5px] text-[#98A2B3] py-16">
+        <svg class="w-8 h-8 mx-auto mb-2 text-[#E6EAF2]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7a2 2 0 012-2h11l5 5v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M16 5v4h4"/></svg>
+        No expenses match your search.
+       </div>`;
+
+  document.getElementById('m-exp-list').innerHTML = mList.length
+    ? mList.map(e => expRowHtml(e, 'mobile')).join('')
+    : `<div class="text-center text-[12.5px] text-[#98A2B3] py-14">No expenses match your search.</div>`;
+}
+
+function expenseDetailHtml(e){
+  const meta = CATEGORY_META[e.category];
+  return `
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <div class="text-[16px] font-semibold">${formatNaira(e.amount)}</div>
+        <div class="text-[12px] text-[#98A2B3]">${formatDate(e.date)}</div>
+      </div>
+      <span class="text-[11px] font-semibold px-2.5 py-1 rounded-md ${meta.badgeClass}">${e.category}</span>
+    </div>
+    <div class="border-t border-[#E6EAF2] pt-3.5 flex flex-col gap-2.5">
+      <div>
+        <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Description</div>
+        <div class="text-[13px]">${e.description}</div>
+      </div>
+      <div>
+        <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Payment method</div>
+        <div class="text-[13px] flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-[#667085]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${METHOD_ICON[e.method]}</svg>
+          ${e.method}
+        </div>
+      </div>
+      <div>
+        <div class="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">Recorded by</div>
+        <div class="text-[13px]">Josh O.</div>
+      </div>
+    </div>`;
+}
+
+function openExpenseDetail(id, ctx){
+  currentExpId = id;
+  const e = EXPENSES.find(x => x.id === id);
+  if(!e) return;
+  const html = expenseDetailHtml(e);
+  document.getElementById('d-exp-detail-body').innerHTML = html;
+  document.getElementById('m-exp-detail-body').innerHTML = html;
+  if(ctx === 'mobile') openSheet('expDetail'); else openModal('expDetail');
+}
+
+function deleteExpense(){
+  closeModal('expDetail');
+  closeSheet('expDetail');
+}
+
+function updateStats(){
+  const total = EXPENSES.reduce((sum, e) => sum + e.amount, 0);
+  const monthTotal = EXPENSES.filter(e => e.date.startsWith('2026-07')).reduce((sum, e) => sum + e.amount, 0);
+
+  const byCat = {};
+  EXPENSES.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+  const topCat = Object.entries(byCat).sort((a,b) => b[1]-a[1])[0]?.[0] || 'N/A';
+
+  document.getElementById('stat-total').textContent = formatNaira(total);
+  document.getElementById('stat-month').textContent = formatNaira(monthTotal);
+  document.getElementById('stat-topcat').textContent = topCat;
+  document.getElementById('stat-count').textContent = EXPENSES.length;
+
+  document.getElementById('m-stat-total').textContent = formatNaira(total);
+  document.getElementById('m-stat-month').textContent = formatNaira(monthTotal);
+  document.getElementById('m-stat-topcat').textContent = topCat;
+}
+
+// init
+renderCategoryFilters();
+renderExpenses();
+updateStats();
+</script>
+
+</body>
+</html>

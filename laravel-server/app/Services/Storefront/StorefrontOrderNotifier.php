@@ -20,7 +20,7 @@ class StorefrontOrderNotifier
 
     public function send(OnlineOrder $order, Store $store): void
     {
-        $order->loadMissing('items.product');
+        $order->loadMissing(['items.product', 'serviceItems.service']);
         $storefront = Storefront::where('user_id', $store->user_id)->first();
         $currency = $this->catalogService->storeCurrency($store);
 
@@ -60,7 +60,7 @@ class StorefrontOrderNotifier
      */
     private function mailContext(OnlineOrder $order, Store $store): array
     {
-        $order->loadMissing('items.product');
+        $order->loadMissing(['items.product', 'serviceItems.service']);
 
         return [
             'order' => $order,

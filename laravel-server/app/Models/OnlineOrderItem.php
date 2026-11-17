@@ -13,7 +13,7 @@ class OnlineOrderItem extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'online_order_id', 'product_id', 'quantity', 'unit_price', 'subtotal', 'synced_at',
+        'online_order_id', 'product_id', 'service_id', 'quantity', 'unit_price', 'subtotal', 'synced_at',
     ];
 
     protected $casts = [
@@ -36,5 +36,13 @@ class OnlineOrderItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * @return BelongsTo<Service, $this>
+     */
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class)->withTrashed();
     }
 }

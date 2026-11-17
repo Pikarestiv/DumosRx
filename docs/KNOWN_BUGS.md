@@ -47,8 +47,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
 - **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
 
-
-
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.
@@ -458,6 +456,16 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
+#### A-393. `client/` — a product price edit is logged with the new price only
+- **Found:** 2026-11-17, auditing service activity logging for the storefront booking work.
+- **What's wrong:** a product edit goes through `update()`, whose audit row holds the values written, so the Activity Log shows the new selling price but not the one it replaced. Services now record `previous_price` beside it (`updateServiceDetails()`); products do not.
+- **Fix:** read the current `selling_price` before the update in the product edit path and pass it as `auditDetails: { previous_price }`, as `updateServiceDetails()` does.
+
+#### A-394. `client/` — a till older than 2026-11-17 fulfils a storefront booking without its service lines
+- **Found:** 2026-11-17, building storefront service bookings.
+- **What's wrong:** `GET /app/online-orders` keeps booked services out of `items` (in `service_items`) so an older till never meets a line without a product. That till's fulfil path still writes the sale at the order's full `total_amount`, so the sale carries the service revenue with no `sale_services` line to explain it.
+- **Fix / retire:** update the till; no server change is planned. Goes away once no active `user_devices` row reports an `app_version` older than the release carrying this change.
+
 #### A-372. `client/` + `web/` — a store owner's customer-referral link never credits the referrer
 - **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
 - **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
@@ -544,8 +552,6 @@ suggested tackle order rather than a strict ranking.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
 
-
-
 #### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
 
 - **Found:** 2026-10-23, in the independent review of A-307.
@@ -562,6 +568,13 @@ suggested tackle order rather than a strict ranking.
 
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
+
+#### A-395. `client/` and `laravel-server/` — the store-owner app still calls the account manager "Contact Specialist"
+
+- **Found:** 2026-11-17, reviewing A-180, which unified the web admin panel on "Account Manager" but did not touch the store-owner app or the API docs.
+- **Location:** `client/components/settings/store/contact-specialist-card.tsx:48` ("Your Contact Specialist"), `client/components/help/help-page.tsx:187` ("View your Contact Specialist in Business Info"), `client/components/settings/settings-mobile-menu.tsx:66` ("Business details & contact specialist"), and the OpenAPI summaries in `laravel-server/app/Http/Controllers/Api/AccountManagerController.php:18` and `laravel-server/app/Http/Controllers/Api/Admin/AdminStoreController.php:392,408` ("contact specialist / account manager").
+- **What's wrong:** a store owner reads "Contact Specialist" while the admin who is that person reads "Account Manager" in the panel, so support conversations name one relationship two ways. Cosmetic; the field and API are already `account_manager` throughout.
+- **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
 
 ---
 

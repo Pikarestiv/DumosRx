@@ -24,3 +24,11 @@ describe("transaction history line count (A-365)", () => {
     expect(screen.getByText(new RegExp(`${label} ·`))).toBeTruthy();
   });
 });
+
+describe("transaction history customer name", () => {
+  it("capitalises each word of a customer name typed in lower case", () => {
+    render(<TransactionItem sale={{ ...sale, customer_name: "chidimma mgbeke" }} onSelect={vi.fn()} onReturnClick={vi.fn()} />);
+
+    expect(screen.getByText(/Sale #REC-1001 · Chidimma Mgbeke/)).toBeTruthy();
+  });
+});

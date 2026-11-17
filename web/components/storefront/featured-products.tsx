@@ -8,11 +8,11 @@ import { useLiveFeatured } from "@/lib/use-live-featured";
 import { ProductCard } from "@/components/storefront/product-card";
 import { correctCategoryName } from "@/lib/storefront-categories";
 import { toDisplayTitle, viewAllProductsLabel } from "@/lib/storefront-display";
-import { DISPLAY_FONT, FOCUS_RING, SECONDARY_BUTTON } from "@/lib/storefront-styles";
+import { DISPLAY_FONT, SECONDARY_BUTTON, categoryChip } from "@/lib/storefront-styles";
+import { HomeGridMoreTile } from "@/components/storefront/home-grid-more-tile";
+import { PRODUCT_GRID_CAPACITY, homeGridLayout } from "@/lib/storefront-home-grid";
 import type { StorefrontProduct } from "@/lib/types/storefront";
 import { cn } from "@/lib/utils";
-
-const FEATURED_PRODUCT_COUNT = 8;
 
 interface FeaturedProductsProps {
   products: StorefrontProduct[];
@@ -37,8 +37,9 @@ export function FeaturedProducts({ products: builtProducts, productCount: builtC
   const { products, productCount } = useLiveFeatured(storeSlug, builtProducts, builtCount);
   const [active, setActive] = useState<string | null>(null);
   const categories = categoryNames(products);
-  const shown = (active ? products.filter((p) => p.category?.name === active) : products).slice(0, FEATURED_PRODUCT_COUNT);
   const total = productCount ?? products.length;
+  const filtered = active ? products.filter((p) => p.category?.name === active) : products;
+  const layout = homeGridLayout(active ? filtered.length : total, filtered.length, PRODUCT_GRID_CAPACITY);
 
   if (products.length === 0) {
     return (
@@ -49,15 +50,6 @@ export function FeaturedProducts({ products: builtProducts, productCount: builtC
     );
   }
 
-  const chip = (selected: boolean) =>
-    cn(
-      "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors",
-      FOCUS_RING,
-      selected
-        ? "border-[color:var(--sf-ink)] bg-[color:var(--sf-ink)] text-[color:var(--sf-page)]"
-        : "border-black/15 bg-white hover:border-[color:var(--sf-ink)]",
-    );
-
   return (
     <section aria-label={t("products.heading")} className="space-y-5">
       <div className="flex items-end justify-between gap-4">
@@ -67,11 +59,11 @@ export function FeaturedProducts({ products: builtProducts, productCount: builtC
 
       {categories.length > 0 && (
         <div role="group" aria-label={t("products.categories")} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-          <button type="button" aria-pressed={active === null} onClick={() => setActive(null)} className={chip(active === null)}>
+          <button type="button" aria-pressed={active === null} onClick={() => setActive(null)} className={categoryChip(active === null)}>
             {t("products.all", { count: total })}
           </button>
           {categories.map((name) => (
-            <button key={name} type="button" aria-pressed={active === name} onClick={() => setActive(name)} className={chip(active === name)}>
+            <button key={name} type="button" aria-pressed={active === name} onClick={() => setActive(name)} className={categoryChip(active === name)}>
               {toDisplayTitle(correctCategoryName(name))}
             </button>
           ))}
@@ -79,9 +71,12 @@ export function FeaturedProducts({ products: builtProducts, productCount: builtC
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
-        {shown.map((product) => (
-          <ProductCard key={product.id} product={product} storeSlug={storeSlug} currency={currency} whatsapp={whatsapp} phone={phone} />
+        {filtered.slice(0, layout.shownCount).map((product, index) => (
+          <div key={product.id} className={cn("h-full", layout.itemClasses[index])}>
+            <ProductCard product={product} storeSlug={storeSlug} currency={currency} whatsapp={whatsapp} phone={phone} />
+          </div>
         ))}
+        {layout.moreTile && <HomeGridMoreTile tile={layout.moreTile} label={t("products.more.aria")} href={catalogHref} />}
       </div>
 
       <div className="flex justify-center pt-2">

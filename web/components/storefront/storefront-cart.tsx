@@ -10,6 +10,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useCart, type CartItem, type ScopedCart } from "@/lib/store/use-cart-store";
+import { isServiceLine } from "@/lib/storefront-cart-lines";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
@@ -118,6 +119,7 @@ function CartLine({
     <li className="flex items-center gap-3 py-4">
       <div className="min-w-0 flex-1 space-y-0.5">
         <p className="font-semibold leading-snug break-words">{name}</p>
+        {isServiceLine(item) ? <p className="text-xs uppercase tracking-wide opacity-70">{t("booking.tag")}</p> : null}
         <p className="text-sm text-primary tabular-nums">{money(item.price, currency)}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">

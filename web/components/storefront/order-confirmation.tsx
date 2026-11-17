@@ -10,6 +10,7 @@ import { toDisplayTitle } from "@/lib/storefront-display";
 import { whatsappLink } from "@/lib/storefront-product";
 import { DISPLAY_FONT, PRIMARY_BUTTON, SECONDARY_BUTTON } from "@/lib/storefront-styles";
 import { readSavedCheckoutDetails } from "@/lib/use-saved-checkout-details";
+import { formatDateSafe } from "@/lib/utils/date-utils";
 
 interface TrackedOrder {
   id: string;
@@ -26,7 +27,8 @@ interface TrackedOrder {
   branch_name: string;
   store_phone: string | null;
   whatsapp: string | null;
-  items: { product_name: string; quantity: number }[];
+  created_at?: string | null;
+  items: { product_name: string; quantity: number; is_service?: boolean }[];
 }
 
 const subscribeToLocation = (notify: () => void) => {
@@ -97,7 +99,9 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
         <p className="text-lg">
           {t("order.code")}: <span className="font-semibold [font-family:var(--sf-font-price)]">{order.code}</span>
         </p>
+        {order.created_at ? <p className="text-sm opacity-70">{formatDateSafe(order.created_at, "dd/MM/yyyy HH:mm", "")}</p> : null}
         <p className="opacity-80">{t(statusKey(order))}</p>
+        {order.items.some((item) => item.is_service) ? <p className="text-sm">{t("order.bookingNote")}</p> : null}
       </div>
 
       <section aria-label={t("order.items")} className="space-y-3 rounded-[var(--sf-card-radius)] border border-black/10 bg-white p-5">
@@ -106,6 +110,7 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
           {order.items.map((item, index) => (
             <li key={`${item.product_name}-${index}`}>
               {item.quantity} × {toDisplayTitle(item.product_name)}
+              {item.is_service ? <span className="ml-2 text-xs uppercase tracking-wide opacity-70">{t("booking.tag")}</span> : null}
             </li>
           ))}
         </ul>
@@ -130,7 +135,10 @@ export function OrderConfirmation({ storeSlug }: { storeSlug: string }) {
         {order.store_phone ? <p>{t("order.contact", { store: order.branch_name, phone: order.store_phone })}</p> : null}
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 print:hidden">
+        <button type="button" onClick={() => window.print()} className={SECONDARY_BUTTON}>
+          {t("order.print")}
+        </button>
         {whatsapp ? (
           <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={PRIMARY_BUTTON}>
             {t("order.whatsapp")}

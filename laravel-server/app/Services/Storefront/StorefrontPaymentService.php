@@ -18,7 +18,7 @@ class StorefrontPaymentService
     ) {}
 
     /**
-     * @param  array<int, array{product_id: string, quantity: int}>  $submittedItems
+     * @param  array<int, array{product_id?: ?string, service_id?: ?string, quantity: int}>  $submittedItems
      */
     public function refundUnfulfillableCheckout(
         Store $store,
@@ -75,7 +75,7 @@ class StorefrontPaymentService
     }
 
     /**
-     * @param  array<int, array{product_id: string, quantity: int, unit_price: float, subtotal: float}>  $orderItems
+     * @param  array<int, array<string, mixed>>  $orderItems
      */
     public function initializePayment(
         Store $store,
@@ -166,7 +166,7 @@ class StorefrontPaymentService
     }
 
     /**
-     * @param  array<int, array{product_id: string, quantity: int, unit_price: float, subtotal: float}>  $orderItems
+     * @param  array<int, array<string, mixed>>  $orderItems
      * @return array{0: ?JsonResponse, 1: ?StorefrontPaymentIntent}
      */
     public function verifyPaystackPayment(

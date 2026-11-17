@@ -280,13 +280,7 @@ class SyncPushResentInsertTest extends TestCase
         $this->assertNull(DB::table('stock_audits')->where('id', $auditId)->value('deleted_at'));
     }
 
-    /**
-     * A-242. A refusal reached through the existence probe is an UPDATE by the
-     * time the server judges it, and `version_conflict` is only reachable for a
-     * row the server already has — so recording it as INSERT states the
-     * opposite of what happened.
-     */
-    public function test_a_refusal_after_the_existence_probe_is_recorded_as_the_applied_update()
+    public function test_a_refusal_after_the_existence_probe_is_recorded_with_original_insert_operation()
     {
         $other = Store::create([
             'user_id' => User::create([
@@ -317,7 +311,7 @@ class SyncPushResentInsertTest extends TestCase
         $this->push($this->resentInsert($auditId, 1, 5))->assertStatus(200);
 
         $this->assertSame(
-            'UPDATE',
+            'INSERT',
             SyncFailure::where('record_id', $auditId)->value('operation'),
         );
     }

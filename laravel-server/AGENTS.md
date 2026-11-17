@@ -817,6 +817,11 @@ uses it too. A refresh-only (`['refresh']`) token or an expired one is refused
   `RegistersAccounts`, ...) rather than separate controllers because every
   route's middleware is bound to the class name by route group
   (`throttle:auth`, `throttle:session-refresh`, the `auth:sanctum` group).
+- The authenticated `auth:sanctum` group carries `throttle:60,1` keyed by user id
+  (not store or device). Every till logged in under the same store owner account
+  shares that single 60/min bucket (which also counts pull pages, `/user`,
+  `getSystemConfig`, and peer freshness), while tills on separate staff logins
+  each get their own 60/min.
 - `login()` refuses a user with a null/empty `password` before
   `Hash::check()`: PIN-only staff have no web credential, and
   `password_verify()` on null is a deprecation (see "Staff credentials").
@@ -2523,13 +2528,13 @@ the loop. `resolveUpdateConflict()`'s own per-row `version conflict` line is
 suppressed for a re-send for the same reason — the caller already counts it —
 and still fires for a genuine conflict, which is rare and worth a line each.
 
-The applied operation is also what gets recorded now (A-242): the change loop
-is `foreach ($changes as $changeIndex => $change)` and writes the flip back to
-`$changes[$changeIndex]['operation']`, because `SyncFailureRecorder` keys
-`operation` off the request's own `$changes` entry and `push()` was flipping a
-by-value copy. A refusal reached through the probe used to be recorded as
-`INSERT` although the server judged an `UPDATE`, which read as "a brand-new
-record could not be saved" — the opposite of what happened.
+The operation recorded in `sync_failures` preserves what the device sent
+(`INSERT`), not the internally converted `UPDATE` (A-299): `push()` flips
+`$change['operation'] = 'UPDATE'` by value for processing, but does not
+overwrite `$changes[$changeIndex]['operation']`. This ensures `SyncFailureRecorder`
+records the original operation the device attempted, preserving the diagnostic
+breakdown in the admin panel so that duplicate resend loops are not misclassified
+as regular edit conflicts.
 
 ## Device labels: sniffed is device-wide, nicknames are store-scoped
 

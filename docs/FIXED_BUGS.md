@@ -1,3 +1,13 @@
+### A-299 — a resent INSERT failure was recorded as an UPDATE, obscuring resend diagnostic loops
+- **Fixed:** 2026-11-17, server only, TDD. Found during sync-throughput review (Issue #204).
+- **Was:** In `laravel-server/app/Http/Controllers/Api/App/SyncController.php`, when the existence probe detected an existing record for an incoming `INSERT`, it rewrote `$changes[$changeIndex]['operation'] = 'UPDATE'` in place before `recordPushOutcome()` saw it. If such a change subsequently failed, `sync_failures.operation` recorded `UPDATE`, masking duplicate resend storms as normal edit conflicts.
+- **Now:**
+  (1) `SyncController::push()` sets `$change['operation'] = 'UPDATE'` locally for processing, leaving `$changes[$changeIndex]['operation']` as `'INSERT'` intact.
+  (2) `SyncFailureRecorder` records the failure with the original operation sent by the client (`INSERT`).
+  (3) Documented operation preservation and the authenticated `throttle:60,1` per-user scope in `laravel-server/AGENTS.md`.
+- **Coverage:** `laravel-server/tests/Feature/SyncPushResentInsertTest.php` (`test_a_refusal_after_the_existence_probe_is_recorded_with_original_insert_operation`).
+- **Compat:** Pure diagnostic recording fix; internal push processing and conflict resolution logic remain unchanged.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

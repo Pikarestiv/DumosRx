@@ -586,9 +586,12 @@ that decision because they all render `error.message`.
 - A **deliberate 4xx refusal keeps the server's own wording** — the 422
   till-code cap, the 422 storefront-slug messages. That is A-207's fix and it
   must not regress: an invisible refusal costs more than a blunt one.
-- The **raw** message still goes to the log buffer and the
-  `/logs/client-error` report. Detail belongs in the log; the card gets a
-  sentence an operator can act on.
+- **Console and telemetry gating (A-231):** Browser `console.error` and telemetry
+  (`reportClientError`) use the same presentable message gate as the UI cards
+  rather than emitting raw exception strings. Furthermore, `sanitizePayload()`
+  sanitizes by value shape (bcrypt hashes, encrypted ciphertext payloads, and
+  bearer tokens) in addition to sensitive key names, ensuring technical details
+  in error telemetry remain diagnosable without exposing credential material.
 
 So: do not add a card that reads `error.response.data.message` directly, and
 do not widen the gate to make a 500 "more helpful". If a 5xx needs a specific

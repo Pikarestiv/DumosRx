@@ -379,14 +379,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** not a safety defect — the lock does the job. But an operator reading `skipped: 0` will conclude no concurrent push was skipped, and that number cannot say otherwise. The test pinning it presumably passes by stubbing the lock away (SQLite compiles `lockForUpdate()` out).
 - **Fix:** either describe the lock as the mechanism and drop the dead conditional, or keep the conditional and say in the output what `skipped` actually counts.
 
-#### A-231. `web/` — A-224 stopped the admin card rendering a server exception, but the raw text still reaches the production console and the telemetry POST
-
-- **Found:** 2026-10-10, second adversarial review of the release batch.
-- **Location:** `web/lib/api/base-client.ts:224` keeps `rawServerMessage` and feeds it to `:252`'s `console.error` (in production, not just dev), `:235`'s log buffer and `:261`'s `/logs/client-error` POST, both via `sanitizePayload()` (`web/lib/api/logger.ts:85-90`).
-- **What's wrong:** `sanitizePayload` masks **by key name**. A-224's payload was a bcrypt hash and an encrypted till code embedded in the *value* of a SQL exception's `message`; `message` is not a sensitive key, so the value passes through verbatim. A-224's commit subject is true of the card and not of the console.
-- **Consequence:** an authenticated admin's own browser console, and the telemetry store, still receive the material A-224 removed from the screen. Low severity on its own — but one keystroke away during a screen-share or a support call, which is exactly the setting an admin panel is used in.
-- **Fix:** run the console and telemetry paths through the same gate as the rendered message, or sanitise by value shape as well as key name. Keeping the raw text for telemetry was deliberate (nothing should be lost from diagnostics), so the better answer is probably to send it to a field that is masked, not to drop it.
-
 #### A-267. `client/` — two persisted time guards outside the health check still trust this device's clock
 
 - **Found:** 2026-10-14, in the vet of A-234's fix. Neither is urgent; recorded so the next clock pass has the list rather than re-deriving it.

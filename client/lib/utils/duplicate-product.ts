@@ -36,3 +36,19 @@ export function findDuplicateProducts<T extends DuplicateCandidate>(
     sameBarcode: barcode ? (others.find((p) => (p.barcode ?? "").trim() === barcode) ?? null) : null,
   };
 }
+
+export function findDuplicateProductIds<T extends DuplicateCandidate>(products: readonly T[]): Set<string> {
+  const byName = new Map<string, string[]>();
+  const byBarcode = new Map<string, string[]>();
+  for (const p of products) {
+    const name = normalise(p.name);
+    const barcode = (p.barcode ?? "").trim();
+    if (name) byName.set(`${name}|${normalise(p.strength)}`, [...(byName.get(`${name}|${normalise(p.strength)}`) ?? []), p.id]);
+    if (barcode) byBarcode.set(barcode, [...(byBarcode.get(barcode) ?? []), p.id]);
+  }
+  const ids = new Set<string>();
+  for (const group of [...byName.values(), ...byBarcode.values()]) {
+    if (group.length > 1) group.forEach((id) => ids.add(id));
+  }
+  return ids;
+}

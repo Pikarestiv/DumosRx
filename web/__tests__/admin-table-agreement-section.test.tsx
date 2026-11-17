@@ -201,7 +201,7 @@ describe("StoreTableAgreementSection", () => {
     expect(screen.getByText("DRX-TILL-1")).toBeDefined();
     expect(screen.getByText("Chrome on Windows")).toBeDefined();
     // A bare date would make two readings hours apart look like one.
-    expect(screen.getByText(/^18\/10\/2026 \d{2}:\d{2}$/)).toBeDefined();
+    expect(screen.getByText(/^Reported .+ · 18\/10\/2026 \d{2}:\d{2}$/)).toBeDefined();
   });
 
   it("keeps a queued-edit count visible as the reason a table is unsettled", () => {

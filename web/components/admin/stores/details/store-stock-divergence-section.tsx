@@ -1,9 +1,9 @@
 "use client";
 
+import { ReportedAt } from "./reported-at";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStoreStockDivergence } from "@/lib/api/admin-hooks-sync";
-import { formatDateSafe } from "@/lib/utils/date-utils";
 import { formatMoney } from "@/lib/utils/currency";
 import type { DeviceStockReport, StoreStockDivergence } from "@/lib/types/admin-platform";
 import {
@@ -255,11 +255,7 @@ export function StoreStockDivergenceSection({
                 <div className="flex items-center gap-2">
                   <DeviceStatus device={device} />
                 </div>
-                {device.reported_at && (
-                  <p className="text-xs tabular-nums text-muted-foreground">
-                    {formatDateSafe(device.reported_at, "dd/MM/yyyy HH:mm", "")}
-                  </p>
-                )}
+                {device.reported_at && <ReportedAt reportedAt={device.reported_at} />}
                 {storeId && (
                   <div className="flex items-center gap-1">
                     <DeviceReportAction

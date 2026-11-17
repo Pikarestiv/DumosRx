@@ -1,3 +1,13 @@
+### A-183 — the root service worker registered in development and on /admin/ pages
+- **Fixed:** 2026-11-17, web only, TDD. Found during Admin PWA scope review (Issue #233).
+- **Was:** `components/pwa-registrar.tsx` registered `/sw.js` unconditionally across all routes (mounted in root `app/layout.tsx`) without a `process.env.NODE_ENV !== "production"` check or path check. This caused service workers to claim clients in `next dev` (interfering with hot reload) and register redundantly on `/admin*` pages where `AdminPwaRegistrar` already manages `/admin-sw.js` scoped to `/admin/`.
+- **Now:**
+  (1) Added early returns in `PwaRegistrar` when `process.env.NODE_ENV !== "production"`.
+  (2) Added early return when `window.location.pathname.startsWith("/admin")`, preventing redundant root worker registration on admin routes.
+  (3) Documented the aligned registration guards in `web/AGENTS.md`.
+- **Coverage:** `web/__tests__/pwa-registrar.test.tsx` (tests dev environment rejection, admin route rejection in production, and successful `/sw.js` registration on non-admin production routes).
+- **Compat:** Pure client-side registration guard, no API or schema changes.
+
 ### A-180 — the admin panel called one concept three things: "Account Manager", "Contact Specialist", and a component that contradicted itself
 - **Fixed:** 2026-11-17, web only, TDD. Found while writing partner SOP documentation (Issue #234).
 - **Was:** In the web admin panel, the relationship was called "Account Manager" in Settings tabs (`app/admin/settings/[[...tab]]/settings-client.tsx`) and in API fields (`account_manager` / `account_manager_is_explicit`), but the store detail card rendered `DetailCard title="Contact Specialist"` (`account-manager-card.tsx`), and the settings card rendered `Default Contact Specialist` while referencing "see the Account Manager field" in its own body (`default-account-manager-card.tsx`), contradicting itself.

@@ -73,6 +73,21 @@ describe("storefront services", () => {
     expect(screen.queryByRole("button", { name: /show all/i })).toBeNull();
   });
 
+  it("reveals a long list fifty services at a time", async () => {
+    servicesMock.mockResolvedValue(serviceList(120));
+    renderServices();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Show all 120 services" }));
+    expect(screen.getAllByRole("button", { name: /^book:/i })).toHaveLength(50);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show more services" }));
+    expect(screen.getAllByRole("button", { name: /^book:/i })).toHaveLength(100);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show more services" }));
+    expect(screen.getAllByRole("button", { name: /^book:/i })).toHaveLength(120);
+    expect(screen.queryByRole("button", { name: "Show more services" })).toBeNull();
+  });
+
   it("renders nothing when the store has no services", async () => {
     servicesMock.mockResolvedValue([]);
     const { container } = renderServices();

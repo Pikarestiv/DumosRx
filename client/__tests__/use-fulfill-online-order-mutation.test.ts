@@ -119,7 +119,7 @@ describe("useFulfillOnlineOrderMutation", () => {
       id: "order-booking",
       total_amount: 30000,
       service_items: [
-        { id: "os1", service_id: "svc1", quantity: 1, unit_price: 25000, subtotal: 25000, service: { name: "Scaling" } },
+        { id: "os1", service_id: "svc1", quantity: 1, unit_price: "25000.00" as unknown as number, subtotal: "25000.00" as unknown as number, service: { name: "Scaling" } },
       ],
     };
 
@@ -128,9 +128,12 @@ describe("useFulfillOnlineOrderMutation", () => {
     });
 
     const serviceRows = db.exec(
-      `SELECT ss.service_id, ss.service_name, ss.quantity, ss.total_price FROM sale_services ss JOIN sales s ON s.id = ss.sale_id WHERE s.transaction_number = 'ONL-order-booking'`,
+      `SELECT ss.service_id, ss.service_name, ss.quantity, ss.total_price, typeof(ss.unit_price), typeof(ss.total_price) FROM sale_services ss JOIN sales s ON s.id = ss.sale_id WHERE s.transaction_number = 'ONL-order-booking'`,
     );
-    expect(serviceRows[0]?.values).toEqual([["svc1", "Scaling", 1, 25000]]);
+    expect(serviceRows[0]?.values).toEqual([["svc1", "Scaling", 1, 25000, "real", "real"]]);
+    const queued = db.exec(`SELECT payload FROM _sync_queue WHERE table_name = 'sale_services' AND operation = 'INSERT'`);
+    const pushed = JSON.parse(String(queued[0]?.values[0][0]));
+    expect([pushed.unit_price, pushed.total_price]).toEqual([25000, 25000]);
     const batchRows = db.exec(`SELECT quantity FROM stock_batches WHERE product_id = 'p1'`);
     expect(batchRows[0]?.values[0][0]).toBe(8);
   });

@@ -120,7 +120,7 @@ class StorefrontCheckoutService
         }
 
         $services = Storefront::where('user_id', $store->user_id)->value('show_services')
-            ? Service::where('store_id', $store->id)->where('is_active', true)->whereIn('id', $ids)->get()->keyBy('id')
+            ? Service::where('store_id', $store->id)->where('is_active', true)->where('price', '>', 0)->whereIn('id', $ids)->get()->keyBy('id')
             : collect();
 
         if ($services->count() !== $ids->count()) {

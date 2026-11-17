@@ -354,9 +354,13 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   "+" button ("Book: {name}") that adds it to the cart as `kind: "service"`; a service with no price shows
   "Price on request" and Enquire on WhatsApp instead. `lib/storefront-cart-lines.ts` turns a cart line into
   `{ service_id }` or `{ product_id }` for checkout and `checkout/initialize`; it lives outside
-  `use-cart-store.ts` because several tests mock that module whole. `useCartRepricing` prices service lines from
-  the services endpoint (the products lookup still gets every cart id and supplies currency and
-  `online_payment_available`) and drops a service the store stopped offering. The cart drawer, checkout summary
+  `use-cart-store.ts` because several tests mock that module whole. `useCartRepricing` re-prices the cart on mount
+  because the server prices an order from ids and quantities, never from the cart's cached prices, and a failed
+  products lookup is shown as unconfirmed pricing rather than passed off as confirmed. It asks for products and,
+  when the cart holds a booking, the services list at the same time (`Promise.all`); the products lookup still
+  gets every cart id and supplies currency and `online_payment_available`. A service the store stopped offering
+  is dropped. A failed services lookup leaves booked lines at their cart price and does not mark the product
+  prices unconfirmed; checkout re-prices them on the server anyway. The cart drawer, checkout summary
   and confirmation tag service lines "Booking". `OrderingSteps` takes `hasServices` and then explains booking
   and pay-now/pay-at-store; without it the copy is unchanged. The order confirmation shows when it was placed
   (`dd/MM/yyyy HH:mm`), a booking note when any line `is_service`, and a Print button (`window.print()`, the
@@ -369,7 +373,8 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   Every card is in the DOM and hidden per breakpoint with literal `hidden`/`lg:block`/`xl:block` classes,
   because the page is a static export and cannot measure the viewport; the tile renders one count per
   breakpoint the same way. The products tile links to `/catalog` (the "View all N products" button stays
-  below it); the services tile expands the section in place, since there is no services page. Chips share
+  below it); the services tile expands the section in place, since there is no services page, 50 services at a
+  time with a "Show more services" button for the next 50 (§8 pagination). Chips share
   `categoryChip()` in `lib/storefront-styles.ts`. Both sections use the theme's CSS variables only, so every
   theme and preset styles them the same way the product cards are styled.
 - **Checkout (2026-11-15).** `CheckoutForm` takes the store's

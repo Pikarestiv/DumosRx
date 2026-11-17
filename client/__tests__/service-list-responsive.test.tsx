@@ -109,5 +109,18 @@ describe("ServicesList responsive layout", () => {
     fireEvent.click(screen.getByRole("button", { name: /service name/i }));
     expect(firstRowName()).toContain("Doctor Consultation");
   });
+
+  it("keeps the chosen order when the viewport narrows to the mobile cards", () => {
+    mockUseMediaQuery.mockReturnValue(true);
+    const { container, rerender } = render(<ServicesList services={mockServices} currencyCode="NGN" />);
+    fireEvent.click(screen.getByRole("button", { name: /price/i }));
+
+    mockUseMediaQuery.mockReturnValue(false);
+    rerender(<ServicesList services={mockServices} currencyCode="NGN" />);
+
+    const cards = [...container.querySelectorAll("[data-service-card-mobile]")].map((card) => card.textContent ?? "");
+    expect(cards[0]).toContain("Doctor Consultation");
+    expect(cards[1]).toContain("Full Body Massage");
+  });
 });
 

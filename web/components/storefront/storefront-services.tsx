@@ -8,8 +8,10 @@ import { StorefrontServiceCard } from "@/components/storefront/storefront-servic
 import { getStorefrontServices, type StorefrontService } from "@/lib/api/storefront-services";
 import { toDisplayTitle } from "@/lib/storefront-display";
 import { SERVICE_GRID_CAPACITY, homeGridLayout } from "@/lib/storefront-home-grid";
-import { DISPLAY_FONT, categoryChip } from "@/lib/storefront-styles";
+import { DISPLAY_FONT, SECONDARY_BUTTON, categoryChip } from "@/lib/storefront-styles";
 import { cn } from "@/lib/utils";
+
+const SERVICES_PAGE_SIZE = 50;
 
 interface StorefrontServicesProps {
   storeSlug: string;
@@ -27,7 +29,7 @@ export function StorefrontServices({ storeSlug, currency, whatsapp }: Storefront
   const { t, tp } = useStorefrontI18n();
   const [services, setServices] = useState<StorefrontService[]>([]);
   const [active, setActive] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [revealed, setRevealed] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,12 +45,14 @@ export function StorefrontServices({ storeSlug, currency, whatsapp }: Storefront
 
   const categories = serviceCategories(services);
   const filtered = active ? services.filter((service) => service.category?.trim() === active) : services;
-  const layout = expanded
-    ? { shownCount: filtered.length, itemClasses: filtered.map(() => "block"), moreTile: null }
+  const revealedCount = Math.min(revealed, filtered.length);
+  const layout = revealed
+    ? { shownCount: revealedCount, itemClasses: filtered.slice(0, revealedCount).map(() => "block"), moreTile: null }
     : homeGridLayout(filtered.length, filtered.length, SERVICE_GRID_CAPACITY);
+  const revealMore = () => setRevealed(revealedCount + SERVICES_PAGE_SIZE);
   const choose = (category: string | null) => {
     setActive(category);
-    setExpanded(false);
+    setRevealed(0);
   };
 
   return (
@@ -81,9 +85,17 @@ export function StorefrontServices({ storeSlug, currency, whatsapp }: Storefront
           </div>
         ))}
         {layout.moreTile && (
-          <HomeGridMoreTile tile={layout.moreTile} label={t("services.more.aria", { count: filtered.length })} onClick={() => setExpanded(true)} />
+          <HomeGridMoreTile tile={layout.moreTile} label={t("services.more.aria", { count: filtered.length })} onClick={revealMore} />
         )}
       </div>
+
+      {revealed > 0 && revealedCount < filtered.length && (
+        <div className="flex justify-center pt-2">
+          <button type="button" onClick={revealMore} className={SECONDARY_BUTTON}>
+            {t("services.showMore")}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

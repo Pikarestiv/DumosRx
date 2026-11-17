@@ -69,6 +69,7 @@ export const EN_MESSAGES = {
   "services.count.other": "{count} services",
   "services.book.aria": "Book: {name}",
   "services.more.aria": "Show all {count} services",
+  "services.showMore": "Show more services",
   "products.more.aria": "See every product in the shop",
   "grid.more": "more",
   "booking.tag": "Booking",

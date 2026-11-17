@@ -40,9 +40,18 @@ export function useCartRepricing(storeSlug: string) {
       try {
         const asked = items.slice(0, MAX_REPRICED_ITEMS);
         const { slug, branch } = parseStorefrontScope(storeSlug);
-        const { data } = await apiClient.get<CatalogResponse>(`/storefront/${slug}/products`, {
-          params: { ids: asked.map((item) => item.id).join(","), per_page: MAX_REPRICED_ITEMS, ...(branch ? { branch } : {}) },
-        });
+        const bookedServices = items.filter(isServiceLine);
+        const [{ data }, liveServices] = await Promise.all([
+          apiClient.get<CatalogResponse>(`/storefront/${slug}/products`, {
+            params: { ids: asked.map((item) => item.id).join(","), per_page: MAX_REPRICED_ITEMS, ...(branch ? { branch } : {}) },
+          }),
+          bookedServices.length === 0
+            ? Promise.resolve([])
+            : apiClient
+                .get<{ data?: StorefrontService[] }>(`/storefront/${slug}/services`, { params: branch ? { branch } : {} })
+                .then(({ data: services }) => services.data ?? [])
+                .catch(() => null),
+        ]);
         if (cancelled) return;
 
         const askedIds = new Set(asked.map((item) => item.id));
@@ -58,15 +67,12 @@ export function useCartRepricing(storeSlug: string) {
         for (const product of data.data ?? []) {
           prices[product.id] = parseFloat(String(product.selling_price));
         }
-        if (items.some(isServiceLine)) {
-          const { data: services } = await apiClient.get<{ data?: StorefrontService[] }>(`/storefront/${slug}/services`, {
-            params: branch ? { branch } : {},
-          });
-          if (cancelled) return;
-          const booked = new Set(items.filter(isServiceLine).map((item) => item.id));
-          for (const service of services.data ?? []) {
-            if (booked.has(service.id)) prices[service.id] = Number(service.price);
-          }
+        const booked = new Set(bookedServices.map((item) => item.id));
+        for (const service of liveServices ?? []) {
+          if (booked.has(service.id)) prices[service.id] = Number(service.price);
+        }
+        if (liveServices === null) {
+          for (const item of bookedServices) prices[item.id] = item.price;
         }
         for (const item of items.slice(MAX_REPRICED_ITEMS)) prices[item.id] = item.price;
 

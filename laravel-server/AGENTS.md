@@ -4931,7 +4931,15 @@ A booking is an ordinary storefront order whose lines name a service.
   key-sorted so two orderings of one cart compare equal; checkout uses it to
   assert the confirmed order is the cart that was paid for, and the refund of an
   unfulfillable paid checkout uses it the same way. Product keys are unchanged,
-  so intents minted before this change still match.
+  so intents minted before this change still match. The `service:` prefix keeps a
+  service and a product that share an id apart and is the permanent key scheme, not
+  a shim; the only compatibility point is that a product key stays the bare
+  `product_id`, which can change once no intent minted before 2026-11-17 is still
+  claimable (`storefront:sweep-payment-intents` settles stale ones after `payment.storefront_intent_stale_minutes`, 60 by default).
+- **A service with no price is not bookable.** `bookableServices()` also requires
+  `price > 0`, so a crafted request cannot book a "price on request" service at 0
+  and have the till fulfil it as a free sale; the storefront shows Enquire on
+  WhatsApp for those.
 - **Old tills (§11).** `GET /app/online-orders` keeps `items` as product lines
   only (`OnlineOrder::items()` is `whereNull('service_id')`) and returns booked
   services in a new `service_items` array (`OnlineOrder::serviceItems()`, with
@@ -4940,6 +4948,11 @@ A booking is an ordinary storefront order whose lines name a service.
   sent to `getBatchesForProduct(null)`. Such a till still records the order's full
   `total_amount` on the local sale without the service lines; that is the accepted
   cost. The split is the permanent shape, not a shim: new tills read both arrays.
+  **`$order->items` is product lines only.** Anything that needs every line of an
+  order (a total, a report, a refund, an export) must load `serviceItems` too.
+- **Rolling back** the `service_id` migration deletes the service-only lines
+  (`product_id` NULL) before restoring `product_id` to NOT NULL, so their orders keep
+  a total with no lines behind it (`OnlineOrderItemServiceIdMigrationTest`).
 - **Order lookup and emails.** `trackOrder` appends service lines to `items` with
   the service name in `product_name` and `is_service: true`, so an older web
   bundle still renders them. `_order_summary.blade.php` lists both kinds.

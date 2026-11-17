@@ -127,6 +127,19 @@ class StorefrontServiceBookingTest extends TestCase
         $this->assertSame(0, OnlineOrder::count());
     }
 
+    public function test_a_price_on_request_service_cannot_be_booked_for_nothing(): void
+    {
+        $quoted = Service::create(['store_id' => $this->store->id, 'name' => 'Bridal styling', 'price' => 0]);
+
+        $this->place([['service_id' => $quoted->id, 'quantity' => 1]])->assertNotFound();
+        $this->place([
+            ['product_id' => $this->product->id, 'quantity' => 1],
+            ['service_id' => $quoted->id, 'quantity' => 1],
+        ])->assertNotFound();
+
+        $this->assertSame(0, OnlineOrder::count());
+    }
+
     public function test_services_cannot_be_booked_while_the_store_has_them_switched_off(): void
     {
         $this->storefront->update(['show_services' => false]);

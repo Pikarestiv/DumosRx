@@ -8026,7 +8026,7 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 ## Services parity with products (2026-11-17)
 
 - **Inventory services table** sorts by any header (name, code, category, price, status) with the shared
-  `useSortableData` + `SortableHeaderCell`, like the product catalog. Mobile cards stay in catalogue order.
+  `useSortableData` + `SortableHeaderCell`, like the product catalog. The mobile cards follow the same sort, so the order holds when the viewport crosses 640px.
 - **POS services tab** uses `POSCategoryFilter`, the products tab's chip row (outlined when inactive), and
   each service card draws `CategoryIcon` from its category, the same matcher the product cards use.
 - **Recent Sales "Sale Type"** offers Product, Service, Reseller and Store Markup. `getRecentSales()` returns

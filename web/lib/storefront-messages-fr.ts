@@ -71,6 +71,7 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "services.count.other": "{count} services",
   "services.book.aria": "Réserver : {name}",
   "services.more.aria": "Afficher les {count} services",
+  "services.showMore": "Afficher plus de services",
   "products.more.aria": "Voir tous les articles de la boutique",
   "grid.more": "autres",
   "booking.tag": "Réservation",

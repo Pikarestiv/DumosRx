@@ -1002,9 +1002,10 @@ is the only place that mapping belongs.
   2026-10-07, A-181). The registrar swapped the root layout's link `href` in
   a `useEffect`, i.e. after hydration. iOS Safari's "Add to Home Screen"
   reads the manifest attached at load, so it installed `site.webmanifest`
-  instead — `start_url: /dashboard`, which client-side bounces to
-  `getAppURL()`. The reported symptom was "I installed dumosrx.com/dashboard
-  and it opens app.dumosrx.com". Two further holes in that approach: the
+  instead — originally `start_url: /dashboard` (a cross-origin bounce to
+  `getAppURL()`). Since A-182, `site.webmanifest` explicitly declares `id: "/"`,
+  `start_url: "/"`, and `scope: "/"`, keeping the marketing site installation
+  cleanly in-scope on its own origin. Two further holes in that approach: the
   layout rendered no registrar at all during the session check or for an
   unauthorized user, so a cold `/admin/` load had no admin manifest in the
   DOM even after hydration; and the registrar restored the site manifest on

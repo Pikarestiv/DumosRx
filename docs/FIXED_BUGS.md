@@ -1,3 +1,13 @@
+### A-331 — a crafted users INSERT with null email/username dropped insert and remapped foreign user id
+- **Fixed:** 2026-11-17, server only, TDD. Found during `findDuplicateInsertConflict()` extraction review.
+- **Was:** In `laravel-server/app/Services/Sync/PushConflictResolver.php`, `findDuplicateInsertConflict()` checked `where('username', $payload['username'] ?? null)->where('store_id', $payload['store_id'] ?? null)`. For a crafted `users` INSERT with no email, no username, and role `admin` (where `store_id` is null), Eloquent converted `where('username', null)` into `whereNull('username')`, matching the first store owner across the platform whose username and store_id were null. The caller's insert was dropped and foreign user IDs were remapped onto subsequent foreign keys in the push.
+- **Now:**
+  (1) `findDuplicateInsertConflict()` requires non-empty string `email` or `username`, returning `null` immediately if neither is present.
+  (2) Scoped `users` duplicate lookups to `$allowedUserIds` (the caller's tenant user ID scope passed from `SyncController`), preventing foreign users from ever matching.
+  (3) Documented duplicate user scoping in `laravel-server/AGENTS.md`.
+- **Coverage:** `laravel-server/tests/Feature/SyncPushUserDuplicateConflictTest.php` (tests crafted null email/username insert, cross-tenant email/username matching, and genuine same-tenant staff duplicate remapping).
+- **Compat:** Pure server-side conflict resolution hardening; genuine duplicates within tenant continue to remap cleanly.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

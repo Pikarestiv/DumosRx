@@ -76,21 +76,39 @@ class PushConflictResolver
         return [false, null, null];
     }
 
-    public function findDuplicateInsertConflict(string $modelClass, string $tableName, array $payload, $recordId)
+    public function findDuplicateInsertConflict(string $modelClass, string $tableName, array $payload, $recordId, array $allowedUserIds = [])
     {
         if ($tableName === 'users') {
-            $conflict = $modelClass::where(function ($q) use ($payload) {
-                if (! empty($payload['email'])) {
-                    $q->where('email', $payload['email']);
+            $hasEmail = ! empty($payload['email']) && is_string($payload['email']) && trim($payload['email']) !== '';
+            $hasUsername = ! empty($payload['username']) && is_string($payload['username']) && trim($payload['username']) !== '';
+
+            if (! $hasEmail && ! $hasUsername) {
+                return null;
+            }
+
+            $email = $hasEmail ? trim($payload['email']) : null;
+            $username = $hasUsername ? trim($payload['username']) : null;
+
+            $query = $modelClass::where(function ($q) use ($email, $username, $hasEmail, $hasUsername) {
+                if ($hasEmail) {
+                    $q->where('email', $email);
                 }
-            })
-                ->orWhere(function ($q) use ($payload) {
-                    $q->where('username', $payload['username'] ?? null)
-                        ->where('store_id', $payload['store_id'] ?? null);
-                })
-                ->first();
+                if ($hasUsername) {
+                    if ($hasEmail) {
+                        $q->orWhere('username', $username);
+                    } else {
+                        $q->where('username', $username);
+                    }
+                }
+            });
+
+            if (! empty($allowedUserIds)) {
+                $query->whereIn('id', $allowedUserIds);
+            }
+
+            $conflict = $query->first();
             if ($conflict) {
-                Log::warning('Sync push skipped user insert due to duplicate email/username: '.($payload['email'] ?? $payload['username'] ?? $recordId));
+                Log::warning('Sync push skipped user insert due to duplicate email/username: '.($email ?? $username ?? $recordId));
             }
 
             return $conflict;

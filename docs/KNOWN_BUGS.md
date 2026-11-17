@@ -47,8 +47,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** the cloud audit session's single-editor lease only works while both tills are online. Two tills that open Cycle Count offline each count and submit locally, and `submitStockAudit()` posts each one's `countedQty - baselineQty` as its own stock movement, so a product both counted is corrected twice when they sync.
 - **Fix, if wanted:** belongs with A-211's absolute-observation design: record the count as an observation and let the server reconcile two observations of the same product, rather than summing two deltas.
 
-
-
 #### A-337. `client/` — what A-271 left: a terminally conflicted batch re-queued on boot keeps shielding itself, and other money columns still overflow at 100,000,000
 - **Found:** 2026-10-15 as part of A-271; split out 2026-10-25 when the rest of A-271 was fixed.
 - **Orphaned rows:** after a terminal conflict drop a batch is left `_synced = 0` with no queue entry, and `requeueOrphanedRowsOnce()` (`reconcile-identity.ts`, on a crash-flagged boot) re-queues it as a whole-row push. That push conflicts again, and while it is queued it is not quantity-only, so it shields the row from the pull again. This is the only path that pins both the cost and the rewind budget. Fix: re-queue an orphaned `stock_batches` row only after pulling the server's copy, or drop its non-quantity fields when the conflict was terminal.
@@ -562,8 +560,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence:** the standalone window is out of scope from the first navigation. Browsers handle that inconsistently — typically by showing an in-app browser chrome bar, or by treating subsequent navigation as a plain tab — so the "installed app" feel is lost, and the user is left looking at a URL bar in what should be a standalone window. This was the visible half of A-181's symptom and it is **not** fixed by A-181: installing from anywhere on `dumosrx.com` outside `/admin` still does this.
 - **Fix:** decide what the marketing-site PWA is actually for. Three options, in order of preference: (a) drop `manifest` from the root layout entirely and let store owners install the real app from `app.dumosrx.com`, which has its own `client/public/manifest.json` with `start_url: "/"` — the app they want is served from that origin anyway; (b) keep it installable but point `start_url` at `/` with an explicit `scope: "/"`, so it is honestly a marketing-site shortcut; (c) keep `/dashboard` but make it a real page rather than a redirect. Whichever is chosen, add an explicit `id` — without one, the id defaults to `start_url`, so changing `start_url` later orphans every already-installed copy rather than updating it.
 
-
-
 #### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
 
 - **Found:** 2026-10-23, in the independent review of A-307.
@@ -580,6 +576,13 @@ suggested tackle order rather than a strict ranking.
 
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
+
+#### A-395. `client/` and `laravel-server/` — the store-owner app still calls the account manager "Contact Specialist"
+
+- **Found:** 2026-11-17, reviewing A-180, which unified the web admin panel on "Account Manager" but did not touch the store-owner app or the API docs.
+- **Location:** `client/components/settings/store/contact-specialist-card.tsx:48` ("Your Contact Specialist"), `client/components/help/help-page.tsx:187` ("View your Contact Specialist in Business Info"), `client/components/settings/settings-mobile-menu.tsx:66` ("Business details & contact specialist"), and the OpenAPI summaries in `laravel-server/app/Http/Controllers/Api/AccountManagerController.php:18` and `laravel-server/app/Http/Controllers/Api/Admin/AdminStoreController.php:392,408` ("contact specialist / account manager").
+- **What's wrong:** a store owner reads "Contact Specialist" while the admin who is that person reads "Account Manager" in the panel, so support conversations name one relationship two ways. Cosmetic; the field and API are already `account_manager` throughout.
+- **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
 
 ---
 

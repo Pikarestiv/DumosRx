@@ -2800,10 +2800,30 @@ token. That is deliberate and must not be "simplified" back to Sanctum:
   registered in `bootstrap/app.php`), no global ability-reject middleware, no
   Authorization override on the exit call, and the audit log gets its duration
   free from `ended_at - started_at`.
-- **Code expiration (A-208):** A code has a lifetime of 90 days (`expires_at`,
-  `AdminTillSessionService::CODE_LIFETIME_DAYS`), preventing forgotten codes from
-  surviving indefinitely. `scopeActive()` requires `whereNull('expires_at')->orWhere('expires_at', '>', now())`;
-  legacy rows with `null` expiry remain valid on read per §11.
+- **Code expiration (A-208):** a code lives 90 days (`AdminTillCode::LIFETIME_DAYS`,
+  aliased as `AdminTillSessionService::CODE_LIFETIME_DAYS`). New rows get an
+  explicit `expires_at`. A row with `expires_at = NULL` (issued before
+  `2026_11_17_000002_add_expires_at_to_admin_till_codes` ran) is treated as
+  expiring `LIFETIME_DAYS` after its `created_at`, computed on read, not
+  backfilled: `scopeActive()` applies it and `effectiveExpiresAt()` is what
+  `mine`, `issue` and `revealAll` report. It was chosen over "null never
+  expires" (which left every pre-migration code a permanent credential) and over
+  a backfill command (a write someone has to remember to run). Nobody was locked
+  out by it: the first codes date from 2026-10-09, so the oldest legacy code dies
+  around 2027-01-07, and an admin reissues one from the panel. **Retirable when**
+  every host has run that migration and `LIFETIME_DAYS` have passed since, at
+  which point every null row is already expired by this rule and the null branch
+  can go.
+- **The column may not exist yet.** `scopeActive()` probes
+  `AdminTillCode::hasExpiresAtColumn()` and falls back to the same
+  `created_at` rule when the migration has not run; `mine()` no longer names
+  columns. See "A column a release adds" below for the rule and its retirement
+  condition. The scope's probe is uncached (one INFORMATION_SCHEMA round trip per
+  till-code query; these are rare admin calls), because a static cache leaks
+  across tests that drop the column. `AdminTillCodeExpiryCompatTest` forces the
+  missing column and asserts no SQL names it: SQLite reads an unknown
+  double-quoted identifier as a string literal, so only that assertion catches a
+  regression that would 500 on MySQL.
 
 **Writing a test for an admin-permissioned route: three things are required**,
 and each one fails silently on its own.
@@ -4146,9 +4166,15 @@ method, so there is a single place to delete when the shim retires.
 - **The read side usually needs nothing.** `$row->code_encrypted` on a model
   whose table lacks the column is just a missing attribute — `null` — so a
   falsy check covers it. Explicit `->get(['code_encrypted'])` or a raw
-  `select` does *not*; don't name the new column in a column list.
+  `select` does *not*; don't name the new column in a column list. **A `where`
+  on the new column is not a read that "needs nothing"** either: it is SQL that
+  names the column and 500s on MySQL, which is how A-208's `scopeActive()` broke
+  till login, `mine`, the issue cap, `revealAll`, revoke and `admin:till-code`
+  for the window before its migration ran.
 - **Retirable when** every host the release reaches has run
-  `2026_10_10_000001_add_code_encrypted_to_admin_till_codes`. The health gate
+  `2026_10_10_000001_add_code_encrypted_to_admin_till_codes` (and, for the
+  `expires_at` probe in `AdminTillCode::scopeActive()` and
+  `newCodeAttributes()`, `2026_11_17_000002_add_expires_at_to_admin_till_codes`). The health gate
   makes that checkable: `GET /health?schema=1` reporting `true` on production
   and dev is the signal to drop the probe.
 - **The alternative, and when to prefer it:** split the change across two

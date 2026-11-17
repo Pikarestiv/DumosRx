@@ -216,7 +216,6 @@ class SyncController extends Controller
 
                         if ($exists) {
                             $change['operation'] = 'UPDATE';
-                            $changes[$changeIndex]['operation'] = 'UPDATE';
                             $isResentInsert = true;
                             $insertOverrides++;
                             if ($change['table_name'] === 'users' || (! $clientNamedStoreId && in_array($change['table_name'], PushPayloadNormalizer::STORE_ID_BACKFILL_TABLES, true))) {

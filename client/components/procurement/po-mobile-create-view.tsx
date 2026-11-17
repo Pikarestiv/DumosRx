@@ -171,11 +171,13 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
                 "calc(7rem + var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
             }}
           >
-            <PODetailsSummaryBar
-              vendorName={selectedSupplierName}
-              poTypeLabel={PO_TYPE_LABEL[poType]}
-              onEdit={() => setIsEditDetailsOpen(true)}
-            />
+            <div className="[[data-keyboard-open]_&]:hidden">
+              <PODetailsSummaryBar
+                vendorName={selectedSupplierName}
+                poTypeLabel={PO_TYPE_LABEL[poType]}
+                onEdit={() => setIsEditDetailsOpen(true)}
+              />
+            </div>
             <POItemBuilder
               poType={poType}
               products={products}

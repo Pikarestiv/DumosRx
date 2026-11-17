@@ -6,6 +6,12 @@
   (2) `getBIMetrics` (`bi-metrics.ts:88`), `getAdvancedMonthlySalesData` (`report-trends.ts:40`), and `fetchProfitLossReportData` (`reports.ts:175`) calculate returned COGS primarily from `ri.quantity * si.avg_cost_price` (the sale item's recorded unit cost), falling back to `stock_movements.total_cost` if the sale line cost is missing. Net COGS exactly reverses to zero upon full return.
 - **Coverage:** `client/__tests__/returns-cost-basis-sale-item.test.ts` (restocking after batch cost correction, discard damage loss after batch cost correction, and multi-batch blended average return), and updated `client/__tests__/returns-fefo-costing.test.ts`.
 - **Compat:** no schema, storage or API changes. Recomputes report profit figures consistently against the original sale cost basis.
+### A-317 — dead GET /stock-movements and GET /stock-adjustments routes handed any staff member tenant-wide stock ledgers without permissions
+- **Fixed:** 2026-11-17, laravel-server only, TDD. Found during stock quantity visibility auditing (PR #346).
+- **Was:** `GET /stock-movements` and `GET /stock-adjustments` sat in the `auth:sanctum` group with no `permission:` middleware and used `ledgerUserIds()` spanning all stores of the tenant owner. Any authenticated staff member (e.g. cashier) could fetch signed quantities, adjustments, reasons, and user names across every store the tenant owned, bypassing role-level stock quantity hiding. No modern client or web code called either endpoint (clients read movements from offline-first local SQLite).
+- **Now:** Removed the two dead routes from `routes/api.php`, deleted dead `StockMovementController.php`, and pinned 404 behavior for both paths in `LegacyCloudCrudEndpointsRemovedTest.php`.
+- **Coverage:** `laravel-server/tests/Feature/LegacyCloudCrudEndpointsRemovedTest.php` (tests that `/api/v1/stock-movements` and `/api/v1/stock-adjustments` return 404).
+- **Compat:** pure dead code removal; no shipped client calls these endpoints.
 
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.

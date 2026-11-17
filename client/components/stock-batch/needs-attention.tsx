@@ -137,7 +137,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       </div>
       <button
         type="button"
-        className="text-[12.5px] text-primary font-semibold cursor-pointer hover:underline rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+        className="text-[12.5px] text-primary font-semibold pointer-coarse:-my-3 pointer-coarse:py-3 cursor-pointer hover:underline rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
         onClick={() => router.push("/inventory/catalog?status=low_stock")}
       >
         View all

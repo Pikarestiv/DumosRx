@@ -20,6 +20,8 @@ export function saleToReceiptTransaction(
 
   return {
     id: sale.id,
+    transactionNumber: sale.transaction_number,
+    transaction_number: sale.transaction_number,
     date: sale.transaction_date || sale.created_at || "",
     cashier: sale.cashier_name || sale.user_name || sale.cashier,
     items: items.map((item) => ({

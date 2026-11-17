@@ -1,3 +1,13 @@
+### A-270 — the receipt number a customer reads out cannot be searched for
+- **Fixed:** 2026-11-17, client only, TDD. Found during receipt audit (Issue #227).
+- **Was:** `ReceiptView` (`client/components/pos/receipt-view.tsx`) printed `RCT-<shortId>` (`shortId = sale.id.split("-")[0]`) and the foot barcode encoded the raw `sale.id` UUID. Sales history (`pos-transaction-history.tsx:163-167`) searched `transaction_number` (`TXN-…`), `customer_name`, and `item_names`. `transaction_number` was never printed on the receipt or encoded in the barcode, so customer-provided receipt numbers and scanned receipt barcodes could not be found in sales history.
+- **Now:**
+  (1) Added `transactionNumber` and `transaction_number` to `ReceiptTransaction`.
+  (2) `buildReceiptTransaction`, `saleToReceiptTransaction`, and `cartToReceiptTransaction` populate `transactionNumber`.
+  (3) `ReceiptView` displays `transactionNumber` as the receipt number (`Receipt no: TXN-...`) and encodes `transactionNumber` in the footer barcode, falling back to `RCT-<shortId>` / UUID only for legacy transactions without a transaction number.
+  (4) `pos-transaction-history.tsx` search index includes `receipt_number` (`RCT-<shortId>`), `short_id`, and `sale_id`, so legacy printed receipts and scanned UUID barcodes remain fully searchable alongside modern `TXN-...` numbers.
+- **Coverage:** `client/__tests__/receipt-transaction-number-searchable.test.tsx` (tests `buildReceiptTransaction`, `saleToReceiptTransaction`, `ReceiptView` number formatting, barcode value encoding, fallback behavior, and multi-field fuzzy sales history lookup).
+- **Compat:** no schema, storage or API changes. Full backwards compatibility for legacy `RCT-...` receipts.
 ### A-374 — a customer return valued restocked units at the batch's current cost instead of the cost recorded on the sale
 - **Fixed:** 2026-11-17, client only, TDD. Found during batch cost correction review.
 - **Was:** `recordReturnDisposition()` and `restoreBatchQuantity()` in `client/lib/db/queries/returns.ts` queried `stock_batches.cost_price` at return time for the `return` movement's `unit_cost` and `total_cost`, and returned COGS in BI (`bi-metrics.ts:88`), monthly trends (`report-trends.ts:40`), and P&L (`reports.ts:175`) preferred `(SELECT SUM(sm.total_cost) FROM stock_movements ...)` over the sale's cost basis. The sale's COGS was recorded on `sale_items.cost_price` at sale time. When a batch cost was corrected, audited, or differed from the sale's blended average cost, a full return failed to net the sale's COGS to zero, creating negative net COGS or phantom profit.

@@ -7955,3 +7955,9 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   also selects `barcode`). Two offline tills can still each create the same name
   or barcode before syncing; there is no server-side uniqueness rule, so this is
   a guard against typing mistakes, not a guarantee.
+
+## Mobile keyboard and touch targets (2026-11-17)
+
+- While the on-screen keyboard is open `useKeyboardViewport` sets `data-keyboard-open` on `<html>`. Secondary chrome hides with the `[[data-keyboard-open]_&]:hidden` variant: the PO vendor summary bar, the Add Product "Save & Add Another" button and the dialog description. New forms should do the same so the field being typed in and its results keep most of the visible height.
+- Touch sizing is applied in the shared primitives with Tailwind's `pointer-coarse:` variant (Button 40-44px, Select trigger, Tabs pill). Bare text links and small buttons keep their look and grow only the hit area with `pointer-coarse:-my-3 pointer-coarse:py-3`.
+- A product name in a mobile list row wraps to two lines (`line-clamp-2`) instead of clipping; `truncate` on a flex container does not ellipsise its children.

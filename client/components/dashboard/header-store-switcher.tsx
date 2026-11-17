@@ -149,7 +149,7 @@ export function HeaderStoreSwitcher({
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors outline-none">
+              <button className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors outline-none pointer-coarse:-my-3 pointer-coarse:py-3">
                 <StoreIcon className="h-3 w-3" />
                 <span className="truncate max-w-[40vw] sm:max-w-[200px]">
                   {storeProfile?.name || APP_NAME}

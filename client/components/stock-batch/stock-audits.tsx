@@ -53,6 +53,7 @@ export interface AuditItem {
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-audits-tsx-L78
   lastAuditedAt?: string | null;
   reason?: string;
+  isDeleted?: boolean;
 }
 
 const STEP_WIDTH = (step: AuditStep) =>
@@ -104,10 +105,7 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
   );
   const freshness = useCountFreshness(countedProductIds);
   const [staleAcknowledged, setStaleAcknowledged] = useState(false);
-  const [submittedSummary, setSubmittedSummary] = useState<{
-    counted: number;
-    adjusted: number;
-  } | null>(null);
+  const [submittedSummary, setSubmittedSummary] = useState<{ counted: number; adjusted: number } | null>(null);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const sheetExport = useAuditSheetExport(

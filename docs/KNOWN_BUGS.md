@@ -544,15 +544,6 @@ suggested tackle order rather than a strict ranking.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
 
-#### A-259. `client/` — a resumed cycle-count draft never notices the catalog changing under it
-
-- **Found:** 2026-10-13, while verifying the cycle-count tick/resume behaviour.
-- **Location:** `client/components/stock-batch/stock-audits.tsx:131-150` — the effect that builds `items` is gated on `items.length === 0`, deliberately, so a background refetch cannot clobber counts in progress.
-- **What's wrong:** that gate also means a draft resumed hours or days later is a frozen snapshot of the catalog as it was when the count began. A product created since is absent from the sheet (it simply cannot be counted until the draft is cleared), and a product soft-deleted since still has an editable row — `applyStockAdjustmentDelta` takes no `_deleted` guard, so submitting it writes an `AUDIT-` batch against a dead product id.
-- **Consequence:** low frequency and low severity. Stock figures stay correct either way: `submitStockAudit` re-reads the live quantity inside the transaction (`client/lib/db/queries/inventory.ts:665-671`), so a stale `systemQty` in the draft never mis-posts a delta — this is about coverage of the count, not corruption of it.
-- **Mitigation already in place:** the "Start over" control added 2026-10-13 (same file, the export dropdown) clears the draft and reloads the sheet from the current catalog, so there is a user-reachable fix.
-- **Fix if taken further:** reconcile the resumed draft against `rawProducts` on load — append rows for new products, mark soft-deleted ones un-submittable — rather than all-or-nothing rebuilding.
-
 #### A-182. `web/` — the site-wide PWA's `start_url` is a cross-origin bounce, so installing `dumosrx.com` yields a window that navigates out of its own scope on launch
 
 - **Found:** 2026-10-07, while fixing A-181 (see `docs/FIXED_BUGS.md`).

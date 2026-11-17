@@ -7964,6 +7964,13 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   or barcode before syncing; there is no server-side uniqueness rule, so this is
   a guard against typing mistakes, not a guarantee.
 
+## Cycle-count draft catalog reconciliation (2026-11-17, A-259)
+
+- `reconcileAuditDraftWithCatalog()` (`components/stock-batch/audit-reconciliation.ts`) reconciles a resumed draft against live catalog products on load and refetch.
+- Products created since the draft was saved are appended to the sheet as uncounted rows so they can be audited without discarding the in-progress draft.
+- Products soft-deleted from the catalog are pruned from the sheet if uncounted, or marked `isDeleted: true` if previously counted.
+- `selectAdjustedAuditItems()` and `toStockAuditSubmissions()` exclude `isDeleted` rows, preventing adjustments against deleted products. `AuditLedgerRowCells` renders a "Deleted" badge and disables inputs for deleted rows. Uncounted live rows have their system stock and prices refreshed from live catalog data.
+
 ## Uncategorized products filtering (2026-11-17, A-187)
 
 - Products without an assigned category (`category_id` or `category_name` is null or empty) are labelled "Uncategorized" in tables and POS cards.

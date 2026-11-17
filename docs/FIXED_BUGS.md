@@ -1,3 +1,17 @@
+### A-259 — a resumed cycle-count draft never noticed the catalog changing under it
+- **Fixed:** 2026-11-17, client only, TDD. Found while verifying cycle-count draft resume behavior.
+- **Was:** `useAuditSheetSource` built `items` from `rawProducts` only when `shouldRebuildAuditSheet(items)` was true (i.e. zero items counted). When a draft with counted items was resumed hours or days later, the sheet was a frozen snapshot: products added to the catalog since were completely absent, uncounted products retained stale prices/quantities, and products soft-deleted from the catalog still had editable rows that, if submitted, wrote `AUDIT-` batches against deleted product IDs.
+- **Now:**
+  (1) Introduced `reconcileAuditDraftWithCatalog()` (`client/components/stock-batch/audit-reconciliation.ts`). When a draft is resumed or live products reload:
+      - Newly added products from the catalog are automatically appended to the draft sheet.
+      - Soft-deleted products that were never counted are pruned from the sheet.
+      - Soft-deleted products that were counted in the draft are marked `isDeleted: true` and rendered with a "Deleted" badge, with edits and checkbox disabled.
+      - Uncounted live rows have their system stock and prices updated from the fresh catalog.
+      - All live rows have their `lastAuditedAt` updated.
+  (2) `selectAdjustedAuditItems()` and `toStockAuditSubmissions()` exclude items with `isDeleted: true`, preventing inventory adjustments against deleted products.
+  (3) `AuditReviewStep` displays a notice if any counted items in the draft were deleted from the catalog.
+- **Coverage:** `client/__tests__/stock-audit-draft-catalog-reconciliation.test.tsx` (13 tests covering appending new products, dropping uncounted deleted products, marking counted deleted products un-submittable, refreshing uncounted prices/stock, and UI disabled state / review banner).
+- **Compat:** No schema or server API changes; local drafts gain defensive reconciliation without data loss.
 ### A-187 — a product with no category was labelled "Uncategorized" everywhere but could not be filtered to from anywhere
 - **Fixed:** 2026-11-17, client only, TDD. Found during catalog QA.
 - **Was:** In POS category tabs (`usePOSProductFilter`) and the product database catalog filters (`ProductDatabaseFilters`, `product-database.tsx`), filter options were populated only from non-empty category names. When products had null or empty categories, they displayed "Uncategorized" in tables and POS cards, but there was no way to filter to them — selecting categories only allowed picking assigned categories. If a user wanted to audit or assign categories to all unorganized products, they had to scan the entire catalog manually.

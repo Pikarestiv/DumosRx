@@ -16,6 +16,7 @@ class AdminTillCode extends Model
         'code_encrypted',
         'label',
         'last_used_at',
+        'expires_at',
         'revoked_at',
     ];
 
@@ -23,12 +24,17 @@ class AdminTillCode extends Model
 
     protected $casts = [
         'last_used_at' => 'datetime',
+        'expires_at' => 'datetime',
         'revoked_at' => 'datetime',
     ];
 
     public function scopeActive($query)
     {
-        return $query->whereNull('revoked_at');
+        return $query->whereNull('revoked_at')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            });
     }
 
     /**

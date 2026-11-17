@@ -6,6 +6,7 @@ export interface AdminTillCode {
   id: string;
   label: string | null;
   last_used_at: string | null;
+  expires_at?: string | null;
   created_at: string;
 }
 
@@ -46,7 +47,7 @@ export const useIssueTillCodeMutation = () => {
 
   return useMutation({
     mutationFn: (label: string | null) =>
-      webApiClient.request<{ id: string; code: string }>("admin/till-codes", {
+      webApiClient.request<{ id: string; code: string; expires_at?: string }>("admin/till-codes", {
         method: "POST",
         body: { label },
       }),

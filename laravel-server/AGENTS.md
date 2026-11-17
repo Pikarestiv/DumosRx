@@ -2800,6 +2800,10 @@ token. That is deliberate and must not be "simplified" back to Sanctum:
   registered in `bootstrap/app.php`), no global ability-reject middleware, no
   Authorization override on the exit call, and the audit log gets its duration
   free from `ended_at - started_at`.
+- **Code expiration (A-208):** A code has a lifetime of 90 days (`expires_at`,
+  `AdminTillSessionService::CODE_LIFETIME_DAYS`), preventing forgotten codes from
+  surviving indefinitely. `scopeActive()` requires `whereNull('expires_at')->orWhere('expires_at', '>', now())`;
+  legacy rows with `null` expiry remain valid on read per §11.
 
 **Writing a test for an admin-permissioned route: three things are required**,
 and each one fails silently on its own.

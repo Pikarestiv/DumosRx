@@ -47,8 +47,9 @@ class AdminTillCodeApiTest extends TestCase
         $response = $this->actingAs($admin)
             ->postJson('/api/v1/admin/till-codes', ['label' => 'agidi']);
 
-        $response->assertOk()->assertJsonStructure(['id', 'code']);
+        $response->assertOk()->assertJsonStructure(['id', 'code', 'expires_at']);
         $this->assertSame(12, strlen((string) $response->json('code')));
+        $this->assertNotNull($response->json('expires_at'));
         $this->assertTrue(Hash::check(
             $response->json('code'),
             AdminTillCode::where('admin_id', $admin->id)->firstOrFail()->code_hash,
@@ -57,6 +58,7 @@ class AdminTillCodeApiTest extends TestCase
         $listed = $this->actingAs($admin)->getJson('/api/v1/admin/till-codes/mine')->assertOk();
 
         $this->assertSame('agidi', $listed->json('codes.0.label'));
+        $this->assertNotNull($listed->json('codes.0.expires_at'));
         $this->assertArrayNotHasKey('code_hash', $listed->json('codes.0'));
         $this->assertArrayNotHasKey('code', $listed->json('codes.0'));
     }
@@ -73,6 +75,36 @@ class AdminTillCodeApiTest extends TestCase
 
         $this->assertSame(0, AdminTillCode::where('admin_id', $other->id)->count());
         $this->assertSame(1, AdminTillCode::where('admin_id', $admin->id)->count());
+    }
+
+    public function test_mine_excludes_expired_codes_and_preserves_legacy_null(): void
+    {
+        $admin = $this->admin();
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('111111111111'),
+            'label' => 'active-code',
+            'expires_at' => now()->addDays(10),
+        ]);
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('222222222222'),
+            'label' => 'expired-code',
+            'expires_at' => now()->subDay(),
+        ]);
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('333333333333'),
+            'label' => 'legacy-code',
+            'expires_at' => null,
+        ]);
+
+        $response = $this->actingAs($admin)->getJson('/api/v1/admin/till-codes/mine')->assertOk();
+        $labels = collect($response->json('codes'))->pluck('label')->all();
+
+        $this->assertContains('active-code', $labels);
+        $this->assertContains('legacy-code', $labels);
+        $this->assertNotContains('expired-code', $labels);
     }
 
     public function test_listing_shows_only_the_callers_own_codes(): void
@@ -154,6 +186,7 @@ class AdminTillCodeApiTest extends TestCase
 
         $this->assertSame($issued, $row['code']);
         $this->assertSame($owner->email, $row['admin_email']);
+        $this->assertNotNull($row['expires_at']);
     }
 
     public function test_a_legacy_hash_only_code_is_listed_as_unavailable(): void

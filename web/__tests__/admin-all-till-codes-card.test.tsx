@@ -89,6 +89,21 @@ describe("AllTillCodesCard", () => {
     expect(screen.queryByText("123456789012")).not.toBeInTheDocument();
   });
 
+  it("renders expiry date when revealed, or never expires for legacy codes", async () => {
+    state.codes = [
+      reveal({ id: "c1", expires_at: "2026-12-31T23:59:00Z" }),
+      reveal({ id: "c2", expires_at: null }),
+    ];
+    render(<AllTillCodesCard />);
+
+    await userEvent.click(screen.getByRole("button", { name: /reveal/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/expires 31\/12\/2026 23:59/i)).toBeInTheDocument();
+      expect(screen.getByText(/never expires/i)).toBeInTheDocument();
+    });
+  });
+
   it("warns that a reveal is audited", () => {
     render(<AllTillCodesCard />);
 

@@ -26,9 +26,13 @@ class AdminTillSessionService
 
     public const REVEAL_LIMIT = 50;
 
+    public const CODE_LIFETIME_DAYS = 90;
+
     private static ?string $equalizerHash = null;
 
     private ?bool $hasEncryptedColumn = null;
+
+    private ?bool $hasExpiresAtColumn = null;
 
     public function generateCode(): string
     {
@@ -51,10 +55,10 @@ class AdminTillSessionService
     }
 
     /**
-     * Attributes for a new code row, omitting the recoverable copy on a host
+     * Attributes for a new code row, omitting the recoverable copy or expiry on a host
      * whose schema is behind the code (see AGENTS.md "columns a release adds").
      */
-    public function newCodeAttributes(string $code, string $adminId, ?string $label): array
+    public function newCodeAttributes(string $code, string $adminId, ?string $label, ?\DateTimeInterface $expiresAt = null): array
     {
         $attributes = [
             'admin_id' => $adminId,
@@ -66,6 +70,12 @@ class AdminTillSessionService
 
         if ($this->hasEncryptedColumn) {
             $attributes['code_encrypted'] = $this->encryptCode($code);
+        }
+
+        $this->hasExpiresAtColumn ??= Schema::hasColumn('admin_till_codes', 'expires_at');
+
+        if ($this->hasExpiresAtColumn) {
+            $attributes['expires_at'] = $expiresAt ?? now()->addDays(self::CODE_LIFETIME_DAYS);
         }
 
         return $attributes;
@@ -100,6 +110,7 @@ class AdminTillSessionService
             'admin_name' => trim(($row->admin->first_name ?? '').' '.($row->admin->last_name ?? '')),
             'created_at' => $row->created_at?->toIso8601String(),
             'last_used_at' => $row->last_used_at?->toIso8601String(),
+            'expires_at' => $row->expires_at?->toIso8601String(),
             'code' => $this->decryptCode($row),
         ])->all();
     }

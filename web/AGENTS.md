@@ -1292,6 +1292,8 @@ URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
   `issue.reset()` when the freshly issued code is dismissed: the mutation keeps
   its result in observer state (and React Query devtools), so clearing only the
   card's own copy would leave the code readable for the life of the page.
+  Both cards render `expires_at` (A-208, 90-day expiry), displaying "Expires DD/MM/YYYY HH:mm"
+  or "Never expires" for legacy rows.
 
 Covered by `__tests__/admin-action-permission-gating.test.tsx` (per-action
 hidden/shown/super_admin-bypass cases across `StoreRowActions`, `StoreTable`'s

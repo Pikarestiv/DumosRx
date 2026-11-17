@@ -1,4 +1,5 @@
-import { test, expect, login, type Locator, type Page } from './fixtures';
+import type { Locator, Page } from '@playwright/test';
+import { test, expect, login } from './fixtures';
 import { getMigratedFixture, seedLocalDb, storeIdOf } from './local-db';
 import { stockedProduct } from './services-seed';
 
@@ -27,7 +28,7 @@ async function seedPaidLogin(page: Page, browser: Parameters<typeof getMigratedF
 
 async function setKeyboard(page: Page, open: boolean) {
   await page.evaluate(
-    ({ open, height }) => {
+    ({ open, height }: { open: boolean; height: number }) => {
       const viewport = window.visualViewport!;
       if (open) Object.defineProperty(viewport, 'height', { configurable: true, get: () => height });
       else delete (viewport as unknown as Record<string, unknown>).height;

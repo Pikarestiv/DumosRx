@@ -155,12 +155,18 @@ export function POSTransactionHistory({
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-transaction-history-tsx-L135
   const searchable = useMemo(
     () =>
-      (salesSource || []).map((sale) => ({
-        id: sale.id,
-        customer_name: sale.customer_name || "Walk-in",
-        transaction_number: sale.transaction_number || "",
-        item_names: sale.item_names?.replace(/\|\|/g, " ") || "",
-      })),
+      (salesSource || []).map((sale) => {
+        const shortUuid = sale.id ? sale.id.split("-")[0].toUpperCase() : "";
+        return {
+          id: sale.id,
+          customer_name: sale.customer_name || "Walk-in",
+          transaction_number: sale.transaction_number || "",
+          receipt_number: shortUuid ? `RCT-${shortUuid}` : "",
+          short_id: shortUuid,
+          sale_id: sale.id || "",
+          item_names: sale.item_names?.replace(/\|\|/g, " ") || "",
+        };
+      }),
     [salesSource],
   );
 
@@ -172,6 +178,9 @@ export function POSTransactionHistory({
       const { results } = genericFuzzySearch(debouncedSearchQuery, searchable, [
         "customer_name",
         "transaction_number",
+        "receipt_number",
+        "short_id",
+        "sale_id",
         "item_names",
       ]);
       // Filter the original array by matched id rather than returning `results` directly, so relevance scoring doesn't reorder s…

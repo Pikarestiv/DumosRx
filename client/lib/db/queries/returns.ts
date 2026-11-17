@@ -51,7 +51,7 @@ async function restoreBatchQuantity(
   { productId, costPrice, returnId, performedBy }: Omit<RestoreParams, "saleItemId" | "legacyStockBatchId" | "returnQuantity">,
 ) {
   let unitCost = costPrice;
-  if (stockBatchId) {
+  if ((unitCost == null || unitCost <= 0) && stockBatchId) {
     const rows = await query<{ cost_price: number | null }>(
       "SELECT cost_price FROM stock_batches WHERE id = ?",
       [stockBatchId],
@@ -108,13 +108,16 @@ export async function recordReturnDisposition(params: ReturnDispositionParams) {
     let availableInBatch = Math.max(0, consumed.quantity - processedSoFar);
     if (availableInBatch <= 0) continue;
 
-    const batchRows = await query<{ cost_price: number | null }>(
-      "SELECT cost_price FROM stock_batches WHERE id = ?",
-      [consumed.stock_batch_id],
-    );
-    const batchUnitCost = (batchRows[0]?.cost_price != null && batchRows[0].cost_price > 0)
-      ? batchRows[0].cost_price
-      : costPrice;
+    let batchUnitCost = costPrice;
+    if ((batchUnitCost == null || batchUnitCost <= 0) && consumed.stock_batch_id) {
+      const batchRows = await query<{ cost_price: number | null }>(
+        "SELECT cost_price FROM stock_batches WHERE id = ?",
+        [consumed.stock_batch_id],
+      );
+      if (batchRows[0]?.cost_price != null && batchRows[0].cost_price > 0) {
+        batchUnitCost = batchRows[0].cost_price;
+      }
+    }
 
     if (remainingRestock > 0 && availableInBatch > 0) {
       const takeRestock = Math.min(availableInBatch, remainingRestock);

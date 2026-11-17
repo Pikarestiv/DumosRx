@@ -1,5 +1,6 @@
 import { query, insert, update, softDelete } from "@/lib/db/local-database";
 import type { Service, ReturnService } from "@/lib/types/service";
+import { sameServiceCategory } from "@/lib/utils/service-category";
 import type { SaleServiceDetail } from "@/lib/types/sale";
 
 export interface GetServicesFilter {
@@ -66,6 +67,25 @@ export async function updateServiceDetails(
     ...(data.price !== undefined ? { price: Math.max(0, Number(data.price) || 0) } : {}),
     ...(data.is_active !== undefined ? { is_active: data.is_active ? 1 : 0 } : {}),
   });
+}
+
+async function servicesInCategory(name: string, storeId?: string | null): Promise<Service[]> {
+  const rows = await getServices({ storeId, activeOnly: false });
+  return rows.filter((service) => sameServiceCategory(service.category, name));
+}
+
+export async function renameServiceCategory(from: string, to: string, storeId?: string | null): Promise<void> {
+  const target = to.trim().replace(/\s+/g, " ");
+  if (!target) throw new Error("Category name is required.");
+  for (const service of await servicesInCategory(from, storeId)) {
+    await update("services", service.id, { category: target });
+  }
+}
+
+export async function clearServiceCategory(name: string, storeId?: string | null): Promise<void> {
+  for (const service of await servicesInCategory(name, storeId)) {
+    await update("services", service.id, { category: null });
+  }
 }
 
 export async function deleteService(id: string): Promise<void> {

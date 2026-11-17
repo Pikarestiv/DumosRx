@@ -7960,6 +7960,26 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.
   It is the way to find duplicates that offline tills created before they synced.
 
+## Service categories (2026-11-17)
+
+- `services.category` stays free text; there is no services category table and no schema change.
+  Service categories are deliberately separate from product `categories` so "Consultation" never
+  appears in the product category picker or product filters.
+- The service form uses `CategoryCombobox` with its `options` prop (the distinct categories of this
+  store's services, via `useServiceCategories`), and saves through `resolveServiceCategory`, which
+  reuses an existing spelling when only case or spacing differs. Case variants already in the data are
+  grouped by `groupServiceCategories` under their most-used spelling; stored values are not rewritten
+  until someone renames the category (`renameServiceCategory`, `clearServiceCategory` update each
+  service through the sync-aware `update()` helper, scoped to the active store).
+- The services tab has a "Services actions" menu beside the search (`ServicesActionsMenu`, same place as the
+  catalog's Product actions): "Export services list" (CSV/XLSX/PDF of the rows on screen, gated by
+  `export_product_list`) and "Manage categories", which opens Settings → Categories on its Services tab
+  (`/settings/categories?type=services`). That page (`CategoriesTabs`) has Products and Services tabs; the
+  Services tab is `ServiceCategoriesCard`, the rename/remove manager. The services list and its category
+  cells follow the store's capitalisation setting like the product catalog.
+- Backward compatibility (§11): nothing about the stored shape changed, so older bundles keep working;
+  they just keep their free-text input.
+
 ## Mobile keyboard and touch targets (2026-11-17)
 
 - While the on-screen keyboard is open `useKeyboardViewport` sets `data-keyboard-open` on `<html>`. Secondary chrome hides with the `[[data-keyboard-open]_&]:hidden` variant: the PO vendor summary bar, the Add Product "Save & Add Another" button and the dialog description. New forms should do the same so the field being typed in and its results keep most of the visible height.

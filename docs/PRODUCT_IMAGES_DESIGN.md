@@ -61,6 +61,20 @@ server has checked (size cap, magic bytes of the declared type) are copied to
 the public bucket under a server-chosen `Content-Type`. Nothing a caller
 uploads is publicly reachable until it has passed confirm.
 
+## Cloudflare resources (account `dumostechng@gmail.com`)
+
+| Environment | Public bucket (custom domain) | Incoming bucket |
+| --- | --- | --- |
+| Dev | `dumosrx-dev-product-images` (`images-dev.dumostech.com`) | `dumosrx-dev-product-images-incoming` |
+| Production | `dumosrx-product-images` (`images.dumostech.com`) | `dumosrx-product-images-incoming` |
+
+Production was created on 2026-11-17 with the same shape as dev: CORS `GET`/`HEAD` for
+`app.dumosrx.com`, `dumosrx.com`, `www.dumosrx.com` and the Tauri origins on the public bucket,
+`PUT` with `Content-Type` for the app and Tauri origins on the incoming bucket (24 hour expiry
+rule), r.dev public URLs off. The feature stays off in production until the server `.env`
+has `PRODUCT_IMAGES_ENABLED=true`, the bucket names, `R2_PUBLIC_BASE_URL=https://images.dumostech.com`
+and an R2 token scoped to the two production buckets (Object Read & Write).
+
 ## Flows (all online-only)
 
 1. **Config.** `GET /api/v1/app/product-images/config` returns
@@ -110,10 +124,12 @@ All four write endpoints sit behind `throttle:product-images`
 - The storefront renders the photo through `CategoryTile` (`image` from `image_url`), contained on the
   category tint so the whole product shows, and falls back to the category tile when the image fails.
 - **Zoom.** `ProductImage` takes `zoom="full"` (the whole image is a button, used in the catalog detail
-  panel) or `zoom="corner"` (a small magnifier, used on POS tiles, where the tile itself is the add-to-cart
+  panel) or `zoom="overlay"` (a maximize button centred on the image on hover, or a small corner button on touch devices; used on POS tiles, where the tile itself is the add-to-cart
   button and a tap on the magnifier must not add the product). Both open `ProductImageLightbox`, which shows
-  the stored image (at most 512px) fitted to the screen. Escape and the close button dismiss it. No larger
+  the stored image (at most 512px) fitted to the screen. Escape and the close button dismiss it. The lightbox is portalled but React events still bubble through the tree, so `ProductImage` stops every click coming out of it from reaching a surrounding button (the POS tile would otherwise add the product to the cart). No larger
   copy is stored.
+- **Contained images** (`fit="contain"`, the POS tile) draw a blurred, cropped copy of the same image behind the
+  sharp one, so a non-square photo never leaves bare bands at its sides. Same URL, so no extra download.
 - The icon fallback receives the product name as well as the category, so it uses the same matcher as
   the POS and catalog (`getProductIcon`).
 - **Offline-created products.** Uploading needs the product to exist on the server, so an image cannot be

@@ -22,8 +22,8 @@ export function CategoriesTabs() {
   };
 
   return (
-    <Tabs value={active} onValueChange={select} className="space-y-4">
-      <TabsList>
+    <Tabs value={active} onValueChange={select} className="space-y-6">
+      <TabsList className="w-full md:w-max">
         <TabsTrigger value="products">Products</TabsTrigger>
         <TabsTrigger value={SERVICES_TAB}>Services</TabsTrigger>
       </TabsList>

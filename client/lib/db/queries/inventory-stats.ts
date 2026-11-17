@@ -11,6 +11,7 @@ export interface StockBatchStatsRow {
   expired_count: number;
   missing_expiry_count: number;
   total_stock_batch_value: number;
+  total_retail_value: number;
   active_categories: number;
 }
 
@@ -33,6 +34,7 @@ export async function getStockBatchStats(expiryDays: number = 90) {
       SUM(COALESCE(sb.expired, 0)) AS expired_count,
       SUM(COALESCE(sb.missing_expiry, 0)) AS missing_expiry_count,
       COALESCE(SUM(sb.total_value), 0) AS total_stock_batch_value,
+      COALESCE(SUM(MAX(COALESCE(sb.total_quantity, 0), 0) * COALESCE(p.selling_price, 0)), 0) AS total_retail_value,
       COUNT(DISTINCT p.category_id) as active_categories
     FROM products p
     LEFT JOIN (
@@ -45,7 +47,8 @@ export async function getStockBatchStats(expiryDays: number = 90) {
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) > date('now') AND date(expiry_date) <= date('now', '+' || ? || ' days') THEN 1 ELSE 0 END) as expiring_soon,
         SUM(CASE WHEN expiry_date IS NOT NULL AND date(expiry_date) <= date('now') THEN 1 ELSE 0 END) as expired,
         SUM(CASE WHEN (expiry_date IS NULL OR expiry_date = '') AND quantity > 0 THEN 1 ELSE 0 END) as missing_expiry,
-        SUM(quantity * cost_price) as total_value
+        SUM(quantity * cost_price) as total_value,
+        SUM(quantity) as total_quantity
       FROM stock_batches
       -- Scoped to the active store, not just to products of the active store:
       -- filtering only products.store_id on the join let a batch attributed to

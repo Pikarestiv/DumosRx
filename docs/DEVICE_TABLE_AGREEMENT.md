@@ -164,12 +164,49 @@ The four verdicts:
 - **`diverged`** — anything else, plus a `behind` that was already `behind` or
   `diverged` on this device's previous report.
 
-**The two-consecutive-readings rule.** `record()` reads this device's own
-previous snapshot and promotes `behind` → `diverged` only if that table was
-already unsettled. Two readings at least 15 minutes apart means the device's
-own pull did not clear it, which is the real signal — the A-282 lost-row class,
-or the re-pull burst of a fix like A-284's. A single reading cannot distinguish
-those from ordinary pull lag.
+**The two-consecutive-readings rule, and what it must not mistake for a fault.**
+`record()` reads this device's own previous snapshot and promotes `behind` →
+`diverged` only if that table was already unsettled **and the device is stuck**
+(see "Lagging versus stuck" below). Two readings at least 15 minutes apart where
+the device gained nothing is the real signal — the A-282 lost-row class, or the
+re-pull burst of a fix like A-284's. A single reading cannot distinguish those
+from ordinary pull lag.
+
+### Lagging versus stuck (2026-11-17)
+
+The first version of the rule promoted on *any* two consecutive `behind`
+readings, on the reasoning that the device's own pull in between would have
+cleared ordinary lag. That reasoning is wrong in one common case. The report is
+built at the **top of a push, before that round's pull** (`sync-engine/index.ts`
+runs push, then pull), so every reading describes the device as it stood after
+its *previous* round, plus whatever other tills pushed since. A till that syncs
+every 15 minutes beside a till that keeps writing is therefore behind at every
+reading, however healthy, and the second one read "Disagrees". Seen on a store
+that had just opened and was loading its catalogue on two tills (products -6,
+stock_batches -5, stock_movements -5 — one batch of new products from the other
+till), and on a till still in the middle of its first multi-round pull
+(products 120 of 209).
+
+A `behind` table is now promoted only when **both** hold against this device's
+own previous reading:
+
+1. it still holds less than the cloud already held at that previous reading
+   (`device_rows < previous server_rows`, or the same for the version sum), and
+2. it gained nothing since (`device_rows` and `device_version_sum` did not rise).
+
+A device that is pulling keeps gaining, so it stays `behind` ("Catching up")
+however fast the other till writes. A device that has lost a row stops gaining
+once the cloud is quiet, so it is promoted on the next reading. The cost is one
+more reading of delay in one case: a device with a permanently lost row that
+also keeps gaining other rows (from its own edits or from an active till) is
+not promoted until the gaining stops. A previous snapshot that predates the
+stored per-reading figures falls back to the old rule.
+
+**What this does not touch.** A device holding *more* than the cloud
+(`row_delta > 0`) is `diverged` at once and stays so: lag cannot produce it, it
+is a local row the cloud never accepted (A-293) or one the cloud lost. And every
+figure is still a frozen snapshot: a till that caught up a minute after
+reporting reads as it did until its next report, up to the 48 hour stale window.
 
 Because the verdict depends on the previous reading, it is **stored in the
 snapshot** rather than recomputed on read; recomputing in `forStore()` would

@@ -262,6 +262,60 @@ class TableAgreementServiceTest extends TestCase
         );
     }
 
+    public function test_a_device_that_keeps_pulling_while_another_till_keeps_writing_is_never_promoted(): void
+    {
+        $this->product(1);
+        $this->product(1);
+        $this->product(1);
+
+        $this->report(['products' => [1, 1, 0]]);
+        $this->product(1);
+        $this->product(1);
+        $this->report(['products' => [3, 3, 0]]);
+        $this->product(1);
+        $this->report(['products' => [4, 4, 0]]);
+
+        $this->assertSame('behind', $this->tablesFor()['products']['verdict']);
+        $this->assertSame(0, $this->service->forStore($this->store->id)['diverged_devices']);
+    }
+
+    public function test_a_device_mid_initial_pull_is_behind_not_diverged_while_it_keeps_gaining(): void
+    {
+        foreach (range(1, 6) as $_) {
+            $this->product(1);
+        }
+
+        $this->report(['products' => [1, 1, 0]]);
+        $this->report(['products' => [3, 3, 0]]);
+        $this->report(['products' => [5, 5, 0]]);
+
+        $this->assertSame('behind', $this->tablesFor()['products']['verdict']);
+    }
+
+    public function test_a_device_that_stops_gaining_while_the_cloud_grows_is_promoted(): void
+    {
+        $this->product(1);
+        $this->product(1);
+
+        $this->report(['products' => [1, 1, 0]]);
+        $this->product(1);
+        $this->report(['products' => [1, 1, 0]]);
+
+        $this->assertSame('diverged', $this->tablesFor()['products']['verdict']);
+    }
+
+    public function test_a_device_that_caught_up_to_the_earlier_cloud_but_trails_new_writes_is_not_promoted(): void
+    {
+        $this->product(1);
+        $this->product(1);
+
+        $this->report(['products' => [1, 1, 0]]);
+        $this->product(1);
+        $this->report(['products' => [2, 2, 0]]);
+
+        $this->assertSame('behind', $this->tablesFor()['products']['verdict']);
+    }
+
     /** The promotion must read THIS device's own previous snapshot. */
     public function test_another_devices_behind_reading_does_not_promote_this_one(): void
     {

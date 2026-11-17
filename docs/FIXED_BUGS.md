@@ -1,3 +1,10 @@
+### A-317 — dead GET /stock-movements and GET /stock-adjustments routes handed any staff member tenant-wide stock ledgers without permissions
+- **Fixed:** 2026-11-17, laravel-server only, TDD. Found during stock quantity visibility auditing (PR #346).
+- **Was:** `GET /stock-movements` and `GET /stock-adjustments` sat in the `auth:sanctum` group with no `permission:` middleware and used `ledgerUserIds()` spanning all stores of the tenant owner. Any authenticated staff member (e.g. cashier) could fetch signed quantities, adjustments, reasons, and user names across every store the tenant owned, bypassing role-level stock quantity hiding. No modern client or web code called either endpoint (clients read movements from offline-first local SQLite).
+- **Now:** Removed the two dead routes from `routes/api.php`, deleted dead `StockMovementController.php`, and pinned 404 behavior for both paths in `LegacyCloudCrudEndpointsRemovedTest.php`.
+- **Coverage:** `laravel-server/tests/Feature/LegacyCloudCrudEndpointsRemovedTest.php` (tests that `/api/v1/stock-movements` and `/api/v1/stock-adjustments` return 404).
+- **Compat:** pure dead code removal; no shipped client calls these endpoints.
+
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
 - **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.

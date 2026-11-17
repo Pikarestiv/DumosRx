@@ -83,6 +83,8 @@ class LegacyCloudCrudEndpointsRemovedTest extends TestCase
             'low stock' => ['/api/v1/app/stock-batches/low-stock'],
             'expiring stock' => ['/api/v1/app/stock-batches/expiring'],
             'stock value' => ['/api/v1/app/stock-batches/value'],
+            'stock movements (A-317)' => ['/api/v1/stock-movements'],
+            'stock adjustments (A-317)' => ['/api/v1/stock-adjustments'],
         ];
     }
 

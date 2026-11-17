@@ -1400,7 +1400,7 @@ reached at `/admin/stores/details/?id=<storeId>`; the old `ViewStoreDialog` in
 `store-dialogs.tsx` is gone). Two things drove that:
 
 - The content no longer fits a dialog — profile, owner, subscription, staff,
-  contact specialist, sync health, storefront publish state, Paystack/payment
+  account manager, sync health, storefront publish state, Paystack/payment
   config, recent transactions and recent activity, over a stat-tile row.
 - **It is a query-param route, not `app/admin/stores/[id]/`, and that is not
   stylistic.** This app is `output: "export"`; a dynamic segment would need

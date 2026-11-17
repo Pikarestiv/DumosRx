@@ -561,18 +561,6 @@ suggested tackle order rather than a strict ranking.
 - **Consequence as it stands:** a worker claims clients during `next dev`, which is exactly the hot-reload weirdness the admin registrar's guard exists to prevent, and it registers redundantly on admin pages.
 - **Fix:** add the `process.env.NODE_ENV !== "production"` early return to `PwaRegistrar`, and skip registration when `location.pathname` starts with `/admin` so the two workers never both register on one page. Worth resolving together with A-182, since if the site-wide manifest goes away there may be no reason to keep `sw.js` at all — its only stated purpose is qualifying the site as installable.
 
-#### A-180. `web/` — the admin panel calls one concept three things: "Account Manager", "Contact Specialist", and a component that contradicts itself
-
-- **Found:** 2026-10-07, while writing `docs/partner-sop/DumosRx-Partner-SOP.docx`. The owner spotted it: the SOP asserted the panel labels the relationship "Account Manager", and that turned out to be only half true.
-- **The three names, all user-visible:**
-  - `components/admin/stores/details/account-manager-card.tsx` renders `DetailCard title="Contact Specialist"`.
-  - `components/admin/views/default-account-manager-card.tsx` renders the heading "Default Contact Specialist", then its own body text says "see the **Account Manager** field on a store's ..." - contradicting its own title one line later.
-  - `app/admin/settings/[[...tab]]/settings-client.tsx` labels a settings tab "Account Manager".
-  - The API field is `account_manager` / `account_manager_is_explicit`, so the data layer says account manager while the store page says contact specialist.
-- **Why it matters beyond tidiness:** this is the term partners use with customers, and the SOP now has to spend a paragraph explaining that two labels mean the same thing. An operator reading "Contact Specialist" on a store page has no way to know it is the same field as the "Account Manager" setting they just changed.
-- **Fix:** pick one. "Account Manager" is the better choice: it matches the API field, the settings tab, and ordinary business usage, and it is what the partner SOP teaches. Rename the two card labels, fix the self-contradicting body text, and grep for both strings afterwards. No API change needed.
-- **Also update** `docs/partner-sop/DumosRx-Partner-SOP.docx` section 1, which currently explains the discrepancy and promises it will be tidied up.
-
 #### A-310. `client/` — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
 
 - **Found:** 2026-10-23, in the independent review of A-307.

@@ -5,10 +5,13 @@ namespace App\Services\Admin;
 use App\Models\Store;
 use App\Models\SyncFailure;
 use App\Models\SyncHealthDaily;
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class AdminSyncHealthService
 {
+    use ResolvesDeviceLabels;
+
     private const PER_PAGE = 50;
 
     private const WORST_STORES = 10;
@@ -65,17 +68,23 @@ class AdminSyncHealthService
             ->orderByDesc('created_at')
             ->paginate(self::PER_PAGE, ['*'], 'page', max(1, $page));
 
+        $items = collect($paginator->items());
+        $deviceIds = $items->pluck('device_id')->filter()->unique()->values()->all();
+        $deviceLabels = ($store && $deviceIds !== []) ? $this->deviceLabels($store->id, $deviceIds) : [];
+
         return [
             'store_name' => $store?->name,
             'last_sync_at' => $store?->last_sync_at?->toIso8601String(),
             'daily' => $daily,
             'failures' => [
-                'data' => collect($paginator->items())->map(fn (SyncFailure $failure) => [
+                'data' => $items->map(fn (SyncFailure $failure) => [
                     'id' => $failure->id,
                     'table_name' => $failure->table_name,
                     'record_id' => $failure->record_id,
                     'operation' => $failure->operation,
                     'reason' => $failure->reason,
+                    'device_id' => $failure->device_id,
+                    'device_label' => $failure->device_id ? ($deviceLabels[$failure->device_id] ?? null) : null,
                     'created_at' => $failure->created_at?->toIso8601String(),
                 ])->all(),
                 'meta' => $this->meta($paginator),

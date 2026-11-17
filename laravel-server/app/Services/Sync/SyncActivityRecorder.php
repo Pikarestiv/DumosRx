@@ -105,6 +105,7 @@ class SyncActivityRecorder
                     default => 'server_error',
                 },
                 count((array) $request->input('changes', [])),
+                $request->header('X-Device-Id'),
             );
         } catch (\Throwable $e) {
             Log::warning('Could not record a rejected push: '.$e->getMessage());

@@ -280,13 +280,6 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** record the operation as the device sent it. Either capture `$changes[$i]['operation']` before the rewrite and pass the original to `recordPushOutcome()`, or keep a `was_resent_insert` flag on the entry and have `SyncFailureRecorder` prefer it. One test: a resent INSERT that fails for a non-conflict reason is recorded with `operation = 'INSERT'`.
 - **While here:** the per-user throttle is worth knowing and was not written down anywhere. `routes/api.php:132` applies `throttle:60,1` to the whole authenticated group, and Laravel keys it by **user id**, not store or device — so every till logged in as the same owner account shares one 60/min bucket, and that bucket also counts pull pages, `/user`, `getSystemConfig` and peer-freshness. Tills with their own staff logins each get their own 60/min. `push.ts`'s pacing comment said "shared" without saying shared by what; corrected in the same change as this entry.
 
-#### A-244. `laravel-server/` — `sync_failures` records no device, so the admin store view cannot tell which till is refusing
-
-- **Found:** 2026-10-12. Triaging the `products`/`version_conflict` burst, the device could only be guessed at; the store has at least six devices reporting to Sentry.
-- **Location:** the `sync_failures` migration (`store_id`, `user_id`, `table_name`, `record_id`, `operation`, `reason`, `created_at`) and `AdminSyncHealthService::storeHealth()` (`:58`), which filters on `store_id` alone. `SyncFailureRecorder::recordFailures()` has the request in scope and already reads `X-Device-Id` elsewhere in the same push.
-- **Consequence:** the one view used to judge a store's sync health cannot attribute a refusal to a till, which is the first question anyone asks of it — and per §6 of `.agents/AGENTS.md` the id would have to be rendered with its `device_label` anyway, which `ResolvesDeviceLabels` already does for the queue report.
-- **Fix:** add a nullable `device_id` column, populate it in `recordFailures()`, and join the label through `ResolvesDeviceLabels` like `DeviceQueueReportService` does.
-
 #### A-236. `client/` — the stock auto-healer is silent when it finds nothing, so "working" and "never ran" look identical in Sentry
 
 - **Found:** 2026-10-11, checking on the healer's production record for the first time since it shipped.

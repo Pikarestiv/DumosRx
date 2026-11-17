@@ -1878,6 +1878,12 @@ reads that assembled array **once**, after the outer `DB::commit()`, beside
   deleted along with the rest of the store's data. That is the right behaviour
   for a purge — it is the "erase this tenant" operation — but it means the
   absent foreign key buys retention across *archival only*, not across purge.
+- **`sync_failures.device_id` records the originating till (A-244).**
+  Sourced from `X-Device-Id` by `SyncFailureRecorder`, this attributes refusals
+  to a specific device. In `AdminSyncHealthService::storeHealth()`, each failure
+  row is joined through `ResolvesDeviceLabels` to provide both `device_id` and
+  `device_label` (UA-sniffed label and store nickname), adhering to §6 of root
+  `AGENTS.md`.
 - **Reasons are canonicalised before they are stored.** `SyncFailureRecorder`
   writes only the controller's own stable slugs; anything else (an exception
   message reaching `$failed` from the `catch` at the bottom of the per-change

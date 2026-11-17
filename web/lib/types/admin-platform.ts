@@ -72,6 +72,8 @@ export interface SyncFailureRow {
   record_id: string | null;
   operation: string | null;
   reason: string;
+  device_id?: string | null;
+  device_label?: string | null;
   created_at: string | null;
 }
 

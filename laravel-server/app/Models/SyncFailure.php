@@ -13,7 +13,7 @@ class SyncFailure extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'store_id', 'user_id', 'table_name', 'record_id', 'operation', 'reason', 'created_at',
+        'store_id', 'user_id', 'device_id', 'table_name', 'record_id', 'operation', 'reason', 'created_at',
     ];
 
     protected $casts = [

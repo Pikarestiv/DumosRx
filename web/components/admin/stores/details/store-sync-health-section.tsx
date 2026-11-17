@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { formatDateOnlyToDDMMYYYY, formatDateSafe } from "@/lib/utils/date-utils";
 import { syncReasonLabel, useAdminStoreSyncHealth } from "@/lib/api/admin-hooks-sync";
 import type { AdminStoreSyncHealth } from "@/lib/types/admin";
+import { DeviceIdValue } from "./store-detail-primitives";
 
 export function StoreSyncHealthPanel({ storeId }: { storeId: string }) {
   const { data, isLoading, isError } = useAdminStoreSyncHealth(storeId);
@@ -124,6 +125,11 @@ export function StoreSyncHealthSection({ data, isLoading, isError }: StoreSyncHe
                       <> · {formatDateSafe(failure.created_at, "dd/MM/yyyy HH:mm", "")}</>
                     )}
                   </p>
+                  {failure.device_id && (
+                    <div className="text-xs text-muted-foreground font-mono">
+                      <DeviceIdValue deviceId={failure.device_id} deviceLabel={failure.device_label ?? null} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

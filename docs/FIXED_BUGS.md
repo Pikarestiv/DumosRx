@@ -1,3 +1,16 @@
+### A-244 — sync_failures recorded no device_id, preventing till attribution in admin sync health
+- **Fixed:** 2026-11-17, server and web, TDD. Found during triage of products/version_conflict spike (Issue #205).
+- **Was:** The `sync_failures` table lacked a `device_id` column. When sync push changes were refused or rejected, `SyncFailureRecorder` recorded store and user IDs but no device identifier, making it impossible to identify which till was failing or diverging in a multi-till store.
+- **Now:**
+  (1) Added migration `2026_11_17_000003_add_device_id_to_sync_failures_table.php` adding nullable `device_id` and composite index `['store_id', 'device_id']` on `sync_failures`.
+  (2) Added `device_id` to `SyncFailure::$fillable`.
+  (3) `SyncFailureRecorder::recordPushOutcome()` and `recordRejectedPush()` now accept and persist `device_id` sourced from the `X-Device-Id` request header.
+  (4) `AdminSyncHealthService::storeHealth()` uses `ResolvesDeviceLabels` to resolve and return both `device_id` and `device_label` on each failure row per Monorepo Rule 6.
+  (5) Updated `SyncFailureRow` type and `StoreSyncHealthSection` in `web/` to render `DeviceIdValue` (displaying both device ID and device name/nickname).
+  (6) Documented device attribution for sync failures in `laravel-server/AGENTS.md`.
+- **Coverage:** `laravel-server/tests/Feature/SyncFailureRecorderTest.php`, `laravel-server/tests/Feature/SyncPushFailureRecordingTest.php`, `laravel-server/tests/Feature/Admin/AdminSyncHealthTest.php`, and `web/__tests__/admin-store-sync-health-section.test.tsx`.
+- **Compat:** Column is nullable; existing rows and requests without an `X-Device-Id` header default to `null` cleanly.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

@@ -544,13 +544,6 @@ suggested tackle order rather than a strict ranking.
 - **Mitigation shipped, not a fix:** `standardizeCatalog(bool $dryRun = false, ?string $storeId = null)` now accepts a dry run (reports the affected-field count, writes nothing, confirmed not to touch `updated_at`) and an optional `store_id` scope, and the OpenAPI summary/description were corrected to say what the endpoint actually does (it does not dedupe or normalize names). See `laravel-server/tests/Feature/Admin/AdminCatalogStandardizeTest.php`.
 - **Still open:** the admin-panel UI's "Standardize Catalog" button still calls the endpoint with no `store_id` and no dry-run step shown to the operator, so the cross-tenant, full-catalogue-resync blast radius is still the default behavior in practice. Wiring the button to a store picker and a dry-run preview is Phase 4 UI work, not done here.
 
-#### A-269. `client/` — a part-paid sale prints "Total paid" with no balance owing
-
-- **Found:** 2026-10-15, in the same receipt audit.
-- **What's wrong:** `ReceiptView` prints `Total paid` and, when it is larger than the total, `Change`. A credit or partial payment prints a smaller `Total paid` and **nothing stating what is still owed**, so the customer's copy records neither the debt nor its amount. The reader has to subtract two numbers to learn they owe money.
-- **Fix:** a `Balance due` line whenever `amountPaid < total`, mirroring `Change`. One conditional block; it must not be toggleable (a customer needs it to dispute the debt).
-- **Noted while shortening the receipt**, which made the gap obvious: the shortening rules deliberately keep `Total paid` in exactly this case, so the line it needs beside it is the one that is missing.
-
 #### A-187. `client/` — a product with no category is labelled "Uncategorized" everywhere but cannot be filtered to from anywhere
 
 - **Found:** 2026-10-08, during the same investigation as A-186. Verified live against the store's catalog: the Product Catalog's Category pill offers All, beverages, busicuit, cosmetics, drinks, drugs, machine, perfume, provision, soap, sweet, tea, toiletries — 12 real categories and no Uncategorized option — while a large share of that store's catalogue has `category_id IS NULL` after a partial import.

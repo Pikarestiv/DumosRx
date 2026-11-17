@@ -1,3 +1,9 @@
+### A-269 — a part-paid sale printed "Total paid" with no balance owing
+- **Fixed:** 2026-11-17, client only, TDD. Found during receipt auditing (PR #343).
+- **Was:** `ReceiptView` in `client/components/pos/receipt-view.tsx` printed `Total paid` and `Change` (when overpaid). On a credit or partial payment where `amountPaid < total`, it printed a smaller `Total paid` but nothing stating what was still owed, leaving the customer without printed proof of their remaining debt amount.
+- **Now:** `ReceiptView` unconditionally prints a prominent `Balance due:` line with the exact formatted difference (`total - amountPaid`) whenever `transaction.total > transaction.amountPaid`. It renders in both thermal (80mm) and A4 formats and is omitted on fully paid or overpaid sales and quotes.
+- **Coverage:** `client/__tests__/receipt-part-paid-balance-due.test.tsx` (tests part-paid sales, 100% credit sales with amountPaid 0, fully paid, overpaid, both thermal and A4 layouts, and quotes) and `client/__tests__/receipt-a4-width.test.tsx`.
+- **Compat:** pure UI display fix, no schema or API changes.
 ### A-270 — the receipt number a customer reads out cannot be searched for
 - **Fixed:** 2026-11-17, client only, TDD. Found during receipt audit (Issue #227).
 - **Was:** `ReceiptView` (`client/components/pos/receipt-view.tsx`) printed `RCT-<shortId>` (`shortId = sale.id.split("-")[0]`) and the foot barcode encoded the raw `sale.id` UUID. Sales history (`pos-transaction-history.tsx:163-167`) searched `transaction_number` (`TXN-…`), `customer_name`, and `item_names`. `transaction_number` was never printed on the receipt or encoded in the barcode, so customer-provided receipt numbers and scanned receipt barcodes could not be found in sales history.

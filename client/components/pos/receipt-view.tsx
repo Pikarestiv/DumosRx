@@ -304,6 +304,12 @@ export function ReceiptView({
                 <span>{formatCurrency(transaction.change)}</span>
               </div>
             )}
+            {transaction.total > transaction.amountPaid && (
+              <div className="flex justify-between font-bold text-lg">
+                <span>Balance due:</span>
+                <span>{formatCurrency(transaction.total - transaction.amountPaid)}</span>
+              </div>
+            )}
           </div>
 
           {showBarcode && (

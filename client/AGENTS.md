@@ -5731,7 +5731,9 @@ same tab session still gets its own fresh one-time retry.
   already has — `Sub total` renders only when tax or a discount makes it differ
   from `Total`, `Total paid` only when it differs from `Total`, there is
   change, or the sale was on credit (a settled credit sale's only record that
-  it was paid is that line — caught in review, after the first cut hid it) — and the boxed heading is a quote-only thing, because "Proforma
+  it was paid is that line — caught in review, after the first cut hid it) —
+  and a part-paid or credit sale (`total > amountPaid`) prints `Balance due:`
+  with the outstanding debt amount (A-269) — and the boxed heading is a quote-only thing, because "Proforma
   Invoice" is a legal distinction a buyer must see while "Receipt" above an
   `RCT-` number is not. A tax invoice says so in its meta label
   (`Tax invoice no:`) rather than in a 14mm box. Meta rows pair into two

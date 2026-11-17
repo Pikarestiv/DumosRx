@@ -7894,3 +7894,33 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 - A PO due date drives `getPayableDueState` (`lib/utils/payables.ts`): overdue
   once past, "due soon" within 3 days. Only unpaid, non-draft orders count. It
   feeds the dashboard Action Center, the notification bell and an order badge.
+
+## Catalog actions, product form and camera (2026-11-17)
+
+- The catalog toolbar has one "Product actions" menu (`product-database-filters.tsx`)
+  instead of separate Print labels, Import, Export, Online and Manage buttons.
+  `useImportExportActions` and `useBulkShowOnlineActions` return
+  `{ menuItems, overlays }`: the items go inside the menu, the dialogs and
+  loading overlay render outside it, so their state survives the menu closing.
+- `EditProductPencil` sits after the product name in catalog rows and PO line
+  items. It opens the edit modal directly, shows on row hover (parent needs
+  `group`) and stays visible on touch devices. The "No Generic" badge is gone.
+- The Add/Edit Product form: Basic Information holds name, category, price,
+  reorder level and barcode. Strength/Size and Dosage Form live under
+  Additional Details, which starts collapsed and remembers its last state in
+  `STORAGE_KEYS.productFormDetailsOpen`. Every field label uses `FieldLabel`
+  (label plus a `HintTooltip`); add a hint to any new field.
+- Pharmacies use the plain "Category" label (`store-terminology.ts`).
+- `CategoryCombobox` takes `lastUsed` and pins it first while the field is
+  empty. Saving a new product stores it in `STORAGE_KEYS.lastProductCategory`;
+  "Save & Add Another" also keeps the category in the cleared form.
+- `ProductCombobox` hides a global suggestion whose name already matches a
+  catalog product (case-insensitive).
+- `CameraScannerDialog` no longer enumerates cameras before starting: it asks
+  for `facingMode: environment` straight away and lists cameras after the
+  stream is up (for the switch button). When permission is granted or
+  remembered it shows "Starting camera..." and never the permission wait. Do
+  not preload `html5-qrcode` with a bare `void import(...)`: it bypasses the
+  `vi.mock` in the camera tests.
+- POS product card image area is `h-12 sm:h-20`; the virtualized grid's row
+  estimate is `120` / `164` to match.

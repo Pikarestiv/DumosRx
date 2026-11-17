@@ -174,7 +174,28 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "On a slower till, turn off 'Show product images in POS grid' in Settings > Register Configs. The POS then shows the category icon instead.",
     ],
     proTip:
-      "Photograph the product on a plain, light background, straight on and filling the frame. Square photos work best: tiles and store cards crop to a square.",
+      "Photograph the product on a plain, light background, straight on and filling the frame. The whole photo is shown without cropping, and tapping it on the POS tile or in the catalog opens a larger view.",
     videoPlaceholderText: "Video Walkthrough: Adding, replacing and removing a product photo",
+  },
+  {
+    id: "add-products-faster",
+    title: "Add Products Faster: A Shorter Form, Quick Edits and One Actions Menu",
+    category: "Inventory",
+    badge: "New",
+    readTime: "2 min read",
+    videoDuration: "1:45",
+    summary:
+      "Stock a whole shelf quickly. The Add Product form asks only for what you need, remembers the category you just used, and every field explains itself on hover. In the catalog, one pencil edits a product and one Product actions menu holds printing, import, export and category tools.",
+    steps: [
+      "Open Inventory > Catalog and tap 'Add Product'. The form shows name, category, selling price, reorder level and barcode. Put the size or strength in the name if that is how you spot products at a glance.",
+      "Hover a field's question-mark icon (or tap it on a phone) for a plain explanation of what the field is for.",
+      "Need strength, dosage form, generic name, manufacturer or registration number? Open 'Additional Details'. It stays open or closed the way you last left it.",
+      "Adding many products to one shelf? Use 'Save & Add Another': the category stays filled in. Opening the form fresh pins your last used category at the top of the category list.",
+      "To change a product, hover its row in the catalog and tap the pencil after the name (always visible on phones and tablets). The edit form opens straight away, in the same form you add products with.",
+      "On desktop, the 'Product actions' menu above the catalog holds Print barcode labels, Import products from a file, Export product list, Show or hide in online store, and Manage categories.",
+    ],
+    proTip:
+      "Scanning a barcode now starts the camera straight away once you have allowed it once, so scanning products into the form takes a moment instead of a pause.",
+    videoPlaceholderText: "Video Walkthrough: Adding a shelf of products, quick-editing from the catalog and using the Product actions menu",
   },
 ];

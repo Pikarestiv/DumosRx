@@ -3,7 +3,6 @@
 import type { RecentUser } from "@/lib/types/user";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
-import * as Sentry from "@sentry/nextjs";
 import { setCurrentUser as setDbUser, logAction } from "@/lib/db/local-database";
 import { endAdminTillSession } from "@/lib/api/admin-till-session";
 import { endTillInspectionSession, getTillInspectionSession } from "@/lib/utils/till-inspection";
@@ -160,7 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.clear();
 
     setUser(userProfile);
-    Sentry.setUser({ id: userProfile.id, username: userProfile.username, role: userProfile.role });
     // NOT "dumos_user" - see IMPERSONATED_USER_STORAGE_KEY's doc comment.
     localStorage.setItem(IMPERSONATED_USER_STORAGE_KEY, JSON.stringify(userProfile));
     // Set immediately (not left to the next mount) so consumers like
@@ -188,7 +186,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     endTillInspectionSession();
     setIsInspecting(false);
     setDbUser(null);
-    Sentry.setUser(null);
     clearStoredUser();
     sessionStorage.removeItem("dumos_session_authenticated");
     // Without this, a shared terminal's POS cart (items, discount, redeemed reward, reseller flag — all persisted under this one global key by use…

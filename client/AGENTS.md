@@ -7964,6 +7964,16 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.
   It is the way to find duplicates that offline tills created before they synced.
 
+## Sentry identity (2026-11-17)
+
+- Every client event carries the store and the staff member: tags `store_id`, `store_name`, `store_type`,
+  `staff_name`, `staff_role` plus the Sentry user (`id`, `username`, `name`, `role`), all set in one place,
+  `applySentryIdentity` (`lib/utils/sentry-identity.ts`), called from `StoreProvider` whenever the signed-in
+  user or the store profile changes. It used to be set only inside the login call, so a till restoring a saved
+  session after a reload sent events with no user at all (DUMOSRX-CLIENT-2J had none).
+- Tags show in Sentry's alert emails and can be searched (`store_name:"..."`); they are the staff member's name
+  and the store's name, never an email address or PIN.
+
 ## Service categories (2026-11-17)
 
 - `services.category` stays free text; there is no services category table and no schema change.

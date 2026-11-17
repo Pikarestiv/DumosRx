@@ -136,7 +136,7 @@ export function StaffListMobileCard({
 
       <div className="flex flex-wrap items-center gap-1.5">
         {isMainAccount && (
-          <Badge className="h-5 px-1.5 text-[9px] bg-primary">
+          <Badge className="h-5 px-1.5 text-[10px] bg-primary">
             Main Account
           </Badge>
         )}

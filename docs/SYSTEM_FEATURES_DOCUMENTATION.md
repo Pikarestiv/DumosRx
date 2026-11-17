@@ -202,6 +202,8 @@ We take the safety of your business data seriously.
 
 **Always-On Operation:** Your store never stops. If the internet drops, your Desktop POS keeps working flawlessly — even a brand-new install can launch and start ringing up sales fully offline, right from its very first use. Once the connection returns, it quietly backs up all new sales to the cloud.
 
+**Nightly Whole-Database Backup:** Every night at 23:00 (Lagos time) the entire cloud database is copied, encrypted and stored in a private vault. Copies are kept for 30 days, plus the first of every month for a year. The encryption key is held offline by the owner, so the stored copies cannot be read from the server. Technical detail and the restore procedure are in `laravel-server/AGENTS.md`.
+
 **Anti-Tampering Protection:** Our system detects if anyone tries to manipulate the computer's clock to bypass security, immediately locking the terminal to protect your data.
 
 **Cloud Backups:** Your data is continuously backed up to our secure cloud servers, protecting you against hardware failure or theft at the store.

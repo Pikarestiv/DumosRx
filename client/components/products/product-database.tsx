@@ -12,12 +12,13 @@ import { getCategoryList } from "@/lib/db/queries/categories";
 import { useStore } from "@/lib/context/store-context";
 import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
 import { genericFuzzySearch } from "@/lib/utils/search";
-import { getExpiryStatus } from "@/lib/utils/date-utils";
 import { Product, transformProduct } from "./types";
 import { CatalogList } from "./catalog-list";
 import { CatalogDetailPanel } from "./catalog-detail-panel";
 import { SearchInput } from "@/components/ui/search-input";
-import { FilterPill, formatFilterLabel } from "@/components/ui/filter-pill";
+import { FilterPill } from "@/components/ui/filter-pill";
+import { catalogStatusLabel, matchesCatalogStatus } from "./catalog-status";
+import { findDuplicateProductIds } from "@/lib/utils/duplicate-product";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
@@ -169,7 +170,9 @@ export function ProductDatabase() {
     "low_stock",
     "out_of_stock",
     "stock_owed",
+    "possible_duplicates",
   ];
+  const duplicateIds = useMemo(() => findDuplicateProductIds(products), [products]);
 
   const { handleAddProduct, isSaving } = useAddProduct({
     refetch: () => void refetch(),
@@ -181,46 +184,15 @@ export function ProductDatabase() {
     setShowAddDialog(true);
   }, []);
 
-  const preFilteredProducts = useMemo(() => {
-    const now = new Date();
-    return products.filter((product) => {
-      const matchesCategory =
-        categoryFilter === "all" || product.category === categoryFilter;
-
-      let matchesStatus =
-        statusFilter === "all" || product.status === statusFilter;
-
-      // Explicit overrides for inclusive filtering
-      if (
-        statusFilter === "low_stock" &&
-        product.stockQuantity <= product.reorderLevel
-      ) {
-        matchesStatus = true;
-      }
-      if (
-        statusFilter === "expired" &&
-        product.expiryDate &&
-        new Date(product.expiryDate) < now
-      ) {
-        matchesStatus = true;
-      }
-      if (
-        statusFilter === "expiring_soon" &&
-        product.expiryDate &&
-        getExpiryStatus(product.expiryDate) === "expiring_soon"
-      ) {
-        matchesStatus = true;
-      }
-      if (
-        statusFilter === "stock_owed" &&
-        (owedByProduct.get(product.id) ?? 0) > 0
-      ) {
-        matchesStatus = true;
-      }
-
-      return matchesCategory && matchesStatus;
-    });
-  }, [products, categoryFilter, statusFilter, owedByProduct]);
+  const preFilteredProducts = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          (categoryFilter === "all" || product.category === categoryFilter) &&
+          matchesCatalogStatus(product, statusFilter, { owedByProduct, duplicateIds }),
+      ),
+    [products, categoryFilter, statusFilter, owedByProduct, duplicateIds],
+  );
 
   const { results: searchedProducts, isFuzzyFallback } = useMemo(
     () =>
@@ -283,7 +255,7 @@ export function ProductDatabase() {
               onValueChange={setStatusFilter}
               options={statuses.map((s) => ({
                 value: s,
-                label: s === "stock_owed" ? `Stock Owed (${owedByProduct.size})` : formatFilterLabel(s),
+                label: catalogStatusLabel(s, { owed: owedByProduct.size, duplicates: duplicateIds.size }),
               }))}
               className="bg-card"
             />
@@ -303,6 +275,7 @@ export function ProductDatabase() {
             categories={categories}
             statuses={statuses}
             owedCount={owedByProduct.size}
+            duplicateCount={duplicateIds.size}
             onManageCategories={() => router.push("/settings/categories")}
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}

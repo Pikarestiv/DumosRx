@@ -7650,7 +7650,7 @@ Before that, work focused on the **Inventory** area:
   stored**: they are derived per read by `PRICE_ADJUSTMENT_COLUMNS_SQL`
   (`lib/db/queries/price-adjustment-sql.ts`) in `getRecentSales`,
   `getResellerCommissionSales`, the dashboard feed and `getDailyCloseData`, and
-  by `sumPriceAdjustments()` over loaded lines in the details dialog. Shown via
+  by `sumPriceAdjustments()` over loaded lines in the details dialog (accounting for `returned_quantity` so adjustments shrink after returns and align with reseller markup). Shown via
   `PriceAdjustmentBadge` / `LinePriceNote`. Customer receipts deliberately omit it.
 - Commission is on the **net** markup: `computeResellerCommission` sums every
   line's signed `(unit_price - original_unit_price) * quantity` and floors the

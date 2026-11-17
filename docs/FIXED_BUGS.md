@@ -1,3 +1,17 @@
+### A-310 — small A-307 follow-ups: details card disagrees with itself after a return, return dialog edge cases, an oversized file
+- **Fixed:** 2026-11-18, client only, TDD. Found during independent review of A-307 (Issue #251).
+- **Was:**
+  (1) `transaction-details-dialog.tsx` "Against list price" summed price adjustments over full line quantities via `sumPriceAdjustments(items)` and never shrunk after a return, while "Reseller markup" did, allowing a display discrepancy such as "+200" next to "Reseller markup: 150".
+  (2) `return-dialog.tsx` read the fresh sale at "Confirm Return & Refund" (`handleInitialSubmit`), not at "Yes, Process Return" (`handleSubmit`), so a commission redemption between the two steps was stored correctly by the mutation but its warning was not shown to the cashier. Furthermore, `handleInitialSubmit` lacked try/catch, so a failing `getSaleById` caused the submit button to fail silently.
+  (3) `transaction-details-dialog.tsx` was previously oversized (407 lines, exceeding the 350-line limit), now broken down with `ResellerMarkupPanel` extracted.
+- **Now:**
+  (1) `PricedLine` in `client/lib/utils/price-adjustment.ts` now accepts `returned_quantity?: number | null`, and `sumPriceAdjustments()` derives effective quantity as `Math.max(0, quantity - (returned_quantity || 0))`. Price adjustments shrink when lines have partial returns, and fully returned lines are excluded.
+  (2) `return-dialog.tsx` wraps `handleInitialSubmit` in try/catch and surfaces `toast.error("Failed to load current sale details")`.
+  (3) `handleSubmit` re-reads `getSaleById(sale.id)`. If interim redemption occurs while the confirm dialog is open (`reseller_commission_redeemed_at` newly set), it calculates owed-back commission with `resellerPatchAfterReturn`, halts submission, updates `freshSale`, and surfaces `toast.warning("Reseller commission was redeemed while this return was open. Please review the updated return confirmation.")`. When re-confirmed, the updated warning is shown.
+  (4) Updated `client/AGENTS.md` and verified all files remain strictly under 350 lines.
+- **Coverage:** `client/__tests__/price-adjustment.test.ts` (partial and full return calculations), `client/__tests__/transaction-details-price-adjustments-return.test.tsx` (details dialog against-list-price shrinkage and hide behavior), `client/__tests__/return-dialog-edge-cases.test.tsx` (initial submit error handling, interim redemption pause and warning, and final submit verification).
+- **Compat:** Pure client-side UI and calculation adjustment; no schema or backend contract changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

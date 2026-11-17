@@ -110,15 +110,47 @@ export function ReturnDialog({
       toast.error("Please select at least one item or service to return");
       return;
     }
-    setFreshSale(await getSaleById(sale.id));
-    setShowConfirm(true);
+    try {
+      const fresh = await getSaleById(sale.id);
+      setFreshSale(fresh);
+      setShowConfirm(true);
+    } catch {
+      toast.error("Failed to load current sale details");
+    }
   };
 
   const handleSubmit = async () => {
     if (returnMutation.isPending) return;
+    let fresh: SaleWithDetails | null = null;
+    try {
+      fresh = await getSaleById(sale.id);
+    } catch {
+      toast.error("Failed to verify current sale status");
+      return;
+    }
+
+    if (fresh) {
+      setFreshSale(fresh);
+      const wasRedeemedBefore = Boolean(freshSale?.reseller_commission_redeemed_at);
+      const isRedeemedNow = Boolean(fresh.reseller_commission_redeemed_at);
+      if (!wasRedeemedBefore && isRedeemedNow) {
+        const patch = resellerPatchAfterReturn(
+          fresh,
+          saleItems,
+          itemsToReturn.map((i) => ({ id: i.id, returnQuantity: i.returnQuantity })),
+        );
+        if ((patch?.reseller_commission_owed_back ?? 0) > 0) {
+          toast.warning(
+            "Reseller commission was redeemed while this return was open. Please review the updated return confirmation.",
+          );
+          return;
+        }
+      }
+    }
+
     try {
       await returnMutation.mutateAsync({
-        sale,
+        sale: fresh ?? sale,
         userId: user?.id,
         reason,
         totalRefund,
@@ -130,7 +162,7 @@ export function ReturnDialog({
       onSuccess();
       onOpenChange(false);
     } catch {
-      // no-op — already handled by onError
+      // no-op — already handled by returnMutation.onError
     }
   };
 

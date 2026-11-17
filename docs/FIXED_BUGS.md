@@ -1,3 +1,12 @@
+### A-374 — a customer return valued restocked units at the batch's current cost instead of the cost recorded on the sale
+- **Fixed:** 2026-11-17, client only, TDD. Found during batch cost correction review.
+- **Was:** `recordReturnDisposition()` and `restoreBatchQuantity()` in `client/lib/db/queries/returns.ts` queried `stock_batches.cost_price` at return time for the `return` movement's `unit_cost` and `total_cost`, and returned COGS in BI (`bi-metrics.ts:88`), monthly trends (`report-trends.ts:40`), and P&L (`reports.ts:175`) preferred `(SELECT SUM(sm.total_cost) FROM stock_movements ...)` over the sale's cost basis. The sale's COGS was recorded on `sale_items.cost_price` at sale time. When a batch cost was corrected, audited, or differed from the sale's blended average cost, a full return failed to net the sale's COGS to zero, creating negative net COGS or phantom profit.
+- **Now:**
+  (1) `recordReturnDisposition()` and `restoreBatchQuantity()` value `stock_movements` (both return movements and discard damage adjustments) directly from `costPrice` (the sale item's recorded unit cost basis), falling back to `stock_batches.cost_price` only if `costPrice` is absent or zero.
+  (2) `getBIMetrics` (`bi-metrics.ts:88`), `getAdvancedMonthlySalesData` (`report-trends.ts:40`), and `fetchProfitLossReportData` (`reports.ts:175`) calculate returned COGS primarily from `ri.quantity * si.avg_cost_price` (the sale item's recorded unit cost), falling back to `stock_movements.total_cost` if the sale line cost is missing. Net COGS exactly reverses to zero upon full return.
+- **Coverage:** `client/__tests__/returns-cost-basis-sale-item.test.ts` (restocking after batch cost correction, discard damage loss after batch cost correction, and multi-batch blended average return), and updated `client/__tests__/returns-fefo-costing.test.ts`.
+- **Compat:** no schema, storage or API changes. Recomputes report profit figures consistently against the original sale cost basis.
+
 ### A-391 — the assistant never recognised a label-printing question: its phrases held backspace characters, not `\b`
 - **Fixed:** 2026-11-14, client only, TDD. Found while adding the product images help topic.
 - **Was:** the three `print_labels` phrases in `client/lib/assistant/help-catalog.ts` contained a literal U+0008 where `\b` was intended (the file was evidently generated through a string that interpreted the escape), so `/\x08print .../` could never match normal text. Only the keyword list could reach the topic, and "print barcode labels" scored below the threshold.

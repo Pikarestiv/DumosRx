@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ProductDatabaseFilters } from "./product-database-filters";
+import { ProductActionsMenu } from "./product-actions-menu";
 import { AddProductDialog } from "./add-product-dialog";
 import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
@@ -259,13 +260,21 @@ export function ProductDatabase() {
         {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout */}
         {!isDesktop && (
         <div className="lg:hidden space-y-3">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search by name or SKU"
-            aria-label="Search products"
-            inputClassName="bg-card border-border"
-          />
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search by name or SKU"
+              aria-label="Search products"
+              inputClassName="bg-card border-border"
+            />
+            <ProductActionsMenu
+              onManageCategories={() => router.push("/settings/categories")}
+              onProductsChanged={() => void refetch()}
+              filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
+              labelProducts={filteredProducts}
+            />
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <FilterPill
               label="Category"

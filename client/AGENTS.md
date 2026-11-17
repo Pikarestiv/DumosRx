@@ -4833,6 +4833,10 @@ Call sites (all read the key once, unconditionally, at the top level):
   when the store toggle is on and the key is not; no chip when the store
   toggle is off. `display_stock_levels` is unchanged: a store-wide "no
   numbers at the till for anyone, owners included" switch on top of the key.
+  The tile subtitle also acts as a disambiguator (A-186): when `generic_name`
+  and `strength` are absent or placeholders, it falls back to
+  `barcode · category_name` (or barcode/category alone, or short 8-char id)
+  so imported catalog variants with long names never render identically.
 - `lib/hooks/use-pos-cart.ts` — the two "only N units available" toasts
   become "Not enough stock for that quantity". This reaches barcode scan,
   prescription dispense and held-sale recall too, since they go through
@@ -7959,6 +7963,36 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   returns every product sharing a name+strength or a non-empty barcode with another, and
   `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.
   It is the way to find duplicates that offline tills created before they synced.
+
+## Sentry identity (2026-11-17)
+
+- Every client event carries the store and the staff member: tags `store_id`, `store_name`, `store_type`,
+  `staff_name`, `staff_role` plus the Sentry user (`id`, `username`, `name`, `role`), all set in one place,
+  `applySentryIdentity` (`lib/utils/sentry-identity.ts`), called from `StoreProvider` whenever the signed-in
+  user or the store profile changes. It used to be set only inside the login call, so a till restoring a saved
+  session after a reload sent events with no user at all (DUMOSRX-CLIENT-2J had none).
+- Tags show in Sentry's alert emails and can be searched (`store_name:"..."`); they are the staff member's name
+  and the store's name, never an email address or PIN.
+
+## Service categories (2026-11-17)
+
+- `services.category` stays free text; there is no services category table and no schema change.
+  Service categories are deliberately separate from product `categories` so "Consultation" never
+  appears in the product category picker or product filters.
+- The service form uses `CategoryCombobox` with its `options` prop (the distinct categories of this
+  store's services, via `useServiceCategories`), and saves through `resolveServiceCategory`, which
+  reuses an existing spelling when only case or spacing differs. Case variants already in the data are
+  grouped by `groupServiceCategories` under their most-used spelling; stored values are not rewritten
+  until someone renames the category (`renameServiceCategory`, `clearServiceCategory` update each
+  service through the sync-aware `update()` helper, scoped to the active store).
+- The services tab has a "Services actions" menu beside the search (`ServicesActionsMenu`, same place as the
+  catalog's Product actions): "Export services list" (CSV/XLSX/PDF of the rows on screen, gated by
+  `export_product_list`) and "Manage categories", which opens Settings → Categories on its Services tab
+  (`/settings/categories?type=services`). That page (`CategoriesTabs`) has Products and Services tabs; the
+  Services tab is `ServiceCategoriesCard`, the rename/remove manager. The services list and its category
+  cells follow the store's capitalisation setting like the product catalog.
+- Backward compatibility (§11): nothing about the stored shape changed, so older bundles keep working;
+  they just keep their free-text input.
 
 ## Mobile keyboard and touch targets (2026-11-17)
 

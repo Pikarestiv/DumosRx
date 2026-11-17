@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CategoryCombobox } from "@/components/ui/category-combobox";
+import { useServiceCategories } from "@/lib/hooks/use-service-categories";
+import { resolveServiceCategory } from "@/lib/utils/service-category";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -34,6 +37,7 @@ export function ServiceFormDialog({
 }: ServiceFormDialogProps) {
   const queryClient = useQueryClient();
   const { activeStoreId } = useStore();
+  const categoryNames = useServiceCategories().map((c) => c.name);
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -75,7 +79,7 @@ export function ServiceFormDialog({
         await updateServiceDetails(service.id, {
           name: trimmedName,
           code: code.trim() || null,
-          category: category.trim() || null,
+          category: resolveServiceCategory(category, categoryNames),
           price: numericPrice,
           description: description.trim() || null,
           is_active: isActive ? 1 : 0,
@@ -86,7 +90,7 @@ export function ServiceFormDialog({
           store_id: activeStoreId || null,
           name: trimmedName,
           code: code.trim() || null,
-          category: category.trim() || null,
+          category: resolveServiceCategory(category, categoryNames),
           price: numericPrice,
           description: description.trim() || null,
           is_active: isActive ? 1 : 0,
@@ -150,10 +154,11 @@ export function ServiceFormDialog({
 
               <div className="grid gap-1.5">
                 <Label htmlFor="srv-category">Category</Label>
-                <Input
+                <CategoryCombobox
                   id="srv-category"
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onValueChange={setCategory}
+                  options={categoryNames}
                   placeholder="e.g. Spa, Clinic, Salon"
                 />
               </div>

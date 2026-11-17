@@ -10,7 +10,7 @@ import { SettingsHeader } from "./settings-header";
 
 import { AccountSettings } from "@/components/settings/account/account-settings";
 import { MultiStoreCard } from "@/components/settings/store/multi-store-card";
-import { CategoriesCard } from "@/components/settings/store/categories-card";
+import { CategoriesTabs } from "@/components/settings/store/categories-tabs";
 import { ProductUnitsCard } from "@/components/settings/store/product-units-card";
 import { SystemSettings } from "@/components/settings/system-settings";
 
@@ -230,7 +230,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
 
           {s.isAdmin && (
             <TabsContent value="categories" className="space-y-6">
-              <CategoriesCard />
+              <CategoriesTabs />
             </TabsContent>
           )}
 

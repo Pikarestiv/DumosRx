@@ -10,7 +10,7 @@ describe("Dashboard 'product' activity click navigation", () => {
     "utf-8",
   );
   const productDatabaseSource = fs.readFileSync(
-    path.join(__dirname, "../components/products/product-database.tsx"),
+    path.join(__dirname, "../components/products/use-product-database-navigation.ts"),
     "utf-8",
   );
   const tabPageSource = fs.readFileSync(
@@ -49,7 +49,7 @@ describe("Dashboard 'product' activity click navigation", () => {
     );
   });
 
-  it("product-database.tsx (Catalog) reads ?productId= and opens that product's detail panel, then cleans up the URL like ?action=add already does", () => {
+  it("use-product-database-navigation.ts (Catalog) reads ?productId= and opens that product's detail panel, then cleans up the URL like ?action=add already does", () => {
     expect(productDatabaseSource).toMatch(/searchParams\.get\("productId"\)/);
     expect(productDatabaseSource).toMatch(/setSelectedProduct\(match\)/);
     // Same URL-cleanup mechanism the existing ?action=add handling uses.

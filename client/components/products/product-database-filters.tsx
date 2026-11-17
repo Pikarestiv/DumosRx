@@ -2,6 +2,10 @@ import { SearchInput } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { catalogStatusLabel } from "./catalog-status";
 import { ProductActionsMenu } from "./product-actions-menu";
+import {
+  UNCATEGORIZED_CATEGORY_VALUE,
+  UNCATEGORIZED_CATEGORY_LABEL,
+} from "@/lib/constants/categories";
 import type { Product } from "./types";
 
 interface ProductDatabaseFiltersProps {
@@ -64,7 +68,12 @@ export function ProductDatabaseFilters({
           onValueChange={setCategoryFilter}
           options={categories.map((c) => ({
             value: c,
-            label: c === "all" ? "All" : c,
+            label:
+              c === "all"
+                ? "All"
+                : c === UNCATEGORIZED_CATEGORY_VALUE
+                  ? UNCATEGORIZED_CATEGORY_LABEL
+                  : c,
           }))}
         />
         <FilterPill

@@ -7924,3 +7924,20 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   `vi.mock` in the camera tests.
 - POS product card image area is `h-12 sm:h-20`; the virtualized grid's row
   estimate is `120` / `164` to match.
+
+## PO details panel (2026-11-17)
+
+- `PurchaseOrderDetails` follows `refs/UI-UX-focused-redesigns/po-panel-redesign-v3`.
+  The header carries the status badge and a "More actions" menu (`PoOrderMenu`):
+  Edit order (sent orders only), Download PDF, Delete order… (draft and sent).
+- The footer (`PoDetailsFooter`) never has more than two buttons. Draft: Edit +
+  Mark as Sent (or Receive Goods for an immediate purchase). Sent: Download PDF +
+  Receive Items. Partially received: Download PDF + Receive Remaining. Received:
+  Download PDF and a "locked" note. Edit stays gated to `pending`/`sent` (see the
+  partial-receipt note above); on a draft it is the footer's Edit button, on a
+  sent order it lives in the menu.
+- Line items (`PoLineItems`) show `qty × unit cost` and, once any receiving has
+  happened, a per-line progress bar. `PoStatusTimeline` is a horizontal stepper;
+  an immediate purchase skips the Sent step.
+- The PDF download is `usePoPdfDownload`; it keeps the lazy `@react-pdf/renderer`
+  imports, which `heavy-dependency-laziness.test.ts` pins.

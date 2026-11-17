@@ -17,6 +17,7 @@ interface CategoryComboboxProps {
   id?: string;
   disabled?: boolean;
   className?: string;
+  lastUsed?: string;
 }
 
 // Category picker backed by the real `categories` table - and by nothing else.
@@ -28,6 +29,7 @@ export function CategoryCombobox({
   id,
   disabled,
   className,
+  lastUsed,
 }: CategoryComboboxProps) {
   const capsClass = useUppercaseDisplayClass();
   const [open, setOpen] = React.useState(false);
@@ -49,9 +51,12 @@ export function CategoryCombobox({
 
   const filtered = React.useMemo(() => {
     const term = value.trim().toLowerCase();
-    if (!term) return names;
+    if (!term) {
+      const pinned = names.find((name) => name.toLowerCase() === lastUsed?.toLowerCase());
+      return pinned ? [pinned, ...names.filter((name) => name !== pinned)] : names;
+    }
     return names.filter((name) => name.toLowerCase().includes(term));
-  }, [names, value]);
+  }, [names, value, lastUsed]);
 
   const typed = value.trim();
   const showCreateRow =
@@ -186,6 +191,9 @@ export function CategoryCombobox({
                 )}
               >
                 <span className={cn("truncate", capsClass)}>{name}</span>
+                {!typed && index === 0 && name.toLowerCase() === lastUsed?.toLowerCase() && (
+                  <span className="shrink-0 text-[10px] font-medium text-muted-foreground">Last used</span>
+                )}
                 {name.toLowerCase() === typed.toLowerCase() && (
                   <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
                 )}

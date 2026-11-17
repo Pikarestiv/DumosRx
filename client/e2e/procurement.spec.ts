@@ -150,9 +150,9 @@ test.describe('Procurement Module', () => {
     await page.getByRole('button', { name: /Mark as Sent/i }).click();
     await expect(page.getByText(/Order marked as sent/i)).toBeVisible({ timeout: 10000 });
 
-    // status "sent" -> "Receive Goods" opens ReceivePOPanel
+    // status "sent" -> "Receive Items" opens ReceivePOPanel
     // (components/procurement/receive-po-panel.tsx).
-    await page.getByRole('button', { name: /Receive Goods/i }).click();
+    await page.getByRole('button', { name: /Receive Items/i }).click();
     await expect(page.getByText('Receive Goods', { exact: true }).first()).toBeVisible({ timeout: 10000 });
 
     // Confirm the full ordered quantity, no batch/expiry entered.

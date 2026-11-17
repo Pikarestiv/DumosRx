@@ -38,6 +38,12 @@ export function ProductDatabase() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const setAddDialogOpen = useCallback((open: boolean) => {
+    setShowAddDialog(open);
+    if (!open) setEditingProduct(null);
+  }, []);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -90,6 +96,7 @@ export function ProductDatabase() {
     (productId: string) => {
       if (selectedProduct?.id !== productId) return;
       setSelectedProduct(null);
+      setEditingProduct(null);
       setShowAddDialog(false);
     },
     [selectedProduct?.id],
@@ -166,13 +173,13 @@ export function ProductDatabase() {
 
   const { handleAddProduct, isSaving } = useAddProduct({
     refetch: () => void refetch(),
-    setShowAddDialog,
+    setShowAddDialog: setAddDialogOpen,
   });
 
-  const handleEditProduct = (product: Product) => {
-    setSelectedProduct(product);
+  const handleEditProduct = useCallback((product: Product) => {
+    setEditingProduct(product);
     setShowAddDialog(true);
-  };
+  }, []);
 
   const preFilteredProducts = useMemo(() => {
     const now = new Date();
@@ -311,6 +318,7 @@ export function ProductDatabase() {
             isFuzzyFallback={isFuzzyFallback}
             formatCurrency={formatCurrency}
             onSelectProduct={setSelectedProduct}
+            onEditProduct={handleEditProduct}
             selectedProductId={selectedProduct?.id}
             sortKey={sortKey}
             sortDirection={direction}
@@ -338,9 +346,9 @@ export function ProductDatabase() {
 
       <AddProductDialog
         open={showAddDialog}
-        onOpenChange={setShowAddDialog}
+        onOpenChange={setAddDialogOpen}
         onAddProduct={handleAddProduct}
-        editingProduct={selectedProduct}
+        editingProduct={editingProduct && (products.find((p) => p.id === editingProduct.id) ?? editingProduct)}
         isSubmitting={isSaving}
       />
     </div>

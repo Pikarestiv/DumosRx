@@ -198,7 +198,7 @@ describe("POItemBuilder list editing", () => {
 
     expect(screen.queryByText("Zyrtec")).not.toBeNull();
 
-    fireEvent.change(screen.getByPlaceholderText("Filter items in this order"), {
+    fireEvent.change(screen.getByPlaceholderText("Search items in this purchase order"), {
       target: { value: "pana" },
     });
 
@@ -213,7 +213,7 @@ describe("POItemBuilder list editing", () => {
       line(),
     ]);
 
-    fireEvent.change(screen.getByPlaceholderText("Filter items in this order"), {
+    fireEvent.change(screen.getByPlaceholderText("Search items in this purchase order"), {
       target: { value: "pana" },
     });
 

@@ -5,7 +5,7 @@ export const terminology: Record<StoreType, Record<string, string>> = {
     product: "Product",
     products: "Products",
     registration_number: "NAFDAC Number",
-    category: "Therapeutic Class",
+    category: "Category",
     stock: "Stock Level",
   },
   grocery: {

@@ -19,13 +19,26 @@ vi.mock("@/components/stock-batch/export-columns-dialog", () => ({
   ExportColumnsDialog: () => null,
 }));
 
-import { ImportExportToolbar } from "@/components/stock-batch/import-export-toolbar";
+import { DropdownMenu, DropdownMenuContent } from "@/components/ui/dropdown-menu";
+import { useImportExportActions } from "@/components/stock-batch/import-export-actions";
 
-function renderToolbar() {
-  render(<ImportExportToolbar onImported={vi.fn()} />);
+function Harness() {
+  const { menuItems, overlays } = useImportExportActions({ onImported: vi.fn() });
+  return (
+    <>
+      <DropdownMenu open>
+        <DropdownMenuContent>{menuItems}</DropdownMenuContent>
+      </DropdownMenu>
+      {overlays}
+    </>
+  );
 }
 
-describe("Catalog import/export toolbar export permission", () => {
+function renderToolbar() {
+  render(<Harness />);
+}
+
+describe("Catalog import/export actions export permission", () => {
   beforeEach(() => {
     hasPermission.mockReset();
     hasPermission.mockImplementation(() => true);
@@ -38,7 +51,7 @@ describe("Catalog import/export toolbar export permission", () => {
 
   it("offers Export with export_product_list", () => {
     renderToolbar();
-    expect(screen.queryByText("Export")).not.toBeNull();
+    expect(screen.queryByText("Export product list")).not.toBeNull();
   });
 
   it("hides Export without export_product_list but keeps Import", () => {
@@ -46,7 +59,7 @@ describe("Catalog import/export toolbar export permission", () => {
       (key: string) => key !== "export_product_list",
     );
     renderToolbar();
-    expect(screen.queryByText("Export")).toBeNull();
-    expect(screen.queryByText("Import")).not.toBeNull();
+    expect(screen.queryByText("Export product list")).toBeNull();
+    expect(screen.queryByText("Import products from a file")).not.toBeNull();
   });
 });

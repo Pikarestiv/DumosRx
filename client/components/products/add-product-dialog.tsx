@@ -19,6 +19,8 @@ import {
 } from "./add-product-form-state";
 import type { NewProductPayload } from "@/lib/types/product";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { useDuplicateProducts } from "@/lib/hooks/use-duplicate-products";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -38,6 +40,20 @@ interface AddProductDialogProps {
   /** True while the caller's own create/update mutation is in flight, so the
    * buttons stay disabled for the whole round trip, not just re-entry. */
   isSubmitting?: boolean;
+}
+
+function readLastCategory(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.lastProductCategory) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberLastCategory(category: string) {
+  try {
+    if (category) localStorage.setItem(STORAGE_KEYS.lastProductCategory, category);
+  } catch {}
 }
 
 export function AddProductDialog({
@@ -79,6 +95,7 @@ export function AddProductDialog({
   }
 
   const isPharmacy = storeType === "pharmacy";
+  const { sameBarcode } = useDuplicateProducts(formData);
 
   const suggestions = useProductSuggestions(
     isPharmacy,
@@ -92,6 +109,11 @@ export function AddProductDialog({
     // Validation
     if (!formData.name) {
       setAlertMessage("Please enter a name");
+      return;
+    }
+
+    if (sameBarcode) {
+      setAlertMessage(`This barcode already belongs to "${sameBarcode.name}". Each barcode can only be on one ${t("product").toLowerCase()}.`);
       return;
     }
 
@@ -134,7 +156,10 @@ export function AddProductDialog({
 
     // Only clear the form once the caller reports the save succeeded — otherwise a failed save would wipe everything the user…
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-products-add-product-dialog-tsx-L246
-    onAddProduct(payload, keepOpen, () => setFormData(emptyProductForm()));
+    onAddProduct(payload, keepOpen, () => {
+      if (!editingProduct) rememberLastCategory(formData.category);
+      setFormData(emptyProductForm({ category: keepOpen ? formData.category : "" }));
+    });
   };
 
   const handleInputChange = (field: keyof Product, value: string | number | boolean | null) => {
@@ -215,7 +240,7 @@ export function AddProductDialog({
               formData={formData}
               onInputChange={handleInputChange}
               isPharmacy={isPharmacy}
-              isQuickAdd={!initialData && !editingProduct}
+              lastUsedCategory={editingProduct ? undefined : readLastCategory()}
               suggestions={suggestions}
               t={t}
             />

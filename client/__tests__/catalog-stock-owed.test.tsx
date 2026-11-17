@@ -40,7 +40,6 @@ function renderCatalogRow(props: {
       product={mockProduct}
       isSelected={false}
       isDesktop={props.isDesktop ?? true}
-      isPharmacy={true}
       capsClass=""
       categoryOptions={["Pain Relief"]}
       canEdit={true}
@@ -60,6 +59,7 @@ function renderCatalogRow(props: {
       onSaveReorderLevel={vi.fn()}
       onPrintLabel={vi.fn()}
       onDeleteProduct={vi.fn()}
+      onEditProduct={vi.fn()}
     />,
   );
 }

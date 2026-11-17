@@ -3,7 +3,7 @@
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 import React, { useMemo } from "react";
-import { Trash2, Search, Pencil } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,6 +14,8 @@ import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-i
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { ProductName } from "@/components/ui/product-name";
+import { EditProductPencil } from "@/components/products/edit-product-pencil";
+import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
 
 export interface POLineItemDraft {
   id?: string;
@@ -80,13 +82,14 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   onEditProduct?: (productId: string) => void;
 }) {
   const formatCurrency = useFormatCurrency();
+  const hasTouchCapability = useHasTouchCapability();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);
   const total = getLineTotal(item, poType);
 
   return (
-    <div role="row" className={`grid ${gridCols} items-center`}>
+    <div role="row" className={`group grid ${gridCols} items-center`}>
       <div role="cell" className="px-3 py-2 sticky left-0 bg-card">
         <div className="flex items-center gap-1">
           <ProductName
@@ -95,16 +98,11 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
             className="font-semibold text-foreground"
           />
           {onEditProduct && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Edit ${item.product_name}`}
-              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+            <EditProductPencil
+              productName={item.product_name}
+              hasTouchCapability={hasTouchCapability}
               onClick={() => onEditProduct(item.product_id)}
-            >
-              <Pencil className="w-3 h-3" />
-            </Button>
+            />
           )}
         </div>
         <div className="text-[11px] text-muted-foreground/70">{item.bulk_unit}(s)</div>

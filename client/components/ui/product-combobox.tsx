@@ -131,10 +131,11 @@ export function ProductCombobox({
     });
   }, [localProducts]);
 
-  const allSuggestions = React.useMemo(
-    () => [...localSuggestions, ...globalSuggestions],
-    [localSuggestions, globalSuggestions],
-  );
+  const allSuggestions = React.useMemo(() => {
+    const ownNames = new Set(localSuggestions.map((p) => p.name.trim().toLowerCase()));
+    const unseenGlobals = globalSuggestions.filter((p) => !ownNames.has(p.name.trim().toLowerCase()));
+    return [...localSuggestions, ...unseenGlobals];
+  }, [localSuggestions, globalSuggestions]);
   const deferredValue = React.useDeferredValue(value);
 
   const filteredOptions = React.useMemo(() => {

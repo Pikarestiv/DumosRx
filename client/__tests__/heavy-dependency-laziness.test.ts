@@ -39,8 +39,8 @@ describe("heavy dependencies stay out of route chunks", () => {
     expect(code).toContain('import("@react-pdf/renderer")');
   });
 
-  it("purchase-order-details loads @react-pdf/renderer only on demand", () => {
-    const code = source("components/procurement/purchase-order-details.tsx");
+  it("the purchase order PDF download loads @react-pdf/renderer only on demand", () => {
+    const code = source("components/procurement/use-po-pdf-download.tsx");
     expect(hasStaticValueImport(code, "@react-pdf/renderer")).toBe(false);
     expect(code).toContain('import("@react-pdf/renderer")');
     // The transitive route matters as much as the direct one:

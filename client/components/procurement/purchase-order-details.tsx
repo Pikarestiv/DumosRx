@@ -1,30 +1,15 @@
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Clock, Edit2, Download, Loader2 } from "lucide-react";
-import { format } from "date-fns";
-import { toast } from "sonner";
-import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
-import { errorDescription } from "@/lib/utils/error-description";
+import { ArrowLeft, Clock } from "lucide-react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
-import { downloadBlob } from "@/lib/utils/download-blob";
-import { useStore } from "@/lib/context/store-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import type { PurchaseOrder } from "@/lib/db/procurement";
-import { useUppercaseDisplayClass, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { PoStatusTimeline } from "./po-status-timeline";
+import { PoLineItems } from "./po-line-items";
+import { PoOrderMenu } from "./po-order-menu";
+import { PoDetailsFooter } from "./po-details-footer";
+import { usePoPdfDownload } from "./use-po-pdf-download";
+import type { PurchaseOrder } from "@/lib/db/procurement";
 
 interface PurchaseOrderDetailsProps {
   selectedPO: PurchaseOrder | null;
@@ -50,62 +35,9 @@ export function PurchaseOrderDetails({
   onClose,
 }: PurchaseOrderDetailsProps) {
   const router = useRouter();
-  const { storeProfile } = useStore();
-  const formatCurrency = useFormatCurrency();
   const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
   const canReceivePurchaseOrders = useHasPermission("receive_purchase_orders");
-  const capsClass = useUppercaseDisplayClass();
-  const uppercaseNames = storeProfile?.uppercase_display_enabled !== 0;
-  const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
-
-  const handleDownloadPdf = async () => {
-    if (!selectedPO || isGeneratingPdf) return;
-    setIsGeneratingPdf(true);
-    try {
-      // Both imported here rather than at module scope:
-      // Rationale: docs/CLIENT_COMMENTS.md#line-components-procurement-purchase-order-details-tsx-L63
-      const [{ pdf }, { PurchaseOrderPdf }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("./purchase-order-pdf"),
-      ]);
-      const blob = await pdf(
-        <PurchaseOrderPdf
-          storeName={storeProfile?.name || "Store"}
-          currencyCode={storeProfile?.currency}
-          poNumber={`PO-${selectedPO.id.split("-")[0].toUpperCase()}`}
-          vendorName={selectedPO.vendor_name || "Unknown Vendor"}
-          createdAt={formatDateToDDMMYYYY(selectedPO.created_at)}
-          status={selectedPO.status}
-          notes={selectedPO.notes}
-          items={(selectedPO.items || []).map((item) => ({
-            // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-purchase-order-details-tsx-pdf-names
-            product_name: item.product_name
-              ? uppercaseNames
-                ? item.product_name.toUpperCase()
-                : capitalizeWords(item.product_name)
-              : "Unknown Product",
-            bulk_quantity: item.bulk_quantity || 0,
-            unit_cost: item.unit_cost || 0,
-            subtotal: item.subtotal || 0,
-          }))}
-          totalAmount={selectedPO.total_amount || 0}
-          generatedAt={format(new Date(), "d MMM yyyy, h:mm a")}
-        />,
-      ).toBlob();
-      downloadBlob(
-        blob,
-        `PO-${selectedPO.id.split("-")[0].toUpperCase()}.pdf`,
-      );
-      toast.success("PO downloaded successfully");
-    } catch (error) {
-      console.error("Failed to generate PO PDF:", error);
-      toast.error("Couldn't build the PO PDF", {
-        description: errorDescription(error),
-      });
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
+  const { download, isGenerating } = usePoPdfDownload(selectedPO);
 
   if (!selectedPO) {
     return (
@@ -115,199 +47,83 @@ export function PurchaseOrderDetails({
     );
   }
 
-  const isPartiallyReceived = selectedPO.status === "partially_received";
+  const isEditable = selectedPO.status === "pending" || selectedPO.status === "sent";
+  const editOrder = () => router.push(`/procurement/edit?id=${selectedPO.id}`);
 
   return (
     <Card className="flex flex-col h-full bg-card overflow-hidden p-0 gap-0 border-none rounded-none shadow-none">
       <div className="flex flex-col h-full overflow-hidden">
-          <div className="flex items-center gap-3 p-5 border-b border-border">
-            <button
-              type="button"
-              aria-label="Close"
-              className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-              onClick={onClose}
-            >
-              <ArrowLeft className="w-[17px] h-[17px]" />
-            </button>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between mb-1 gap-2">
-                <h3 className="text-[17px] font-bold text-foreground truncate">
-                  PO-{selectedPO.id.split("-")[0].toUpperCase()}
-                </h3>
-                {getStatusBadge(selectedPO.status)}
+        <div className="flex items-start gap-4 border-b border-border px-6 pb-5 pt-6">
+          <button
+            type="button"
+            aria-label="Close"
+            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-border text-muted-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring"
+            onClick={onClose}
+          >
+            <ArrowLeft className="h-[18px] w-[18px]" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h3 className="text-[22px] font-bold tracking-tight text-foreground">
+                PO-{selectedPO.id.split("-")[0].toUpperCase()}
+              </h3>
+              {getStatusBadge(selectedPO.status)}
+            </div>
+            <p className="mt-1.5 truncate text-[14px] text-muted-foreground">
+              {selectedPO.vendor_name} · {formatDateToDDMMYYYY(selectedPO.created_at)}
+              {selectedPO.ordered_by_name && <> · Ordered by {selectedPO.ordered_by_name}</>}
+            </p>
+          </div>
+          <PoOrderMenu
+            onEdit={
+              canManagePurchaseOrders && selectedPO.status === "sent" ? editOrder : undefined
+            }
+            onDelete={
+              canManagePurchaseOrders && isEditable && onDeletePO
+                ? () => onDeletePO(selectedPO.id)
+                : undefined
+            }
+            onDownloadPdf={() => void download()}
+            isGeneratingPdf={isGenerating}
+            isMutating={isMutatingPO}
+          />
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          <div className="flex flex-col gap-6 p-6">
+            {isLoadingDetails ? (
+              <div className="flex h-32 items-center justify-center text-muted-foreground">
+                <Clock className="mr-2 h-6 w-6 animate-spin opacity-50" />
+                Loading details...
               </div>
-              <p className="text-[13px] text-muted-foreground font-medium truncate">
-                {selectedPO.vendor_name} ·{" "}
-                {formatDateToDDMMYYYY(selectedPO.created_at)}
-                {selectedPO.ordered_by_name && (
-                  <> · Ordered by {selectedPO.ordered_by_name}</>
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-auto">
-            <div className="p-5">
-              {isLoadingDetails ? (
-                <div className="flex justify-center items-center h-32 text-muted-foreground">
-                  <Clock className="w-6 h-6 animate-spin mr-2 opacity-50" />
-                  Loading details...
-                </div>
-              ) : (
-                <>
-                  {selectedPO.notes && (
-                    <div className="bg-muted p-3.5 rounded-lg text-[13px] text-muted-foreground mb-6">
-                      {selectedPO.notes}
+            ) : (
+              <>
+                {selectedPO.notes && (
+                  <div className="rounded-[10px] bg-muted px-4 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Note
                     </div>
-                  )}
-
-                  <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-3">
-                    Line Items
-                  </h4>
-                  <div className="flex flex-col gap-3">
-                    {selectedPO.items && selectedPO.items.length > 0 ? (
-                      selectedPO.items.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-start justify-between text-[13px]"
-                        >
-                          <span className={`font-medium text-foreground leading-tight ${capsClass}`}>
-                            {item.product_name || "Unknown Product"}{" "}
-                            <span className="text-muted-foreground ml-1">
-                              × {item.bulk_quantity}
-                            </span>
-                            {isPartiallyReceived && (
-                              <span className="text-amber-600 ml-1 text-[12px] font-semibold">
-                                ({Number(item.quantity_received) || 0} received)
-                              </span>
-                            )}
-                          </span>
-                          <span className="font-bold shrink-0 ml-4">
-                            {formatCurrency(item.subtotal || 0)}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-[13px] text-muted-foreground italic bg-muted/50 border border-border/50 p-3 rounded-lg text-center">
-                        Line items available in full view
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-[14px] font-bold mt-4 pt-4 border-t border-border">
-                      <span>Total</span>
-                      <span>{formatCurrency(selectedPO.total_amount)}</span>
-                    </div>
+                    <div className="mt-1 text-[15px] text-foreground/80">{selectedPO.notes}</div>
                   </div>
-
-                  <PoStatusTimeline po={selectedPO} />
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="p-5 border-t border-border bg-card mt-auto flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 bg-transparent h-10 text-[13.5px] font-bold"
-                onClick={() => void handleDownloadPdf()}
-                disabled={isGeneratingPdf}
-              >
-                {isGeneratingPdf ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4 mr-2" />
                 )}
-                {isGeneratingPdf ? "Preparing..." : "Download PDF"}
-              </Button>
-              
-              {canManagePurchaseOrders &&
-                (selectedPO.status === "pending" || selectedPO.status === "sent") && (
-                <Button
-                  variant="outline"
-                  className="flex-1 bg-transparent h-10 text-[13.5px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  onClick={() => router.push(`/procurement/edit?id=${selectedPO.id}`)}
-                >
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Edit Order
-                </Button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {canManagePurchaseOrders &&
-                (selectedPO.status === "pending" || selectedPO.status === "sent") && onDeletePO && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      className="flex-1 h-10 text-[13.5px] font-bold"
-                      disabled={isMutatingPO}
-                    >
-                      Delete
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Are you absolutely sure?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently
-                        delete this purchase order and remove its data.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onDeletePO(selectedPO.id)}
-                        className="!bg-destructive !text-destructive-foreground !hover:bg-destructive/90"
-                      >
-                        Delete Order
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-
-              {canReceivePurchaseOrders && selectedPO.status === "pending" && selectedPO.type === "immediate" && (
-                <Button
-                  className="flex-1 h-10 text-[13.5px] font-bold"
-                  onClick={onReceiveGoods}
-                >
-                  Receive Goods
-                </Button>
-              )}
-
-              {canManagePurchaseOrders && selectedPO.status === "pending" && selectedPO.type !== "immediate" && (
-                <Button
-                  className="flex-1 h-10 text-[13.5px] font-bold"
-                  onClick={() => onSendPO(selectedPO.id)}
-                  disabled={isMutatingPO}
-                >
-                  {isMutatingPO ? "Working..." : "Mark as Sent"}
-                </Button>
-              )}
-
-              {canReceivePurchaseOrders && (selectedPO.status === "sent" || isPartiallyReceived) && (
-                <Button
-                  className="flex-1 h-10 text-[13.5px] font-bold"
-                  onClick={onReceiveGoods}
-                >
-                  {isPartiallyReceived ? "Receive Balance" : "Receive Goods"}
-                </Button>
-              )}
-
-              {selectedPO.status === "received" && (
-                <Button
-                  className="flex-1 h-10 text-[13.5px] font-bold"
-                  disabled
-                >
-                  Completed
-                </Button>
-              )}
-            </div>
+                <PoLineItems po={selectedPO} />
+                <PoStatusTimeline po={selectedPO} />
+              </>
+            )}
           </div>
+        </div>
+
+        <PoDetailsFooter
+          po={selectedPO}
+          canManage={canManagePurchaseOrders}
+          canReceive={canReceivePurchaseOrders}
+          isMutating={isMutatingPO}
+          isGeneratingPdf={isGenerating}
+          onEdit={editOrder}
+          onSend={() => onSendPO(selectedPO.id)}
+          onReceive={onReceiveGoods}
+          onDownloadPdf={() => void download()}
+        />
       </div>
     </Card>
   );

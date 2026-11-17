@@ -7894,3 +7894,64 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 - A PO due date drives `getPayableDueState` (`lib/utils/payables.ts`): overdue
   once past, "due soon" within 3 days. Only unpaid, non-draft orders count. It
   feeds the dashboard Action Center, the notification bell and an order badge.
+
+## Catalog actions, product form and camera (2026-11-17)
+
+- The catalog toolbar has one "Product actions" menu (`product-database-filters.tsx`)
+  instead of separate Print labels, Import, Export, Online and Manage buttons.
+  `useImportExportActions` and `useBulkShowOnlineActions` return
+  `{ menuItems, overlays }`: the items go inside the menu, the dialogs and
+  loading overlay render outside it, so their state survives the menu closing.
+- `EditProductPencil` sits after the product name in catalog rows and PO line
+  items. It opens the edit modal directly, shows on row hover (parent needs
+  `group`) and stays visible on touch devices. The "No Generic" badge is gone.
+- The Add/Edit Product form: Basic Information holds name, category, price,
+  reorder level and barcode. Strength/Size and Dosage Form live under
+  Additional Details, which starts collapsed and remembers its last state in
+  `STORAGE_KEYS.productFormDetailsOpen`. Every field label uses `FieldLabel`
+  (label plus a `HintTooltip`); add a hint to any new field.
+- Pharmacies use the plain "Category" label (`store-terminology.ts`).
+- `CategoryCombobox` takes `lastUsed` and pins it first while the field is
+  empty. Saving a new product stores it in `STORAGE_KEYS.lastProductCategory`;
+  "Save & Add Another" also keeps the category in the cleared form.
+- `ProductCombobox` hides a global suggestion whose name already matches a
+  catalog product (case-insensitive).
+- `CameraScannerDialog` no longer enumerates cameras before starting: it asks
+  for `facingMode: environment` straight away and lists cameras after the
+  stream is up (for the switch button). When permission is granted or
+  remembered it shows "Starting camera..." and never the permission wait. Do
+  not preload `html5-qrcode` with a bare `void import(...)`: it bypasses the
+  `vi.mock` in the camera tests.
+- POS product card image area is `h-12 sm:h-20`; the virtualized grid's row
+  estimate is `120` / `164` to match.
+
+## PO details panel (2026-11-17)
+
+- `PurchaseOrderDetails` follows `refs/UI-UX-focused-redesigns/po-panel-redesign-v3`.
+  The header carries the status badge and a "More actions" menu (`PoOrderMenu`):
+  Edit order (sent orders only), Download PDF, Delete order… (draft and sent).
+- The footer (`PoDetailsFooter`) never has more than two buttons. Draft: Edit +
+  Mark as Sent (or Receive Goods for an immediate purchase). Sent: Download PDF +
+  Receive Items. Partially received: Download PDF + Receive Remaining. Received:
+  Download PDF and a "locked" note. Edit stays gated to `pending`/`sent` (see the
+  partial-receipt note above); on a draft it is the footer's Edit button, on a
+  sent order it lives in the menu.
+- Line items (`PoLineItems`) show `qty × unit cost` and, once any receiving has
+  happened, a per-line progress bar. `PoStatusTimeline` is a horizontal stepper;
+  an immediate purchase skips the Sent step.
+- The PDF download is `usePoPdfDownload`; it keeps the lazy `@react-pdf/renderer`
+  imports, which `heavy-dependency-laziness.test.ts` pins.
+
+## Duplicate products (2026-11-17)
+
+- Names are not unique on purpose: two real products can share a name and
+  differ by strength/size. `findDuplicateProducts` (`lib/utils/duplicate-product.ts`)
+  calls a product a duplicate only when the trimmed, case-insensitive name AND
+  strength match (both empty counts as a match). The Add/Edit form then shows an
+  inline warning under the name field; saving is still allowed.
+- A barcode is different: the same non-empty barcode on a second product is a
+  validation error, because scanning at the till has to resolve to one product.
+- The check runs on this device's local catalog (`getProductList`, which now
+  also selects `barcode`). Two offline tills can still each create the same name
+  or barcode before syncing; there is no server-side uniqueness rule, so this is
+  a guard against typing mistakes, not a guarantee.

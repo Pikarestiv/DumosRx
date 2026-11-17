@@ -13,6 +13,7 @@ import {
 } from "./catalog-editable-cells";
 import { describeStock } from "@/lib/utils/stock-status";
 import { ProductImage } from "./product-image";
+import { EditProductPencil } from "./edit-product-pencil";
 import { useProductImageConfig } from "@/lib/product-images/config-store";
 
 const NO_LABEL_PERMISSION =
@@ -37,7 +38,6 @@ export interface CatalogRowProps {
   // Which of the two layouts to mount.
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-products-catalog-row-tsx-L37
   isDesktop: boolean;
-  isPharmacy: boolean;
   capsClass: string;
   categoryOptions: string[];
   canEdit: boolean;
@@ -57,13 +57,13 @@ export interface CatalogRowProps {
   onSaveReorderLevel: (product: Product, reorderLevel: number) => void;
   onPrintLabel: (product: Product) => void;
   onDeleteProduct: (product: Product) => void;
+  onEditProduct: (product: Product) => void;
 }
 
 function CatalogRowInner({
   product,
   isSelected,
   isDesktop,
-  isPharmacy,
   capsClass,
   categoryOptions,
   canEdit,
@@ -83,6 +83,7 @@ function CatalogRowInner({
   onSaveReorderLevel,
   onPrintLabel,
   onDeleteProduct,
+  onEditProduct,
 }: CatalogRowProps) {
   const showThumbnail = useProductImageConfig().enabled;
   const thumbnail = (sizeClass: string, sizePx: number) =>
@@ -124,13 +125,12 @@ function CatalogRowInner({
           <div className="min-w-0 pr-2 flex-1">
             <div className="text-[15px] font-bold text-foreground truncate flex items-center gap-2">
               <span className={capsClass}>{product.name}</span>
-              {isPharmacy && !product.genericName && (
-                <span
-                  className="text-[10px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
-                  title="Missing Generic Name"
-                >
-                  No Generic
-                </span>
+              {canEdit && (
+                <EditProductPencil
+                  productName={product.name}
+                  hasTouchCapability={hasTouchCapability}
+                  onClick={() => onEditProduct(product)}
+                />
               )}
             </div>
             <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
@@ -173,13 +173,12 @@ function CatalogRowInner({
             <div className="min-w-0">
               <div className="text-[13px] font-semibold truncate flex items-center gap-2">
                 <span className={capsClass}>{product.name}</span>
-                {isPharmacy && !product.genericName && (
-                  <span
-                    className="text-[9px] font-medium bg-amber-500/10 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/20"
-                    title="Missing Generic Name"
-                  >
-                    No Generic
-                  </span>
+                {canEdit && (
+                  <EditProductPencil
+                    productName={product.name}
+                    hasTouchCapability={hasTouchCapability}
+                    onClick={() => onEditProduct(product)}
+                  />
                 )}
               </div>
               <div className="text-[11px] text-muted-foreground truncate">

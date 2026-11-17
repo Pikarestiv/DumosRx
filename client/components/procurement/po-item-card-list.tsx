@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Trash2, Search, Pencil } from "lucide-react";
+import { Trash2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
 import { useProductMap, type POItemRow, type POLineItemDraft } from "./po-item-ledger-table";
 import { ProductName } from "@/components/ui/product-name";
+import { EditProductPencil } from "@/components/products/edit-product-pencil";
+import { useHasTouchCapability } from "@/lib/hooks/use-has-touch-capability";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 
@@ -48,13 +50,14 @@ const POItemCard = React.memo(function POItemCard({
   onEditProduct?: (productId: string) => void;
 }) {
   const formatCurrency = useFormatCurrency();
+  const hasTouchCapability = useHasTouchCapability();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);
   const total = getLineTotal(item, poType);
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="group p-4 space-y-3">
       <div className="flex justify-between items-start gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1">
@@ -63,16 +66,11 @@ const POItemCard = React.memo(function POItemCard({
               className="font-semibold text-[14px]"
             />
             {onEditProduct && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label={`Edit ${item.product_name}`}
-                className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+              <EditProductPencil
+                productName={item.product_name}
+                hasTouchCapability={hasTouchCapability}
                 onClick={() => onEditProduct(item.product_id)}
-              >
-                <Pencil className="w-3 h-3" />
-              </Button>
+              />
             )}
           </div>
           {poType === "immediate" && (

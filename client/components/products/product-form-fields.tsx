@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { CameraScannerDialog } from "@/components/pos/camera-scanner-dialog";
 import type { Product } from "./types";
 import { ProductBasicInfoFields } from "./product-basic-info-fields";
@@ -20,21 +21,37 @@ interface ProductFormFieldsProps {
   formData: Product;
   onInputChange: (field: keyof Product, value: string | number | boolean | null) => void;
   isPharmacy: boolean;
-  isQuickAdd?: boolean;
+  lastUsedCategory?: string;
   suggestions: ProductSuggestions;
   t: (key: string) => string;
+}
+
+function readDetailsOpen(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.productFormDetailsOpen) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function ProductFormFields({
   formData,
   onInputChange,
   isPharmacy,
-  isQuickAdd = false,
+  lastUsedCategory,
   suggestions,
   t,
 }: ProductFormFieldsProps) {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(!isQuickAdd);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(readDetailsOpen);
+
+  const toggleDetails = () => {
+    const next = !isDetailsOpen;
+    setIsDetailsOpen(next);
+    try {
+      localStorage.setItem(STORAGE_KEYS.productFormDetailsOpen, next ? "1" : "0");
+    } catch {}
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,8 +59,8 @@ export function ProductFormFields({
         formData={formData}
         onInputChange={onInputChange}
         isPharmacy={isPharmacy}
-        suggestions={suggestions}
         t={t}
+        lastUsedCategory={lastUsedCategory}
         onScanClick={() => setIsScannerOpen(true)}
       />
 
@@ -54,7 +71,7 @@ export function ProductFormFields({
         suggestions={suggestions}
         t={t}
         isOpen={isDetailsOpen}
-        onToggle={() => setIsDetailsOpen(!isDetailsOpen)}
+        onToggle={toggleDetails}
       />
 
       <ProductPackagingFields

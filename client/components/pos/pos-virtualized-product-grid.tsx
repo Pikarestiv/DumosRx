@@ -88,7 +88,7 @@ export function VirtualizedProductGrid({
     getScrollElement: () => scrollElementRef.current,
     // A card's height is fairly stable (name is line-clamped to 2 lines), so a fixed estimate keyed off breakpoint is close en…
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-pos-pos-virtualized-product-grid-tsx-L126
-    estimateSize: () => (columns <= 2 ? 112 : 140),
+    estimateSize: () => (columns <= 2 ? 120 : 164),
     overscan: 6,
     scrollMargin,
   });

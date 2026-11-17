@@ -48,6 +48,12 @@ the same shape.
 Both disks are Laravel's `s3` driver (`league/flysystem-aws-s3-v3`) with a
 custom endpoint, `region=auto` and path-style addressing.
 
+**CORS on the public bucket.** The storefront and the POS load images
+cross-origin, so the public bucket needs a `GET`/`HEAD` rule allowing the app
+and storefront origins (the service worker caches the responses, which needs a
+readable, non-opaque response). The incoming bucket needs a `PUT` rule for the
+app origins with `Content-Type` allowed. Set both when creating the buckets.
+
 **Why two buckets.** A presigned PUT cannot bind the content type or length:
 the AWS SDK strips both from the signed headers, and R2 does not support POST
 policies. So the browser uploads into a private bucket, and only bytes the

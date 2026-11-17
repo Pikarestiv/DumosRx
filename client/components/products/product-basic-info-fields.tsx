@@ -1,40 +1,34 @@
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SearchableInput } from "@/components/ui/searchable-input";
 import { ProductCombobox } from "@/components/ui/product-combobox";
 import { CategoryCombobox } from "@/components/ui/category-combobox";
 import { Button } from "@/components/ui/button";
-import { ScanLine, HelpCircle } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ScanLine } from "lucide-react";
 import type { Product } from "./types";
-import type { ProductSuggestions } from "./product-form-fields";
+import { FieldLabel } from "./field-label";
 import { getCurrencySymbol } from "@/lib/utils";
 import { useStore } from "@/lib/context/store-context";
+import { useDuplicateProducts } from "@/lib/hooks/use-duplicate-products";
 
 interface Props {
   formData: Product;
   onInputChange: (field: keyof Product, value: string | number | boolean | null) => void;
   isPharmacy: boolean;
-  suggestions: ProductSuggestions;
   t: (key: string) => string;
   onScanClick: () => void;
+  lastUsedCategory?: string;
 }
 
 export function ProductBasicInfoFields({
   formData,
   onInputChange,
   isPharmacy,
-  suggestions,
   t,
   onScanClick,
+  lastUsedCategory,
 }: Props) {
   const { storeProfile } = useStore();
   const currencySymbol = getCurrencySymbol(storeProfile?.currency);
+  const { sameName, sameBarcode } = useDuplicateProducts(formData);
   return (
     <div className="space-y-4">
       <h3 className="font-serif font-bold text-lg border-b pb-2">
@@ -42,7 +36,12 @@ export function ProductBasicInfoFields({
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-[1px]">
         <div className="space-y-2">
-          <Label htmlFor="name">{t("product")} Name *</Label>
+          <FieldLabel
+            htmlFor="name"
+            hint={`What you and your customers call it. Put the size or strength in the name if that is how you spot it quickly, e.g. ${isPharmacy ? "Panadol Extra 500mg" : "Cussons Baby Lotion 200ml"}.`}
+          >
+            {t("product")} Name *
+          </FieldLabel>
           <ProductCombobox
             value={formData.name}
             showCreateNewOption={false}
@@ -66,67 +65,37 @@ export function ProductBasicInfoFields({
             }}
             placeholder={`e.g., ${isPharmacy ? "Panadol Extra" : "Product Name"}`}
           />
+          {sameName && (
+            <p role="status" className="text-[12px] text-amber-700 dark:text-amber-400">
+              &ldquo;{sameName.name}&rdquo; already exists
+              {sameName.category_name ? ` in ${sameName.category_name}` : ""}. Add a size or strength to tell
+              them apart, or edit the existing {t("product").toLowerCase()}.
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <Label htmlFor="category">
-              {isPharmacy && t("category") === "Therapeutic Class"
-                ? "Therapeutic Class / Drug Category"
-                : t("category")}
-            </Label>
-            {isPharmacy && (
-              <TooltipProvider>
-                <Tooltip delayDuration={300}>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      What type of medicine is this? E.g., Pain Relief,
-                      Antibiotic, Vitamin.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
+          <FieldLabel
+            htmlFor="category"
+            hint="Groups similar products for filtering and reports, e.g. Perfumes, Antibiotics, Drinks."
+          >
+            {t("category")}
+          </FieldLabel>
           <CategoryCombobox
             id="category"
             value={formData.category}
             onValueChange={(val) => onInputChange("category", val)}
+            lastUsed={lastUsedCategory}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="strength">Strength / Size</Label>
-          <SearchableInput
-            id="strength"
-            value={formData.strength}
-            onValueChange={(val) => onInputChange("strength", val)}
-            options={
-              isPharmacy
-                ? suggestions.strengths
-                : ["Small", "Medium", "Large", "1kg", "500g", "1L", "500ml"]
-            }
-            placeholder="e.g., 500mg or 1L"
-          />
-        </div>
-
-        {isPharmacy && (
-          <div className="space-y-2">
-            <Label htmlFor="dosageForm">Dosage Form</Label>
-            <SearchableInput
-              options={suggestions.dosageForms || []}
-              value={formData.dosageForm}
-              onValueChange={(val) => onInputChange("dosageForm", val)}
-              placeholder="Select or type dosage form"
-            />
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="sellingPrice">Selling Price ({currencySymbol})</Label>
+          <FieldLabel
+            htmlFor="sellingPrice"
+            hint="What a customer pays for one base unit (see Packaging & Units below)."
+          >
+            Selling Price ({currencySymbol})
+          </FieldLabel>
           <Input
             id="sellingPrice"
             type="number"
@@ -142,28 +111,13 @@ export function ProductBasicInfoFields({
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <Label htmlFor="reorderLevel">
-              Reorder Level{" "}
-              {formData.baseUnit
-                ? `(in ${formData.baseUnit}s)`
-                : "(in base units)"}
-            </Label>
-            <TooltipProvider>
-              <Tooltip delayDuration={300}>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="w-3 h-3 opacity-50 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    Always entered in base units (see Packaging & Units below),
-                    not bulk units. You&apos;ll be alerted when stock falls to
-                    or below this number.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+          <FieldLabel
+            htmlFor="reorderLevel"
+            hint="Always entered in base units (see Packaging & Units below), not bulk units. You'll be alerted when stock falls to or below this number."
+          >
+            Reorder Level{" "}
+            {formData.baseUnit ? `(in ${formData.baseUnit}s)` : "(in base units)"}
+          </FieldLabel>
           <Input
             id="reorderLevel"
             type="number"
@@ -178,7 +132,12 @@ export function ProductBasicInfoFields({
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="barcode">Barcode (Optional)</Label>
+          <FieldLabel
+            htmlFor="barcode"
+            hint="The code printed on the pack. Scan it here once, then scan it at the till to add this product to a sale."
+          >
+            Barcode (Optional)
+          </FieldLabel>
           <div className="flex gap-2">
             <Input
               id="barcode"
@@ -197,6 +156,12 @@ export function ProductBasicInfoFields({
               <ScanLine className="h-4 w-4" />
             </Button>
           </div>
+          {sameBarcode && (
+            <p role="alert" className="text-[12px] text-destructive">
+              This barcode already belongs to &ldquo;{sameBarcode.name}&rdquo;. Each barcode can only be on one{" "}
+              {t("product").toLowerCase()}.
+            </p>
+          )}
         </div>
       </div>
     </div>

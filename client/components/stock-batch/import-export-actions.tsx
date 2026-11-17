@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Upload, Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { generateReportPdfBlob } from "@/lib/utils/report-pdf";
@@ -29,7 +28,7 @@ import { buildExportFilename } from "@/lib/utils/export-filename";
 
 type ExportFormat = "csv" | "xlsx" | "pdf";
 
-interface ImportExportToolbarProps {
+interface ImportExportActionsProps {
   onImported: () => void;
   // The catalog table's currently-filtered product ids (search/category/ status), so Export defaults to "what's on screen" i…
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-import-export-toolbar-tsx-L34
@@ -42,10 +41,10 @@ function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-export function ImportExportToolbar({
+export function useImportExportActions({
   onImported,
   filteredProductIds,
-}: ImportExportToolbarProps) {
+}: ImportExportActionsProps): { menuItems: ReactNode; overlays: ReactNode } {
   const { storeProfile } = useStore();
   const canExportProductList = useHasPermission("export_product_list");
   const canViewCost = useHasPermission("view_cost_fields");
@@ -129,62 +128,50 @@ export function ImportExportToolbar({
     setShowColumnPicker(true);
   };
 
-  return (
+  const menuItems = (
     <>
-      {stage && (
-        <LoadingOverlay message={stage.message} progress={stage.progress} />
-      )}
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="gap-1.5 text-[12px]"
-        onClick={() => setShowImport(true)}
-      >
+      <DropdownMenuItem onSelect={() => setShowImport(true)}>
         <Upload className="h-3.5 w-3.5" />
-        Import
-      </Button>
-
+        Import products from a file
+      </DropdownMenuItem>
       {canExportProductList && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-[12px]"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Download className="h-3.5 w-3.5" />
+            Export product list
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
             {isFiltered && (
               <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
                 Filter active: exports {filteredProductIds.length} shown product
                 {filteredProductIds.length === 1 ? "" : "s"}
               </div>
             )}
-            <DropdownMenuItem onClick={() => handleExportClick("csv")}>
+            <DropdownMenuItem onSelect={() => handleExportClick("csv")}>
               Export as CSV
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExportClick("xlsx")}>
+            <DropdownMenuItem onSelect={() => handleExportClick("xlsx")}>
               Export as XLSX
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleExportClick("pdf")}>
+            <DropdownMenuItem onSelect={() => handleExportClick("pdf")}>
               Export as PDF
             </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
       )}
+    </>
+  );
 
+  const overlays = (
+    <>
+      {stage && (
+        <LoadingOverlay message={stage.message} progress={stage.progress} />
+      )}
       <ImportMappingDialog
         open={showImport}
         onOpenChange={setShowImport}
         onImported={onImported}
       />
-
       <ExportColumnsDialog
         open={showColumnPicker}
         onOpenChange={setShowColumnPicker}
@@ -195,4 +182,6 @@ export function ImportExportToolbar({
       />
     </>
   );
+
+  return { menuItems, overlays };
 }

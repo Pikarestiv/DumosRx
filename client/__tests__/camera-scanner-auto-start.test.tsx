@@ -33,6 +33,7 @@ vi.mock("html5-qrcode", () => {
   return { Html5Qrcode };
 });
 
+import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { CameraScannerDialog } from "@/components/pos/camera-scanner-dialog";
 
 function setCameraPermission(query: (() => Promise<{ state: PermissionState }>) | undefined) {
@@ -69,6 +70,24 @@ describe("CameraScannerDialog permission-aware start", () => {
     expect(await screen.findByText("Align the barcode within the frame.")).toBeTruthy();
   });
 
+  it("never shows the permission wait when the camera was allowed before", async () => {
+    localStorage.setItem(STORAGE_KEYS.cameraScannerAllowed, "1");
+    setCameraPermission(() => new Promise(() => {}));
+    renderDialog();
+
+    expect(screen.queryByText("Waiting for camera permission...")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enable Camera" })).toBeNull();
+    expect(screen.getByText("Starting camera...")).toBeTruthy();
+  });
+
+  it("starts scanning without waiting for the camera list", async () => {
+    setCameraPermission(() => Promise.resolve({ state: "granted" }));
+    scannerMock.getCameras = () => new Promise(() => {});
+    renderDialog();
+
+    expect(await screen.findByText("Align the barcode within the frame.")).toBeTruthy();
+  });
+
   it("starts exactly one camera under React strict mode's double effects", async () => {
     setCameraPermission(() => Promise.resolve({ state: "granted" }));
     renderDialog(true);
@@ -87,15 +106,14 @@ describe("CameraScannerDialog permission-aware start", () => {
     await waitFor(() => expect(scannerMock.stop).toHaveBeenCalledTimes(1));
   });
 
-  it("never leaves a camera running when the dialog closes while the camera is still starting", async () => {
-    let releaseCameras: (cameras: { id: string; label: string }[]) => void = () => {};
-    scannerMock.getCameras = () => new Promise((resolve) => (releaseCameras = resolve));
-    setCameraPermission(() => Promise.resolve({ state: "granted" }));
+  it("never starts a camera when the dialog closes before permission resolves", async () => {
+    let releasePermission: (value: { state: PermissionState }) => void = () => {};
+    setCameraPermission(() => new Promise((resolve) => (releasePermission = resolve)));
     const { unmount } = renderDialog();
     await act(async () => {});
 
     unmount();
-    releaseCameras([{ id: "cam-1", label: "Back" }]);
+    releasePermission({ state: "granted" });
     await act(async () => {});
 
     expect(scannerMock.start).not.toHaveBeenCalled();

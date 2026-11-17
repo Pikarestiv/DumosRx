@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ReceiptView, type ReceiptTransaction } from "@/components/pos/receipt-view";
 
-let storeProfile: Record<string, unknown> = {
+const storeProfile: Record<string, unknown> = {
   name: "Divamax Pharmacy",
   currency: "NGN",
   show_barcode_on_receipt: 1,

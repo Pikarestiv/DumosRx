@@ -30,11 +30,11 @@ describe("ProductImage zoom", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("the corner zoom does not trigger the surrounding click", () => {
+  it("the overlay zoom does not trigger the surrounding click", () => {
     const outer = vi.fn();
     render(
       <div onClick={outer}>
-        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="corner" />
+        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />
       </div>,
     );
 
@@ -44,8 +44,15 @@ describe("ProductImage zoom", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
+  it("fills the space beside a contained image with a blurred copy of it", () => {
+    const { container } = render(<ProductImage imageKey={KEY} alt="Dettol" sizePx={56} fit="contain" />);
+
+    const sources = Array.from(container.querySelectorAll("img")).map((img) => img.getAttribute("src"));
+    expect(sources).toEqual([SRC, SRC]);
+  });
+
   it("offers no zoom when the image fails and the icon is shown", () => {
-    const { container } = render(<ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="corner" />);
+    const { container } = render(<ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />);
 
     fireEvent.error(container.querySelector("img") as HTMLImageElement);
 

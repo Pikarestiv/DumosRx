@@ -713,6 +713,7 @@ async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promis
     );
     const poTableSql = String(tableInfo?.[0]?.sql || "");
     if (poTableSql && /supplier_id\s+TEXT\s+NOT\s+NULL/i.test(poTableSql)) {
+      await adapter.run("DROP TABLE IF EXISTS purchase_orders_nullable_supplier");
       await adapter.run(`
         CREATE TABLE purchase_orders_nullable_supplier (
           id TEXT PRIMARY KEY,

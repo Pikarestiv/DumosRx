@@ -1,3 +1,12 @@
+### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
+- **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
+- **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.
+- **Now:**
+  (1) Added `await adapter.run("DROP TABLE IF EXISTS purchase_orders_nullable_supplier")` before table creation in `relaxPurchaseOrdersSupplierIdNullable()`.
+  (2) The rebuild now retries cleanly when an earlier attempt died after creating the scratch table but before dropping `purchase_orders`. A death between `DROP TABLE purchase_orders` and the rename is not covered (A-396).
+- **Coverage:** `client/__tests__/init-database-migrations.test.ts` (verifies migration success, null-supplier insert capability, and scratch table removal when starting with a pre-existing `purchase_orders_nullable_supplier` scratch table).
+- **Compat:** Pure client-side migration resilience fix; no schema or server API changes.
+
 ### A-182 — the site-wide PWA's start_url was a cross-origin bounce, opening outside its own scope
 - **Fixed:** 2026-11-17, web only, TDD. Found during Admin PWA scope review (Issue #232).
 - **Was:** `web/public/site.webmanifest` set `start_url: "/dashboard"` with no `scope` and no `id`. `/dashboard` is a client-side redirect component to `app.dumosrx.com`. Installing the site as a PWA from `dumosrx.com` launched a window that immediately bounced cross-origin and landed out of scope, causing browsers to display navigation URL chrome.

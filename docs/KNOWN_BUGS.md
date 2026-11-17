@@ -359,14 +359,6 @@ suggested tackle order rather than a strict ranking.
 - **Retirement condition:** the spec's Stage 4 `opening_quantity` work dissolves the A-148 class (batches whose opening stock never produced a movement row) that this endpoint is the only repair for. Once that ships, delete the endpoint and the config switch rather than re-enabling them. Until then Stage 1 may proceed, because the endpoint cannot run.
 - **One more reason not to re-enable it, found while shipping Stage 1 (2026-10-13).** `reconcile-quantities.ts`'s `storeReconciliationMovementLocally()` is the only writer of a `stock_movements` row that bypasses `insert()`, so it is the only one that does not rebuild its batch — deliberately, because the device had just asserted that quantity. Under the derived definition that leaves the batch out of step with its own log until the next rebuild touches it, and the rebuild then *adopts* the fabricated delta (A-240's shape) rather than ignoring it. Harmless while the endpoint returns 410; it means re-enabling the path now needs the seeded movement and the rebuild reconciled, not just the config flipped.
 
-#### A-306. `client/` — `relaxPurchaseOrdersSupplierIdNullable()` cannot retry after an interrupted rebuild
-
-- **Found:** 2026-10-19, in the review of A-305, which fixed the same flaw in its own rebuild. Same shape, one statement earlier, milder consequence — filed rather than fixed because it is not this change's path and deserves its own test.
-- **Location:** `client/lib/db/schema-migrations.ts` — `relaxPurchaseOrdersSupplierIdNullable()`'s `CREATE TABLE purchase_orders_nullable_supplier` with no preceding `DROP TABLE IF EXISTS`.
-- **What's wrong:** the rebuild is CREATE / copy / DROP / RENAME with no transaction. A process death between the create and the rename leaves the scratch table behind, and the next boot's plain `CREATE TABLE` (not `IF NOT EXISTS`) throws on it, is swallowed by the function's catch, and the migration never completes. The device then keeps a `NOT NULL purchase_orders.supplier_id`, so an Immediate Purchase or walk-in order fails to insert — visible as a failing save rather than silently, which is why this is milder than A-305's version was.
-- **Fix:** `await adapter.run("DROP TABLE IF EXISTS purchase_orders_nullable_supplier")` before the CREATE, and a test with a pre-populated scratch table — exactly what A-305 now has in `__tests__/init-database-migrations.test.ts`.
-- **Blast radius:** needs a death inside a few milliseconds on one boot, on a device that still has the un-relaxed column (the migration shipped 2026-08-14, so any such device has not opened the app since). Probably nobody; the fix is one line and the test is copy-paste.
-
 #### A-188. `client/` — `no such table: permission_groups` on one device, **mechanism unconfirmed** (do not treat the obvious explanations as the cause; three are already ruled out)
 
 - **Found:** 2026-10-08, triaging Sentry `DUMOSRX-CLIENT-1P` — 3 events, 1 user, culprit `/inventory/:tab`. Logged deliberately as unconfirmed: the telemetry is real, but the code-side mechanism could not be established and is not worth guessing at.
@@ -575,6 +567,13 @@ suggested tackle order rather than a strict ranking.
 - **Location:** `client/components/settings/store/contact-specialist-card.tsx:48` ("Your Contact Specialist"), `client/components/help/help-page.tsx:187` ("View your Contact Specialist in Business Info"), `client/components/settings/settings-mobile-menu.tsx:66` ("Business details & contact specialist"), and the OpenAPI summaries in `laravel-server/app/Http/Controllers/Api/AccountManagerController.php:18` and `laravel-server/app/Http/Controllers/Api/Admin/AdminStoreController.php:392,408` ("contact specialist / account manager").
 - **What's wrong:** a store owner reads "Contact Specialist" while the admin who is that person reads "Account Manager" in the panel, so support conversations name one relationship two ways. Cosmetic; the field and API are already `account_manager` throughout.
 - **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
+
+#### A-396. `client/` — a desktop crash between dropping `purchase_orders` and renaming the scratch table strands every purchase order
+
+- **Found:** 2026-11-17, in the independent review of the A-306 fix.
+- **Location:** `relaxPurchaseOrdersSupplierIdNullable()` in `client/lib/db/schema-migrations.ts` (`DROP TABLE purchase_orders` then `RENAME`), Tauri path only, where each statement is written straight to disk.
+- **What's wrong:** if the process dies after the drop and before the rename, the next boot recreates an empty `purchase_orders` whose `supplier_id` is already nullable, so the migration's `NOT NULL` match never fires again and the rows stay in `purchase_orders_nullable_supplier`. Unsynced orders are lost; synced ones are not re-pulled because the watermarks are current.
+- **Fix:** on boot, if the scratch table exists and `purchase_orders` is empty or lacks its rows, copy the scratch rows back before dropping it. Probability is very low.
 
 ---
 

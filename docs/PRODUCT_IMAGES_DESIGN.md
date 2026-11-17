@@ -112,7 +112,7 @@ All four write endpoints sit behind `throttle:product-images`
 - **Zoom.** `ProductImage` takes `zoom="full"` (the whole image is a button, used in the catalog detail
   panel) or `zoom="overlay"` (a maximize button centred on the image on hover, or a small corner button on touch devices; used on POS tiles, where the tile itself is the add-to-cart
   button and a tap on the magnifier must not add the product). Both open `ProductImageLightbox`, which shows
-  the stored image (at most 512px) fitted to the screen. Escape and the close button dismiss it. No larger
+  the stored image (at most 512px) fitted to the screen. Escape and the close button dismiss it. The lightbox is portalled but React events still bubble through the tree, so `ProductImage` stops every click coming out of it from reaching a surrounding button (the POS tile would otherwise add the product to the cart). No larger
   copy is stored.
 - **Contained images** (`fit="contain"`, the POS tile) draw a blurred, cropped copy of the same image behind the
   sharp one, so a non-square photo never leaves bare bands at its sides. Same URL, so no extra download.

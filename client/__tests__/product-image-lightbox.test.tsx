@@ -44,6 +44,35 @@ describe("ProductImage zoom", () => {
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
+  it("closing the enlarged view does not trigger the surrounding click", () => {
+    const outer = vi.fn();
+    render(
+      <button type="button" onClick={outer}>
+        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />
+      </button>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "View larger image of Dettol" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("clicking inside the enlarged view does not trigger the surrounding click", () => {
+    const outer = vi.fn();
+    render(
+      <button type="button" onClick={outer}>
+        <ProductImage imageKey={KEY} alt="" productName="Dettol" sizePx={56} zoom="overlay" />
+      </button>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "View larger image of Dettol" }));
+    fireEvent.click(screen.getByRole("dialog").querySelector("img") as HTMLImageElement);
+
+    expect(outer).not.toHaveBeenCalled();
+  });
+
   it("fills the space beside a contained image with a blurred copy of it", () => {
     const { container } = render(<ProductImage imageKey={KEY} alt="Dettol" sizePx={56} fit="contain" />);
 

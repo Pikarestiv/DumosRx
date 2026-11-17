@@ -51,6 +51,11 @@ export function ProductImage({
 
   return (
     <div className={cn("group/image relative overflow-hidden", className)}>
+      {zoom && (
+        <span className="contents" onClick={(event) => event.stopPropagation()}>
+          <ProductImageLightbox src={src} name={zoomName} open={zoomed} onOpenChange={setZoomed} />
+        </span>
+      )}
       {fit === "contain" && (
         <img
           src={src}
@@ -59,7 +64,7 @@ export function ProductImage({
           loading="lazy"
           decoding="async"
           crossOrigin="anonymous"
-          className="absolute inset-0 h-full w-full scale-125 object-cover blur-xl"
+          className="absolute inset-0 h-full w-full scale-125 object-cover blur-md"
         />
       )}
       <img
@@ -100,7 +105,6 @@ export function ProductImage({
           <Maximize2 className="h-4 w-4" />
         </span>
       )}
-      {zoom && <ProductImageLightbox src={src} name={zoomName} open={zoomed} onOpenChange={setZoomed} />}
     </div>
   );
 }

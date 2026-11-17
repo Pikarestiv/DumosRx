@@ -108,6 +108,7 @@ describe("CatalogList row actions and mutations", () => {
       isFuzzyFallback: false,
       formatCurrency: (n: number) => `N${n}`,
       onSelectProduct: vi.fn(),
+      onEditProduct: vi.fn(),
       sortKey: null,
       sortDirection: "asc" as const,
       onToggleSort: vi.fn(),
@@ -132,6 +133,7 @@ describe("CatalogList row actions and mutations", () => {
         isFuzzyFallback={false}
         formatCurrency={(n) => `N${n}`}
         onSelectProduct={vi.fn()}
+        onEditProduct={vi.fn()}
         sortKey={null}
         sortDirection="asc"
         onToggleSort={vi.fn()}

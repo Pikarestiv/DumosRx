@@ -4,7 +4,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Product } from "./types";
-import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
@@ -49,6 +48,7 @@ interface CatalogListProps {
   isFuzzyFallback: boolean;
   formatCurrency: (amount: number) => string;
   onSelectProduct: (product: Product) => void;
+  onEditProduct: (product: Product) => void;
   selectedProductId?: string;
   sortKey: ProductSortKey | null;
   sortDirection: SortDirection;
@@ -69,6 +69,7 @@ export function CatalogList({
   isFuzzyFallback,
   formatCurrency,
   onSelectProduct,
+  onEditProduct,
   selectedProductId,
   sortKey,
   sortDirection,
@@ -77,8 +78,6 @@ export function CatalogList({
   owedByProduct,
   onProductDeleted,
 }: CatalogListProps) {
-  const { storeType } = useStore();
-  const isPharmacy = storeType === "pharmacy";
   const { canManageStockBatch, isAdmin, user } = useAuth();
   const showCostColumn = useHasPermission("view_cost_fields");
   const canEditSellingPrice = useHasPermission("edit_product_price");
@@ -284,7 +283,6 @@ export function CatalogList({
                     product={product}
                     isSelected={selectedProductId === product.id}
                     isDesktop={isDesktop}
-                    isPharmacy={isPharmacy}
                     capsClass={capsClass}
                     categoryOptions={categoryOptions}
                     canEdit={canManageStockBatch}
@@ -304,6 +302,7 @@ export function CatalogList({
                     onSaveReorderLevel={saveReorderLevel}
                     onPrintLabel={openLabelDialog}
                     onDeleteProduct={openDeleteDialog}
+                    onEditProduct={onEditProduct}
                   />
                 </div>
               );

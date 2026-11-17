@@ -7955,3 +7955,7 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   also selects `barcode`). Two offline tills can still each create the same name
   or barcode before syncing; there is no server-side uniqueness rule, so this is
   a guard against typing mistakes, not a guarantee.
+- The catalog's Inventory filter has a "Possible Duplicates (N)" option. `findDuplicateProductIds`
+  returns every product sharing a name+strength or a non-empty barcode with another, and
+  `matchesCatalogStatus` (`components/products/catalog-status.ts`) holds all the status-filter rules.
+  It is the way to find duplicates that offline tills created before they synced.

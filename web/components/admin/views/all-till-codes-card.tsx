@@ -74,6 +74,7 @@ export function AllTillCodesCard() {
                   {entry.admin_email} · {entry.label || "Unlabelled"} · Created{" "}
                   {formatTimestamp(entry.created_at)} · Last used{" "}
                   {formatTimestamp(entry.last_used_at)}
+                  {entry.expires_at ? ` · Expires ${formatTimestamp(entry.expires_at)}` : " · Never expires"}
                 </p>
               </div>
               {entry.code ? (

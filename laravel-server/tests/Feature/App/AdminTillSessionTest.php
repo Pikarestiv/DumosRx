@@ -46,6 +46,56 @@ class AdminTillSessionTest extends TestCase
         $this->assertSame('live', $active->first()->label);
     }
 
+    public function test_active_scope_excludes_expired_codes_and_preserves_legacy_null(): void
+    {
+        $admin = $this->admin();
+
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('111111111111'),
+            'label' => 'valid-future',
+            'expires_at' => now()->addDays(30),
+        ]);
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('222222222222'),
+            'label' => 'expired-past',
+            'expires_at' => now()->subDay(),
+        ]);
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('333333333333'),
+            'label' => 'legacy-null-expiry',
+            'expires_at' => null,
+        ]);
+
+        $active = AdminTillCode::active()->where('admin_id', $admin->id)->pluck('label')->all();
+
+        $this->assertContains('valid-future', $active);
+        $this->assertContains('legacy-null-expiry', $active);
+        $this->assertNotContains('expired-past', $active);
+    }
+
+    public function test_verify_refuses_expired_code_and_accepts_unexpired_or_legacy(): void
+    {
+        $admin = $this->admin('platform_admin', 'expire-tester@dumosrx.com');
+        $service = app(\App\Services\Admin\AdminTillSessionService::class);
+
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('111111111111'),
+            'expires_at' => now()->subMinute(),
+        ]);
+        AdminTillCode::create([
+            'admin_id' => $admin->id,
+            'code_hash' => Hash::make('222222222222'),
+            'expires_at' => null,
+        ]);
+
+        $this->assertNull($service->verify($admin->email, '111111111111'));
+        $this->assertSame($admin->id, $service->verify($admin->email, '222222222222')?->id);
+    }
+
     public function test_a_code_never_serialises_its_hash(): void
     {
         $admin = $this->admin();

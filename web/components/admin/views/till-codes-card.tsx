@@ -134,6 +134,7 @@ export function TillCodesCard() {
               <p className="text-xs text-muted-foreground">
                 Created {formatTimestamp(code.created_at)} · Last used{" "}
                 {formatTimestamp(code.last_used_at)}
+                {code.expires_at ? ` · Expires ${formatTimestamp(code.expires_at)}` : " · Never expires"}
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => setRevoking(code)}>

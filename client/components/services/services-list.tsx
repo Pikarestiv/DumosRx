@@ -3,6 +3,7 @@
 import { Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { formatCurrency } from "@/lib/utils";
 import type { Service } from "@/lib/types/service";
 
@@ -49,6 +50,7 @@ export function ServicesList({
   onDelete,
 }: ServicesListProps) {
   const isDesktop = useMediaQuery("(min-width: 640px)");
+  const capsClass = useUppercaseDisplayClass();
 
   if (!isDesktop) {
     return (
@@ -61,7 +63,7 @@ export function ServicesList({
           >
             <div className="min-w-0 pr-3 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-foreground text-sm truncate">
+                <span className={`font-semibold text-foreground text-sm truncate ${capsClass}`}>
                   {srv.name}
                 </span>
                 {srv.is_active ? (
@@ -77,7 +79,7 @@ export function ServicesList({
               <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
                 {srv.code && <span className="font-mono">{srv.code}</span>}
                 {srv.code && srv.category && <span>•</span>}
-                <span>{srv.category || "Uncategorized"}</span>
+                <span className={capsClass}>{srv.category || "Uncategorized"}</span>
               </div>
               {srv.description && (
                 <div className="text-[11.5px] text-muted-foreground/80 mt-1 line-clamp-1">
@@ -118,7 +120,7 @@ export function ServicesList({
           {services.map((srv) => (
             <tr key={srv.id} className="hover:bg-muted/20 transition-colors">
               <td className="py-3 px-4 font-medium text-foreground">
-                <div>{srv.name}</div>
+                <div className={capsClass}>{srv.name}</div>
                 {srv.description && (
                   <div className="text-[11px] text-muted-foreground line-clamp-1">
                     {srv.description}
@@ -130,7 +132,7 @@ export function ServicesList({
               </td>
               <td className="py-3 px-4">
                 {srv.category ? (
-                  <span className="inline-flex px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium">
+                  <span className={`inline-flex px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium ${capsClass}`}>
                     {srv.category}
                   </span>
                 ) : (

@@ -253,7 +253,7 @@ export function AuditLedgerStep({
                     role="row"
                     data-index={virtualRow.index}
                     ref={rowVirtualizer.measureElement}
-                    className={`grid ${gridCols} hover:bg-accent/10 absolute top-0 left-0 w-full border-b border-border`}
+                    className={`grid ${gridCols} bg-card hover:bg-accent/10 absolute top-0 left-0 w-full border-b border-border`}
                     style={{
                       transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                     }}

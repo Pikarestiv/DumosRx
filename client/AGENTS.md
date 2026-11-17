@@ -7970,3 +7970,9 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 - Tags show in Sentry's alert emails and can be searched (`store_name:"..."`); they are the staff member's name
   and the store's name, never an email address or PIN.
 
+## Mobile keyboard and touch targets (2026-11-17)
+
+- While the on-screen keyboard is open `useKeyboardViewport` sets `data-keyboard-open` on `<html>`. Secondary chrome hides with the `[[data-keyboard-open]_&]:hidden` variant: the PO vendor summary bar, the Add Product "Save & Add Another" button and the dialog description. New forms should do the same so the field being typed in and its results keep most of the visible height.
+- Touch sizing is applied in the shared primitives with Tailwind's `pointer-coarse:` variant (Button 40-44px, Select trigger, Tabs pill). Bare text links and small buttons keep their look and grow only the hit area with `pointer-coarse:-my-3 pointer-coarse:py-3`.
+- A product name in a mobile list row wraps to two lines (`line-clamp-2`) instead of clipping; `truncate` on a flex container does not ellipsise its children.
+- `e2e/mobile-ux.spec.ts` guards this at 375px: no sideways scroll on the main routes, wrapped catalog names, 40px+ primary buttons, and the POS search, Add Product name field and PO item search staying above a simulated 300px keyboard (it fakes `visualViewport.height`, which is how iOS and Android Chrome report an open keyboard).

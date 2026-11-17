@@ -449,11 +449,13 @@ suggested tackle order rather than a strict ranking.
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-393. `client/` — a product price edit is logged with the new price only
+- **Issue:** #367
 - **Found:** 2026-11-17, auditing service activity logging for the storefront booking work.
 - **What's wrong:** a product edit goes through `update()`, whose audit row holds the values written, so the Activity Log shows the new selling price but not the one it replaced. Services now record `previous_price` beside it (`updateServiceDetails()`); products do not.
 - **Fix:** read the current `selling_price` before the update in the product edit path and pass it as `auditDetails: { previous_price }`, as `updateServiceDetails()` does.
 
 #### A-394. `client/` — a till older than 2026-11-17 fulfils a storefront booking without its service lines
+- **Issue:** #368
 - **Found:** 2026-11-17, building storefront service bookings.
 - **What's wrong:** `GET /app/online-orders` keeps booked services out of `items` (in `service_items`) so an older till never meets a line without a product. That till's fulfil path still writes the sale at the order's full `total_amount`, so the sale carries the service revenue with no `sale_services` line to explain it.
 - **Fix / retire:** update the till; no server change is planned. Goes away once no active `user_devices` row reports an `app_version` older than the release carrying this change.
@@ -562,6 +564,7 @@ suggested tackle order rather than a strict ranking.
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
 #### A-395. `client/` and `laravel-server/` — the store-owner app still calls the account manager "Contact Specialist"
+- **Issue:** #369
 
 - **Found:** 2026-11-17, reviewing A-180, which unified the web admin panel on "Account Manager" but did not touch the store-owner app or the API docs.
 - **Location:** `client/components/settings/store/contact-specialist-card.tsx:48` ("Your Contact Specialist"), `client/components/help/help-page.tsx:187` ("View your Contact Specialist in Business Info"), `client/components/settings/settings-mobile-menu.tsx:66` ("Business details & contact specialist"), and the OpenAPI summaries in `laravel-server/app/Http/Controllers/Api/AccountManagerController.php:18` and `laravel-server/app/Http/Controllers/Api/Admin/AdminStoreController.php:392,408` ("contact specialist / account manager").
@@ -569,6 +572,7 @@ suggested tackle order rather than a strict ranking.
 - **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
 
 #### A-396. `client/` — a desktop crash between dropping `purchase_orders` and renaming the scratch table strands every purchase order
+- **Issue:** #370
 
 - **Found:** 2026-11-17, in the independent review of the A-306 fix.
 - **Location:** `relaxPurchaseOrdersSupplierIdNullable()` in `client/lib/db/schema-migrations.ts` (`DROP TABLE purchase_orders` then `RENAME`), Tauri path only, where each statement is written straight to disk.

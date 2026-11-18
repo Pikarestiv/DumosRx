@@ -1,3 +1,14 @@
+### A-343 — the cart's owed-units warning overstated the shortfall when only expired stock was left
+- **Fixed:** 2026-11-18, client only, TDD. Found during third independent review of `feat/sell-at-zero-stock` (Issue #343).
+- **Was:** `formatBackorderWarning()` derives on-hand stock from `product.stock`, which excludes expired batches (`date(expiry_date) > date('now')`). When non-expired batches were depleted, `writeSaleItemStock()` fell back to `getAnyActiveBatchForProduct(productId, { includeExpired: true })`. If the expired batch held positive quantity, `deductFromBatch()` treated `available = batch.quantity`, deducting from the expired batch without registering an oversold shortfall (`shortfall = 0`). Consequently, zero units were recorded as owed (`writeShortfallCompensation` skipped), while the warning toast told the cashier that units would be recorded as owed.
+- **Now:**
+  (1) Added `isBatchExpired(expiryDate)` in `client/lib/db/queries/inventory-sale-stock.ts` matching SQLite's date semantics (`date(expiry_date) <= date('now')`).
+  (2) In `deductFromBatch()`, expired batches are treated as having 0 available dispensable units (`const available = isExpired ? 0 : live`).
+  (3) Any deduction against an expired fallback batch registers the entire deducted quantity as an oversold shortfall (`deduction > available`), ensuring `writeShortfallCompensation()` records the full sold quantity as owed backorder compensation on `stock_movements`, matching the cart toast.
+  (4) Updated `client/AGENTS.md` to document expired batch shortfall handling.
+- **Coverage:** `client/__tests__/backorder-expired-stock.test.ts` (verifies full backorder shortfall when only expired stock exists, partial shortfall when valid stock is exhausted, inactive valid stock fallback, and expired date boundary semantics).
+- **Compat:** Pure client-side stock deduction logic fix; aligns sales against expired batches with backorder tracking without schema or API alterations.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

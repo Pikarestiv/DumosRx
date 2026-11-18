@@ -27,7 +27,6 @@ export interface AdminStoreDetailActivity {
   id: number | string;
   action: string;
   description: string | null;
-  status: string | null;
   actor: string | null;
   at: string | null;
 }

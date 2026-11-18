@@ -214,7 +214,6 @@ class AdminStoreDetailService
                 'id' => $log->id,
                 'action' => $log->action,
                 'description' => $log->description,
-                'status' => null,
                 'actor' => $log->user ? trim("{$log->user->first_name} {$log->user->last_name}") : null,
                 'at' => $log->created_at?->diffForHumans(),
             ]);

@@ -1,3 +1,16 @@
+### A-330 — the admin store detail's recent_activity[].status is always null
+- **Fixed:** 2026-11-18, server and web, TDD. Found by Larastan during level-5 baseline cleanup.
+- **Was:**
+  (1) `AdminStoreDetailService::recentActivity()` returned `'status' => null` in the `recent_activity[]` list of `GET /admin/stores/{id}`, because `activity_logs` has no `status` column and no model attribute for it.
+  (2) `web/lib/types/admin-store-detail.ts` declared `status: string | null` in `AdminStoreDetailActivity`, even though `StoreRecentActivityCard` never renders or uses `status`.
+  (3) Tests in `AdminStoreDetailTest` and `ActivityLogActorRoleFilterTest` passed dead `'status' => 'success'` into `ActivityLog::create()`.
+- **Now:**
+  (1) Removed `'status' => null` from `AdminStoreDetailService::recentActivity()`, returning only genuine activity attributes (`id`, `action`, `description`, `actor`, `at`).
+  (2) Removed `status` from `AdminStoreDetailActivity` in `web/lib/types/admin-store-detail.ts`.
+  (3) Removed dead `'status' => 'success'` arguments from `ActivityLog::create()` calls in `AdminStoreDetailTest.php` and `ActivityLogActorRoleFilterTest.php`.
+- **Coverage:** `laravel-server/tests/Feature/Admin/AdminStoreDetailTest.php` (asserts `recent_activity` elements provide `action`, `description`, `actor`, and `at` without `status`), `web/__tests__/admin-store-recent-activity-card.test.tsx` (renders activity logs and empty states without `status`).
+- **Compat:** Web bundles never read `entry.status` at render sites; removing the unused property from TypeScript types and the API payload creates no runtime impact for clients.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

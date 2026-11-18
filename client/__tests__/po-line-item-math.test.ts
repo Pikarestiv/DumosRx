@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides, getTotalBaseUnits, immediateLineAmount, getOrderTotal } from "@/components/procurement/po-line-item-math";
+import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides, getTotalBaseUnits, immediateLineAmount, getOrderTotal, addOrMergeLineItem, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 
 function item(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
@@ -198,5 +198,35 @@ describe("getTotalBaseUnits", () => {
 
   it("is zero for an empty order", () => {
     expect(getTotalBaseUnits([])).toBe(0);
+  });
+});
+
+describe("adding products to an order", () => {
+  const product = { id: "p1", name: "Paracetamol", cost_price: 10, units_per_bulk: 10, bulk_unit: "Box" } as Parameters<typeof addOrMergeLineItem>[1];
+
+  it("starts a new row at zero received so an uncounted product is never mistaken for a counted one", () => {
+    const { items, merged } = addOrMergeLineItem([], product);
+    expect(merged).toBe(false);
+    expect(items[0].bulk_quantity).toBe(0);
+  });
+
+  it("leaves the quantity untouched when the product is picked again", () => {
+    const { items } = addOrMergeLineItem([], product);
+    const typed = [{ ...items[0], bulk_quantity: 5 }];
+    const again = addOrMergeLineItem(typed, product);
+    expect(again.merged).toBe(true);
+    expect(again.items[0].bulk_quantity).toBe(5);
+  });
+});
+
+describe("quantityMissingMessage", () => {
+  const row = (name: string, qty: number) => ({ product_id: name, product_name: name, bulk_quantity: qty }) as POLineItemDraft;
+
+  it("names every product still at zero", () => {
+    expect(quantityMissingMessage([row("A", 0), row("B", 3), row("C", 0)])).toBe("Enter a quantity for A, C");
+  });
+
+  it("is null once every row has a quantity", () => {
+    expect(quantityMissingMessage([row("A", 2)])).toBeNull();
   });
 });

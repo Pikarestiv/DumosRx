@@ -18,18 +18,15 @@ import { errorDescription } from "@/lib/utils/error-description";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
-import { useCreateProductMutation } from "@/lib/hooks/use-product-mutations";
-import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "@/lib/query-keys";
+import { useCreatePoProduct } from "@/components/procurement/use-create-po-product";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
-import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
+import type { ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import { usePoSubmit } from "./use-po-submit";
 
 function CreateOrderContent() {
   const canEditProducts = useHasPermission("manage_products");
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
 
   const [poType, setPoTypeState] = useState<"standard" | "immediate">(
     "immediate",
@@ -93,33 +90,11 @@ function CreateOrderContent() {
     setIsAddProductOpen(true);
   };
 
-  const createProductMutation = useCreateProductMutation();
-
-  const handleCreateProduct = (
-    productData: NewProductPayload,
-    keepOpen?: boolean,
-  ) => {
-    createProductMutation.mutate(productData, {
-      onSuccess: (newProductId) => {
-        void (async () => {
-          toast.success(`${productData.name} added to catalog`);
-          await fetchData();
-          await queryClient.invalidateQueries(queryKeys.products.list());
-          setNewlyCreatedProductId(newProductId);
-
-          if (!keepOpen) {
-            setIsAddProductOpen(false);
-          }
-        })();
-      },
-      onError: (error) => {
-        console.error("Failed to add product:", error);
-        toast.error("Couldn't add the product", {
-          description: errorDescription(error),
-        });
-      },
-    });
-  };
+  const { handleCreateProduct, isCreatingProduct } = useCreatePoProduct({
+    refetchProcurementData: fetchData,
+    onCreated: setNewlyCreatedProductId,
+    onClose: () => setIsAddProductOpen(false),
+  });
 
   const createSupplierMutation = useCreateSupplierMutation();
 
@@ -223,7 +198,7 @@ function CreateOrderContent() {
         onAddProduct={handleCreateProduct}
         initialData={initialProductData ?? undefined}
         hideAddAnother
-        isSubmitting={createProductMutation.isPending}
+        isSubmitting={isCreatingProduct}
       />
 
       <AddSupplierDialog

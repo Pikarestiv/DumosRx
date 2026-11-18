@@ -16,6 +16,7 @@ import {
   formatProductNamesList,
   getTotalBaseUnits,
   getZeroCostLineItems,
+  getZeroQuantityLineItems,
   getZeroSellingPriceLineItems,
   resolveReceiveButtonLabel,
 } from "./po-line-item-math";
@@ -51,6 +52,7 @@ export function POImmediateConfirmDialog({
   const unitLabel = `${totalUnits} ${totalUnits === 1 ? "unit" : "units"}`;
   const zeroCostItems = getZeroCostLineItems(items);
   const zeroSellingPriceItems = getZeroSellingPriceLineItems(items, products);
+  const zeroQuantityItems = getZeroQuantityLineItems(items);
   const hasZeroPriceWarning =
     zeroCostItems.length > 0 || zeroSellingPriceItems.length > 0;
 
@@ -131,6 +133,15 @@ export function POImmediateConfirmDialog({
                   baseUnits: Number(item.bulk_quantity) * (Number(item.units_per_bulk) || 1),
                 }))}
               />
+              {zeroQuantityItems.length > 0 && (
+                <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs font-semibold text-amber-950 dark:text-amber-100">
+                  No quantity entered for{" "}
+                  {formatProductNamesList(
+                    zeroQuantityItems.map((item) => displayName(item.product_name)),
+                  )}
+                  . Go back and enter what you received.
+                </p>
+              )}
               <p>This cannot be undone.</p>
             </div>
           </AlertDialogDescription>
@@ -141,6 +152,7 @@ export function POImmediateConfirmDialog({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
+            disabled={zeroQuantityItems.length > 0}
             className={
               hasZeroPriceWarning
                 ? "!bg-amber-600 hover:!bg-amber-700 !text-white dark:!bg-amber-600 dark:hover:!bg-amber-700 dark:!text-white"

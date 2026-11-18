@@ -71,9 +71,9 @@ function line(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
 }
 
 /**
- * Picking the same product twice appended a second, duplicate row instead of
- * bumping the quantity of the one already on the order - two rows for one
- * product then had to be reconciled by hand. And deleting a row was an
+ * Picking the same product twice appended a second, duplicate row; it now
+ * leaves the existing row alone. New rows start at 0 so a prefilled quantity
+ * is never mistaken for one the user counted. And deleting a row was an
  * unlabelled icon with no way back if it was the wrong one.
  */
 describe("addOrMergeLineItem", () => {
@@ -82,14 +82,14 @@ describe("addOrMergeLineItem", () => {
     expect(result.merged).toBe(false);
     expect(result.items).toHaveLength(1);
     expect(result.items[0].product_id).toBe("p1");
-    expect(result.items[0].bulk_quantity).toBe(1);
+    expect(result.items[0].bulk_quantity).toBe(0);
   });
 
-  it("increments the existing row instead of duplicating it", () => {
+  it("leaves the existing row's quantity alone instead of duplicating it", () => {
     const result = addOrMergeLineItem([line({ bulk_quantity: 3 })], product);
     expect(result.merged).toBe(true);
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].bulk_quantity).toBe(4);
+    expect(result.items[0].bulk_quantity).toBe(3);
   });
 
   it("keeps the existing row's own overrides when merging", () => {
@@ -106,7 +106,7 @@ describe("addOrMergeLineItem", () => {
     const result = addOrMergeLineItem(items, second);
     expect(result.items).toHaveLength(2);
     expect(result.items[0].bulk_quantity).toBe(1);
-    expect(result.items[1].bulk_quantity).toBe(2);
+    expect(result.items[1].bulk_quantity).toBe(1);
   });
 
   it("derives a new row's per-bulk cost from the product's per-base-unit cost", () => {

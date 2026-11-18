@@ -11,13 +11,7 @@ export function addOrMergeLineItem(
 ): { items: POLineItemDraft[]; merged: boolean } {
   const existingIndex = items.findIndex((i) => i.product_id === product.id);
   if (existingIndex >= 0) {
-    const next = [...items];
-    const existing = next[existingIndex];
-    next[existingIndex] = {
-      ...existing,
-      bulk_quantity: existing.bulk_quantity + 1,
-    };
-    return { items: next, merged: true };
+    return { items, merged: true };
   }
 
   const unitsPerBulk = product.units_per_bulk || 1;
@@ -28,10 +22,10 @@ export function addOrMergeLineItem(
         product_id: product.id,
         product_name: product.name,
         bulk_unit: product.bulk_unit || product.base_unit || "Units",
-        bulk_quantity: 1,
+        bulk_quantity: 0,
         units_per_bulk: unitsPerBulk,
         unit_cost: unitCost,
-        subtotal: unitCost,
+        subtotal: 0,
       },
       ...items,
     ],
@@ -209,6 +203,19 @@ export function getImmediateEffectiveSellingPrice(
   }
   const catalogPrice = Number(product?.selling_price);
   return Number.isFinite(catalogPrice) ? Math.max(0, catalogPrice) : 0;
+}
+
+export function getZeroQuantityLineItems(items: POLineItemDraft[]): POLineItemDraft[] {
+  return items.filter((item) => !(Number(item.bulk_quantity) > 0));
+}
+
+export function quantityMissingMessage(
+  items: POLineItemDraft[],
+  displayName: (name: string) => string = (name) => name,
+): string | null {
+  const missing = getZeroQuantityLineItems(items);
+  if (missing.length === 0) return null;
+  return `Enter a quantity for ${formatProductNamesList(missing.map((item) => displayName(item.product_name)))}`;
 }
 
 export function getZeroCostLineItems(items: POLineItemDraft[]): POLineItemDraft[] {

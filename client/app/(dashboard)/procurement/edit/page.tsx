@@ -12,27 +12,27 @@ import { PODesktopEditView } from "@/components/procurement/po-desktop-edit-view
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import { getPurchaseOrderById } from "@/lib/db/local-database";
 import { toast } from "sonner";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { errorDescription } from "@/lib/utils/error-description";
 
 import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
-import { useCreateProductMutation } from "@/lib/hooks/use-product-mutations";
+import { useCreatePoProduct } from "@/components/procurement/use-create-po-product";
 import { useUpdatePurchaseOrderMutation } from "@/lib/hooks/use-purchase-order-mutations";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { RequireRole } from "@/components/auth/require-role";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
-import { countSellingPriceOverrides, getOrderTotal, markRepricedLines, getValidatedAmountPaid } from "@/components/procurement/po-line-item-math";
+import { countSellingPriceOverrides, getOrderTotal, markRepricedLines, getValidatedAmountPaid, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
 import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
-import type { NewProductPayload, ProductViewModel } from "@/lib/types/product";
+import type { ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
 function EditOrderContent() {
   const router = useRouter();
   const canEditProducts = useHasPermission("manage_products");
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const id = searchParams.get("id");
 
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
@@ -55,6 +55,7 @@ function EditOrderContent() {
   // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-edit-page-tsx-L50
   const [poType, setPoType] = useState<"standard" | "immediate">("standard");
 
+  const displayName = useDisplayName();
   const { suppliers, products, refetch: fetchData } = useProcurementData();
   const { matches: isDesktop, resolved: layoutResolved } =
     useResolvedMediaQuery("(min-width: 1024px)");
@@ -140,30 +141,11 @@ function EditOrderContent() {
     });
   };
 
-  const createProductMutation = useCreateProductMutation();
-
-  const handleCreateProduct = (productData: NewProductPayload, keepOpen?: boolean) => {
-    createProductMutation.mutate(productData, {
-      onSuccess: (newProductId) => {
-        void (async () => {
-          toast.success(`${productData.name} added to catalog`);
-          await fetchData();
-          await queryClient.invalidateQueries(queryKeys.products.list());
-          setNewlyCreatedProductId(newProductId);
-
-          if (!keepOpen) {
-            setIsAddProductOpen(false);
-          }
-        })();
-      },
-      onError: (error) => {
-        console.error("Failed to add product:", error);
-        toast.error("Couldn't add the product", {
-          description: errorDescription(error),
-        });
-      },
-    });
-  };
+  const { handleCreateProduct, isCreatingProduct } = useCreatePoProduct({
+    refetchProcurementData: fetchData,
+    onCreated: setNewlyCreatedProductId,
+    onClose: () => setIsAddProductOpen(false),
+  });
 
   const totalAmount = getOrderTotal(items, poType);
 
@@ -179,6 +161,11 @@ function EditOrderContent() {
 
     if (items.length === 0) {
       toast.error("Add at least one item to the order");
+      return;
+    }
+    const missingQuantity = quantityMissingMessage(items, displayName);
+    if (missingQuantity) {
+      toast.error(missingQuantity);
       return;
     }
     if (isSubmitting) return;
@@ -297,7 +284,7 @@ function EditOrderContent() {
         onAddProduct={handleCreateProduct}
         initialData={initialProductData ?? undefined}
         hideAddAnother
-        isSubmitting={createProductMutation.isPending}
+        isSubmitting={isCreatingProduct}
       />
 
       <AddSupplierDialog

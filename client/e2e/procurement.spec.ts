@@ -18,13 +18,9 @@ test.describe('Procurement Module', () => {
 
     // 4. Verify Create Purchase Order page loads (components/procurement/po-order-form-fields.tsx)
     await expect(page.getByText('Create Purchase Order', { exact: true }).first()).toBeVisible({ timeout: 15000 });
-    // Only the viewport's own create view is mounted now (the pages render one or the other rather than hiding one with CSS),…
-    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L29
-    await expect(page.locator('text="Select Vendor" >> visible=true').first()).toBeVisible();
+    // A new order opens straight on the item ledger; vendor and payment sit behind the header bar's Edit button.
+    await expect(page.getByRole('button', { name: 'Edit order details' }).locator('visible=true').first()).toBeVisible();
 
-    // 4b. Continue to the item-entry step (components/procurement/po-item-builder.tsx, introduced in commit 113a368c, replaced…
-    // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L34
-    await page.getByRole('button', { name: /Continue to Add Items/i }).locator('visible=true').first().click();
     await expect(
       page.locator('input[placeholder="Search item by name, SKU or barcode"] >> visible=true').first(),
     ).toBeVisible({ timeout: 15000 });
@@ -58,7 +54,7 @@ test.describe('Procurement Module', () => {
     await expect(addProductDialog.getByRole('textbox').first()).toHaveValue('Paracetamol 500mg (Test)');
   });
 
-  test('should create a standard purchase order, send it, receive it, and increase product stock', async ({ page }) => {
+  test('should save a walk-in draft, receive it from the order panel, and increase product stock', async ({ page }) => {
     test.setTimeout(90000);
     await loginAsPaidTier(page);
 
@@ -73,21 +69,8 @@ test.describe('Procurement Module', () => {
     await page.getByRole('button', { name: /Create Order/i }).first().click();
     await expect(page.getByText('Create Purchase Order', { exact: true }).first()).toBeVisible({ timeout: 15000 });
 
-    // Switch Order Type from the default "Immediate Purchase" to "Purchase
-    // Order" (components/procurement/po-details-fields.tsx): Immediate
-    // already has solid unit coverage (__tests__/procurement-immediate.test.ts)
-    // for createAndReceivePurchaseOrder(); this test targets the separate
-    // pending -> sent -> received path (receivePurchaseOrder()) instead.
-    await page
-      .getByRole('tab', { name: 'Purchase Order', exact: true })
-      .locator('visible=true')
-      .first()
-      .click();
-
-    // Vendor defaults to "Self / Walk-in Purchase" (SELF_PURCHASE_VENDOR_ID
-    // in po-details-fields.tsx) — no vendor selection needed.
-    await page.getByRole('button', { name: /Continue to Add Items/i }).locator('visible=true').first().click();
-
+    // Vendor defaults to "Self / Walk-in Purchase" (SELF_PURCHASE_VENDOR_ID in
+    // po-details-fields.tsx), so the draft is received rather than sent.
     const itemSearch = page
       .locator('input[placeholder="Search item by name, SKU or barcode"] >> visible=true')
       .first();
@@ -137,33 +120,16 @@ test.describe('Procurement Module', () => {
     await qtyInput.fill(String(orderedQty));
     await qtyInput.blur();
 
-    // Save as Draft (components/procurement/po-desktop-create-view.tsx: the
-    // primary submit button reads "Save as Draft" for Standard-type orders).
     await page.getByRole('button', { name: /^Save as Draft$/i }).locator('visible=true').first().click();
 
     // Lands back on /procurement with the new PO's detail panel open
     // (purchase-order-details.tsx).
     await expect(page.getByText(/^Draft$/).first()).toBeVisible({ timeout: 15000 });
 
-    // pending + type !== immediate -> "Mark as Sent" (onSendPO ->
-    // updatePurchaseOrderStatus, lib/db/procurement.ts).
-    await page.getByRole('button', { name: /Mark as Sent/i }).click();
-    await expect(page.getByText(/Order marked as sent/i)).toBeVisible({ timeout: 10000 });
-
-    // status "sent" -> "Receive Items" opens ReceivePOPanel
-    // (components/procurement/receive-po-panel.tsx).
-    await page.getByRole('button', { name: /Receive Items/i }).click();
-    await expect(page.getByText('Receive Goods', { exact: true }).first()).toBeVisible({ timeout: 10000 });
-
-    // Confirm the full ordered quantity, no batch/expiry entered.
-    await page.getByRole('button', { name: /Confirm & Receive/i }).click();
-
-    // No expiry date was entered -> confirm the "Missing Expiry Date"
-    // warning (receive-po-panel.tsx's AlertDialog).
-    const proceedAnyway = page.getByRole('button', { name: /Proceed Anyway/i });
-    if (await proceedAnyway.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await proceedAnyway.click();
-    }
+    // A walk-in draft leads with "Receive stock", which opens the confirmation sheet
+    // (po-draft-receive-dialog.tsx) and then runs receivePurchaseOrder().
+    await page.getByRole('button', { name: /^Receive stock$/i }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: /^Receive/ }).click();
 
     // receivePurchaseOrder() (lib/db/procurement-receiving.ts) ran: PO is
     // now "received" and stock_batches/stock_movements were inserted.

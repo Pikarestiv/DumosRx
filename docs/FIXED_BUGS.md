@@ -1,3 +1,14 @@
+### A-395 — the store-owner app still called the account manager "Contact Specialist"
+- **Fixed:** 2026-11-18, client and server, TDD. Found reviewing A-180 (Issue #369).
+- **Was:** In the client app, the relationship was labeled "Your Contact Specialist" (`contact-specialist-card.tsx`), "View your Contact Specialist in Business Info" (`help-page.tsx`), and "Business details & contact specialist" (`settings-mobile-menu.tsx`). In `laravel-server/`, OpenAPI summaries in `AccountManagerController` and `AdminStoreController` retained the dual label "contact specialist / account manager". Store owners read "Contact Specialist" while platform admins read "Account Manager", creating inconsistent terminology in support discussions.
+- **Now:**
+  (1) Updated `client/components/settings/store/contact-specialist-card.tsx` title to "Your Account Manager" and added `#account-manager` anchor support (while preserving `#contact-specialist` for backward compatibility).
+  (2) Updated `client/components/help/help-page.tsx` button copy to "View your Account Manager in Business Info" and target to `#account-manager`.
+  (3) Updated `client/components/settings/settings-mobile-menu.tsx` description to "Business details & account manager".
+  (4) Updated OpenAPI summaries in `AccountManagerController` and `AdminStoreController` to use "account manager" exclusively.
+- **Coverage:** `client/__tests__/contact-specialist-card.test.tsx` (card title and absence of "Contact Specialist"), `client/__tests__/help-page.test.tsx` (help hub button label and anchor target), `laravel-server/tests/Feature/AccountManagerControllerTest.php` (endpoint JSON response and reflection inspection on OpenAPI summaries).
+- **Compat:** Backward compatible anchor `#contact-specialist` is retained on `contact-specialist-card.tsx` alongside `#account-manager`. No API path or schema changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

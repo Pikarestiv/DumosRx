@@ -22,6 +22,8 @@ describe("ContactSpecialistCard", () => {
     withManager({ phone: "0803 123 4567" });
     render(<ContactSpecialistCard />);
 
+    expect(screen.getByText("Your Account Manager")).toBeTruthy();
+    expect(screen.queryByText(/Contact Specialist/i)).toBeNull();
     expect(screen.getByText("0803 123 4567")).toBeTruthy();
     expect(screen.getByRole("link", { name: /call/i }).getAttribute("href")).toBe("tel:0803 123 4567");
     expect(screen.getByRole("link", { name: "WhatsApp" }).getAttribute("href")).toBe("https://wa.me/2348031234567");

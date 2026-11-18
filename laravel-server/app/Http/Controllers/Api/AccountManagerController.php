@@ -15,7 +15,7 @@ class AccountManagerController extends Controller
 
     #[OA\Get(
         path: '/account-manager',
-        summary: "Get the caller's contact specialist / account manager",
+        summary: "Get the caller's account manager",
         description: 'Resolution order: the tenant owner\'s account_manager_id (explicit reassignment) -> registered_by_id (who referred/created the account) -> the default_account_manager_id system config. Returns null data if none of those resolve to an existing user.',
         tags: ['Auth'],
         security: [['sanctum' => []]],

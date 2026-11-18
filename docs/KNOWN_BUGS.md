@@ -563,14 +563,6 @@ suggested tackle order rather than a strict ranking.
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 
-#### A-395. `client/` and `laravel-server/` — the store-owner app still calls the account manager "Contact Specialist"
-- **Issue:** #369
-
-- **Found:** 2026-11-17, reviewing A-180, which unified the web admin panel on "Account Manager" but did not touch the store-owner app or the API docs.
-- **Location:** `client/components/settings/store/contact-specialist-card.tsx:48` ("Your Contact Specialist"), `client/components/help/help-page.tsx:187` ("View your Contact Specialist in Business Info"), `client/components/settings/settings-mobile-menu.tsx:66` ("Business details & contact specialist"), and the OpenAPI summaries in `laravel-server/app/Http/Controllers/Api/AccountManagerController.php:18` and `laravel-server/app/Http/Controllers/Api/Admin/AdminStoreController.php:392,408` ("contact specialist / account manager").
-- **What's wrong:** a store owner reads "Contact Specialist" while the admin who is that person reads "Account Manager" in the panel, so support conversations name one relationship two ways. Cosmetic; the field and API are already `account_manager` throughout.
-- **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
-
 #### A-396. `client/` — a desktop crash between dropping `purchase_orders` and renaming the scratch table strands every purchase order
 - **Issue:** #370
 

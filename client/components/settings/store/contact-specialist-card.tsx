@@ -23,9 +23,10 @@ export function ContactSpecialistCard() {
   const [highlighted, setHighlighted] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.location.hash === "#contact-specialist") {
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    if (hash === "#account-manager" || hash === "#contact-specialist") {
       setHighlighted(true);
-      const el = document.getElementById("contact-specialist");
+      const el = document.getElementById("account-manager") || document.getElementById("contact-specialist");
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
       const timer = setTimeout(() => setHighlighted(false), 3000);
       return () => clearTimeout(timer);
@@ -38,14 +39,14 @@ export function ContactSpecialistCard() {
 
   return (
     <Card
-      id="contact-specialist"
+      id="account-manager"
       className={cn(
         "transition-all duration-700",
         highlighted && "ring-2 ring-primary shadow-lg bg-primary/5",
       )}
     >
       <CardHeader>
-        <CardTitle>Your Contact Specialist</CardTitle>
+        <CardTitle>Your Account Manager</CardTitle>
         <CardDescription>
           Reach out directly if you run into any issues with your account.
         </CardDescription>

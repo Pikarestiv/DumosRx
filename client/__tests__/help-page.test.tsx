@@ -102,13 +102,13 @@ describe("HelpPage", () => {
     );
   });
 
-  it("navigates to business-info contact specialist anchor when clicked", () => {
+  it("navigates to business-info account manager anchor when clicked", () => {
     render(<HelpPage />);
 
-    const specialistButton = screen.getByRole("button", { name: /View your Contact Specialist in Business Info/i });
-    fireEvent.click(specialistButton);
+    const managerButton = screen.getByRole("button", { name: /View your Account Manager in Business Info/i });
+    fireEvent.click(managerButton);
 
-    expect(mockPush).toHaveBeenCalledWith("/settings/business-info#contact-specialist");
+    expect(mockPush).toHaveBeenCalledWith("/settings/business-info#account-manager");
   });
 });
 

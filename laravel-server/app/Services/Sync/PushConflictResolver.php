@@ -2,6 +2,7 @@
 
 namespace App\Services\Sync;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 
@@ -82,7 +83,7 @@ class PushConflictResolver
             return false;
         }
 
-        return \App\Models\User::query()
+        return User::query()
             ->whereRaw('LOWER(email) = ?', [strtolower($email)])
             ->where('id', '!=', $recordId)
             ->exists();

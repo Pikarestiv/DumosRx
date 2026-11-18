@@ -19,7 +19,7 @@ vi.mock("@/lib/storage-keys", async (importOriginal) => ({
   getAuthToken: () => authToken.value,
 }));
 
-import { assertStaffEmailFree, StaffEmailTakenError } from "@/lib/utils/staff-email-check";
+import { assertStaffEmailFree, EMAIL_CHECK_TIMEOUT_MS, StaffEmailTakenError } from "@/lib/utils/staff-email-check";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
 
 const setOnline = (online: boolean) => Object.defineProperty(navigator, "onLine", { value: online, configurable: true });
@@ -60,6 +60,18 @@ describe("assertStaffEmailFree", () => {
     checkAvailable.mockRejectedValue(new Error("Network error"));
 
     await expect(assertStaffEmailFree("josh@dumostech.com")).resolves.toBeUndefined();
+  });
+
+  it("lets the save through when the server takes too long to answer", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      checkAvailable.mockReturnValue(new Promise(() => {}));
+      const attempt = assertStaffEmailFree("josh@dumostech.com");
+      await vi.advanceTimersByTimeAsync(EMAIL_CHECK_TIMEOUT_MS);
+      await expect(attempt).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not ask for a blank email or without a cloud account", async () => {
@@ -122,6 +134,14 @@ describe("editing a staff member's email", () => {
 
     expect(emailOf()).toBe("josh+staff@dumostech.com");
     expect(queued()).toBeGreaterThan(0);
+  });
+
+  it("does not ask the server when the email is not being changed", async () => {
+    const { result } = renderHook(() => useMutateUser(), { wrapper });
+
+    await result.current.update.mutateAsync({ id: "u1", data: { first_name: "Renamed", email: "STAFF@local.dumosrx.com" } });
+
+    expect(checkAvailable).not.toHaveBeenCalled();
   });
 
   it("still saves offline, leaving the server to judge it when the till syncs", async () => {

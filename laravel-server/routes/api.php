@@ -359,7 +359,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
 
             // Staff email pre-check
-            Route::get('/staff/email-available', [\App\Http\Controllers\Api\Web\StaffEmailController::class, 'available'])->middleware('permission:manage_staff');
+            Route::get('/staff/email-available', [\App\Http\Controllers\Api\App\StaffEmailController::class, 'available'])->middleware('permission:manage_staff');
 
             // Storefront look (owner only)
             Route::get('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'show']);

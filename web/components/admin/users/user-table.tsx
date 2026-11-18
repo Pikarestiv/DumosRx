@@ -112,8 +112,9 @@ export function UserTable({
                   <a
                     href={adminUserDetailPath(user.id)}
                     onClick={(event) => {
-                      event.preventDefault();
                       event.stopPropagation();
+                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                      event.preventDefault();
                       openUser(user);
                     }}
                     className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"

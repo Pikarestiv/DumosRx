@@ -8,6 +8,7 @@ import {
   deleteUser,
   restoreUser,
 } from "@/lib/db/local-database";
+import { query } from "@/lib/db/core";
 import { assertStaffEmailFree } from "@/lib/utils/staff-email-check";
 import type { StaffCreatePayload, StaffUpdatePayload } from "@/lib/types/user";
 
@@ -43,7 +44,9 @@ export function useMutateUser() {
 
   const update = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: StaffUpdatePayload }) => {
-      await assertStaffEmailFree(data.email, id);
+      const [current] = await query<{ email: string | null }>("SELECT email FROM users WHERE id = ?", [id]);
+      const unchanged = (data.email ?? "").trim().toLowerCase() === (current?.email ?? "").trim().toLowerCase();
+      if (!unchanged) await assertStaffEmailFree(data.email, id);
       return updateUser(id, data);
     },
     onSuccess: invalidateAllUsers,

@@ -184,4 +184,22 @@ describe("MailsTab audience and HTML mode", () => {
     expect(request).toHaveBeenCalledWith(expect.stringContaining("account_type=platform"));
     expect(sends()[0][1].data).toEqual(expect.objectContaining({ target_type: "specific", user_ids: ["u-admin"] }));
   });
+
+  it("does not send typed addresses along after switching away from the custom audience", async () => {
+    const user = userEvent.setup();
+    renderTab();
+
+    await user.type(screen.getByLabelText("Email Subject"), "Hello");
+    await user.type(screen.getByLabelText("Message Body"), "Body");
+    await chooseCustomAudience(user);
+    await user.type(await screen.findByLabelText("Email addresses"), "bad-address");
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: /everyone with an email/i }));
+    await user.click(screen.getByRole("button", { name: /send email/i }));
+    await user.click(await screen.findByRole("button", { name: /send now/i }));
+
+    await waitFor(() => expect(sends()).toHaveLength(1));
+    expect(sends()[0][1].data).toEqual(expect.objectContaining({ target_type: "all" }));
+    expect(sends()[0][1].data.emails).toBeUndefined();
+  });
 });

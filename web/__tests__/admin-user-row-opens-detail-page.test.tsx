@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { UserTable } from "@/components/admin/users/user-table";
@@ -78,6 +78,15 @@ describe("Users list opens a page for the person", () => {
     await userEvent.click(screen.getByRole("button"));
     await screen.findByRole("menuitem", { name: /view detailed profile/i });
 
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("leaves Ctrl-click on the name to the browser, so it can open in a new tab", () => {
+    renderTable();
+
+    const notCancelled = fireEvent.click(screen.getByRole("link", { name: "Ada Admin" }), { ctrlKey: true });
+
+    expect(notCancelled).toBe(true);
     expect(push).not.toHaveBeenCalled();
   });
 });

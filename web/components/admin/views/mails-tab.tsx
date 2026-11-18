@@ -124,7 +124,7 @@ export function MailsTab() {
       message,
       target_type: targetType,
       is_html: isHtml,
-      emails: parseAddresses(customText),
+      emails: targetType === "custom" ? parseAddresses(customText) : undefined,
       user_ids: selectedUsers.map((u) => u.id),
     });
   };

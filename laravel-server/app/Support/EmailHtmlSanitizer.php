@@ -28,7 +28,9 @@ class EmailHtmlSanitizer
         }
 
         foreach ($xpath->query('//*') as $element) {
-            self::cleanAttributes($element);
+            if ($element instanceof DOMElement) {
+                self::cleanAttributes($element);
+            }
         }
 
         $root = $document->getElementById('sanitize-root');

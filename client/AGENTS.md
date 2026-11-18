@@ -2413,6 +2413,11 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   pair shares a push. `pushChanges()` chunks with `chunkPushQueue()`, which
   pushes a boundary up to 10 rows later so an owed row shares its sale row's
   push. (A-342 parity is resolved under A-217 derived stock quantity on the server). Constants live in `lib/constants/stock-adjustments.ts`.
+  Expired batches have available = 0 in `deductFromBatch()` (A-343): when
+  unexpired batches are exhausted and `writeSaleItemStock()` falls back to an
+  expired batch, the deduction is treated entirely as an oversold shortfall,
+  matching the cart's `formatBackorderWarning()` toast (which bases on-hand
+  quantity strictly on unexpired batches) and recording the full quantity as owed.
   With the flag off the write is byte-for-byte today's.
 - **Who passes the flag.** `writeSaleTransaction()` (from `usePOSPayment`,
   fed by `usePOSSystem`) and `useFulfillOnlineOrderMutation` (fed by

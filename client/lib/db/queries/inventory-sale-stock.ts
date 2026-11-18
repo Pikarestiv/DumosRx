@@ -41,6 +41,15 @@ interface ShortfallCompensation {
   movementDate: string;
 }
 
+export function isBatchExpired(expiryDate?: string | null): boolean {
+  if (!expiryDate || expiryDate.trim() === "") return false;
+  const trimmed = expiryDate.trim();
+  const today = new Date().toISOString().slice(0, 10);
+  const expiryDay = trimmed.slice(0, 10);
+  const time = new Date(trimmed).getTime();
+  return expiryDay <= today || (!Number.isNaN(time) && time < Date.now());
+}
+
 async function writeShortfallCompensation(c: ShortfallCompensation) {
   await insert("stock_movements", {
     product_id: c.productId,
@@ -142,7 +151,9 @@ async function writeSaleItemStock({
   // batch.quantity can be <= 0 when this batch only turned up via the getAnyActiveBatchForProduct fallback (nothing with positive stock left for…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L238
   const deductFromBatch = (batch: StockBatch) => {
-    const available = liveQuantity.get(batch.id) ?? batch.quantity;
+    const isExpired = isBatchExpired(batch.expiry_date);
+    const live = liveQuantity.get(batch.id) ?? batch.quantity;
+    const available = isExpired ? 0 : live;
     const deduction =
       available > 0 ? Math.min(available, remainingToDeduct) : remainingToDeduct;
 

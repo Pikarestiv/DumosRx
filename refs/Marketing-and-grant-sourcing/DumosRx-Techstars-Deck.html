@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DumosRx Techstars Pitch Deck</title>
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  :root {
+    --navy: #0b1f3a;
+    --blue: #0072d5;
+    --blue-soft: #e6f1fc;
+    --gold: #d08e00;
+    --ink: #14213a;
+    --muted: #5b6b82;
+    --line: #d9e2ef;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; color: var(--ink); font-family: -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif; }
+  .slide {
+    width: 1280px; height: 720px; padding: 64px 80px; position: relative; overflow: hidden;
+    page-break-after: always; break-after: page; display: flex; flex-direction: column;
+  }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .brand { position: absolute; top: 34px; left: 80px; font-size: 13px; letter-spacing: 0.4em; font-weight: 700; color: var(--blue); }
+  .num { position: absolute; bottom: 30px; right: 80px; font-size: 13px; color: var(--muted); }
+  .eyebrow { margin-top: 28px; font-size: 14px; letter-spacing: 0.25em; font-weight: 700; color: var(--gold); text-transform: uppercase; }
+  h1, h2 { font-family: Georgia, "Playfair Display", "Times New Roman", serif; color: var(--navy); line-height: 1.12; }
+  h2 { font-size: 44px; margin-top: 14px; max-width: 1050px; }
+  .lead { font-size: 21px; color: var(--muted); line-height: 1.5; margin-top: 18px; max-width: 980px; }
+  .grid { display: grid; gap: 22px; margin-top: 34px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .card { border: 1px solid var(--line); border-radius: 22px; padding: 26px 28px; background: #fff; }
+  .card.tint { background: var(--blue-soft); border-color: transparent; }
+  .card h3 { font-size: 21px; color: var(--navy); margin-bottom: 8px; }
+  .card p, .card li { font-size: 17px; line-height: 1.5; color: var(--muted); }
+  .card ul { padding-left: 20px; }
+  .big { font-family: Georgia, serif; font-size: 52px; color: var(--blue); line-height: 1; font-weight: 700; }
+  .big.sm { font-size: 40px; }
+  .label { font-size: 15px; color: var(--muted); margin-top: 8px; line-height: 1.35; }
+  .cover { background: var(--navy); color: #fff; justify-content: center; }
+  .cover .brand { color: #8fc4f5; }
+  .cover h1 { color: #fff; font-size: 66px; max-width: 980px; }
+  .cover .lead { color: #b9cde6; }
+  .cover .meta { position: absolute; bottom: 44px; left: 80px; font-size: 16px; color: #8fa8c8; }
+  .tag { display: inline-block; background: var(--blue-soft); color: var(--blue); border-radius: 999px; padding: 4px 14px; font-size: 14px; font-weight: 600; margin: 4px 6px 0 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 28px; font-size: 18px; }
+  th { text-align: left; font-size: 13px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; border-bottom: 2px solid var(--line); }
+  td { padding: 13px 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
+  td.r, th.r { text-align: right; }
+  tr.hl td { background: var(--blue-soft); font-weight: 600; }
+  .bars { display: flex; align-items: flex-end; gap: 28px; height: 150px; margin-top: 14px; }
+  .bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+  .bar .fill { width: 100%; background: var(--blue); border-radius: 14px 14px 0 0; }
+  .bar .v { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+  .bar .m { font-size: 14px; color: var(--muted); margin-top: 8px; text-align: center; }
+  .flag { font-size: 14px; color: var(--muted); margin-top: auto; padding-top: 14px; }
+  .split { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; margin-top: 28px; flex: 1; }
+  .quote { border-left: 4px solid var(--gold); padding-left: 18px; font-size: 18px; color: var(--ink); line-height: 1.5; font-style: italic; }
+  .alloc { display: flex; align-items: center; gap: 22px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .alloc:last-child { border-bottom: none; }
+  .alloc .pct { font-family: Georgia, serif; font-size: 44px; font-weight: 700; color: var(--blue); width: 120px; flex-shrink: 0; }
+  .alloc h3 { font-size: 21px; color: var(--navy); }
+  .alloc p { font-size: 16px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<section class="slide cover">
+  <div class="brand">D U M O S R X</div>
+  <h1>The pharmacy till and the pharmacy website in one app. It still sells when the internet is down.</h1>
+  <p class="lead">An offline-first point-of-sale, stock and storefront platform for pharmacies and independent stores in Nigeria.</p>
+  <div class="meta">Techstars Spring 2027 application · dumosrx.com</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">The problem</div>
+  <h2>Pharmacies pay for a POS and a website that never talk to each other, and neither copes with a bad network day.</h2>
+  <div class="grid g3">
+    <div class="card"><h3>The till stops</h3><p>Most POS software needs a constant connection. When internet or power drops, sales stop, or the owner falls back to paper that never gets reconciled.</p></div>
+    <div class="card"><h3>Data gets lost</h3><p>Offline-only systems like out-of-support QuickBooks 2013 lose records when a machine fails, with no cloud backup and no view across branches.</p></div>
+    <div class="card"><h3>Paying twice</h3><p>On top of the POS, owners buy a website and renew it every year, and it knows nothing about what is actually in stock.</p></div>
+  </div>
+  <div class="grid g2" style="margin-top:22px">
+    <div class="card tint"><h3>What it costs them</h3><p>Missed sales, stock that drifts from the shelf, drugs found expired too late, and no way to watch staff at a second branch.</p></div>
+    <div class="card tint"><h3>Why current options fall short</h3><p>Imported tools assume stable infrastructure. Local ones are offline-only, outdated, or lack pharmacy-specific stock handling.</p></div>
+  </div>
+  <div class="num">02</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">The solution</div>
+  <h2>A POS that works without internet, with the online shop built in.</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Offline-first POS</h3><p>Every till runs on a local database. Sales, stock and receipts work with no connection and sync to the cloud automatically when it returns. Desktop, mobile and web from one codebase.</p></div>
+    <div class="card"><h3>Pharmacy-grade stock</h3><p>Batch-level inventory with low-stock alerts and expiry tracking, plus procurement, prescriptions, customers, loyalty and expenses.</p></div>
+    <div class="card"><h3>Online storefront included</h3><p>Each store gets its own online shop on the same catalog, in one subscription. No separate website to build, host and renew.</p></div>
+    <div class="card"><h3>Owner visibility</h3><p>A cloud dashboard shows sales, stock and staff activity across every branch, so owners can monitor remotely and catch fraud.</p></div>
+  </div>
+  <div class="num">03</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">Traction · as of 17 November 2026</div>
+  <h2 style="font-size:38px">Live for two months, with real money going through it every day.</h2>
+  <div class="grid g4" style="margin-top:22px">
+    <div class="card tint"><div class="big">₦20.6M</div><div class="label">processed across 2,728 sales since going live in late September 2026</div></div>
+    <div class="card tint"><div class="big">4</div><div class="label">customer stores, 3 actively selling, 2 paying on yearly plans</div></div>
+    <div class="card tint"><div class="big">₦25K</div><div class="label">monthly recurring revenue (₦300K of yearly plans, normalised)</div></div>
+    <div class="card tint"><div class="big">1</div><div class="label">store switched from Moniepoint's Moniebook, another chose us while it courted them</div></div>
+  </div>
+  <div class="split">
+    <div>
+      <div class="label" style="margin-top:0">Value of sales through the system, by month (₦ millions)</div>
+      <div class="bars">
+        <div class="bar"><div class="v">1.1</div><div class="fill" style="height:9%"></div><div class="m">Sept<br>(from the 22nd)</div></div>
+        <div class="bar"><div class="v">12.2</div><div class="fill" style="height:100%"></div><div class="m">Oct</div></div>
+        <div class="bar"><div class="v">7.3</div><div class="fill" style="height:60%"></div><div class="m">Nov<br>(to the 17th)</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h3>Growth is mostly referral-led</h3>
+        <ul>
+          <li>Divamax (in Cameroon, our first paying customer) and Austin Judith Pharmacies came through our first pharmacy customer.</li>
+          <li>Cutis came through a referral from a prospect who has not even started yet.</li>
+          <li>Cutis paid ₦150K for an enterprise plan before its trial ended, and is finishing price entry before its first sales.</li>
+          <li>Single-till stores already sell about ₦4.7M a month.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="num">04</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">Pipeline</div>
+  <h2>Five more stores are lined up. I haven't had to chase any of them.</h2>
+  <table>
+    <tr><th>Prospect</th><th>Type</th><th>Where they are</th></tr>
+    <tr><td>Austin Judith Pharmacies</td><td>Pharmacy</td><td>Finishing a stock audit on QuickBooks 2013 first</td></tr>
+    <tr><td>FC Digitals</td><td>Retail</td><td>Joins when a new branch opens, to monitor staff remotely</td></tr>
+    <tr><td>Pharm Favour</td><td>Pharmacy and hospital</td><td>Checking fit for both a pharmacy and a hospital</td></tr>
+    <tr><td>Mmesoma</td><td>Perfume store</td><td>Wants the storefront</td></tr>
+    <tr><td>BetaCure Pharmacy</td><td>Pharmacy</td><td>Has test logins, deciding</td></tr>
+  </table>
+  <p class="lead" style="font-size:19px">The app is now stable, so December starts structured outreach: cold DMs, field agents and paid social ads.</p>
+  <div class="num">05</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">Business model</div>
+  <h2>Monthly or yearly plans priced for Nigerian stores. The online shop comes with the higher tiers.</h2>
+  <table>
+    <tr><th>Plan</th><th class="r">Monthly</th><th class="r">Yearly</th><th>Includes</th></tr>
+    <tr><td>Free</td><td class="r">₦0</td><td class="r">₦0</td><td>1 store, 1 staff, basic inventory</td></tr>
+    <tr><td>Starter</td><td class="r">₦3,000</td><td class="r">₦30,000</td><td>Cloud sync, web dashboard, 3 staff</td></tr>
+    <tr><td>Pro</td><td class="r">₦8,000</td><td class="r">₦80,000</td><td>3 stores, 10 staff, mobile, loyalty, AI assistant, store URL</td></tr>
+    <tr class="hl"><td>Enterprise</td><td class="r">₦15,000</td><td class="r">₦150,000</td><td>Unlimited stores and staff, e-commerce storefront, multi-store, custom branding</td></tr>
+  </table>
+  <p class="lead" style="font-size:19px">Yearly plans cost ten months. Both paying customers chose Enterprise yearly. A 14-day Pro trial is available at signup. Paystack, Flutterwave and manual transfer are supported.</p>
+  <div class="num">06</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">Market and competition</div>
+  <h2>Most of these stores still run on paper, out-of-date software or old desktop tools.</h2>
+  <div class="split">
+    <div class="card tint">
+      <div class="big sm">~25,000</div>
+      <div class="label">pharmacies and patent medicine stores in Nigeria (Pharmaceutical Society of Nigeria, cited by Moniepoint)</div>
+      <p style="margin-top:18px">Beyond pharmacies, the same POS and storefront already serve hardware, medspa and footwear retail, and our first paying customer is in Cameroon. Perfume and general retail are in the pipeline.</p>
+    </div>
+    <div class="card">
+      <h3>Who we meet in the field</h3>
+      <div>
+        <span class="tag">Moniepoint Moniebook</span><span class="tag">QuickBooks 2013 (out of support)</span><span class="tag">VirtualRx</span><span class="tag">Shopkite</span><span class="tag">Orda</span><span class="tag">SwiftPOS</span>
+      </div>
+      <p style="margin-top:18px">We win on three things: it really works offline, the online shop is in the same subscription, and I answer the phone. One customer switched from Moniebook, our toughest competitor, and another chose us while Moniebook was courting them.</p>
+    </div>
+  </div>
+  <div class="num">07</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">Founder</div>
+  <h2>A founder who installed pharmacy software, then built what replaces it.</h2>
+  <div class="split">
+    <div class="card">
+      <h3>Okwudili Joshua Odumodu</h3>
+      <p>Founder, DumosRx. Co-founder and Frontend Lead, Dumostech.</p>
+      <ul style="margin-top:12px">
+        <li>6+ years building web and mobile applications. B.Eng Chemical Engineering, self-taught developer.</li>
+        <li>Installed pharmacy software for pharmacies, where the offline and lost-data problem showed up first-hand.</li>
+        <li>Delivered 20+ platforms for clients in Nigeria, the US, UK, Canada and Estonia.</li>
+        <li>Led frontend at Tublian, a US AI platform, from a few hundred to 13,000+ users.</li>
+        <li>Built DumosRx solo: SQLite-based sync engine, POS, cloud dashboard, storefront.</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card tint">
+        <h3>References</h3>
+        <p>Cynthia Adaeze, owner of Nest Pharmacy, our first production customer, switched from Moniebook and QuickBooks.</p>
+        <p style="margin-top:10px">Obinna Odumodu, software engineer with 15+ years of experience.</p>
+      </div>
+      <div class="card" style="margin-top:22px">
+        <h3>First hires, with funding</h3>
+        <p>A QA analyst first, then frontend and backend engineers and field sales, to remove the single point of failure.</p>
+      </div>
+    </div>
+  </div>
+  <div class="num">08</div>
+</section>
+
+<section class="slide">
+  <div class="brand">D U M O S R X</div>
+  <div class="eyebrow">The ask</div>
+  <h2>$220K to go from four stores to hundreds.</h2>
+  <div style="margin-top:26px">
+    <div class="alloc"><div class="pct">40%</div><div><h3>Reliability and engineering</h3><p>A faster server, a QA analyst, and frontend and backend engineers to harden sync and ship pharmacy features faster.</p></div></div>
+    <div class="alloc"><div class="pct">40%</div><div><h3>Sales and marketing</h3><p>Field agents who run demos and move a store's old data across, which is where signups slow down today. Plus ads on TikTok, Instagram and Facebook, and a designer and social media manager.</p></div></div>
+    <div class="alloc"><div class="pct">20%</div><div><h3>AI and tooling</h3><p>An AI assistant for store owners, developer tooling, and data and operating costs.</p></div></div>
+  </div>
+  <p class="lead" style="font-size:19px">Twelve-month goal: 300 to 500 paying stores. Referrals alone should get us to 50 to 100 without funding. Demos already close stores. Agents paid on conversion, doing the data migration for them, and paid ads take it past that.</p>
+  <div class="num">09</div>
+</section>
+
+<section class="slide cover">
+  <div class="brand">D U M O S R X</div>
+  <h1>Let's keep Nigerian stores selling, with or without internet.</h1>
+  <p class="lead">Okwudili Joshua Odumodu, Founder<br>okwyodumodu@gmail.com · +234 814 123 0877<br>dumosrx.com</p>
+</section>
+
+</body>
+</html>

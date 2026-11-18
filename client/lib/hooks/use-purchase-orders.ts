@@ -135,11 +135,11 @@ export function usePurchaseOrders() {
     setIsMutatingPO(true);
     try {
       await updatePurchaseOrderStatus(id, "sent");
-      toast.success("Order marked as sent!");
+      toast.success("Marked as ordered");
       void fetchPurchaseOrders();
     } catch (error) {
-      console.error("Failed to mark PO as sent:", error);
-      toast.error("Couldn't mark the order as sent", {
+      console.error("Failed to mark PO as ordered:", error);
+      toast.error("Couldn't mark the order as ordered", {
         description: errorDescription(error),
       });
     } finally {

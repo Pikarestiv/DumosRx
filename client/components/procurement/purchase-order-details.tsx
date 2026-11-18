@@ -42,7 +42,7 @@ export function PurchaseOrderDetails({
   const router = useRouter();
   const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
   const canReceivePurchaseOrders = useHasPermission("receive_purchase_orders");
-  const { download, isGenerating } = usePoPdfDownload(selectedPO);
+  const { download, share, isGenerating } = usePoPdfDownload(selectedPO);
 
   if (!selectedPO) {
     return (
@@ -125,7 +125,10 @@ export function PurchaseOrderDetails({
           isMutating={isMutatingPO}
           isGeneratingPdf={isGenerating}
           onEdit={editOrder}
-          onSend={() => onSendPO(selectedPO.id)}
+          onSend={() => {
+            onSendPO(selectedPO.id);
+            void share({ ...selectedPO, status: "sent" });
+          }}
           onReceive={onReceiveGoods}
           onReceiveDraft={() => setIsDraftReceiveOpen(true)}
           onDownloadPdf={() => void download()}

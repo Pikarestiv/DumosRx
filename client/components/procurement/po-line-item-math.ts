@@ -19,6 +19,7 @@ export function addOrMergeLineItem(
   return {
     items: [
       {
+        id: crypto.randomUUID(),
         product_id: product.id,
         product_name: product.name,
         bulk_unit: product.bulk_unit || product.base_unit || "Units",

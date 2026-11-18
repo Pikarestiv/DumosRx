@@ -234,7 +234,7 @@ export async function createPurchaseOrder(
 
     for (const item of items) {
       await insert("purchase_order_items", {
-        id: generateId(),
+        id: item.id ?? generateId(),
         po_id: poId,
         product_id: item.product_id,
         bulk_quantity: item.bulk_quantity,

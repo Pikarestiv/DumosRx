@@ -48,6 +48,10 @@ const PROCUREMENT_SCHEMA = `
     id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT, record_id TEXT,
     operation TEXT, payload TEXT, created_at TEXT, retry_count INTEGER DEFAULT 0, next_retry_at TEXT
   );
+  CREATE TABLE _sync_conflicts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT NOT NULL, record_id TEXT NOT NULL,
+    reason TEXT NOT NULL, fields TEXT, detected_at TEXT NOT NULL, resolved_at TEXT
+  );
   CREATE TABLE audit_logs (
     id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT, action TEXT, table_name TEXT,
     record_id TEXT, details TEXT, correlation_id TEXT, occurrence_count INTEGER DEFAULT 1,

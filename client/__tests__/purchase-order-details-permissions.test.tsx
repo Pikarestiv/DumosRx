@@ -138,11 +138,10 @@ describe("Purchase order details permissions", () => {
     expect(screen.queryAllByText(/Emzor/).length).toBeGreaterThan(0);
   });
 
-  it("offers a named vendor's draft Send to vendor and Receive stock, with no Download PDF", () => {
+  it("offers a named vendor's draft Send to vendor, Receive stock and Download PDF", () => {
     renderDetails(po({ status: "pending" }));
     const names = screen.getAllByRole("button").map((b) => b.textContent?.trim()).filter(Boolean);
-    expect(names).toEqual(expect.arrayContaining(["Edit", "Send to vendor", "Receive stock"]));
-    expect(screen.queryByText("Download PDF")).toBeNull();
+    expect(names).toEqual(expect.arrayContaining(["Edit", "Send to vendor", "Receive stock", "Download PDF"]));
   });
 
   it("offers a walk-in draft Receive stock and no Send to vendor, whatever its stored type", () => {

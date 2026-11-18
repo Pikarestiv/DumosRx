@@ -53,19 +53,16 @@ export function PoDetailsFooter({
   return (
     <div className="mt-auto flex flex-col gap-2.5 border-t border-border bg-card px-5 pb-5 pt-4">
       <div className="flex flex-wrap gap-3">
-        {isDraft ? (
-          canManage && (
-            <Button variant="outline" className={`flex-1 ${BUTTON}`} onClick={onEdit}>
-              <Edit2 className="h-[18px] w-[18px]" />
-              Edit
-            </Button>
-          )
-        ) : (
-          <Button variant="outline" className={`flex-1 ${BUTTON}`} onClick={onDownloadPdf} disabled={isGeneratingPdf}>
-            {isGeneratingPdf ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Download className="h-[18px] w-[18px]" />}
-            {isGeneratingPdf ? "Preparing..." : "Download PDF"}
+        {isDraft && canManage && (
+          <Button variant="outline" className={`flex-1 ${BUTTON}`} onClick={onEdit}>
+            <Edit2 className="h-[18px] w-[18px]" />
+            Edit
           </Button>
         )}
+        <Button variant="outline" className={`flex-1 ${BUTTON}`} onClick={onDownloadPdf} disabled={isGeneratingPdf}>
+          {isGeneratingPdf ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Download className="h-[18px] w-[18px]" />}
+          {isGeneratingPdf ? "Preparing..." : "Download PDF"}
+        </Button>
         {actions.map((action) => (
           <Button
             key={action.label}

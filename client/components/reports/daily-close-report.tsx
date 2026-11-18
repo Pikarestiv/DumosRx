@@ -9,6 +9,7 @@ import { TransactionDetailsDialog } from "@/components/pos/transaction-details-d
 import type { Sale } from "@/lib/types/sale";
 
 import { DailyCloseHeader } from "./daily-close/daily-close-header";
+import { DailyCloseSyncNote } from "./daily-close/daily-close-sync-note";
 import { DailyCloseMetrics } from "./daily-close/daily-close-metrics";
 import { PaymentBreakdownCard } from "./daily-close/payment-breakdown-card";
 import { HighestSellingProductsCard } from "./daily-close/highest-selling-products-card";
@@ -61,6 +62,7 @@ export function DailyCloseReport({ reportDate }: DailyCloseReportProps) {
   return (
     <div className="space-y-4 sm:space-y-6 mb-20 lg:mb-4">
       <DailyCloseHeader reportDate={reportDate} />
+      <DailyCloseSyncNote />
 
       <div ref={printRef} className="space-y-4 sm:space-y-6">
         <DailyCloseMetrics

@@ -923,6 +923,11 @@ Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. Cycle Count pulls before any row can be counted:
 `usePreAuditSync()` in `lib/hooks/use-pre-audit-sync.ts`, gated by
 `isBlockedBySync()`; see "Counting on a device that is behind sync").
+Daily Close syncs on open too, but never blocks: `useSyncOnOpen()`
+(`lib/hooks/use-sync-on-open.ts`) reuses `pullBeforeCount`, and
+`DailyCloseSyncNote` shows "Syncing…" then, if offline or it failed, that the
+report is as of the last sync. The plan's minimum sync interval only floors the auto-sync schedule, so
+this manual `sync(true)` (like Cloud Sync Now) pulls on every open, whatever the tier.
 
 #### Queue collapsing (`addToSyncQueue`, A-203)
 

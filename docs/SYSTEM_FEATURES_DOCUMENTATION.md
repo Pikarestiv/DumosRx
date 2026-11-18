@@ -104,7 +104,7 @@ The desktop application is built for speed, reliability, and ease of use. It con
 
 ### 📊 Shift Management & Expenses
 
-**End of Day (Daily Close):** The dashboard's "End of Day" shortcut opens Daily Close, a one-day report of sales, refunds, cash expected, payments by account and top sellers, which every role can see. Count the drawer against its "Net Cash Expected" figure; DumosRx does not yet record the counted amount or a shortage/overage itself.
+**End of Day (Daily Close):** The dashboard's "End of Day" shortcut opens Daily Close, a one-day report of sales, refunds, cash expected, payments by account and top sellers, which every role can see. It syncs from the cloud as it opens, without holding the report back, so sales from other tills appear in the figures a moment later; offline, or if the sync fails, it says the report is as of this till's last sync. Count the drawer against its "Net Cash Expected" figure; DumosRx does not yet record the counted amount or a shortage/overage itself.
 
 **Expense Tracking:** Log daily operational expenses directly from the cash register.
 

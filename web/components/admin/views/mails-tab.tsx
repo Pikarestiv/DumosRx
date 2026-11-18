@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
 import { UserSelector } from "@/components/admin/user-selector";
+import { EmailComposeTools } from "@/components/admin/email-compose-tools";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 import type { AdminUser } from "@/lib/types/admin";
@@ -36,14 +37,21 @@ const AUDIENCES = [
   { value: "staff", label: "Store staff only", noun: "every staff member with a real email" },
   { value: "platform_admins", label: "Platform admins and agents", noun: "the platform team" },
   { value: "specific", label: "Specific users", noun: "the selected users" },
+  { value: "custom", label: "Custom email addresses", noun: "the addresses you typed" },
 ] as const;
 
 type Audience = (typeof AUDIENCES)[number]["value"];
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_CUSTOM_EMAILS = 100;
+
+const parseAddresses = (text: string): string[] => text.split(/[\s,;]+/).filter(Boolean);
 
 export function MailsTab() {
   const { user } = useAdminAuthStore();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [customText, setCustomText] = useState("");
   const [isHtml, setIsHtml] = useState(false);
   const [targetType, setTargetType] = useState<Audience>("all");
   const [selectedUsers, setSelectedUsers] = useState<AdminUser[]>([]);
@@ -54,7 +62,7 @@ export function MailsTab() {
   const { data: recipients } = useQuery({
     queryKey: ["admin-mail-recipient-count", targetType],
     queryFn: () => webApiClient.request<{ count: number }>(`admin/mail/recipient-count?target_type=${targetType}`),
-    enabled: targetType !== "specific",
+    enabled: targetType !== "specific" && targetType !== "custom",
   });
   const recipientLabel =
     recipients === undefined ? audience.noun : `${recipients.count} recipient${recipients.count === 1 ? "" : "s"} (${audience.noun})`;
@@ -67,6 +75,7 @@ export function MailsTab() {
       setSubject("");
       setMessage("");
       setSelectedUsers([]);
+      setCustomText("");
     },
     onError: (error) => {
       toast.error(error.message || "Failed to send emails");
@@ -84,6 +93,23 @@ export function MailsTab() {
       return;
     }
 
+    if (targetType === "custom") {
+      const addresses = parseAddresses(customText);
+      const invalid = addresses.filter((a) => !EMAIL_PATTERN.test(a));
+      if (addresses.length === 0 || invalid.length > 0 || addresses.length > MAX_CUSTOM_EMAILS) {
+        toast.error(
+          addresses.length === 0
+            ? "Type at least one email address."
+            : addresses.length > MAX_CUSTOM_EMAILS
+              ? `Send to at most ${MAX_CUSTOM_EMAILS} addresses at a time.`
+              : `Not a valid email address: ${invalid[0]}`,
+        );
+        return;
+      }
+      dispatchMail();
+      return;
+    }
+
     if (targetType !== "specific") {
       setIsConfirmOpen(true);
       return;
@@ -98,6 +124,7 @@ export function MailsTab() {
       message,
       target_type: targetType,
       is_html: isHtml,
+      emails: parseAddresses(customText),
       user_ids: selectedUsers.map((u) => u.id),
     });
   };
@@ -139,10 +166,27 @@ export function MailsTab() {
               selectedUsers={selectedUsers}
               onUsersChange={setSelectedUsers}
               hideTargetToggle
+              showAccountTypeFilter
             />
           )}
 
-          {targetType !== "specific" && (
+          {targetType === "custom" && (
+            <div className="space-y-2">
+              <Label htmlFor="custom-emails">Email addresses</Label>
+              <Textarea
+                id="custom-emails"
+                placeholder="friend@example.com, other@example.org"
+                className="min-h-[80px]"
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Separate addresses with commas, spaces or new lines. {parseAddresses(customText).length} typed (max {MAX_CUSTOM_EMAILS}).
+              </p>
+            </div>
+          )}
+
+          {targetType !== "specific" && targetType !== "custom" && (
             <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
               This will email {recipientLabel}. You&apos;ll be asked to confirm before it sends.
             </p>
@@ -179,6 +223,25 @@ export function MailsTab() {
               />
             </div>
           </div>
+
+          <EmailComposeTools
+            title={subject}
+            message={message}
+            renderPreview={async () =>
+              (
+                await webApiClient.request<{ data: { html: string } }>("admin/mail/preview", {
+                  method: "POST",
+                  data: { subject, message, is_html: isHtml },
+                })
+              ).data.html
+            }
+            sendTest={(email) =>
+              webApiClient.request("admin/mail/test", {
+                method: "POST",
+                data: { subject, message, is_html: isHtml, email },
+              })
+            }
+          />
         </CardContent>
         <CardFooter className="flex justify-end border-t border-slate-100 dark:border-slate-800 pt-6">
           <Button

@@ -6,19 +6,16 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { webApiClient } from "@/lib/api/client";
 import { useAdminAuthStore } from "@/lib/store/use-admin-auth-store";
 
-interface BroadcastEmailToolsProps {
+interface EmailComposeToolsProps {
   title: string;
   message: string;
+  renderPreview: () => Promise<string>;
+  sendTest: (email: string) => Promise<unknown>;
 }
 
-/**
- * Compose-time companions to the send_email toggle. Both call endpoints that
- * create no broadcast, so neither affects the fires-once-at-creation rule.
- */
-export function BroadcastEmailTools({ title, message }: BroadcastEmailToolsProps) {
+export function EmailComposeTools({ title, message, renderPreview, sendTest: deliverTest }: EmailComposeToolsProps) {
   const adminEmail = useAdminAuthStore((state) => state.user?.email ?? "");
   const [overriddenTestEmail, setOverriddenTestEmail] = useState<string | null>(null);
   const testEmail = overriddenTestEmail ?? adminEmail;
@@ -36,8 +33,7 @@ export function BroadcastEmailTools({ title, message }: BroadcastEmailToolsProps
     }
     setIsPreviewLoading(true);
     try {
-      const { html } = await webApiClient.previewBroadcastEmail({ title, message });
-      setPreviewHtml(html);
+      setPreviewHtml(await renderPreview());
     } catch (_error) {
       toast.error("Could not render the email preview");
     } finally {
@@ -57,7 +53,7 @@ export function BroadcastEmailTools({ title, message }: BroadcastEmailToolsProps
     }
     setIsSendingTest(true);
     try {
-      await webApiClient.sendBroadcastTestEmail({ title, message, email: testEmail.trim() });
+      await deliverTest(testEmail.trim());
       toast.success(`Test email sent to ${testEmail.trim()}`);
     } catch (_error) {
       toast.error("Failed to send the test email");
@@ -104,7 +100,7 @@ export function BroadcastEmailTools({ title, message }: BroadcastEmailToolsProps
             Exactly what recipients will see
           </p>
           <iframe
-            title="Broadcast email preview"
+            title="Email preview"
             sandbox=""
             srcDoc={previewHtml}
             className="w-full h-[320px] rounded-xl border border-slate-200 dark:border-slate-700 bg-white"
@@ -114,21 +110,20 @@ export function BroadcastEmailTools({ title, message }: BroadcastEmailToolsProps
 
       <div className="space-y-2">
         <Label
-          htmlFor="broadcast-test-email"
+          htmlFor="email-test-address"
           className="font-bold text-xs uppercase tracking-widest text-slate-400 pl-1"
         >
           Send a test to
         </Label>
         <div className="flex flex-wrap items-center gap-2">
           <Input
-            id="broadcast-test-email"
+            id="email-test-address"
             type="email"
             placeholder="you@dumosrx.com"
             className="rounded-2xl h-12 border-slate-200 dark:border-slate-700 font-bold flex-1 min-w-[200px] bg-white dark:bg-slate-900"
             value={testEmail}
             onChange={(e) => setOverriddenTestEmail(e.target.value)}
             onKeyDown={(e) => {
-              // Enter here must not submit the form and dispatch the broadcast.
               if (e.key === "Enter") {
                 e.preventDefault();
                 void sendTest();
@@ -151,8 +146,7 @@ export function BroadcastEmailTools({ title, message }: BroadcastEmailToolsProps
           </Button>
         </div>
         <p className="text-xs font-medium text-slate-400 pl-1">
-          Goes to this one address only. No broadcast is created and no store owner
-          is emailed.
+          Goes to this one address only. Nobody else is emailed.
         </p>
       </div>
     </div>

@@ -99,6 +99,37 @@ class AdminMailAudienceTest extends TestCase
         $this->assertSame(['owner@shop.test'], $this->recipients());
     }
 
+    public function test_custom_audience_mails_exactly_the_typed_addresses_once_each(): void
+    {
+        $this->send([
+            'target_type' => 'custom',
+            'emails' => ['friend@example.com', 'FRIEND@example.com', 'owner@shop.test', 'other@example.org'],
+        ])->assertOk();
+
+        $this->assertSame(['friend@example.com', 'other@example.org', 'owner@shop.test'], $this->recipients());
+    }
+
+    public function test_custom_audience_needs_at_least_one_valid_address(): void
+    {
+        $this->send(['target_type' => 'custom'])->assertStatus(422);
+        $this->send(['target_type' => 'custom', 'emails' => []])->assertStatus(422);
+        $this->send(['target_type' => 'custom', 'emails' => ['fine@example.com', 'not-an-email']])->assertStatus(422);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_custom_audience_is_capped(): void
+    {
+        $emails = array_map(fn ($i) => "person{$i}@example.com", range(1, 101));
+
+        $this->send(['target_type' => 'custom', 'emails' => $emails])->assertStatus(422);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_recipient_count_does_not_apply_to_a_custom_list(): void
+    {
+        $this->actingAs($this->superAdmin)->getJson('/api/v1/admin/mail/recipient-count?target_type=custom')->assertStatus(422);
+    }
+
     public function test_unknown_audience_is_rejected(): void
     {
         $this->send(['target_type' => 'everybody'])->assertStatus(422);

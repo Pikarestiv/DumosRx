@@ -3939,7 +3939,8 @@ write path has to sit after the commit, not inside it.
 `MailController::send()` delegates to `App\Services\Admin\AdminMailService`.
 `target_type` is one of `all`, `store_owners` (roles `store_owner`/`admin`),
 `staff` (everyone who is neither an owner nor platform), `platform_admins`
-(`super_admin`/`platform_admin`/`agent`) or `specific` (`user_ids`). Every
+(`super_admin`/`platform_admin`/`agent`) or `specific` (`user_ids`) or `custom` (up to 100 typed `emails`, any address, deduplicated
+case-insensitively, not tied to a user). Every
 audience skips null emails and the `@local.dumosrx.com` placeholder addresses
 auto-generated for staff, which the old "all" send used to mail and bounce.
 Roles are matched on the `users.role` string column only. `is_html: true` sends the body as HTML,
@@ -3950,7 +3951,9 @@ and keeps inline styles unless they carry script URLs, `@import`, comments or
 CSS escapes. Only a super_admin can send, so this is defence in depth; move to
 `symfony/html-sanitizer` before any lower role may send HTML. Audiences skip
 inactive users. `GET /admin/mail/recipient-count?target_type=` returns how many
-a non-specific audience would reach, for the confirmation dialog. Old admin
+a roster audience would reach (not `specific` or `custom`), for the confirmation dialog.
+`POST /admin/mail/preview` renders the real template (and sanitiser) and sends nothing;
+`POST /admin/mail/test` sends one email to one address. All three are super_admin only. Old admin
 bundles that send only `all`/`specific` and no `is_html` still work unchanged.
 
 A broadcast (`Broadcast`, `BroadcastController`) is delivered in-app by

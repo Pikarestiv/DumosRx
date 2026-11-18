@@ -10,29 +10,69 @@ use Illuminate\Support\Facades\Mail;
 
 class AdminMailService
 {
-    public const AUDIENCES = ['all', 'store_owners', 'staff', 'platform_admins', 'specific'];
+    public const AUDIENCES = ['all', 'store_owners', 'staff', 'platform_admins', 'specific', 'custom'];
+
+    public const MAX_CUSTOM_EMAILS = 100;
 
     private const OWNER_ROLES = ['store_owner', 'admin'];
 
     private const CHUNK_SIZE = 100;
 
-    /** @param  array<int, string>  $userIds */
-    public function send(string $subject, string $message, string $audience, array $userIds = [], bool $isHtml = false): int
+    /**
+     * @param  array<int, string>  $userIds
+     * @param  array<int, string>  $emails
+     */
+    public function send(string $subject, string $message, string $audience, array $userIds = [], bool $isHtml = false, array $emails = []): int
     {
+        if ($audience === 'custom') {
+            return $this->sendToAddresses($subject, $message, $isHtml, $emails);
+        }
+
         $sent = 0;
 
         $this->recipientQuery($audience, $userIds)->chunkById(self::CHUNK_SIZE, function ($users) use ($subject, $message, $isHtml, &$sent) {
             foreach ($users as $user) {
-                try {
-                    Mail::to($user->email)->send(new AdminCustomMail($subject, $message, $isHtml));
-                    $sent++;
-                } catch (\Exception $e) {
-                    Log::error("Admin email failed for user {$user->id}: ".$e->getMessage());
-                }
+                $sent += $this->deliver($user->email, $subject, $message, $isHtml, $user->id);
             }
         });
 
         return $sent;
+    }
+
+    /** @param  array<int, string>  $emails */
+    private function sendToAddresses(string $subject, string $message, bool $isHtml, array $emails): int
+    {
+        $sent = 0;
+
+        foreach (array_unique(array_map('strtolower', $emails)) as $email) {
+            $sent += $this->deliver($email, $subject, $message, $isHtml, $email);
+        }
+
+        return $sent;
+    }
+
+    private function deliver(string $email, string $subject, string $message, bool $isHtml, string $label): int
+    {
+        try {
+            Mail::to($email)->send(new AdminCustomMail($subject, $message, $isHtml));
+
+            return 1;
+        } catch (\Exception $e) {
+            Log::error("Admin email failed for {$label}: ".$e->getMessage());
+
+            return 0;
+        }
+    }
+
+    /** @return array{subject: string, html: string} */
+    public function renderPreview(string $subject, string $message, bool $isHtml): array
+    {
+        return ['subject' => $subject, 'html' => (new AdminCustomMail($subject, $message, $isHtml))->render()];
+    }
+
+    public function sendTest(string $subject, string $message, bool $isHtml, string $email): void
+    {
+        Mail::to($email)->send(new AdminCustomMail($subject, $message, $isHtml));
     }
 
     public function recipientCount(string $audience): int

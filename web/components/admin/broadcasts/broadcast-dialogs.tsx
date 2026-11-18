@@ -2,7 +2,8 @@
 
 import { Megaphone, Edit, Loader2 } from "lucide-react";
 import { UserSelector } from "@/components/admin/user-selector";
-import { BroadcastEmailTools } from "@/components/admin/broadcasts/broadcast-email-tools";
+import { EmailComposeTools } from "@/components/admin/email-compose-tools";
+import { webApiClient } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
@@ -144,7 +145,12 @@ function BroadcastFormFields({
         </div>
 
         {formData.send_email && !isEdit && (
-          <BroadcastEmailTools title={formData.title} message={formData.message} />
+          <EmailComposeTools
+            title={formData.title}
+            message={formData.message}
+            renderPreview={async () => (await webApiClient.previewBroadcastEmail({ title: formData.title, message: formData.message })).html}
+            sendTest={(email) => webApiClient.sendBroadcastTestEmail({ title: formData.title, message: formData.message, email })}
+          />
         )}
       </div>
     </>

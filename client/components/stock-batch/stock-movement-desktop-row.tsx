@@ -1,4 +1,10 @@
-import { StockMovement, getTypeColor, getTypeLabel, formatMovementTime } from "./stock-movement-utils";
+import {
+  StockMovement,
+  getTypeColor,
+  getTypeLabel,
+  formatMovementTime,
+  formatPoReference,
+} from "./stock-movement-utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface Props {
@@ -9,6 +15,10 @@ interface Props {
 export function StockMovementDesktopRow({ movement, onSelect }: Props) {
   const isPositive = movement.quantity > 0;
   const capsClass = useUppercaseDisplayClass();
+  const isSettlement = movement.type === "backorder_settlement";
+  const displayReference = isSettlement && movement.purchaseOrderId
+    ? `Settled via ${formatPoReference(movement.purchaseOrderId)}`
+    : movement.reference || movement.reason || "-";
   return (
     <div
       role="button"
@@ -56,7 +66,7 @@ export function StockMovementDesktopRow({ movement, onSelect }: Props) {
         {movement.quantity}
       </div>
       <div className="text-[12px] text-muted-foreground truncate">
-        {movement.reference || movement.reason || "-"}
+        {displayReference}
       </div>
       <div className="text-[12px] text-foreground truncate">{movement.user}</div>
     </div>

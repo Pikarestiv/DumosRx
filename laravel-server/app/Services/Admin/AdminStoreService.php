@@ -292,7 +292,7 @@ class AdminStoreService
      * platform. */
     public function getAccountManagerCandidates()
     {
-        return User::whereIn('role', ['super_admin', 'platform_admin', 'agent'])
+        return User::whereIn('role', User::PLATFORM_ROLES)
             ->orderBy('first_name')
             ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'role'])
             ->map(fn ($u) => [

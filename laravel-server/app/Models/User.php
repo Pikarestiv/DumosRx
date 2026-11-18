@@ -18,6 +18,8 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    public const PLATFORM_ROLES = ['super_admin', 'platform_admin', 'agent'];
+
     use HasApiTokens, HasFactory, HasUuids, Notifiable, SoftDeletes;
 
     public const DELEGATABLE_PERMISSIONS = [
@@ -338,7 +340,7 @@ class User extends Authenticatable
             // one above. Every super_admin/platform_admin/agent gets one so
             // stores they onboard (in person via "Register Store", or self-serve
             // via their link) can be attributed to them.
-            if (in_array($user->role, ['super_admin', 'platform_admin', 'agent'])) {
+            if (in_array($user->role, self::PLATFORM_ROLES)) {
                 $user->platform_referral_code = self::generateUniquePlatformReferralCode();
             }
         });

@@ -926,7 +926,8 @@ actively misleading (e.g. Cycle Count pulls before any row can be counted:
 Daily Close syncs on open too, but never blocks: `useSyncOnOpen()`
 (`lib/hooks/use-sync-on-open.ts`) reuses `pullBeforeCount`, and
 `DailyCloseSyncNote` shows "Syncing…" then, if offline or it failed, that the
-report is as of the last sync. The plan's minimum sync interval only floors the auto-sync schedule, so
+report is as of the last sync; that note polls the last sync outcome every 2s and clears itself
+when a later sync (auto or manual) succeeds. The plan's minimum sync interval only floors the auto-sync schedule, so
 this manual `sync(true)` (like Cloud Sync Now) pulls on every open, whatever the tier.
 
 #### Queue collapsing (`addToSyncQueue`, A-203)

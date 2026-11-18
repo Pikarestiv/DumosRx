@@ -14,8 +14,6 @@ class AdminMailService
 
     private const OWNER_ROLES = ['store_owner', 'admin'];
 
-    private const PLATFORM_ROLES = ['super_admin', 'platform_admin', 'agent'];
-
     private const CHUNK_SIZE = 100;
 
     /** @param  array<int, string>  $userIds */
@@ -56,9 +54,9 @@ class AdminMailService
 
         return match ($audience) {
             'store_owners' => $query->whereIn('role', self::OWNER_ROLES),
-            'platform_admins' => $query->whereIn('role', self::PLATFORM_ROLES),
+            'platform_admins' => $query->whereIn('role', User::PLATFORM_ROLES),
             'staff' => $query->where(fn (Builder $q) => $q->whereNull('role')
-                ->orWhereNotIn('role', [...self::OWNER_ROLES, ...self::PLATFORM_ROLES])),
+                ->orWhereNotIn('role', [...self::OWNER_ROLES, ...User::PLATFORM_ROLES])),
             'specific' => $query->whereIn('id', $userIds),
             default => $query,
         };

@@ -102,16 +102,36 @@ class SyncWriteAuthorizer
         return false;
     }
 
-    public function repointsToForeignParent(string $tableName, array $payload, $model, array $allowedStoreIds): bool
+    public function repointsToForeignParent(string $tableName, array $payload, $model, array $allowedStoreIds, array $allowedUserIds = []): bool
     {
         $parentKey = self::PARENT_KEYS[$tableName] ?? null;
         if ($parentKey === null || empty($payload[$parentKey]) || (string) $payload[$parentKey] === (string) $model->{$parentKey}) {
             return false;
         }
 
-        $newParentStoreId = $this->resolveParentStoreId($tableName, (object) [$parentKey => $payload[$parentKey]]);
+        $parentInfo = $this->resolveParentInfo($tableName, (object) [$parentKey => $payload[$parentKey]]);
+        if ($parentInfo === null) {
+            return false;
+        }
 
-        return $newParentStoreId !== null && ! in_array($newParentStoreId, $allowedStoreIds, true);
+        if ($parentInfo->store_id !== null) {
+            return ! in_array($parentInfo->store_id, $allowedStoreIds, true);
+        }
+
+        return ! $this->isAuthorAllowed($parentInfo->user_id, $allowedUserIds);
+    }
+
+    public function isAuthorAllowed(?string $authorId, array $allowedUserIds): bool
+    {
+        if (empty($authorId)) {
+            return true;
+        }
+
+        if (in_array($authorId, $allowedUserIds, true)) {
+            return true;
+        }
+
+        return ! User::withTrashed()->whereKey($authorId)->exists();
     }
 
     public function authorizeChangeTarget(string $tableName, $model, array $allowedStoreIds, array $allowedUserIds): bool
@@ -132,19 +152,14 @@ class SyncWriteAuthorizer
             return false;
         }
 
-        // Fails open on purpose for legacy rows (docs/SYNC_SERVER_RATIONALE.md).
         if (! isset($model->user_id)) {
             return true;
         }
 
-        if (in_array($model->user_id, $allowedUserIds, true)) {
-            return true;
-        }
-
-        return ! User::withTrashed()->whereKey($model->user_id)->exists();
+        return $this->isAuthorAllowed($model->user_id, $allowedUserIds);
     }
 
-    public function authorizeInsertTarget(string $tableName, array $payload, array $allowedStoreIds): bool
+    public function authorizeInsertTarget(string $tableName, array $payload, array $allowedStoreIds, array $allowedUserIds = []): bool
     {
         if ($tableName === 'stores' || $tableName === 'users') {
             return true;
@@ -152,6 +167,18 @@ class SyncWriteAuthorizer
 
         if ($this->namesForeignBatch($tableName, $payload, $allowedStoreIds)) {
             return false;
+        }
+
+        $parentKey = self::PARENT_KEYS[$tableName] ?? null;
+        if ($parentKey !== null && ! empty($payload[$parentKey])) {
+            $parentInfo = $this->resolveParentInfo($tableName, (object) $payload);
+            if ($parentInfo !== null) {
+                if ($parentInfo->store_id !== null) {
+                    return in_array($parentInfo->store_id, $allowedStoreIds, true);
+                }
+
+                return $this->isAuthorAllowed($parentInfo->user_id, $allowedUserIds);
+            }
         }
 
         $resolvedStoreId = $this->resolveChangeStoreId($tableName, (object) $payload);
@@ -196,28 +223,44 @@ class SyncWriteAuthorizer
             return $model->store_id ?? null;
         }
 
+        return $this->resolveParentInfo($tableName, $model)?->store_id;
+    }
+
+    private function resolveParentInfo(string $tableName, $model): ?object
+    {
         if ($tableName === 'sale_items' || $tableName === 'sale_services') {
-            return isset($model->sale_id) ? Sale::withTrashed()->where('id', $model->sale_id)->value('store_id') : null;
+            $sale = isset($model->sale_id) ? Sale::withTrashed()->where('id', $model->sale_id)->first(['store_id', 'user_id', 'cashier_id']) : null;
+
+            return $sale ? (object) ['store_id' => $sale->store_id, 'user_id' => $sale->user_id ?? $sale->cashier_id] : null;
         }
         if ($tableName === 'return_items' || $tableName === 'return_services') {
-            return isset($model->return_id) ? \App\Models\SaleReturn::withTrashed()->where('id', $model->return_id)->value('store_id') : null;
+            $return = isset($model->return_id) ? \App\Models\SaleReturn::withTrashed()->where('id', $model->return_id)->first(['store_id', 'user_id']) : null;
+
+            return $return ? (object) ['store_id' => $return->store_id, 'user_id' => $return->user_id] : null;
         }
         if ($tableName === 'prescription_items') {
-            return isset($model->prescription_id) ? \App\Models\Prescription::withTrashed()->where('id', $model->prescription_id)->value('store_id') : null;
+            $prescription = isset($model->prescription_id) ? \App\Models\Prescription::withTrashed()->where('id', $model->prescription_id)->first(['store_id', 'user_id']) : null;
+
+            return $prescription ? (object) ['store_id' => $prescription->store_id, 'user_id' => $prescription->user_id] : null;
         }
         if ($tableName === 'purchase_order_items') {
-            return isset($model->purchase_order_id) ? PurchaseOrder::withTrashed()->where('id', $model->purchase_order_id)->value('store_id') : null;
+            $po = isset($model->purchase_order_id) ? PurchaseOrder::withTrashed()->where('id', $model->purchase_order_id)->first(['store_id', 'ordered_by']) : null;
+
+            return $po ? (object) ['store_id' => $po->store_id, 'user_id' => $po->ordered_by] : null;
         }
         if ($tableName === 'stock_batches') {
-            return isset($model->product_id) ? Product::withTrashed()->where('id', $model->product_id)->value('store_id') : null;
+            $product = isset($model->product_id) ? Product::withTrashed()->where('id', $model->product_id)->first(['store_id', 'user_id']) : null;
+
+            return $product ? (object) ['store_id' => $product->store_id, 'user_id' => $product->user_id] : null;
         }
         if ($tableName === 'sale_item_batches') {
             if (! isset($model->sale_item_id)) {
                 return null;
             }
             $saleId = SaleItem::withTrashed()->where('id', $model->sale_item_id)->value('sale_id');
+            $sale = $saleId ? Sale::withTrashed()->where('id', $saleId)->first(['store_id', 'user_id', 'cashier_id']) : null;
 
-            return $saleId ? Sale::withTrashed()->where('id', $saleId)->value('store_id') : null;
+            return $sale ? (object) ['store_id' => $sale->store_id, 'user_id' => $sale->user_id ?? $sale->cashier_id] : null;
         }
 
         return null;

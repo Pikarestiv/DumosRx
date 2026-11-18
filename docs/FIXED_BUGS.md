@@ -1,3 +1,13 @@
+### A-362 — a child row could still be pointed at another tenant's store-less legacy parent
+- **Fixed:** 2026-11-18, server only, TDD. Found 2026-10-25 fixing A-325.
+- **Was:** `authorizeInsertTarget()` and `repointsToForeignParent()` resolved a child row's store through its parent (`stock_batches`→`products`, `sale_items`→`sales`, `purchase_order_items`→`purchase_orders`, etc.). When a parent had `store_id = NULL`, parent store resolution returned `null`, which caused UPDATE repointing to pass through and INSERT to fall back to the child row's own `store_id`. As a result, an attacker could attach child records (e.g. batches) to another tenant's pre-backfill storeless product, poisoning attribution evidence.
+- **Now:**
+  (1) In `SyncWriteAuthorizer`, when a child row's parent resolves to no store (`store_id = NULL`), it is judged by its author via `isAuthorAllowed($parentInfo->user_id, $allowedUserIds)` on both INSERT and UPDATE repointing. If the author belongs to another tenant, the change is refused `forbidden`. Legacy unauthored parents fail open.
+  (2) `SyncController::push()` passes `$allowedUserIds` to `authorizeInsertTarget()` and `repointsToForeignParent()`.
+  (3) Documented the author-scoped parent validation rule in `laravel-server/AGENTS.md`.
+- **Coverage:** `tests/Feature/SyncPushChildParentRepointTest.php` (tests for UPDATE repointing to foreign storeless product, INSERT pointing to foreign storeless product, pointing to own storeless product, and legacy unauthored storeless parent failing open).
+- **Compat:** Pure backend security hardening; no client contract changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

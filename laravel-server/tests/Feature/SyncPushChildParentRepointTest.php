@@ -139,4 +139,72 @@ class SyncPushChildParentRepointTest extends SyncPushTwoTenantTestCase
         $response->assertStatus(200);
         $this->assertSame($victimProduct, DB::table('stock_batches')->where('id', $batch)->value('product_id'));
     }
+
+    public function test_a_batch_update_repointing_its_product_at_another_tenants_storeless_product_is_refused(): void
+    {
+        $victimStorelessProduct = (string) Str::uuid();
+        DB::table('products')->insert([
+            'id' => $victimStorelessProduct, 'store_id' => null, 'user_id' => $this->victimOwner->id, 'name' => 'Storeless Painkillers',
+            'selling_price' => 500, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $batch = $this->seedBatch($this->seedProduct($this->attackerStore, $this->attackerOwner), $this->attackerStore->id);
+
+        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, ['product_id' => $victimStorelessProduct, 'quantity' => 999]);
+
+        $this->assertRefusedAsForbidden($response, 'stock_batches', $batch);
+        $this->assertNotSame($victimStorelessProduct, DB::table('stock_batches')->where('id', $batch)->value('product_id'));
+    }
+
+    public function test_a_batch_insert_pointing_at_another_tenants_storeless_product_is_refused(): void
+    {
+        $victimStorelessProduct = (string) Str::uuid();
+        DB::table('products')->insert([
+            'id' => $victimStorelessProduct, 'store_id' => null, 'user_id' => $this->victimOwner->id, 'name' => 'Storeless Painkillers',
+            'selling_price' => 500, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $batch = (string) Str::uuid();
+
+        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, [
+            'product_id' => $victimStorelessProduct,
+            'batch_number' => 'B-INJECT',
+            'quantity' => 50,
+            'cost_price' => 20,
+            'store_id' => $this->attackerStore->id,
+        ], 'INSERT');
+
+        $this->assertRefusedAsForbidden($response, 'stock_batches', $batch);
+        $this->assertFalse(DB::table('stock_batches')->where('id', $batch)->exists());
+    }
+
+    public function test_a_batch_pointing_at_own_storeless_product_is_accepted(): void
+    {
+        $ownStorelessProduct = (string) Str::uuid();
+        DB::table('products')->insert([
+            'id' => $ownStorelessProduct, 'store_id' => null, 'user_id' => $this->attackerOwner->id, 'name' => 'My Storeless Product',
+            'selling_price' => 500, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $batch = $this->seedBatch($this->seedProduct($this->attackerStore, $this->attackerOwner), $this->attackerStore->id);
+
+        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, ['product_id' => $ownStorelessProduct]);
+
+        $response->assertStatus(200);
+        $this->assertSame([], $response->json('failed') ?? []);
+        $this->assertSame($ownStorelessProduct, DB::table('stock_batches')->where('id', $batch)->value('product_id'));
+    }
+
+    public function test_a_batch_pointing_at_unauthored_storeless_product_fails_open(): void
+    {
+        $unauthoredProduct = (string) Str::uuid();
+        DB::table('products')->insert([
+            'id' => $unauthoredProduct, 'store_id' => null, 'user_id' => null, 'name' => 'Legacy Unauthored',
+            'selling_price' => 500, '_version' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $batch = $this->seedBatch($this->seedProduct($this->attackerStore, $this->attackerOwner), $this->attackerStore->id);
+
+        $response = $this->pushUpdate($this->attackerOwner, 'stock_batches', $batch, ['product_id' => $unauthoredProduct]);
+
+        $response->assertStatus(200);
+        $this->assertSame([], $response->json('failed') ?? []);
+        $this->assertSame($unauthoredProduct, DB::table('stock_batches')->where('id', $batch)->value('product_id'));
+    }
 }

@@ -3,6 +3,7 @@ import { canonicaliseReason } from "./queue-state";
 import { SYNC_DISABLED_IMPERSONATION_MESSAGE } from "@/lib/utils/impersonation";
 import type { SyncResult } from "./types";
 import { STORE_REFUSED_MESSAGE } from "./store-refusal";
+import { storeRefusalRemedy } from "@/lib/utils/store-refusal-remedy";
 
 // Defined here rather than in index.ts, which imports this module:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-sync-outcome-ts-L6
@@ -89,8 +90,20 @@ export function readSyncOutcome(): SyncOutcome | null {
 }
 
 // sync() resolves on failure too, which toast.promise would show as success.
-export function failUnlessSucceeded(run: Promise<SyncResult>): Promise<SyncResult> {
-  return run.then((result) =>
-    result.success ? result : Promise.reject(new Error(typeof result.error === "string" ? result.error : "")),
-  );
+export function failUnlessSucceeded(
+  run: Promise<SyncResult>,
+  hasFixedStore: boolean = false,
+): Promise<SyncResult> {
+  return run.then((result) => {
+    if (result.success) return result;
+
+    const baseError = typeof result.error === "string" ? result.error : "";
+    if (result.refusal) {
+      const remedy = storeRefusalRemedy(result.refusal, hasFixedStore);
+      const message = baseError ? `${baseError} ${remedy.message}` : remedy.message;
+      return Promise.reject(Object.assign(new Error(message), { refusal: result.refusal }));
+    }
+
+    return Promise.reject(new Error(baseError));
+  });
 }

@@ -17,6 +17,8 @@ import {
   sync,
   syncSubscriptionStatus,
   forceFullResync,
+  isSyncing,
+  SYNC_IN_PROGRESS_ERROR,
 } from "@/lib/db/sync-engine";
 import { failUnlessSucceeded } from "@/lib/db/sync-engine/sync-outcome";
 import { markRestoredForCloudLinkNotice } from "@/lib/utils/post-restore-notice";
@@ -24,7 +26,8 @@ import { clearToken } from "@/lib/api/token-manager";
 
 export function useSettingsSync(
   isCloudLinked: boolean,
-  refetchStore: () => Promise<unknown>
+  refetchStore: () => Promise<unknown>,
+  hasFixedStore: boolean = false,
 ) {
   const [isCloudLinkOpen, setIsCloudLinkOpen] = useState(false);
   const [syncAfterLink, setSyncAfterLink] = useState(false);
@@ -36,6 +39,11 @@ export function useSettingsSync(
       return;
     }
 
+    if (isSyncing()) {
+      toast.info(SYNC_IN_PROGRESS_ERROR);
+      return;
+    }
+
     try {
       await syncSubscriptionStatus();
       await refetchStore();
@@ -43,7 +51,12 @@ export function useSettingsSync(
       // Non-fatal
     }
 
-    toast.promise(failUnlessSucceeded(sync(true)), {
+    if (isSyncing()) {
+      toast.info(SYNC_IN_PROGRESS_ERROR);
+      return;
+    }
+
+    toast.promise(failUnlessSucceeded(sync(true), hasFixedStore), {
       loading: "Synchronizing data with cloud...",
       success: (data) => {
         void refetchStore();
@@ -58,7 +71,12 @@ export function useSettingsSync(
   const handleForceFullResync = () => {
     if (!isCloudLinked) return;
 
-    toast.promise(failUnlessSucceeded(forceFullResync()), {
+    if (isSyncing()) {
+      toast.info(SYNC_IN_PROGRESS_ERROR);
+      return;
+    }
+
+    toast.promise(failUnlessSucceeded(forceFullResync(), hasFixedStore), {
       loading: "Re-downloading all data from the cloud...",
       success: (data) => {
         void refetchStore();

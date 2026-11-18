@@ -1,3 +1,16 @@
+### A-363 — Settings shows a refusal without its remedy, an in-progress sync reads as an error, repeated /user calls
+- **Fixed:** 2026-11-18, client only, TDD. Found by the second review of A-323's fix.
+- **Was:**
+  (1) Settings > Data's "Sync Now" showed raw `STORE_REFUSED_MESSAGE` alone without the actionable remedy text (`storeRefusalRemedy()`) shown in the header sync indicator.
+  (2) `failUnlessSucceeded()` rejected `SYNC_IN_PROGRESS_ERROR`, so pressing Sync while one was running showed an error toast instead of an informational notice.
+  (3) When the server user's `store_id` was outside the offered round, `adoptReassignedStore()` hit `/user` on every refused round (after every change in instant-sync mode) until the refusal ended.
+- **Now:**
+  (1) `failUnlessSucceeded(run, hasFixedStore)` now checks `result.refusal`, runs `storeRefusalRemedy(result.refusal, hasFixedStore)`, and appends the remedy message to the rejected Error while preserving `result.refusal`.
+  (2) `useSettingsSync` (`handleSync` and `handleForceFullResync`) now checks `isSyncing()`; if a sync is already running, it shows `toast.info(SYNC_IN_PROGRESS_ERROR)` without spinning an error toast, and passes `hasFixedStore` (from `Boolean(user?.store_id)`) to `failUnlessSucceeded`.
+  (3) `adoptReassignedStore()` memoizes the server `/user` profile lookup per refused store for the session, preventing repeated network calls on subsequent refused rounds for the same store.
+- **Coverage:** `client/__tests__/sync-fail-unless-succeeded.test.ts` (remedy appending and refusal payload attachment), `client/__tests__/settings-sync-refusal-and-in-progress.test.ts` (in-progress toast.info and hasFixedStore forwarding), `client/__tests__/store-refusal-adopts-reassigned-store.test.ts` (profile lookup memoization per refused store).
+- **Compat:** Pure client-side UI and sync engine optimization; no schema or server API changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

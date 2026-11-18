@@ -37,6 +37,12 @@ export function readStoreRefusal(response: PullResponse, runStoreId: string | nu
   };
 }
 
+const profileCacheByRefusedStore = new Map<string, { id?: string; store_id?: string | null }>();
+
+export function resetAdoptReassignedStoreCacheForTesting(): void {
+  profileCacheByRefusedStore.clear();
+}
+
 // Sign-in reads the local users row and a refused round never refreshes it, so the move is copied from /user.
 export async function adoptReassignedStore(refusal: StoreRefusal): Promise<AccessibleStore | null> {
   const userId = getCurrentUserId();
@@ -45,10 +51,18 @@ export async function adoptReassignedStore(refusal: StoreRefusal): Promise<Acces
   const [local] = await query<{ store_id: string | null }>("SELECT store_id FROM users WHERE id = ?", [userId]);
   if (local?.store_id !== refusal.storeId) return null;
 
-  const profile = (await apiClient.getProfile()) as { id?: string; store_id?: string | null };
+  let profile = profileCacheByRefusedStore.get(refusal.storeId);
+  if (!profile) {
+    profile = (await apiClient.getProfile()) as { id?: string; store_id?: string | null };
+    if (profile) {
+      profileCacheByRefusedStore.set(refusal.storeId, profile);
+    }
+  }
+
   const target = refusal.accessibleStores.find((store) => store.id === profile?.store_id);
   if (profile?.id !== userId || !target) return null;
 
+  profileCacheByRefusedStore.delete(refusal.storeId);
   await execute("UPDATE users SET store_id = ? WHERE id = ? AND store_id = ?", [target.id, userId, refusal.storeId]);
   return target;
 }

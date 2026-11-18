@@ -24,8 +24,17 @@ export async function applyChangedSellingPrices(
       [line.product_id],
     );
     if (product?.selling_price != null && Number(product.selling_price) === sellingPrice) continue;
-    await update("products", line.product_id, {
-      selling_price: Math.max(0, sellingPrice),
-    });
+    const previousPrice = product?.selling_price != null ? Number(product.selling_price) : undefined;
+    const newPrice = Math.max(0, sellingPrice);
+    await update(
+      "products",
+      line.product_id,
+      {
+        selling_price: newPrice,
+      },
+      previousPrice !== undefined && previousPrice !== newPrice
+        ? { auditDetails: { previous_price: previousPrice } }
+        : undefined,
+    );
   }
 }

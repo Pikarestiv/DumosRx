@@ -8035,11 +8035,12 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   matches both Product and Service.
 - **Recent Sales customer names** are shown through `capitalizeWords()` ("chidimma mgbeke" reads
   "Chidimma Mgbeke"); the stored name and the search keep the original text.
-- **Activity Log for services.** Create, edit and delete go through `insert()`/`update()`/`softDelete()`, so
+- **Activity Log for services & products.** Create, edit and delete go through `insert()`/`update()`/`softDelete()`, so
   each writes an `audit_logs` row; the log reads them as "Created a service" and so on (`describe-activity.ts`).
-  `updateServiceDetails()` adds `previous_price` to the UPDATE row when the price actually changed, so a price
-  change shows old and new (`service-inventory-tab.test.ts`). Product price edits still log only the new price
-  (`docs/KNOWN_BUGS.md`).
+  `updateServiceDetails()` and the product price edit paths (`saveProductToLocalDb`, `quickEditProductToLocalDb`,
+  `applyChangedSellingPrices`, `submitStockAudit`, `importProductsFromCsv`) add `previous_price` to the UPDATE
+  row when the price actually changed, so a price change shows old and new in the Activity Log (`service-inventory-tab.test.ts`,
+  `product-price-edit-audit-log.test.ts`).
 
 ## Mobile keyboard and touch targets (2026-11-17)
 

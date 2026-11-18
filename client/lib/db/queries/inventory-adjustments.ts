@@ -112,9 +112,20 @@ export async function submitStockAudit(
       }
 
       if (sellingDiff !== 0 && item.countedSellingPrice !== undefined) {
-        await update("products", item.productId, {
-          selling_price: item.countedSellingPrice,
-        });
+        const previousPrice =
+          item.systemSellingPrice !== undefined && item.systemSellingPrice !== null
+            ? Number(item.systemSellingPrice)
+            : undefined;
+        await update(
+          "products",
+          item.productId,
+          {
+            selling_price: item.countedSellingPrice,
+          },
+          previousPrice !== undefined && previousPrice !== item.countedSellingPrice
+            ? { auditDetails: { previous_price: previousPrice } }
+            : undefined,
+        );
       }
 
       if (diff === 0) continue;

@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { insert, update } from "@/lib/db/local-database";
+import { insert, update, query } from "@/lib/db/local-database";
 import { getCategoryByName } from "@/lib/db/queries/products";
 import type { NewProductPayload } from "@/lib/types/product";
 
@@ -41,7 +41,22 @@ export async function saveProductToLocalDb(payload: NewProductPayload) {
   if (isEditing) {
     const id = localPayload.id as string;
     delete localPayload.id;
-    await update("products", id, localPayload);
+    const price = localPayload.selling_price !== undefined ? Number(localPayload.selling_price) : undefined;
+    let previousPrice: number | undefined;
+    if (price !== undefined) {
+      const [existing] = await query<{ selling_price: number | null }>(
+        "SELECT selling_price FROM products WHERE id = ?",
+        [id],
+      );
+      if (existing?.selling_price != null) {
+        previousPrice = Number(existing.selling_price);
+      }
+    }
+    const auditDetails =
+      previousPrice !== undefined && previousPrice !== price
+        ? { previous_price: previousPrice }
+        : undefined;
+    await update("products", id, localPayload, auditDetails ? { auditDetails } : undefined);
   } else {
     await insert("products", localPayload);
   }

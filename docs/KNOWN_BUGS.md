@@ -448,12 +448,6 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
-#### A-393. `client/` — a product price edit is logged with the new price only
-- **Issue:** #367
-- **Found:** 2026-11-17, auditing service activity logging for the storefront booking work.
-- **What's wrong:** a product edit goes through `update()`, whose audit row holds the values written, so the Activity Log shows the new selling price but not the one it replaced. Services now record `previous_price` beside it (`updateServiceDetails()`); products do not.
-- **Fix:** read the current `selling_price` before the update in the product edit path and pass it as `auditDetails: { previous_price }`, as `updateServiceDetails()` does.
-
 #### A-394. `client/` — a till older than 2026-11-17 fulfils a storefront booking without its service lines
 - **Issue:** #368
 - **Found:** 2026-11-17, building storefront service bookings.

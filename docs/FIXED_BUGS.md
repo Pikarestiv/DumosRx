@@ -1,3 +1,16 @@
+### A-393 — product price edits logged with new price only, missing previous_price
+- **Fixed:** 2026-11-18, client only, TDD (Issue #367).
+- **Was:** When updating a product's `selling_price` (via `useSaveProductMutation`, `useQuickEditProductMutation`, `applyChangedSellingPrices`, `submitStockAudit`, or CSV import), the update went through `update("products", id, ...)`. The written audit row contained only the new payload values, so the Activity Log showed the new selling price without the previous price it replaced (unlike services, which recorded `previous_price` via `updateServiceDetails()`).
+- **Now:**
+  (1) `saveProductToLocalDb` (`use-save-product-mutation.ts`) queries the current `selling_price` when editing a product with `selling_price !== undefined` and passes `{ auditDetails: { previous_price } }` when changed.
+  (2) `quickEditProductToLocalDb` (`use-product-quick-edit-mutation.ts`) reads current `selling_price` on inline table edits and passes `previous_price` in `auditDetails` when changed.
+  (3) `applyChangedSellingPrices` (`procurement-selling-price.ts`) passes `previous_price` in `auditDetails` on PO receipt repricing.
+  (4) `submitStockAudit` (`inventory-adjustments.ts`) passes `previous_price` in `auditDetails` on cycle count price adjustments.
+  (5) `importProductsFromCsv` (`product-import.ts`) reads current `selling_price` for matched products and passes `previous_price` in `auditDetails` when updated.
+  (6) Updated `client/AGENTS.md` Activity Log section.
+- **Coverage:** `client/__tests__/product-price-edit-audit-log.test.ts` (verifies `previous_price` logging and omission when price is unchanged across `saveProductToLocalDb`, `applyChangedSellingPrices`, `quickEditProductToLocalDb`, and `submitStockAudit`).
+- **Compat:** Pure client-side audit logging enhancement; no schema or server API changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

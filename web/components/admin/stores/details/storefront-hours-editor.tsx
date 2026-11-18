@@ -17,7 +17,10 @@ const DAYS: { key: Weekday; label: string }[] = [
 export const DEFAULT_DAY_HOURS = { open: "08:00", close: "18:00" };
 
 export const hoursAreValid = (hours: OpeningHours): boolean =>
-  DAYS.every(({ key }) => !hours[key] || hours[key]!.open < hours[key]!.close);
+  DAYS.every(({ key }) => {
+    const day = hours[key];
+    return !day || day.open < day.close;
+  });
 
 interface StorefrontHoursEditorProps {
   hours: OpeningHours;

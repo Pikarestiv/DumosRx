@@ -119,7 +119,7 @@ async function syncBatchQuantityForMovement(
 export async function insert(
   table: string,
   data: Record<string, unknown>,
-  options?: { action?: string; storeId?: string; correlationId?: string },
+  options?: { action?: string; storeId?: string; correlationId?: string; skipAudit?: boolean },
 ): Promise<string> {
   assertWritable();
 
@@ -161,7 +161,7 @@ export async function insert(
     await addToSyncQueue(table, id, "INSERT", record);
     // "feedback" holds background crash/error telemetry (see error-logger.ts), not a user action; logging it here would surface every silent crash…
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L196
-    if (table !== "feedback") {
+    if (table !== "feedback" && !options?.skipAudit) {
       await logAction(options?.action || "INSERT", table, id, record, options?.storeId, options?.correlationId);
     }
 
@@ -189,7 +189,7 @@ export async function update(
   table: string,
   id: string,
   data: Record<string, unknown>,
-  options?: { action?: string; storeId?: string; correlationId?: string; auditDetails?: Record<string, unknown> },
+  options?: { action?: string; storeId?: string; correlationId?: string; auditDetails?: Record<string, unknown>; skipAudit?: boolean },
 ): Promise<void> {
   assertWritable();
 
@@ -233,7 +233,7 @@ export async function update(
     await addToSyncQueue(table, id, "UPDATE", record);
     // See insert()'s matching exclusion above - "feedback" is background crash/error telemetry, not a user action.
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L295
-    if (table !== "feedback") {
+    if (table !== "feedback" && !options?.skipAudit) {
       await logAction(options?.action || "UPDATE", table, id, { ...record, ...options?.auditDetails }, options?.storeId, options?.correlationId);
     }
   };
@@ -247,7 +247,7 @@ export async function update(
   queueTableInvalidation(table);
 }
 
-export async function softDelete(table: string, id: string, options?: { storeId?: string; correlationId?: string }): Promise<void> {
+export async function softDelete(table: string, id: string, options?: { storeId?: string; correlationId?: string; skipAudit?: boolean }): Promise<void> {
   assertWritable();
 
   const ownership = await assertStoreOwnership(table, id, options?.storeId);
@@ -287,7 +287,7 @@ export async function softDelete(table: string, id: string, options?: { storeId?
     await execute(updateQuery, params);
 
     await addToSyncQueue(table, id, "DELETE", deletePayload);
-    await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
+    if (!options?.skipAudit) await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
 
     if (voidedMovement) {
       await syncBatchQuantityForMovement(

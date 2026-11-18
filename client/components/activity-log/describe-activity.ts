@@ -53,6 +53,7 @@ const STANDALONE_ACTIONS: Record<string, string> = {
   LOGIN_FAILED: "Failed sign-in attempt",
   PIN_CHANGED: "Changed PIN",
   RECEIVE_PO: "Received goods for a purchase order",
+  PO_DRAFT_EDITED: "Edited a purchase order",
   SALE_RETURN: "Processed a return",
   STOCK_EXPIRED: "Marked stock as expired",
   STOCK_DAMAGED: "Marked stock as damaged",

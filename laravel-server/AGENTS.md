@@ -2280,9 +2280,10 @@ the parent the payload names: when it differs from the stored one and resolves
 to a store outside the session, the change is refused `forbidden`, which
 parks. A resent INSERT runs as an UPDATE and gets the same check; a super admin
 is exempt; restating the stored parent costs no lookup. Parent lookups include
-soft-deleted parents, because the pull serves a voided parent's line items. A
-new parent with no store (legacy `NULL`) or that does not exist is let through,
-as on INSERT: the row then belongs to no store's pull (A-362). Secondary
+soft-deleted parents, because the pull serves a voided parent's line items.
+When a parent has no store (legacy `NULL`), it is judged by its author (`isAuthorAllowed()`)
+on INSERT and UPDATE alike (A-362): if the author belongs to another tenant, the write is
+refused `forbidden`; unauthored legacy parents fail open. Secondary
 references (`sale_items.stock_batch_id`, `purchase_order_items.product_id` and
 the like) do not decide a row's store and are not checked.
 

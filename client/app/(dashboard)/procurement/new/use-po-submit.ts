@@ -44,12 +44,12 @@ export function usePoSubmit({
     createPurchaseOrderMutation.isPending ||
     createAndReceivePurchaseOrderMutation.isPending;
 
-  const canSubmit = () => {
+  const canSubmit = ({ requireQuantities = true } = {}) => {
     if (items.length === 0) {
       toast.error("Add at least one item to the order");
       return false;
     }
-    const missingQuantity = quantityMissingMessage(items, displayName);
+    const missingQuantity = requireQuantities ? quantityMissingMessage(items, displayName) : null;
     if (missingQuantity) {
       toast.error(missingQuantity);
       return false;
@@ -111,7 +111,7 @@ export function usePoSubmit({
   // Parks an Immediate Purchase as an ordinary draft instead of receiving stock.
   // Rationale: docs/CLIENT_COMMENTS.md#block-app-(dashboard)-procurement-new-use-po-submit-ts-L109
   const handleSaveDraft = () => {
-    if (!canSubmit()) return;
+    if (!canSubmit({ requireQuantities: false })) return;
 
     const priceOverrideCount = countSellingPriceOverrides(items, products);
     createPurchaseOrderMutation.mutate(

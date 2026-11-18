@@ -71,7 +71,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Manage supplier relationships, issue formal purchase orders ahead of delivery, or log Immediate Purchases when goods are paid and received on the spot.",
     steps: [
       "Navigate to Procurement and tap 'New Purchase Order'.",
-      "Select your supplier, expected delivery date, and add line items with agreed cost prices. Each product starts at 0 received, so enter the quantity for every row before you save.",
+      "Select your supplier, expected delivery date, and add line items with agreed cost prices. Each product starts at 0 received, so enter the quantity for every row before you place or receive the order. A draft can keep a row at 0 until you've counted it.",
       "For goods bought and paid on the spot, choose 'Immediate Purchase' to auto-receive inventory and mark payment status as fully paid.",
       "Open an order from the Procurement list to see its panel. A draft shows 'Edit' and 'Mark as Sent'; once it is sent, 'Receive Items' appears for when the delivery truck arrives, to update shelf stock and verify invoice quantities.",
     ],

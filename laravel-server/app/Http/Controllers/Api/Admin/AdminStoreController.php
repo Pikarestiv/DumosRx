@@ -387,25 +387,9 @@ class AdminStoreController extends AdminBaseController
         }
     }
 
-    #[OA\Put(
-        path: '/admin/stores/{id}/account-manager',
-        summary: "Reassign a store account's contact specialist / account manager",
-        description: 'Separate from registered_by_id (referral attribution) - see User::accountManager(). Pass account_manager_id: null to clear the explicit assignment and fall back to registered_by_id / the platform default.',
-        tags: ['Admin'],
-        security: [['sanctum' => []]],
-        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
-        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            properties: [new OA\Property(property: 'account_manager_id', type: 'string', format: 'uuid', nullable: true)],
-        )),
-        responses: [
-            new OA\Response(response: 200, description: 'Reassigned', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
-            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
-            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
-        ],
-    )]
     #[OA\Get(
         path: '/admin/account-managers',
-        summary: 'List platform staff eligible to be a contact specialist / account manager',
+        summary: 'List platform staff eligible to be an account manager',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         responses: [
@@ -420,6 +404,22 @@ class AdminStoreController extends AdminBaseController
         return response()->json(['data' => $this->adminStoreService->getAccountManagerCandidates()]);
     }
 
+    #[OA\Put(
+        path: '/admin/stores/{id}/account-manager',
+        summary: "Reassign a store account's account manager",
+        description: 'Separate from registered_by_id (referral attribution) - see User::accountManager(). Pass account_manager_id: null to clear the explicit assignment and fall back to registered_by_id / the platform default.',
+        tags: ['Admin'],
+        security: [['sanctum' => []]],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            properties: [new OA\Property(property: 'account_manager_id', type: 'string', format: 'uuid', nullable: true)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Reassigned', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 403, ref: '#/components/responses/Forbidden', description: 'Non-super_admin'),
+            new OA\Response(response: 422, ref: '#/components/responses/ValidationError'),
+        ],
+    )]
     public function updateAccountManager(Request $request, $id)
     {
         $validated = $request->validate([

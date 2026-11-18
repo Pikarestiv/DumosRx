@@ -63,7 +63,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: "Business",
     items: [
-      { value: "business-info", href: "/settings/business-info", icon: Building2, title: "Business Info", description: "Business details & contact specialist", adminOnly: true },
+      { value: "business-info", href: "/settings/business-info", icon: Building2, title: "Business Info", description: "Business details & account manager", adminOnly: true },
       { value: "branches", href: "/settings/branches", icon: Landmark, title: "Branches", description: "Manage every store location", adminOnly: true },
       { value: "staff", href: "/settings/staff", icon: Users, title: "Staff", description: "Manage store personnel", adminOnly: true },
       { value: "roles", href: "/settings/roles", icon: KeyRound, title: "Roles & Permissions", description: "Custom staff permissions", adminOnly: true },

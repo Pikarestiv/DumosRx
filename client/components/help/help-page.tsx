@@ -182,9 +182,9 @@ export function HelpPage() {
               <Button
                 variant="link"
                 className="p-0 h-auto text-primary text-xs font-semibold gap-1 hover:underline cursor-pointer"
-                onClick={() => router.push("/settings/business-info#contact-specialist")}
+                onClick={() => router.push("/settings/business-info#account-manager")}
               >
-                <span>View your Contact Specialist in Business Info</span>
+                <span>View your Account Manager in Business Info</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </div>

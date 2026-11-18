@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Mail;
 
 class BroadcastEmailService
 {
-    private const PLACEHOLDER_EMAIL_DOMAIN = '@local.dumosrx.com';
+    public const PLACEHOLDER_EMAIL_DOMAIN = '@local.dumosrx.com';
 
     private const CHUNK_SIZE = 100;
 

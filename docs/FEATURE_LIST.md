@@ -143,6 +143,6 @@ tracks current behavior.
 - My Referrals: every platform user's own personal referral code/link and who signed up through it
 - Activity Log: a platform-wide audit trail across every store and staff account, searchable and filterable by action type
 - System: live server health metrics, a live Sentry error feed, and the default contact-specialist/account-manager fallback
-- Communications: **In-App Broadcasts** (create/toggle/delete banners shown in the store-facing app), **Email Campaigns** (send to all users or a specific set), and **User Feedback** (review and resolve/dismiss submitted crash reports and support tickets)
+- Communications: **In-App Broadcasts** (create/toggle/delete banners shown in the store-facing app), **Email Campaigns** (pick an audience: everyone with a deliverable email, store owners, store staff, platform admins and agents, or specific users; optionally send the body as sanitised HTML), and **User Feedback** (review and resolve/dismiss submitted crash reports and support tickets)
 - Downloads: desktop (Windows/macOS/Linux) and Android release links, sourced live from the production CDN with per-platform existence/size checks
 - Platform Settings: System Health, Billing & Plans (subscription tier limits/features), Dynamic Suggestions, Email Templates, Integrations (e.g. the Smartsupp chat widget), and Security (e.g. require email verification) — each tab saved independently

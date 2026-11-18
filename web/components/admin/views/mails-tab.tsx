@@ -13,28 +13,43 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Mail, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
 import { UserSelector } from "@/components/admin/user-selector";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useAdminUsers } from "@/lib/api/admin-hooks";
 import { useAdminAuthStore, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 import type { AdminUser } from "@/lib/types/admin";
+
+const AUDIENCES = [
+  { value: "all", label: "Everyone with an email", noun: "every user with a deliverable email" },
+  { value: "store_owners", label: "Store owners only", noun: "every store owner" },
+  { value: "staff", label: "Store staff only", noun: "every staff member with a real email" },
+  { value: "platform_admins", label: "Platform admins and agents", noun: "the platform team" },
+  { value: "specific", label: "Specific users", noun: "the selected users" },
+] as const;
+
+type Audience = (typeof AUDIENCES)[number]["value"];
 
 export function MailsTab() {
   const { user } = useAdminAuthStore();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [targetType, setTargetType] = useState<"all" | "specific">("all");
+  const [isHtml, setIsHtml] = useState(false);
+  const [targetType, setTargetType] = useState<Audience>("all");
   const [selectedUsers, setSelectedUsers] = useState<AdminUser[]>([]);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  // Only needed for the "All Users" recipient count shown in the confirmation
-  // below — page 1 with no search, read purely for its `meta.total`.
-  const { data: allUsers } = useAdminUsers(1, "");
-  const allUsersCount = allUsers?.meta?.total;
+  const audience = AUDIENCES.find((a) => a.value === targetType) ?? AUDIENCES[0];
 
   const sendMailMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -61,9 +76,7 @@ export function MailsTab() {
       return;
     }
 
-    // Emailing the entire platform is a one-way action: confirm it, with the
-    // real recipient count, before anything is dispatched.
-    if (targetType === "all") {
+    if (targetType !== "specific") {
       setIsConfirmOpen(true);
       return;
     }
@@ -76,14 +89,11 @@ export function MailsTab() {
       subject,
       message,
       target_type: targetType,
+      is_html: isHtml,
       user_ids: selectedUsers.map((u) => u.id),
     });
   };
 
-  // A-135: this tab's only protection used to be its parent page's tab-level
-  // wrapper, deciding whether to render it at all — a future refactor, deep
-  // link, or default-tab change could re-expose it with no client-side
-  // warning. Carry the same check here so it never depends on the caller.
   if (!checkIsSuperAdmin(user?.role)) return null;
 
   return (
@@ -100,20 +110,35 @@ export function MailsTab() {
       </CardHeader>
       <form onSubmit={handleSendMail}>
         <CardContent className="space-y-6">
-          <UserSelector
-            selectedUsers={selectedUsers}
-            onUsersChange={setSelectedUsers}
-            targetType={targetType}
-            onTargetTypeChange={setTargetType}
-          />
+          <div className="space-y-2">
+            <Label>Target Audience</Label>
+            <Select value={targetType} onValueChange={(v) => setTargetType(v as Audience)}>
+              <SelectTrigger className="w-full sm:w-72">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AUDIENCES.map((a) => (
+                  <SelectItem key={a.value} value={a.value}>
+                    {a.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          {targetType === "all" && (
+          {targetType === "specific" && (
+            <UserSelector
+              selectedUsers={selectedUsers}
+              onUsersChange={setSelectedUsers}
+              targetType="specific"
+              onTargetTypeChange={() => undefined}
+              hideTargetToggle
+            />
+          )}
+
+          {targetType !== "specific" && (
             <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              This will email{" "}
-              {allUsersCount === undefined
-                ? "every user on the platform"
-                : `all ${allUsersCount} user${allUsersCount === 1 ? "" : "s"} on the platform`}
-              . You&apos;ll be asked to confirm before it sends.
+              This will email {audience.noun}. You&apos;ll be asked to confirm before it sends.
             </p>
           )}
 
@@ -129,11 +154,19 @@ export function MailsTab() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="message">Message Body</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="message">Message Body</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="is-html" className="text-sm font-normal">
+                    Send as HTML
+                  </Label>
+                  <Switch id="is-html" checked={isHtml} onCheckedChange={setIsHtml} />
+                </div>
+              </div>
               <Textarea
                 id="message"
-                placeholder="Write your email content here..."
-                className="min-h-[200px]"
+                placeholder={isHtml ? "<p>Write your HTML here...</p>" : "Write your email content here..."}
+                className={`min-h-[200px] ${isHtml ? "font-mono text-xs" : ""}`}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 required
@@ -160,13 +193,9 @@ export function MailsTab() {
       <ConfirmDialog
         open={isConfirmOpen}
         onOpenChange={setIsConfirmOpen}
-        title="Email every user?"
-        description={
-          allUsersCount === undefined
-            ? `This sends "${subject}" to every user on the platform. This cannot be undone.`
-            : `This sends "${subject}" to all ${allUsersCount} user${allUsersCount === 1 ? "" : "s"} on the platform. This cannot be undone.`
-        }
-        confirmLabel="Send to everyone"
+        title={`Email ${audience.label.toLowerCase()}?`}
+        description={`This sends "${subject}" to ${audience.noun}. This cannot be undone.`}
+        confirmLabel="Send now"
         onConfirm={dispatchMail}
       />
     </Card>

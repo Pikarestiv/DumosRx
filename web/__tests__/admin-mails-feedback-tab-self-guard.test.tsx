@@ -22,6 +22,8 @@ vi.mock("@/lib/api/admin-hooks", () => ({
   useUpdateFeedbackStatusMutation: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
+vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+
 const renderWithQuery = (ui: React.ReactElement) => {
   const queryClient = new QueryClient();
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);

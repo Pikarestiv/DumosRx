@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Support;
+
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
+
+class EmailHtmlSanitizer
+{
+    private const REMOVED_TAGS = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'meta', 'link', 'base', 'noscript'];
+
+    private const URL_ATTRIBUTES = ['href', 'src', 'action', 'formaction', 'xlink:href'];
+
+    public static function clean(string $html): string
+    {
+        $document = new DOMDocument;
+        libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="utf-8"?><div id="sanitize-root">'.$html.'</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+
+        $xpath = new DOMXPath($document);
+
+        foreach (self::REMOVED_TAGS as $tag) {
+            foreach (iterator_to_array($xpath->query("//{$tag}")) as $node) {
+                $node->parentNode->removeChild($node);
+            }
+        }
+
+        foreach ($xpath->query('//*') as $element) {
+            self::cleanAttributes($element);
+        }
+
+        $root = $document->getElementById('sanitize-root');
+        $output = '';
+        foreach ($root->childNodes as $child) {
+            $output .= $document->saveHTML($child);
+        }
+
+        return $output;
+    }
+
+    private static function cleanAttributes(DOMElement $element): void
+    {
+        foreach (iterator_to_array($element->attributes) as $attribute) {
+            $name = strtolower($attribute->name);
+            $value = preg_replace('/[\s\x00-\x1f]+/', '', strtolower($attribute->value));
+
+            $isHandler = str_starts_with($name, 'on');
+            $isUnsafeUrl = in_array($name, self::URL_ATTRIBUTES, true) && preg_match('/^(javascript|vbscript|data):/', $value);
+
+            if ($isHandler || $isUnsafeUrl) {
+                $element->removeAttribute($attribute->name);
+            }
+        }
+    }
+}

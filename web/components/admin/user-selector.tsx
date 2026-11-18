@@ -25,6 +25,7 @@ interface UserSelectorProps {
   onUsersChange: (users: AdminUser[]) => void;
   targetType: "all" | "specific";
   onTargetTypeChange: (type: "all" | "specific") => void;
+  hideTargetToggle?: boolean;
 }
 
 export function UserSelector({
@@ -32,6 +33,7 @@ export function UserSelector({
   onUsersChange,
   targetType,
   onTargetTypeChange,
+  hideTargetToggle = false,
 }: UserSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -60,7 +62,7 @@ export function UserSelector({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+      {!hideTargetToggle && <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
           Target Audience:
         </label>
@@ -82,7 +84,7 @@ export function UserSelector({
             Specific Users
           </Button>
         </div>
-      </div>
+      </div>}
 
       {targetType === "specific" && (
         <div className="space-y-3">

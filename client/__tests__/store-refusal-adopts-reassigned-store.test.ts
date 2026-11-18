@@ -9,15 +9,18 @@ vi.mock("idb-keyval", () => ({
 const getProfile = vi.fn();
 vi.mock("@/lib/api/client", () => ({ apiClient: { getProfile: () => getProfile() } }));
 
-describe("adoptReassignedStore (A-323)", () => {
+describe("adoptReassignedStore (A-323 & A-363)", () => {
   let db: Database;
   let core: typeof import("@/lib/db/core");
   let adoptReassignedStore: typeof import("@/lib/db/sync-engine/store-refusal").adoptReassignedStore;
+  let resetAdoptReassignedStoreCacheForTesting: typeof import("@/lib/db/sync-engine/store-refusal").resetAdoptReassignedStoreCacheForTesting;
   const refusal = { storeId: "store-b", accessibleStores: [{ id: "store-c", name: "Store C" }] };
 
   beforeAll(async () => {
     core = await import("@/lib/db/core");
-    ({ adoptReassignedStore } = await import("@/lib/db/sync-engine/store-refusal"));
+    const mod = await import("@/lib/db/sync-engine/store-refusal");
+    adoptReassignedStore = mod.adoptReassignedStore;
+    resetAdoptReassignedStoreCacheForTesting = mod.resetAdoptReassignedStoreCacheForTesting;
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
     const SQL = await initSqlJs({ locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm") });
     db = new SQL.Database();
@@ -30,6 +33,7 @@ describe("adoptReassignedStore (A-323)", () => {
     db.run(`INSERT INTO users (id, username, first_name, store_id, role) VALUES ('ada', 'ada', 'Ada', 'store-b', 'cashier')`);
     core.setCurrentUser({ id: "ada" } as Parameters<typeof core.setCurrentUser>[0]);
     getProfile.mockReset();
+    resetAdoptReassignedStoreCacheForTesting?.();
   });
 
   const localStore = () => db.exec(`SELECT store_id FROM users WHERE id = 'ada'`)[0].values[0][0];
@@ -63,5 +67,38 @@ describe("adoptReassignedStore (A-323)", () => {
 
     await expect(adoptReassignedStore(refusal)).resolves.toBeNull();
     expect(getProfile).not.toHaveBeenCalled();
+  });
+
+  it("memoizes the server profile lookup per refused store for the session when user is not reassigned (A-363)", async () => {
+    getProfile.mockResolvedValue({ id: "ada", store_id: null });
+
+    await expect(adoptReassignedStore(refusal)).resolves.toBeNull();
+    expect(getProfile).toHaveBeenCalledTimes(1);
+
+    await expect(adoptReassignedStore(refusal)).resolves.toBeNull();
+    expect(getProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("memoizes when the server returned a store outside the accessible stores (A-363)", async () => {
+    getProfile.mockResolvedValue({ id: "ada", store_id: "store-z" });
+
+    await expect(adoptReassignedStore(refusal)).resolves.toBeNull();
+    expect(getProfile).toHaveBeenCalledTimes(1);
+
+    await expect(adoptReassignedStore(refusal)).resolves.toBeNull();
+    expect(getProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("queries again for a different refused store (A-363)", async () => {
+    getProfile.mockResolvedValue({ id: "ada", store_id: null });
+
+    await expect(adoptReassignedStore(refusal)).resolves.toBeNull();
+    expect(getProfile).toHaveBeenCalledTimes(1);
+
+    const otherRefusal = { storeId: "store-other", accessibleStores: [] };
+    db.run(`UPDATE users SET store_id = 'store-other' WHERE id = 'ada'`);
+
+    await expect(adoptReassignedStore(otherRefusal)).resolves.toBeNull();
+    expect(getProfile).toHaveBeenCalledTimes(2);
   });
 });

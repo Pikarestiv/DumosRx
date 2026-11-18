@@ -1818,20 +1818,23 @@ in `pull-round-end.ts`.
   then returns `success: false` with `STORE_REFUSED_MESSAGE` and the refusal,
   does not set the last-sync time, and the recorded outcome's reason is
   `store_refused`. Settings > Data's Sync and Force full resync wrap their
-  `toast.promise` in `failUnlessSucceeded()`, because `sync()` resolves on
-  failure and sonner would otherwise show "Sync complete".
+  `toast.promise` in `failUnlessSucceeded(run, hasFixedStore)` (which appends
+  `storeRefusalRemedy()` when a store is refused, and guards with
+  `toast.info(SYNC_IN_PROGRESS_ERROR)` if a sync is already in flight), because
+  `sync()` resolves on failure and sonner would otherwise show "Sync complete".
 - **A fixed-store staff till is moved by sign-in, so the move has to reach the
   local `users` row first.** Sign-in (`performLogin()`) builds the user from
   the local row, and a refused round never serves `users` (serving the
   caller's own row would stamp a partial `users` window under the refused
   store's key, the A-254 trap). So on a refusal `adoptReassignedStore()` asks
-  `/user`; if it is the signed-in user, their local row still names the
-  refused store, and the server now has them at a store this round offered,
-  it rewrites the local `store_id` with a raw `execute`, never queued (the
-  server, not the device, decides a user's store). The result carries it
-  as `refusal.reassignedStore`. `/user` answers for the token's account,
-  which on a device linked by the owner is not the staff member, so then
-  nothing changes.
+  `/user` (memoized per refused store for the session to prevent repeated
+  lookups when not reassigned); if it is the signed-in user, their local row
+  still names the refused store, and the server now has them at a store this
+  round offered, it rewrites the local `store_id` with a raw `execute`, never
+  queued (the server, not the device, decides a user's store). The result
+  carries it as `refusal.reassignedStore`. `/user` answers for the token's
+  account, which on a device linked by the owner is not the staff member, so
+  then nothing changes.
 - **The remedy** (`storeRefusalRemedy()`), toasted once per refused store
   across every mounted indicator (module scope in
   `useStoreRefusalAnnouncer()`), or on every manual sync:

@@ -55,7 +55,7 @@ export function useSettings() {
   }, [router]);
 
   const securityState = useSettingsSecurity(changePin);
-  const syncState = useSettingsSync(isCloudLinked, refetchStore);
+  const syncState = useSettingsSync(isCloudLinked, refetchStore, Boolean(user?.store_id));
   const formState = useSettingsForm(storeProfile, minimumSyncIntervalMinutes);
 
   const {

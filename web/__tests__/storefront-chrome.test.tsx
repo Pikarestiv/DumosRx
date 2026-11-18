@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { StoreContactBlock } from "@/components/storefront/store-contact-block";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
+import { StoreInfoPanel } from "@/components/storefront/store-info-panel";
 import { WEB_APP_URL } from "@/lib/constants";
 
 const store = { id: "s1", name: "Grace Pharmacy", address: "12 Allen Avenue", location: "Ikeja", phone: "0801", email: null };
@@ -44,5 +45,21 @@ describe("storefront chrome", () => {
 
     const hrefs = screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
     expect(hrefs.some((href) => href.includes("/track") || href.includes("/prescription"))).toBe(false);
+  });
+
+  it("shows each distinct opening time once, on its own line", () => {
+    const late = { open: "09:00", close: "19:00" };
+    render(
+      <StoreInfoPanel
+        store={store}
+        storefront={{
+          id: "f1", slug: "grace", name: "Grace Pharmacy",
+          opening_hours: { mon: late, tue: late, wed: late, thu: { open: "09:00", close: "18:00" }, fri: late, sat: late },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Mon – Wed, Fri – Sat · 9:00 am – 7:00 pm")).toBeTruthy();
+    expect(screen.getByText("Thu · 9:00 am – 6:00 pm")).toBeTruthy();
   });
 });

@@ -216,7 +216,10 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     has digits; panel rows with no value are omitted. The About, Locations, FAQ
     and Contact sections, the headline band and the pill label are gone from
     the home page; `/about`, `/locations` and `/faq` still render those
-    section components for old links.
+    section components for old links. Opening hours are grouped by identical
+    time, not by neighbouring day (`summarizeHoursLines`): "Mon – Wed, Fri – Sat
+    · 9:00 am – 7:00 pm" then "Thu · 9:00 am – 6:00 pm". The info panel puts
+    each group on its own line; the hero and footer join them with "; ".
   - **Product card** (`product-card.tsx`): a 4:3 `CategoryTile` (tint hashed
     from the category name over the accent, line icon by keyword in
     `lib/storefront-categories.ts`, neutral box when nothing matches; renders

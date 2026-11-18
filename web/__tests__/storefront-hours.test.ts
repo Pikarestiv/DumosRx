@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeOpenStatus, formatClock, openStatus, summarizeHours, type OpeningHours } from "@/lib/storefront-hours";
+import { describeOpenStatus, formatClock, openStatus, summarizeHours, summarizeHoursLines, type OpeningHours } from "@/lib/storefront-hours";
 
 const WEEKDAY_HOURS = { open: "08:00", close: "18:00" };
 const monToSat: OpeningHours = {
@@ -74,15 +74,27 @@ describe("storefront hours formatting", () => {
     expect(summarizeHours(shortSaturday)).toBe("Mon – Fri · 8:00 am – 6:00 pm; Sat · 9:00 am – 1:00 pm");
   });
 
-  it("does not join identical days that are not neighbours", () => {
+  it("states identical hours once, even for days that are not neighbours", () => {
     const gap: OpeningHours = { mon: WEEKDAY_HOURS, wed: WEEKDAY_HOURS };
 
-    expect(summarizeHours(gap)).toBe("Mon · 8:00 am – 6:00 pm; Wed · 8:00 am – 6:00 pm");
+    expect(summarizeHours(gap)).toBe("Mon, Wed · 8:00 am – 6:00 pm");
+  });
+
+  it("lists each distinct time once, with every day that keeps it", () => {
+    const early = { open: "09:00", close: "18:00" };
+    const late = { open: "09:00", close: "19:00" };
+    const shortThursday: OpeningHours = { mon: late, tue: late, wed: late, thu: early, fri: late, sat: late };
+
+    expect(summarizeHoursLines(shortThursday)).toEqual([
+      "Mon – Wed, Fri – Sat · 9:00 am – 7:00 pm",
+      "Thu · 9:00 am – 6:00 pm",
+    ]);
   });
 
   it("returns nothing when there are no usable hours", () => {
     expect(summarizeHours(null)).toBeNull();
     expect(summarizeHours({ mon: null })).toBeNull();
+    expect(summarizeHoursLines({ mon: null })).toEqual([]);
   });
 });
 

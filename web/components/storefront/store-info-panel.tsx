@@ -2,7 +2,7 @@
 
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { storeAddressLine } from "@/lib/storefront-display";
-import { summarizeHours } from "@/lib/storefront-hours";
+import { summarizeHoursLines } from "@/lib/storefront-hours";
 import type { StorefrontProfile, StorefrontStore } from "@/lib/api/storefront-data";
 
 interface StoreInfoPanelProps {
@@ -14,12 +14,14 @@ export function StoreInfoPanel({ store, storefront }: StoreInfoPanelProps) {
   const { t, locale } = useStorefrontI18n();
   const pickup = storefront?.pickup_minutes;
   const rows = [
-    { label: t("info.address"), value: storeAddressLine(store) },
-    { label: t("info.hours"), value: summarizeHours(storefront?.opening_hours, locale) },
-    { label: t("info.phone"), value: store.phone?.trim() || null },
-    { label: t("info.payment"), value: store.online_payment_available ? t("info.payment.online") : t("info.payment.pickup") },
-    { label: t("info.pickup"), value: pickup ? t("info.pickup.value", { minutes: pickup }) : null },
-  ].filter((row): row is { label: string; value: string } => Boolean(row.value));
+    { label: t("info.address"), lines: [storeAddressLine(store)] },
+    { label: t("info.hours"), lines: summarizeHoursLines(storefront?.opening_hours, locale) },
+    { label: t("info.phone"), lines: [store.phone?.trim()] },
+    { label: t("info.payment"), lines: [store.online_payment_available ? t("info.payment.online") : t("info.payment.pickup")] },
+    { label: t("info.pickup"), lines: [pickup ? t("info.pickup.value", { minutes: pickup }) : null] },
+  ]
+    .map((row) => ({ label: row.label, lines: row.lines.filter((line): line is string => Boolean(line)) }))
+    .filter((row) => row.lines.length > 0);
 
   if (rows.length === 0) return null;
 
@@ -33,7 +35,11 @@ export function StoreInfoPanel({ store, storefront }: StoreInfoPanelProps) {
         {rows.map((row) => (
           <div key={row.label} className="flex justify-between gap-6 border-t border-current/15 py-3 text-sm">
             <dt className="opacity-70">{row.label}</dt>
-            <dd className="text-right">{row.value}</dd>
+            <dd className="text-right">
+              {row.lines.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+            </dd>
           </div>
         ))}
       </dl>

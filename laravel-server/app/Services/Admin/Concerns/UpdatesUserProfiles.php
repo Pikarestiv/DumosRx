@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
  */
 trait UpdatesUserProfiles
 {
-    public const PLATFORM_ROLES = ['super_admin', 'platform_admin', 'agent'];
+    public const PLATFORM_ROLES = User::PLATFORM_ROLES;
 
     public const EDITABLE_PROFILE_FIELDS = ['first_name', 'last_name', 'phone', 'email', 'role'];
 

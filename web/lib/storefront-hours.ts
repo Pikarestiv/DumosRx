@@ -100,28 +100,34 @@ export function describeOpenStatus(status: OpenStatus, locale: StorefrontLocale 
   return translate(locale, "status.closed.day", { day: dayLabel(status.opensOn, locale), time });
 }
 
-export function summarizeHours(hours: OpeningHours | null | undefined, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string | null {
-  if (!hours) return null;
-  const groups: { days: Weekday[]; range: string }[] = [];
+const spanLabel = (days: Weekday[], locale: StorefrontLocale): string =>
+  days.length === 1 ? dayLabel(days[0], locale) : `${dayLabel(days[0], locale)} – ${dayLabel(days[days.length - 1], locale)}`;
+
+function dayRuns(days: Weekday[]): Weekday[][] {
+  const runs: Weekday[][] = [];
+  for (const day of days) {
+    const last = runs[runs.length - 1];
+    if (last && MONDAY_FIRST.indexOf(last[last.length - 1]) === MONDAY_FIRST.indexOf(day) - 1) last.push(day);
+    else runs.push([day]);
+  }
+  return runs;
+}
+
+export function summarizeHoursLines(hours: OpeningHours | null | undefined, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string[] {
+  if (!hours) return [];
+  const byRange = new Map<string, Weekday[]>();
 
   for (const day of MONDAY_FIRST) {
     const dayHours = hours[day];
     if (!validDay(dayHours)) continue;
     const range = `${formatClock(dayHours.open, locale)} – ${formatClock(dayHours.close, locale)}`;
-    const last = groups[groups.length - 1];
-    const previous = MONDAY_FIRST[MONDAY_FIRST.indexOf(day) - 1];
-    if (last && last.range === range && last.days[last.days.length - 1] === previous) {
-      last.days.push(day);
-    } else {
-      groups.push({ days: [day], range });
-    }
+    byRange.set(range, [...(byRange.get(range) ?? []), day]);
   }
 
-  if (groups.length === 0) return null;
-  return groups
-    .map(({ days, range }) => {
-      const span = days.length === 1 ? dayLabel(days[0], locale) : `${dayLabel(days[0], locale)} – ${dayLabel(days[days.length - 1], locale)}`;
-      return `${span} · ${range}`;
-    })
-    .join("; ");
+  return [...byRange].map(([range, days]) => `${dayRuns(days).map((run) => spanLabel(run, locale)).join(", ")} · ${range}`);
+}
+
+export function summarizeHours(hours: OpeningHours | null | undefined, locale: StorefrontLocale = DEFAULT_STOREFRONT_LOCALE): string | null {
+  const lines = summarizeHoursLines(hours, locale);
+  return lines.length > 0 ? lines.join("; ") : null;
 }

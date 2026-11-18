@@ -99,7 +99,7 @@ class AdminUserService
         }
 
         $target = User::findOrFail($targetUserId);
-        if (! in_array($target->role, ['super_admin', 'platform_admin', 'agent'])) {
+        if (! in_array($target->role, self::PLATFORM_ROLES)) {
             throw new \Exception('Referral codes are only for platform-level accounts.');
         }
 

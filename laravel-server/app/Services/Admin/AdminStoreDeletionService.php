@@ -19,9 +19,6 @@ class AdminStoreDeletionService
         'payment_transactions' => 'user_id',
     ];
 
-    /** Roles whose accounts run the platform rather than a shop. */
-    private const PLATFORM_ROLES = ['super_admin', 'platform_admin', 'agent'];
-
     public function __construct(
         private ForeignKeyCascadeEmulator $cascades,
         private PurgedUserRowSweeper $userRows,
@@ -230,7 +227,7 @@ class AdminStoreDeletionService
             );
         }
 
-        if (in_array($owner->role, self::PLATFORM_ROLES, true)) {
+        if (in_array($owner->role, User::PLATFORM_ROLES, true)) {
             throw new StoreActionBlockedException(
                 "This store is owned by a platform account ({$owner->role}). Reassign the store to a shop owner before deleting it."
             );

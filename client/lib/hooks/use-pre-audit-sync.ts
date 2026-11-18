@@ -75,7 +75,7 @@ export async function pullBeforeCount(isCancelled: () => boolean = () => false):
   return outcome("failed", result.error ?? "Sync failed");
 }
 
-function withDeadline(pull: Promise<PreAuditOutcome | null>): Promise<PreAuditOutcome | null> {
+export function withDeadline(pull: Promise<PreAuditOutcome | null>): Promise<PreAuditOutcome | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expiry = new Promise<PreAuditOutcome>((resolve) => {
     timer = setTimeout(() => resolve(outcome("failed", DEADLINE_ERROR)), PRE_COUNT_PULL_DEADLINE_MS);

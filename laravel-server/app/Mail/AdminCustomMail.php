@@ -17,13 +17,16 @@ class AdminCustomMail extends Mailable implements ShouldQueue
 
     public $messageBody;
 
+    public bool $isHtml;
+
     /**
      * Create a new message instance.
      */
-    public function __construct($subjectLine, $messageBody)
+    public function __construct($subjectLine, $messageBody, bool $isHtml = false)
     {
         $this->subjectLine = $subjectLine;
         $this->messageBody = $messageBody;
+        $this->isHtml = $isHtml;
     }
 
     /**
@@ -45,6 +48,7 @@ class AdminCustomMail extends Mailable implements ShouldQueue
             view: 'emails.admin_custom_mail',
             with: [
                 'messageBody' => $this->messageBody,
+                'isHtml' => $this->isHtml,
             ]
         );
     }

@@ -30,6 +30,12 @@ Rough map of `app/`:
 Tech stack: Next.js 16 App Router, React 19, TypeScript, Tailwind, Zustand
 (`lib/store/`), TanStack Query, axios (`lib/api/`), react-hook-form + zod.
 
+## Store-owner registration & referral attribution (A-372)
+
+`web/components/auth/hooks/use-register-form.ts` handles account creation for store owners:
+- **Referral forwarding**: Reads query parameters `agent_ref` (for platform staff / agent attribution) and `ref` / `referrer` (for customer-to-customer referral attribution) from URL search parameters, forwarding them in the registration payload to `webApiClient.register()`. Backend `RegistersAccounts::register()` resolves `ref`/`referrer` to attribute `referred_by_id`.
+- **Token handling**: The returned bearer token is not stored in `localStorage` on this public origin; successful sign-ups redirect immediately to `getAppURL()` (`app.dumosrx.com`).
+
 ## Admin auth architecture (redesigned 2026-08-26 — read before touching auth)
 
 **Do not put the admin access token back in `localStorage`.** This was

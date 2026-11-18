@@ -1,3 +1,13 @@
+### A-372 — a store owner's customer-referral link never credited the referrer
+- **Fixed:** 2026-11-18, client and web, TDD. Found 2026-08-15 building agent role, noted in roadmap, re-checked 2026-11-13.
+- **Was:** In `client/components/settings/billing/referral-tab.tsx`, the referral share link was generated as `${window.location.origin}/register?ref=${stats.referral_code}`. In the client environment (Tauri desktop / `app.dumosrx.com`), there is no `/register` route (and in Tauri this pointed to `tauri://localhost/register`). Furthermore, `web/components/auth/hooks/use-register-form.ts` only forwarded `agent_ref` to `webApiClient.register()`, completely omitting `ref` and `referrer` URL search parameters, so customer registrations through referral links never set `referred_by_id` on the backend.
+- **Now:**
+  (1) `client/components/settings/billing/referral-tab.tsx` imports `WEB_APP_URL` from `@/lib/constants` and constructs `${WEB_APP_URL}/register?ref=${stats.referral_code}`, directing invitees to the public web registration form.
+  (2) `web/components/auth/hooks/use-register-form.ts` extracts `ref` (falling back to `referrer`) from query parameters and forwards `ref` in the registration payload alongside `agent_ref`.
+  (3) Documented the referral parameters in `web/AGENTS.md` and `client/AGENTS.md`.
+- **Coverage:** `web/__tests__/customer-referral-registration.test.ts` (verifies `ref`, `referrer`, and combined `agent_ref` + `ref` forwarding) and `client/__tests__/customer-referral-link.test.tsx` (verifies URL construction using `WEB_APP_URL` and clipboard copy).
+- **Compat:** Completely backward-compatible additive payload forwarding; backend `RegistersAccounts::register()` already supports `ref`.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

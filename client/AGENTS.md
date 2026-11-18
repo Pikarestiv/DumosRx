@@ -4693,6 +4693,10 @@ behaviour without it, so no caller had to change at once.
   always said, but it *is* a visible change for an existing store on upgrade,
   and it is the only tab a manager outright loses. One tick restores it, and
   that tick previously did nothing.
+- **Customer referral link target (A-372):** `ReferralTab` (`components/settings/billing/referral-tab.tsx`)
+  constructs referral URLs using `WEB_APP_URL` (`${WEB_APP_URL}/register?ref=${stats.referral_code}`),
+  directing invitees to the public marketing site registration form instead of `window.location.origin`
+  (which in the client app points to `app.dumosrx.com` or `tauri://localhost`, neither of which hosts `/register`).
 - **Storefront look and details (owner controls, 2026-11-14).** The Online
   Storefront card also embeds `StorefrontAppearance`
   (`components/settings/store/storefront-appearance.tsx`), shown once the store

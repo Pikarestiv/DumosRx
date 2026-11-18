@@ -460,11 +460,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `GET /app/online-orders` keeps booked services out of `items` (in `service_items`) so an older till never meets a line without a product. That till's fulfil path still writes the sale at the order's full `total_amount`, so the sale carries the service revenue with no `sale_services` line to explain it.
 - **Fix / retire:** update the till; no server change is planned. Goes away once no active `user_devices` row reports an `app_version` older than the release carrying this change.
 
-#### A-372. `client/` + `web/` — a store owner's customer-referral link never credits the referrer
-- **Found:** 2026-08-15 while building the agent role (noted only in the roadmap until 2026-11-13); re-checked in code 2026-11-13.
-- **What's wrong:** `referral-tab.tsx` builds `${window.location.origin}/register?ref=<code>`, i.e. on the POS app's own origin, which has no `/register` route. And `web/`'s register form (`use-register-form.ts`) forwards only `agent_ref`, never `ref`, although `RegistersAccounts::register()` accepts `ref` and sets `referred_by_id` from it. So a sign-up through the link is never attributed.
-- **Fix:** point the link at the `web/` register page via a constant (§4, no hardcoded URL) and forward `ref` from `use-register-form.ts` beside `agent_ref`.
-
 #### A-361. `client/` + `laravel-server/` — `schema-migrations.ts` and `SyncController.php` are far over the 350-line rule
 - **Found:** 2026-11-13, review of `feat/service-pos`; pre-existing (main already had 857 and ~840 lines), the services work added a little to each.
 - **What's wrong:** `client/lib/db/schema-migrations.ts` is 925 lines and `laravel-server/app/Http/Controllers/Api/App/SyncController.php` 846, against `.agents/AGENTS.md` §4.

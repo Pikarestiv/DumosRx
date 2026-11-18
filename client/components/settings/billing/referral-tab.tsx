@@ -12,12 +12,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 import { useReferralStats } from "@/lib/hooks/use-billing";
 import { formatDateSafe } from "@/lib/utils/date-utils";
+import { WEB_APP_URL } from "@/lib/constants";
 
 export function ReferralTab() {
   const { data: stats, isLoading, isError } = useReferralStats();
   const [copied, setCopied] = useState(false);
 
-  const referralLink = stats?.referral_code ? `${window.location.origin}/register?ref=${stats.referral_code}` : "";
+  const referralLink = stats?.referral_code ? `${WEB_APP_URL}/register?ref=${stats.referral_code}` : "";
 
   const copyReferralLink = () => {
     if (!referralLink) return;

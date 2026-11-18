@@ -1302,6 +1302,13 @@ URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
   than "every tab inside it needs" has to be gated the same way — the nav
   filter only controls whether the page is reachable at all, not which of
   its tabs are.
+- **A person in the Users directory opens a page, not a modal.** Clicking a row, the
+  name, or "View Detailed Profile" in the kebab goes to `/admin/users/details/?id=`
+  (`adminUserDetailPath`, the same shape as the store page); the kebab cell swallows the
+  row click. `UserProfilePanel` is the profile card (edit, permissions, staff list). There
+  is no single-user endpoint, so the page searches `GET /admin/users` by id and keeps the
+  exact match. The kebab's other actions (notify, reset password, trials, deactivate,
+  delete) still live on the list page, not on the detail page.
 - **Email compose tools are shared.** `components/admin/email-compose-tools.tsx`
   (preview iframe, `sandbox=""`, plus "Send a test to") serves both Broadcasts and
   Email Campaigns; each caller passes its own `renderPreview` and `sendTest`. Enter in

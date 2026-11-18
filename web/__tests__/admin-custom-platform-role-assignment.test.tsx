@@ -46,7 +46,7 @@ import {
   buildUserProfileUpdate,
 } from "@/components/admin/users/user-profile-edit-validation";
 import { UserProfileEditForm } from "@/components/admin/users/user-profile-edit-form";
-import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog";
+import { UserProfilePanel } from "@/components/admin/users/user-profile-panel";
 import type { AdminUser } from "@/lib/types/admin";
 
 const target: AdminUser = {
@@ -150,13 +150,11 @@ describe("UserProfileEditForm role picker", () => {
   });
 });
 
-describe("UserProfileDialog — Manage Permissions for a custom role", () => {
+describe("UserProfilePanel — Manage Permissions for a custom role", () => {
   it("offers Manage Permissions for a user on a custom platform role", () => {
     render(
-      <UserProfileDialog
-        isOpen
-        onOpenChange={() => {}}
-        selectedUser={{ ...target, role_slug: "support_lead" }}
+      <UserProfilePanel
+        user={{ ...target, role_slug: "support_lead" }}
       />,
     );
 
@@ -165,10 +163,8 @@ describe("UserProfileDialog — Manage Permissions for a custom role", () => {
 
   it("still hides Manage Permissions for a store-tenant account", () => {
     render(
-      <UserProfileDialog
-        isOpen
-        onOpenChange={() => {}}
-        selectedUser={{ ...target, role_slug: "store_owner" }}
+      <UserProfilePanel
+        user={{ ...target, role_slug: "store_owner" }}
       />,
     );
 

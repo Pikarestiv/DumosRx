@@ -1,3 +1,4 @@
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -35,7 +36,7 @@ const userTableHandlers = {
   error: null,
   refetch: noop,
   setSelectedUser: noop,
-  setIsProfileDialogOpen: noop,
+  router: { push: noop } as unknown as AppRouterInstance,
   setIsNotifyDialogOpen: noop,
   setIsResetDialogOpen: noop,
   setIsDeactivateDialogOpen: noop,

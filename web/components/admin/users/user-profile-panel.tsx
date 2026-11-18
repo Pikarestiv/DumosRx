@@ -11,20 +11,9 @@ import { usePlatformRoleOptions } from "@/hooks/use-platform-role-options";
 import { type AdminUserProfileUpdate } from "@/lib/types/admin";
 import { StoreStaffList } from "@/components/admin/stores/store-staff-list";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { BaseDialogProps } from "./dialog-types";
+import type { AdminUser } from "@/lib/types/admin";
 
-export function UserProfileDialog({
-  isOpen,
-  onOpenChange,
-  selectedUser,
-}: Omit<BaseDialogProps, "setSelectedUser">) {
+export function UserProfilePanel({ user: selectedUser }: { user: AdminUser | null }) {
   const router = useRouter();
   const ownedStoreId = selectedUser?.is_store_owner ? (selectedUser.store_id ?? null) : null;
   const viewerRole = useAdminAuthStore((state) => state.user?.role);
@@ -38,14 +27,6 @@ export function UserProfileDialog({
     selectedUser !== null &&
     selectedUser.role_slug !== "super_admin" &&
     platformRoleSlugs.includes(selectedUser.role_slug ?? "");
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      setIsEditing(false);
-      setIsManagingPermissions(false);
-    }
-    onOpenChange(open);
-  };
 
   const handleSave = async (payload: AdminUserProfileUpdate) => {
     if (!selectedUser) return;
@@ -64,14 +45,7 @@ export function UserProfileDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border-slate-200 dark:border-slate-800 shadow-2xl p-0">
-        <DialogHeader className="sr-only">
-          <DialogTitle>User Detailed Profile</DialogTitle>
-          <DialogDescription>
-            View detailed user profile information
-          </DialogDescription>
-        </DialogHeader>
+    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="bg-indigo-600 p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
             <Shield className="h-32 w-32" />
@@ -206,16 +180,9 @@ export function UserProfileDialog({
                 Edit Profile
               </Button>
             ) : null}
-            <Button
-              onClick={() => handleOpenChange(false)}
-              className="rounded-xl font-bold px-8"
-            >
-              Close Profile
-            </Button>
           </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }

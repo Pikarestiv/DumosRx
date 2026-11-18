@@ -139,8 +139,8 @@ describe("a sale books the cost of the batches it actually consumed", () => {
       product_id: "p1", product_name: "Amoxicillin 500mg", bulk_unit: "Pack",
       bulk_quantity: 10, units_per_bulk: 1, unit_cost: 900, subtotal: 9000,
     }]);
-    const po = await getPurchaseOrderById(poId);
-    await receivePurchaseOrder(poId, [{ po_item_id: po!.items[0].id, quantity: 10 }]);
+    const itemId = (await getPurchaseOrderById(poId))?.items[0]?.id ?? "";
+    await receivePurchaseOrder(poId, [{ po_item_id: itemId, quantity: 10 }]);
 
     expect(lineCost()).toBe(CART_AVERAGE + (3 * (900 - CART_AVERAGE)) / 5);
   });

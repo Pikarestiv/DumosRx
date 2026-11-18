@@ -1,3 +1,10 @@
+### A-420 — a batch whose expiry was stored as '' sold before every dated batch
+- **Fixed:** 2026-11-18, client only, TDD. Found while moving sale COGS onto the FEFO batch cost.
+- **Was:** the FEFO deduction order in `getBatchesForProduct()`, `getAllActiveBatchesForProduct()` (`lib/db/queries/inventory-batches.ts`) and the stock-transfer source query (`stock-transfers.ts`) was `ORDER BY (expiry_date IS NULL), expiry_date, created_at`. An empty-string expiry is not `NULL` and sorts before any date, so a batch saved with `''` (an old import or form path) was sold and transferred first, while the Batches tab's "sell first" badge treated it as no expiry and put it last. Harmless while every sale was costed at the average; once a sale books the consumed batch's own cost it moved profit.
+- **Now:** one `FEFO_ORDER_SQL` (`inventory-batches.ts`) sorts on `NULLIF(expiry_date, '')`, so `''` and `NULL` both mean "no expiry" and go after dated batches; the transfer query imports it.
+- **Coverage:** `client/__tests__/sale-cogs-fefo-batch-cost.test.ts` ("takes an undated batch after a dated one even when its expiry was stored as ''").
+- **Compat:** ordering only; no stored value changes. Older tills keep the old order until updated, which only matters for a product that has a `''` batch.
+
 ### A-397 — a staff email edit that collided with another account's email was retried for ever and its raw SQL was returned
 - **Fixed:** 2026-11-18, server and client, TDD. Found in production: a till edited a staff member's email to the owner's own `super_admin` address; the push failed `users_email_unique` on every retry and the response `reason` carried the MySQL error with the host, database and statement.
 - **Was:** `PushConflictResolver` guarded a users INSERT against a duplicate email but nothing guarded an UPDATE, so the unique index raised on every retry; the queue row stayed retryable and the sync indicator stayed stuck until the email was edited again.

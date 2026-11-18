@@ -571,14 +571,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** a store owner reads "Contact Specialist" while the admin who is that person reads "Account Manager" in the panel, so support conversations name one relationship two ways. Cosmetic; the field and API are already `account_manager` throughout.
 - **Fix:** rename the three client labels (and the card's file/component name if wanted) to "Account Manager" and drop "contact specialist /" from the three OpenAPI summaries. Check the store-owner guides in `web/lib/guides/` for the old term in the same pass.
 
-#### A-396. `client/` — a desktop crash between dropping `purchase_orders` and renaming the scratch table strands every purchase order
-- **Issue:** #370
-
-- **Found:** 2026-11-17, in the independent review of the A-306 fix.
-- **Location:** `relaxPurchaseOrdersSupplierIdNullable()` in `client/lib/db/schema-migrations.ts` (`DROP TABLE purchase_orders` then `RENAME`), Tauri path only, where each statement is written straight to disk.
-- **What's wrong:** if the process dies after the drop and before the rename, the next boot recreates an empty `purchase_orders` whose `supplier_id` is already nullable, so the migration's `NOT NULL` match never fires again and the rows stay in `purchase_orders_nullable_supplier`. Unsynced orders are lost; synced ones are not re-pulled because the watermarks are current.
-- **Fix:** on boot, if the scratch table exists and `purchase_orders` is empty or lacks its rows, copy the scratch rows back before dropping it. Probability is very low.
-
 ---
 
 ## Accepted tradeoffs (no fix planned)

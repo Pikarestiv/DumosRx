@@ -8489,7 +8489,10 @@ can be recorded without a real vendor (self/walk-in purchase) the same way
 sales.customer_id already supports a null "Walk-in Customer". SQLite can't
 ALTER a column's NOT NULL constraint, so recreate the table; must run
 after the syncColumns migration so the `type` column already exists to
-carry over.
+carry over. If an interrupted rebuild left `purchase_orders_nullable_supplier`
+behind (either before dropping purchase_orders or after dropping before rename),
+the migration checks for the scratch table on boot and copies any stranded
+rows back before dropping the scratch table (A-306, A-396).
 
 ### line-db-schema-migrations-ts-L833
 

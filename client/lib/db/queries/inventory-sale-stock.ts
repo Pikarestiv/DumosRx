@@ -57,6 +57,11 @@ async function writeShortfallCompensation(c: ShortfallCompensation) {
   }, { correlationId: c.correlationId });
 }
 
+const heldUnitCost = (batch: StockBatch | undefined, averageCost: number) => {
+  const cost = Number(batch?.cost_price ?? 0);
+  return Number.isFinite(cost) && cost > 0 ? cost : averageCost;
+};
+
 // Inserts the sale_items row for one cart line and deducts/logs the stock it consumed.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-inventory-ts-L152
 export async function recordSaleItemStock(params: RecordSaleItemStockParams) {
@@ -111,19 +116,6 @@ async function writeSaleItemStock({
     ];
   }
 
-  const saleItemId = await insert("sale_items", {
-    sale_id: saleId,
-    product_id: productId,
-    // Primary/first batch consumed; retained for backward-compat display only.
-    // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L198
-    stock_batch_id: batches[0]?.id || null,
-    quantity,
-    unit_price: unitPrice,
-    list_price: listPrice ?? null,
-    cost_price: costPrice || 0,
-    total_price: subtotal,
-  }, { correlationId });
-
   let remainingToDeduct = quantity;
 
   // Accumulates the total quantity deducted per unique batch id across BOTH the main positive-stock loop below and the partial-shortfall fallbac…
@@ -141,7 +133,9 @@ async function writeSaleItemStock({
 
   // batch.quantity can be <= 0 when this batch only turned up via the getAnyActiveBatchForProduct fallback (nothing with positive stock left for…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L238
+  const batchById = new Map<string, StockBatch>();
   const deductFromBatch = (batch: StockBatch) => {
+    batchById.set(batch.id, batch);
     const available = liveQuantity.get(batch.id) ?? batch.quantity;
     const deduction =
       available > 0 ? Math.min(available, remainingToDeduct) : remainingToDeduct;
@@ -183,6 +177,27 @@ async function writeSaleItemStock({
     }
   }
 
+  const averageCost = costPrice || 0;
+  const bookedAsOwed = Boolean(recordShortfallAsOwed) && shortfallByBatchId.size > 0;
+  const consumedCost = (batchId: string, units: number) => {
+    if (bookedAsOwed) return units * averageCost;
+    const unheld = shortfallByBatchId.get(batchId) ?? 0;
+    return (units - unheld) * heldUnitCost(batchById.get(batchId), averageCost) + unheld * averageCost;
+  };
+  let lineCost = 0;
+  for (const [batchId, units] of deductionByBatchId) lineCost += consumedCost(batchId, units);
+
+  const saleItemId = await insert("sale_items", {
+    sale_id: saleId,
+    product_id: productId,
+    stock_batch_id: batches[0]?.id || null,
+    quantity,
+    unit_price: unitPrice,
+    list_price: listPrice ?? null,
+    cost_price: quantity > 0 ? roundMoney(lineCost / quantity) : averageCost,
+    total_price: subtotal,
+  }, { correlationId });
+
   const movementDate = new Date().toISOString();
   // A device behind on the log cannot tell an oversell from stock it has not pulled; the server backfill takes those.
   const compensate =
@@ -199,8 +214,8 @@ async function writeSaleItemStock({
       stock_batch_id: batchId,
       movement_type: "sale",
       quantity: -Math.abs(deduction),
-      unit_cost: costPrice || 0,
-      total_cost: roundMoney((costPrice || 0) * deduction),
+      unit_cost: roundMoney(consumedCost(batchId, deduction) / deduction),
+      total_cost: roundMoney(consumedCost(batchId, deduction)),
       reference_id: saleId,
       reference_type: "sale",
       reason: oversoldBatchIds.has(batchId)

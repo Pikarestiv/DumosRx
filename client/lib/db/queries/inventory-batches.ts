@@ -88,6 +88,8 @@ export async function getStockOverviewData() {
   );
 }
 
+export const FEFO_ORDER_SQL = "(NULLIF(expiry_date, '') IS NULL) ASC, NULLIF(expiry_date, '') ASC, created_at ASC";
+
 // Excludes deactivated batches and already-expired stock outright (FEFO prioritizes near-expiry stock, it doesn't dispense already-expired sto…
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L97
 export async function getBatchesForProduct(productId: string) {
@@ -95,7 +97,7 @@ export async function getBatchesForProduct(productId: string) {
     `SELECT * FROM stock_batches
      WHERE product_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
        AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
-     ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
+     ORDER BY ${FEFO_ORDER_SQL}`,
     [productId],
   );
 }
@@ -107,7 +109,7 @@ export async function getAllActiveBatchesForProduct(productId: string) {
     `SELECT * FROM stock_batches
      WHERE product_id = ? AND _deleted = 0 AND is_active = 1
        AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
-     ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
+     ORDER BY ${FEFO_ORDER_SQL}`,
     [productId],
   );
 }

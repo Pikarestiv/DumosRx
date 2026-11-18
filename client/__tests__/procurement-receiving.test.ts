@@ -77,12 +77,12 @@ describe("procurement-receiving.ts", () => {
   });
 
   describe("createAndReceivePurchaseOrder selling price", () => {
-    it("leaves the product untouched when the typed price equals the live catalog price", async () => {
+    it("never writes the catalog price, even when the line still carries a different one", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price, _synced) VALUES ('pI', 'I', 'Tablet', 'Carton', 10, 40, 1)`);
       await createAndReceivePurchaseOrder(null, "", [
-        { product_id: "pI", product_name: "I", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 10, unit_cost: 1000, subtotal: 1000, selling_price: 40 },
+        { product_id: "pI", product_name: "I", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 10, unit_cost: 1000, subtotal: 1000, selling_price: 55 },
       ]);
-      expect(db.exec(`SELECT _synced FROM products WHERE id = 'pI'`)[0].values[0][0]).toBe(1);
+      expect(db.exec(`SELECT selling_price, _synced FROM products WHERE id = 'pI'`)[0].values[0]).toEqual([40, 1]);
     });
   });
 
@@ -157,30 +157,14 @@ describe("procurement-receiving.ts", () => {
       expect(batchRows[0].values[0][0]).toBe(1000);
     });
 
-    it("applies a typed selling price even on a line received at quantity zero", async () => {
-      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('pA', 'A', 'Tablet', 'Carton', 10, 10), ('pB', 'B', 'Tablet', 'Carton', 10, 10)`);
-      const line = (product_id: string) => ({ product_id, product_name: product_id, bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 10, unit_cost: 1000, subtotal: 5000 });
-      const poId = await createPurchaseOrder(null, "", [line("pA"), line("pB")]);
-      const items = (await getPurchaseOrderById(poId))?.items ?? [];
-      const byProduct = (id: string) => items.find((i) => i.product_id === id);
-
-      await receivePurchaseOrder(poId, [
-        { po_item_id: byProduct("pA")?.id ?? "", quantity: 5 },
-        { po_item_id: byProduct("pB")?.id ?? "", quantity: 0, selling_price: 77 },
-      ]);
-
-      const rows = db.exec(`SELECT selling_price FROM products WHERE id = 'pB'`);
-      expect(rows[0].values[0][0]).toBe(77);
-    });
-
-    it("leaves the product untouched when the typed selling price equals the live catalog price", async () => {
+    it("never writes the catalog price when an order is received", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price, _synced) VALUES ('pS', 'S', 'Tablet', 'Carton', 10, 40, 1)`);
-      const poId = await createPurchaseOrder(null, "", [{ product_id: "pS", product_name: "S", bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 10, unit_cost: 1000, subtotal: 5000 }]);
+      const poId = await createPurchaseOrder(null, "", [{ product_id: "pS", product_name: "S", bulk_unit: "Carton", bulk_quantity: 5, units_per_bulk: 10, unit_cost: 1000, subtotal: 5000, selling_price: 99 }]);
       const item = (await getPurchaseOrderById(poId))?.items[0];
 
-      await receivePurchaseOrder(poId, [{ po_item_id: item?.id ?? "", quantity: 5, selling_price: 40 }]);
+      await receivePurchaseOrder(poId, [{ po_item_id: item?.id ?? "", quantity: 5 }]);
 
-      expect(db.exec(`SELECT _synced FROM products WHERE id = 'pS'`)[0].values[0][0]).toBe(1);
+      expect(db.exec(`SELECT selling_price, _synced FROM products WHERE id = 'pS'`)[0].values[0]).toEqual([40, 1]);
     });
 
     it("caps a submitted quantity at the outstanding balance instead of overbooking stock", async () => {
@@ -212,17 +196,15 @@ describe("procurement-receiving.ts", () => {
       expect(batchRows[0].values[0][0]).toBe(1000);
     });
 
-    it("treats a submit that receives nothing as a no-op even when earlier receipts exist, while still applying a typed price", async () => {
-      db.run(`UPDATE products SET selling_price = 10 WHERE id = 'prod1'`);
+    it("treats a submit that receives nothing as a no-op even when earlier receipts exist", async () => {
       const poId = await seedStandardPO();
       const item = await lineItem(poId);
       await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 60 }]);
 
-      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 0, selling_price: 77 }]);
+      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 0 }]);
 
       expect(second).toBeUndefined();
       expect(db.exec(`SELECT status FROM purchase_orders WHERE id = '${poId}'`)[0].values[0][0]).toBe("partially_received");
-      expect(db.exec(`SELECT selling_price FROM products WHERE id = 'prod1'`)[0].values[0][0]).toBe(77);
     });
 
     it("reports a missing order instead of silently returning", async () => {
@@ -234,7 +216,7 @@ describe("procurement-receiving.ts", () => {
       const item = await lineItem(poId);
 
       await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
-      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100, selling_price: 77 }]);
+      const second = await receivePurchaseOrder(poId, [{ po_item_id: item.id, quantity: 100 }]);
 
       expect(second).toBe("already_received");
       const batchRows = db.exec(
@@ -254,6 +236,72 @@ describe("procurement-receiving.ts", () => {
 
       const batchRows = db.exec(`SELECT COUNT(*) FROM stock_batches WHERE product_id = 'prod1'`);
       expect(batchRows[0].values[0][0]).toBe(0);
+    });
+  });
+
+  describe("receivePurchaseOrder uncounted lines", () => {
+    const seedWithUncountedLine = async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('pc', 'Counted', 'Tablet', 'Carton', 10), ('pu', 'Uncounted', 'Tablet', 'Carton', 10)`);
+      const poId = await createPurchaseOrder(null, "", [
+        { product_id: "pc", product_name: "Counted", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 10, unit_cost: 1000, subtotal: 2000 },
+        { product_id: "pu", product_name: "Uncounted", bulk_unit: "Carton", bulk_quantity: 0, units_per_bulk: 10, unit_cost: 500, subtotal: 0 },
+      ]);
+      const items = (await getPurchaseOrderById(poId))?.items ?? [];
+      const idOf = (productId: string) => items.find((i) => i.product_id === productId)?.id ?? "";
+      return { poId, counted: idOf("pc"), uncounted: idOf("pu") };
+    };
+
+    it("receives what was counted on a line ordered at zero, recording it as both ordered and received", async () => {
+      const { poId, counted, uncounted } = await seedWithUncountedLine();
+
+      const status = await receivePurchaseOrder(poId, [
+        { po_item_id: counted, quantity: 2 },
+        { po_item_id: uncounted, quantity: 3 },
+      ]);
+
+      expect(status).toBe("received");
+      const line = db.exec(`SELECT bulk_quantity, quantity_received, subtotal FROM purchase_order_items WHERE id = '${uncounted}'`)[0].values[0];
+      expect(line).toEqual([3, 3, 1500]);
+      expect(db.exec(`SELECT SUM(quantity) FROM stock_batches WHERE product_id = 'pu'`)[0].values[0][0]).toBe(30);
+      expect(db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`)[0].values[0][0]).toBe(3500);
+    });
+
+    it("sends the counted quantity with units_per_bulk so the server scales it", async () => {
+      const { poId, counted, uncounted } = await seedWithUncountedLine();
+      db.run(`DELETE FROM _sync_queue`);
+
+      await receivePurchaseOrder(poId, [
+        { po_item_id: counted, quantity: 2 },
+        { po_item_id: uncounted, quantity: 3 },
+      ]);
+
+      const payload = JSON.parse(db.exec(`SELECT payload FROM _sync_queue WHERE record_id = '${uncounted}'`)[0].values[0][0] as string);
+      expect(payload).toMatchObject({ bulk_quantity: 3, quantity_received: 3, units_per_bulk: 10 });
+    });
+
+    it("leaves a line still at zero off the receipt without holding the order open", async () => {
+      const { poId, counted, uncounted } = await seedWithUncountedLine();
+
+      const status = await receivePurchaseOrder(poId, [
+        { po_item_id: counted, quantity: 2 },
+        { po_item_id: uncounted, quantity: 0 },
+      ]);
+
+      expect(status).toBe("received");
+      expect(db.exec(`SELECT COUNT(*) FROM stock_batches WHERE product_id = 'pu'`)[0].values[0][0]).toBe(0);
+      expect(db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`)[0].values[0][0]).toBe(2000);
+    });
+
+    it("rejects a negative or non-numeric count instead of booking it", async () => {
+      const { poId, counted, uncounted } = await seedWithUncountedLine();
+
+      await receivePurchaseOrder(poId, [
+        { po_item_id: counted, quantity: 2 },
+        { po_item_id: uncounted, quantity: "abc" },
+      ]);
+      await receivePurchaseOrder(poId, [{ po_item_id: uncounted, quantity: -4 }]);
+
+      expect(db.exec(`SELECT COUNT(*) FROM stock_batches WHERE product_id = 'pu'`)[0].values[0][0]).toBe(0);
     });
   });
 });

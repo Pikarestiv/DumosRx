@@ -1,10 +1,10 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
-import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
+import { coerceOptionalNumber } from "./procurement-selling-price";
 import { reconcilePurchaseOrderLines } from "./procurement-line-diff";
 import { getStoredUser } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
-import { clearImmediateOnlyFields, immediateLineAmount } from "@/components/procurement/po-line-item-math";
+import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
 
 export {
   getSuppliers,
@@ -24,6 +24,9 @@ export const PURCHASE_ORDER_STATUSES = [
 ] as const;
 
 export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number];
+
+// Older tills strip lot, expiry and cost from a "standard" order on save; see client/AGENTS.md.
+export const ORDER_TYPE_WRITTEN_FOR_OLD_TILLS = "immediate";
 
 export function isReceivablePurchaseOrderStatus(status: string): boolean {
   return status === "pending" || status === "sent" || status === "partially_received";
@@ -101,7 +104,6 @@ export interface DraftPOLineItem {
   lot_number?: string;
   expiry_date?: string;
   selling_price?: number | string;
-  reprice?: boolean;
 }
 
 export interface PODetailItem {
@@ -203,16 +205,15 @@ export async function createPurchaseOrder(
   paymentStatus: string = 'unpaid',
   amountPaid: number = 0,
   dueDate: string | null = null,
-  type: "standard" | "immediate" = "standard"
+  status: "pending" | "sent" = "pending"
 ) {
-  const lines = type === "immediate" ? items : clearImmediateOnlyFields(items);
   const poId = generateId();
   const now = new Date().toISOString();
   let totalAmount = 0;
 
   // Via immediateLineAmount, not a bare bulk_quantity * unit_cost:
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-ts-L216
-  for (const item of lines) {
+  for (const item of items) {
     totalAmount += roundMoney(immediateLineAmount(item));
   }
 
@@ -220,8 +221,8 @@ export async function createPurchaseOrder(
     await insert("purchase_orders", {
       id: poId,
       supplier_id: supplierId,
-      status: "pending",
-      type,
+      status,
+      type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS,
       ordered_by: getStoredUser()?.id ?? null,
       payment_status: paymentStatus,
       amount_paid: amountPaid,
@@ -231,7 +232,7 @@ export async function createPurchaseOrder(
       created_at: now
     });
 
-    for (const item of lines) {
+    for (const item of items) {
       await insert("purchase_order_items", {
         id: generateId(),
         po_id: poId,
@@ -249,8 +250,6 @@ export async function createPurchaseOrder(
       });
     }
 
-    await applyChangedSellingPrices(lines);
-
     return poId;
   });
 }
@@ -267,19 +266,14 @@ export async function updatePurchaseOrder(
   const now = new Date().toISOString();
   let totalAmount = 0;
 
-  const [{ type } = { type: "standard" }] = await query<{ type: string | null }>(
-    "SELECT type FROM purchase_orders WHERE id = ?",
-    [poId],
-  );
-  const lines = type === "immediate" ? items : clearImmediateOnlyFields(items);
-
-  for (const item of lines) {
+  for (const item of items) {
     totalAmount += roundMoney(immediateLineAmount(item));
   }
 
   return transaction(async () => {
     await update("purchase_orders", poId, {
       supplier_id: supplierId,
+      type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS,
       payment_status: paymentStatus,
       amount_paid: amountPaid,
       due_date: dueDate,
@@ -288,9 +282,7 @@ export async function updatePurchaseOrder(
       updated_at: now
     });
 
-    await reconcilePurchaseOrderLines(poId, lines, now);
-
-    await applyChangedSellingPrices(lines);
+    await reconcilePurchaseOrderLines(poId, items, now);
 
     return poId;
   });

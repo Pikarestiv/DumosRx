@@ -115,7 +115,7 @@ export function usePoSubmit({
 
     const priceOverrideCount = countSellingPriceOverrides(items, products);
     createPurchaseOrderMutation.mutate(
-      { ...buildPayload(), type: poType },
+      buildPayload(),
       {
         onSuccess: (poId) => {
           notifySellingPriceUpdates(priceOverrideCount);

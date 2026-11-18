@@ -37,26 +37,13 @@ function wrapper({ children }: { children: ReactNode }) {
   return React.createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
+describe("usePurchaseOrders handleReceivePO toasts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     receivePurchaseOrder.mockResolvedValue("received");
   });
 
-  it("toasts a price update when a received line's selling_price differs from the product's current price", async () => {
-    const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
-    const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
-
-    await act(async () => {
-      await result.current.handleReceivePO("po1", [
-        { po_item_id: "i1", product_id: "prod1", quantity: 10, selling_price: 25, current_selling_price: 20 },
-      ]);
-    });
-
-    expect(toast.success).toHaveBeenCalledWith("Selling price updated for 1 item");
-  });
-
-  it("does not toast a price update when no line has a real override", async () => {
+  it("never claims a selling price changed on receive, since receiving no longer writes prices", async () => {
     const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
     const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
 
@@ -66,7 +53,8 @@ describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
       ]);
     });
 
-    expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining("Selling price updated"));
+    expect(toast.success).toHaveBeenCalledWith("Order received and stock updated!");
+    expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining("Selling price"));
   });
 
   it("confirms the singular batch cost that was typed, and names Avg. Cost as the display figure", async () => {
@@ -103,53 +91,34 @@ describe("usePurchaseOrders handleReceivePO selling-price toast", () => {
     );
   });
 
-  it("does not toast when the submitted selling_price equals the product's current price (no real change)", async () => {
-    const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
-    const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
-
-    await act(async () => {
-      await result.current.handleReceivePO("po1", [
-        { po_item_id: "i1", product_id: "prod1", quantity: 10, selling_price: 20, current_selling_price: 20 },
-      ]);
-    });
-
-    expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining("Selling price updated"));
-  });
-
-  const receiveWith = async (status: string | undefined, selling_price?: number) => {
+  const receiveWith = async (status: string | undefined) => {
     receivePurchaseOrder.mockResolvedValue(status as never);
     const { usePurchaseOrders } = await import("@/lib/hooks/use-purchase-orders");
     const { result } = renderHook(() => usePurchaseOrders(), { wrapper });
     let outcome: boolean | undefined;
     await act(async () => {
       outcome = await result.current.handleReceivePO("po1", [
-        { po_item_id: "i1", product_id: "prod1", quantity: 0, selling_price, current_selling_price: 20 },
+        { po_item_id: "i1", product_id: "prod1", quantity: 0, current_selling_price: 20 },
       ]);
     });
     return outcome;
   };
 
-  it("says an already-received order changed nothing, and never claims a price update", async () => {
-    expect(await receiveWith("already_received", 25)).toBe(true);
+  it("says an already-received order changed nothing", async () => {
+    expect(await receiveWith("already_received")).toBe(true);
     expect(toast.info).toHaveBeenCalledWith("This order was already received, so nothing changed.");
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("reports a missing order as an error, writes no price toast, and refreshes the list so the dead order disappears", async () => {
+  it("reports a missing order as an error and refreshes the list so the dead order disappears", async () => {
     getPurchaseOrders.mockClear();
-    expect(await receiveWith("not_found", 25)).toBe(true);
+    expect(await receiveWith("not_found")).toBe(true);
     expect(getPurchaseOrders).toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith("Couldn't find this order", expect.anything());
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it("folds a price written on an all-zero receive into one message instead of two contradictory toasts", async () => {
-    expect(await receiveWith(undefined, 25)).toBe(true);
-    expect(toast.success).toHaveBeenCalledTimes(1);
-    expect(toast.success).toHaveBeenCalledWith("No stock was received, but the selling price was updated for 1 item.");
-  });
-
-  it("says nothing was received when an all-zero receive carries no price change", async () => {
+  it("says nothing was received when every line is submitted at zero", async () => {
     await receiveWith(undefined);
     expect(toast.success).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledWith("Nothing was received, the order is unchanged.");

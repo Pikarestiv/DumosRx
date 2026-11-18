@@ -10,7 +10,7 @@ import {
   updatePurchaseOrderStatus,
   type DraftPOLineItem,
 } from "./procurement";
-import { applyChangedSellingPrices, coerceOptionalNumber } from "./procurement-selling-price";
+import { coerceOptionalNumber } from "./procurement-selling-price";
 import { getStoredUser } from "@/lib/storage-keys";
 import {
   immediateLineAmount,
@@ -28,9 +28,6 @@ export interface ReceivedItem {
   // Overrides the PO line's cost for this receipt, if the actual invoiced cost differs from what was ordered.
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L27
   cost_price?: number | string;
-  // When set, updates the product's global selling price; lets a price change discovered while receiving stock be applied immediately instead of…
-  // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L32
-  selling_price?: number | string;
   // The product's live selling_price when the receive panel was opened - not written anywhere, just carried through so a caller can tell whether…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-receiving-ts-L36
   current_selling_price?: number | null;
@@ -43,9 +40,18 @@ export interface ImmediateLineItemDraft extends DraftPOLineItem {
   cost_price_override?: number | string;
   lot_number?: string;
   expiry_date?: string;
-  /** When set, updates the product's global selling price (same effect
-   * as ReceivedItem.selling_price in receivePurchaseOrder). */
-  selling_price?: number | string;
+}
+
+function isUncountedLine(bulkQuantity: number, alreadyReceived: number): boolean {
+  return !(Number(bulkQuantity) > 0) && alreadyReceived === 0;
+}
+
+async function refreshOrderTotal(poId: string): Promise<void> {
+  const [row] = await query<{ total: number | null }>(
+    "SELECT SUM(subtotal) as total FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
+    [poId],
+  );
+  await update("purchase_orders", poId, { total_amount: roundMoney(Number(row?.total) || 0) });
 }
 
 export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedItem[]) {
@@ -58,6 +64,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
   return transaction(async () => {
     let outstandingRemains = false;
     let receivedThisSubmit = false;
+    let countedUncountedLine = false;
 
     for (const item of poData.items) {
       const receivedItem = receivedItems?.find(ri => ri.po_item_id === item.id);
@@ -73,17 +80,18 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         Number(receivedRows[0]?.quantity_received ?? item.quantity_received) || 0,
       );
       const outstanding = Math.max(0, Number(item.bulk_quantity) - alreadyReceived);
+      const isUncounted = isUncountedLine(item.bulk_quantity, alreadyReceived);
+      const submitted = Math.max(0, Number(receivedItem?.quantity) || 0);
 
       // Default to the whole outstanding balance if not provided in payload.
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L80
-      const bulkQty = receivedItem?.quantity !== undefined
-        ? Math.min(outstanding, Math.max(0, Number(receivedItem.quantity)))
-        : outstanding;
+      const bulkQty = receivedItem?.quantity === undefined
+        ? outstanding
+        : isUncounted ? submitted : Math.min(outstanding, submitted);
+      const orderedQty = isUncounted ? bulkQty : Number(item.bulk_quantity);
 
       if (bulkQty < outstanding) outstandingRemains = true;
       if (bulkQty > 0) receivedThisSubmit = true;
-
-      await applyChangedSellingPrices([{ product_id: item.product_id, selling_price: receivedItem?.selling_price }]);
 
       if (bulkQty === 0) continue;
 
@@ -157,9 +165,11 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
       // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-procurement-receiving-ts-L166
       await update("purchase_order_items", item.id, {
         quantity_received: alreadyReceived + bulkQty,
-        bulk_quantity: item.bulk_quantity,
+        bulk_quantity: orderedQty,
         units_per_bulk: item.units_per_bulk,
+        ...(isUncounted ? { subtotal: roundMoney(immediateLineAmount({ ...item, bulk_quantity: orderedQty })) } : {}),
       });
+      if (isUncounted) countedUncountedLine = true;
     }
 
     // A submit with every line left at 0 against a PO that has nothing received yet isn't a partial receipt, it's a no-op — the order stays exactl…
@@ -167,6 +177,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
     if (!receivedThisSubmit) return;
 
     const status = outstandingRemains ? "partially_received" : "received";
+    if (countedUncountedLine) await refreshOrderTotal(id);
     await updatePurchaseOrderStatus(id, status);
     await logAction("RECEIVE_PO", "purchase_orders", id, {
       total_items: poData.items.length,
@@ -295,8 +306,6 @@ export async function createAndReceivePurchaseOrder(
         performedBy: dumosUser?.id || null,
         movementDate: now,
       });
-
-      await applyChangedSellingPrices([item]);
     }
 
     await logAction("RECEIVE_PO", "purchase_orders", poId, { total_items: items.length });

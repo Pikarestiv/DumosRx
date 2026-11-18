@@ -14,7 +14,7 @@ interface CreatePurchaseOrderParams {
   paymentStatus?: string;
   amountPaid?: number;
   dueDate?: string | null;
-  type?: "standard" | "immediate";
+  status?: "pending" | "sent";
 }
 
 // Shared by every "save as draft" call site (Standard PO, and an Immediate Purchase parked as a draft instead of received right away) — both g…
@@ -28,9 +28,9 @@ export function useCreatePurchaseOrderMutation() {
       paymentStatus,
       amountPaid,
       dueDate,
-      type,
+      status,
     }: CreatePurchaseOrderParams) =>
-      createPurchaseOrder(supplierId, notes, items, paymentStatus, amountPaid, dueDate, type),
+      createPurchaseOrder(supplierId, notes, items, paymentStatus, amountPaid, dueDate, status),
   });
 }
 

@@ -80,6 +80,12 @@ export function outstandingBulkQuantity(item: {
   return Math.max(0, Number(item.bulk_quantity) - received);
 }
 
+// A line ordered at zero was saved uncounted; the receiver enters what arrived (receivePurchaseOrder records it).
+export function receivableLimit(item: { bulk_quantity: number; quantity_received?: number | null }): number {
+  const uncounted = !(Number(item.bulk_quantity) > 0) && !(Number(item.quantity_received) > 0);
+  return uncounted ? Number.POSITIVE_INFINITY : outstandingBulkQuantity(item);
+}
+
 // Guard for the receiving tables' "Qty Received" inputs.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-line-item-math-ts-L117
 export function clampReceivedQuantity(raw: string, outstanding: number): number {
@@ -145,17 +151,27 @@ export function getTotalBaseUnits(items: POLineItemDraft[]): number {
   );
 }
 
-// How many lines carry a real Sell Price override that actually differs from the product's current price - blank/null/unde…
-// Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-line-item-math-ts-L207
-export function countSellingPriceOverrides(
-  items: { product_id: string; selling_price?: number | string }[],
-  products: { id: string; selling_price?: number | null }[],
-): number {
-  return items.filter((item) => {
-    if (item.selling_price == null || item.selling_price === "") return false;
-    const product = products.find((p) => p.id === item.product_id);
-    return Number(item.selling_price) !== (product?.selling_price ?? null);
-  }).length;
+export type MarginCue = "below_cost" | "thinner";
+
+// Non-blocking: a ₦0 selling price or cost has its own warning, so neither is judged here.
+export function getMarginCue({
+  unitCost,
+  sellingPrice,
+  previousCost,
+}: {
+  unitCost: number;
+  sellingPrice?: number | null;
+  previousCost?: number | null;
+}): MarginCue | null {
+  const sell = Number(sellingPrice);
+  if (!(unitCost > 0) || !(sell > 0)) return null;
+  if (unitCost >= sell) return "below_cost";
+  const before = Number(previousCost);
+  return before > 0 && unitCost > before ? "thinner" : null;
+}
+
+export function dueDateToSave(paymentStatus: string, dueDate: string): string | null {
+  return paymentStatus === "paid" ? null : dueDate || null;
 }
 
 // The lines on a receipt that carried a real cost override, with the cost that was typed.
@@ -170,37 +186,11 @@ export function costOverriddenLines(
     .map((item) => ({ productId: item.product_id, cost: Number(item.cost_price) }));
 }
 
-export function sellingPricePlaceholder(currentSellingPrice?: number | null, currencyCode?: string): string {
-  return currentSellingPrice == null ? "Unchanged" : formatCurrency(currentSellingPrice, currencyCode);
+export function sellingPriceLabel(currentSellingPrice?: number | null, currencyCode?: string): string {
+  return Number(currentSellingPrice) > 0 ? formatCurrency(Number(currentSellingPrice), currencyCode) : "Not set";
 }
 
-export function markRepricedLines<T extends { id?: string; selling_price?: number | string }>(
-  items: T[],
-  seededPrices: Map<string, number | string | undefined>,
-): (T & { reprice: boolean })[] {
-  return items.map((item) => ({
-    ...item,
-    reprice: String(item.selling_price ?? "") !== String((item.id ? seededPrices.get(item.id) : undefined) ?? ""),
-  }));
-}
-
-export function clearImmediateOnlyFields<
-  T extends { selling_price?: unknown; cost_price_override?: unknown; lot_number?: unknown; expiry_date?: unknown },
->(items: T[]): T[] {
-  return items.map(({ selling_price, cost_price_override, lot_number, expiry_date, ...rest }) => {
-    void selling_price; void cost_price_override; void lot_number; void expiry_date;
-    return rest as unknown as T;
-  });
-}
-
-export function getImmediateEffectiveSellingPrice(
-  item: POLineItemDraft,
-  product?: { selling_price?: number | null },
-): number {
-  if (item.selling_price != null && item.selling_price !== "") {
-    const parsed = Number(item.selling_price);
-    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-  }
+export function getCatalogSellingPrice(product?: { selling_price?: number | null }): number {
   const catalogPrice = Number(product?.selling_price);
   return Number.isFinite(catalogPrice) ? Math.max(0, catalogPrice) : 0;
 }
@@ -232,7 +222,7 @@ export function getZeroSellingPriceLineItems(
   return items.filter((item) => {
     if (Number(item.bulk_quantity) <= 0) return false;
     const product = productMap.get(item.product_id);
-    return getImmediateEffectiveSellingPrice(item, product) <= 0;
+    return getCatalogSellingPrice(product) <= 0;
   });
 }
 
@@ -271,7 +261,7 @@ export function getReceiveZeroCostItems<
 }
 
 export function getReceiveZeroSellingPriceItems<
-  T extends { quantity?: number | string; selling_price?: number | string; po_item_id?: string; product_id?: string },
+  T extends { quantity?: number | string; po_item_id?: string; product_id?: string },
   P extends { id: string; product_id?: string; current_selling_price?: number | null },
 >(
   payload: T[],
@@ -288,10 +278,7 @@ export function getReceiveZeroSellingPriceItems<
           p.id === item.product_id,
       ),
     }))
-    .filter(({ item, poItem }) => {
-      if (item.selling_price != null && item.selling_price !== "") {
-        return Number(item.selling_price) <= 0;
-      }
+    .filter(({ poItem }) => {
       const livePrice = Number(poItem?.current_selling_price);
       return !Number.isFinite(livePrice) || livePrice <= 0;
     });

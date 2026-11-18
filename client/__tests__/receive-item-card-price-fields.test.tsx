@@ -95,27 +95,39 @@ describe("ReceiveItemCard price fields", () => {
     expect(input.getAttribute("placeholder")).toBe("₦4");
   });
 
-  it("offers a New Selling Price input on the card", () => {
+  it("shows the product's selling price read-only instead of an input that would rewrite it", () => {
     renderPanel();
-    const input = screen.getByLabelText(
-      "New Selling Price for Panadol",
-    ) as HTMLInputElement;
-    expect(input.getAttribute("type")).toBe("number");
-    expect(input.getAttribute("placeholder")).toBe("₦12.5");
+    expect(screen.queryByLabelText("New Selling Price for Panadol")).toBeNull();
+    expect(screen.getByText("₦12.5")).toBeTruthy();
   });
 
-  it("formats the receive placeholders in the store's currency, not the default naira", () => {
+  it("formats the receive price and cost in the store's currency, not the default naira", () => {
     storeProfile.currency = "XAF";
     try {
       renderPanel();
-      const price = screen.getByLabelText("New Selling Price for Panadol") as HTMLInputElement;
       const cost = screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement;
-      expect(price.getAttribute("placeholder")).not.toContain("₦");
-      expect(price.getAttribute("placeholder")).toMatch(/13|12/);
+      expect(screen.queryByText("₦12.5")).toBeNull();
       expect(cost.getAttribute("placeholder")).not.toContain("₦");
     } finally {
       storeProfile.currency = undefined;
     }
+  });
+
+  it("lets a line saved uncounted at zero take the delivered count instead of capping it at nothing", () => {
+    const onConfirm = vi.fn();
+    const uncountedPo = { ...po, status: "pending", items: [{ ...(po.items ?? [])[0], bulk_quantity: 0 }] } as unknown as PurchaseOrder;
+    render(withQueryClient(<ReceivePOPanel po={uncountedPo} onBack={vi.fn()} onConfirm={onConfirm} />));
+
+    fireEvent.change(screen.getByLabelText("Quantity received for Panadol"), { target: { value: "5" } });
+    act(() => {
+      screen.getByRole("button", { name: "Confirm & Receive" }).click();
+    });
+    act(() => {
+      screen.getByRole("button", { name: "Proceed Anyway" }).click();
+    });
+
+    const [, payload] = onConfirm.mock.calls[0];
+    expect(payload[0].quantity).toBe(5);
   });
 
   it("keeps the order's cost on a follow-up receipt but not its lot or expiry, which belong to one delivery", () => {
@@ -153,7 +165,7 @@ describe("ReceiveItemCard price fields", () => {
     expect((screen.getByLabelText("Lot or batch number for Panadol") as HTMLInputElement).value).toBe("");
   });
 
-  it("carries what is typed into the new price fields through to the receive payload, clamping a negative to zero", () => {
+  it("carries a typed cost through to the receive payload, with no selling price in it", () => {
     const onConfirm = vi.fn();
     render(
       withQueryClient(
@@ -163,9 +175,6 @@ describe("ReceiveItemCard price fields", () => {
 
     fireEvent.change(screen.getByLabelText("Cost Price per Tablet for Panadol"), {
       target: { value: "450" },
-    });
-    fireEvent.change(screen.getByLabelText("New Selling Price for Panadol"), {
-      target: { value: "-5" },
     });
 
     act(() => {
@@ -178,8 +187,9 @@ describe("ReceiveItemCard price fields", () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
     const [, payload] = onConfirm.mock.calls[0];
     expect(payload[0].cost_price).toBe("450");
-    expect(payload[0].selling_price).toBe("0");
+    expect(payload[0]).not.toHaveProperty("selling_price");
   });
+
   it("prefills the cost, lot and expiry that were saved on the order line", () => {
     const onConfirm = vi.fn();
     const savedPo = {
@@ -201,9 +211,6 @@ describe("ReceiveItemCard price fields", () => {
       ),
     );
 
-    expect(
-      (screen.getByLabelText("New Selling Price for Panadol") as HTMLInputElement).value,
-    ).toBe("");
     expect(
       (screen.getByLabelText("Cost Price per Tablet for Panadol") as HTMLInputElement).value,
     ).toBe("4.5");

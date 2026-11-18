@@ -51,7 +51,7 @@ export function getStatusBadge(status: string) {
     case "sent":
       return (
         <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20">
-          <ArrowRight className="w-3 h-3 mr-1" /> Sent
+          <ArrowRight className="w-3 h-3 mr-1" /> Ordered
         </Badge>
       );
     case "pending":

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
-import { POReviewPricePopover } from "./po-review-price-popover";
+import { POSellPriceCell } from "./po-sell-price-cell";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -181,13 +181,18 @@ const POItemCard = React.memo(function POItemCard({
       </div>
 
       {poType === "immediate" && (
-        <POReviewPricePopover
-          costPrice={effectiveUnitCost}
-          sellingPrice={item.selling_price ?? (product?.selling_price || "")}
-          currentSellingPrice={product?.selling_price ?? null}
-          productName={item.product_name}
-          onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
-        />
+        <div className="flex items-center justify-between">
+          <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Sell Price
+          </span>
+          <POSellPriceCell
+            productName={item.product_name}
+            sellingPrice={product?.selling_price}
+            unitCost={effectiveUnitCost}
+            previousCost={product?.cost_price}
+            onEditProduct={onEditProduct ? () => onEditProduct(item.product_id) : undefined}
+          />
+        </div>
       )}
     </div>
   );

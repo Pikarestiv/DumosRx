@@ -12,8 +12,6 @@ interface Supplier {
 interface PODetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  poType: "standard" | "immediate";
-  setPoType: (type: "standard" | "immediate") => void;
   suppliers: Supplier[];
   selectedSupplierId: string;
   setSelectedSupplierId: (id: string) => void;
@@ -27,7 +25,6 @@ interface PODetailsDialogProps {
   setAmountPaid: (amount: string) => void;
   totalAmount?: number;
   onOpenAddSupplier: () => void;
-  hideTypeToggle?: boolean;
 }
 
 // Re-opens PODetailsFields after the order-details step has been confirmed, so vendor/notes/payment/due-date stay editable…
@@ -35,8 +32,6 @@ interface PODetailsDialogProps {
 export function PODetailsDialog({
   open,
   onOpenChange,
-  poType,
-  setPoType,
   suppliers,
   selectedSupplierId,
   setSelectedSupplierId,
@@ -50,7 +45,6 @@ export function PODetailsDialog({
   setAmountPaid,
   totalAmount,
   onOpenAddSupplier,
-  hideTypeToggle,
 }: PODetailsDialogProps) {
   return (
     <ResponsiveModal
@@ -65,9 +59,6 @@ export function PODetailsDialog({
       }
     >
       <PODetailsFields
-        poType={poType}
-        setPoType={setPoType}
-        poTypeLocked
         suppliers={suppliers}
         selectedSupplierId={selectedSupplierId}
         setSelectedSupplierId={setSelectedSupplierId}
@@ -81,7 +72,6 @@ export function PODetailsDialog({
         setAmountPaid={setAmountPaid}
         totalAmount={totalAmount}
         onOpenAddSupplier={onOpenAddSupplier}
-        hideTypeToggle={hideTypeToggle}
       />
     </ResponsiveModal>
   );

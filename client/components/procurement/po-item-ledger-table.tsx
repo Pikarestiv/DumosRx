@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
-import { POReviewPricePopover } from "./po-review-price-popover";
+import { POSellPriceCell } from "./po-sell-price-cell";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -30,7 +30,6 @@ export interface POLineItemDraft {
   lot_number?: string;
   expiry_date?: string;
   selling_price?: number | string;
-  reprice?: boolean;
 }
 
 // A line paired with its index in the order's real item array.
@@ -191,12 +190,12 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
 
       {poType === "immediate" && (
         <div role="cell" className="px-3 py-2 flex justify-end">
-          <POReviewPricePopover
-            costPrice={effectiveUnitCost}
-            sellingPrice={item.selling_price ?? (product?.selling_price || "")}
-            currentSellingPrice={product?.selling_price ?? null}
+          <POSellPriceCell
             productName={item.product_name}
-            onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
+            sellingPrice={product?.selling_price}
+            unitCost={effectiveUnitCost}
+            previousCost={product?.cost_price}
+            onEditProduct={onEditProduct ? () => onEditProduct(item.product_id) : undefined}
           />
         </div>
       )}
@@ -285,7 +284,7 @@ export function POItemLedgerTable({
               <div
                 role="columnheader"
                 className="text-right px-3 py-2"
-                title="Updates the product's selling price store-wide once this order is received - leave blank to keep the current price"
+                title="The product's current selling price. Change it from the product, not the order."
               >
                 Sell Price
               </div>

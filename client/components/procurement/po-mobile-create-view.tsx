@@ -1,114 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { POBackButton } from "./po-back-button";
 import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
-import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
 import { POMobileSummaryDrawer } from "./po-mobile-summary-drawer";
+import { POCreateActions } from "./po-create-actions";
 import { getLineTotal } from "./po-line-item-math";
-import type { ProductViewModel } from "@/lib/types/product";
-import type { POProduct } from "@/lib/db/queries/procurement";
-import type { POLineItemDraft } from "./po-item-ledger-table";
-
-interface Supplier {
-  id: string;
-  name: string;
-}
-
-const PO_TYPE_LABEL = {
-  immediate: "Immediate Purchase",
-  standard: "Purchase Order",
-} as const;
-
-interface POMobileCreateViewProps {
-  poType: "standard" | "immediate";
-  setPoType: (type: "standard" | "immediate") => void;
-  suppliers: Supplier[];
-  selectedSupplierId: string;
-  setSelectedSupplierId: (id: string) => void;
-  selectedSupplierName: string;
-  notes: string;
-  setNotes: (notes: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (status: string) => void;
-  dueDate: string;
-  setDueDate: (date: string) => void;
-  amountPaid: string;
-  setAmountPaid: (amount: string) => void;
-  totalAmount: number;
-  products: POProduct[];
-  onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
-  newlyCreatedProductId: string | null;
-  onNewlyCreatedProductConsumed: () => void;
-  canEditProducts?: boolean;
-  onOpenAddSupplier: () => void;
-  items: POLineItemDraft[];
-  onItemsChange: (items: POLineItemDraft[]) => void;
-  isSubmitting: boolean;
-  handleSubmit: () => void;
-  handleSaveDraft: () => void;
-  detailsConfirmed: boolean;
-  onContinue: () => void;
-  setIsEditDetailsOpen: (open: boolean) => void;
-}
+import type { POCreateViewProps } from "./po-create-view-props";
 
 // Mobile full-screen takeover for creating a purchase order.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-mobile-create-view-tsx-L57
-export function POMobileCreateView(props: POMobileCreateViewProps) {
-  const {
-    poType,
-    setPoType,
-    suppliers,
-    selectedSupplierId,
-    setSelectedSupplierId,
-    selectedSupplierName,
-    notes,
-    setNotes,
-    paymentStatus,
-    setPaymentStatus,
-    dueDate,
-    setDueDate,
-    amountPaid,
-    setAmountPaid,
-    totalAmount,
-    products,
-    onOpenAddProduct,
-    newlyCreatedProductId,
-    onNewlyCreatedProductConsumed,
-    canEditProducts,
-    onOpenAddSupplier,
-    items,
-    onItemsChange,
-    isSubmitting,
-    handleSubmit,
-    handleSaveDraft,
-    detailsConfirmed,
-    onContinue,
-    setIsEditDetailsOpen,
-  } = props;
-
+export function POMobileCreateView(props: POCreateViewProps) {
+  const { items, totalAmount, products, isWalkIn } = props;
   const [isConfirmReceiveOpen, setIsConfirmReceiveOpen] = useState(false);
-
-  const detailsFieldsProps = {
-    poType,
-    setPoType,
-    suppliers,
-    selectedSupplierId,
-    setSelectedSupplierId,
-    notes,
-    setNotes,
-    paymentStatus,
-    setPaymentStatus,
-    dueDate,
-    setDueDate,
-    amountPaid,
-    setAmountPaid,
-    totalAmount,
-    onOpenAddSupplier,
-  };
 
   return (
     <div
@@ -128,98 +34,62 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
             Create Purchase Order
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">
-            {detailsConfirmed
-              ? `Draft · ${items.length} ${items.length === 1 ? "item" : "items"}`
-              : "Enter the order details to continue"}
+            {`Draft · ${items.length} ${items.length === 1 ? "item" : "items"}`}
           </div>
         </div>
-        {detailsConfirmed && (
-          <div className="ml-auto flex items-center gap-2 shrink-0">
-            {poType === "immediate" && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold"
-                onClick={handleSaveDraft}
-                disabled={isSubmitting || items.length === 0}
-              >
-                Draft
-              </Button>
-            )}
-            <Button
-              size="sm"
-              className="h-9 px-4 rounded-[10px] text-[12.5px] font-semibold"
-              onClick={
-                poType === "immediate"
-                  ? () => setIsConfirmReceiveOpen(true)
-                  : handleSubmit
-              }
-              disabled={isSubmitting || items.length === 0}
-            >
-              {isSubmitting ? "Saving..." : poType === "immediate" ? "Receive" : "Save Draft"}
-            </Button>
-          </div>
-        )}
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <POCreateActions
+            compact
+            isWalkIn={isWalkIn}
+            canReceive={props.canReceive}
+            isSubmitting={props.isSubmitting}
+            hasItems={items.length > 0}
+            onSaveDraft={props.handleSaveDraft}
+            onReceive={() => setIsConfirmReceiveOpen(true)}
+            onSend={props.handleSend}
+          />
+        </div>
       </div>
 
-      {detailsConfirmed ? (
-        <>
-          <div
-            className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
-            style={{
-              paddingBottom:
-                "calc(7rem + var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
-            }}
-          >
-            <div className="[[data-keyboard-open]_&]:hidden">
-              <PODetailsSummaryBar
-                vendorName={selectedSupplierName}
-                poTypeLabel={PO_TYPE_LABEL[poType]}
-                onEdit={() => setIsEditDetailsOpen(true)}
-              />
-            </div>
-            <POItemBuilder
-              poType={poType}
-              products={products}
-              items={items}
-              onItemsChange={onItemsChange}
-              onOpenAddProduct={onOpenAddProduct}
-              newlyCreatedProductId={newlyCreatedProductId}
-              onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
-              canEditProducts={canEditProducts}
-            />
-          </div>
-
-          <POMobileSummaryDrawer
-            itemCount={items.length}
-            totalAmount={totalAmount}
-            selectedSupplierName={selectedSupplierName}
-            lineItems={items.map((item) => ({
-              productName: item.product_name,
-              quantity: item.bulk_quantity,
-              bulkUnit: item.bulk_unit,
-              lineTotal: getLineTotal(item, poType),
-            }))}
+      <div
+        className="flex-1 overflow-y-auto px-4 pt-4 flex flex-col gap-3.5"
+        style={{
+          paddingBottom:
+            "calc(7rem + var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)))",
+        }}
+      >
+        <div className="[[data-keyboard-open]_&]:hidden">
+          <PODetailsSummaryBar
+            vendorName={props.selectedSupplierName}
+            paymentStatus={props.paymentStatus}
+            dueDate={props.dueDate}
+            amountPaid={props.amountPaid}
+            onEdit={() => props.setIsEditDetailsOpen(true)}
           />
-        </>
-      ) : (
-        <div className="flex-1 flex flex-col min-h-0">
-          <div
-            className="flex-1 overflow-y-auto px-4 pt-4"
-            style={{ paddingBottom: "calc(1.5rem + var(--kb-inset, 0px))" }}
-          >
-            <PODetailsFields {...detailsFieldsProps} />
-          </div>
-          <div className="border-t border-border bg-card p-4 shrink-0">
-            <Button
-              className="w-full h-11 rounded-[10px] text-[13.5px] font-bold"
-              onClick={onContinue}
-            >
-              Continue to Add Items
-            </Button>
-          </div>
         </div>
-      )}
+        <POItemBuilder
+          poType="immediate"
+          products={products}
+          items={items}
+          onItemsChange={props.onItemsChange}
+          onOpenAddProduct={props.onOpenAddProduct}
+          newlyCreatedProductId={props.newlyCreatedProductId}
+          onNewlyCreatedProductConsumed={props.onNewlyCreatedProductConsumed}
+          canEditProducts={props.canEditProducts}
+        />
+      </div>
+
+      <POMobileSummaryDrawer
+        itemCount={items.length}
+        totalAmount={totalAmount}
+        selectedSupplierName={props.selectedSupplierName}
+        lineItems={items.map((item) => ({
+          productName: item.product_name,
+          quantity: item.bulk_quantity,
+          bulkUnit: item.bulk_unit,
+          lineTotal: getLineTotal(item, "immediate"),
+        }))}
+      />
 
       <POImmediateConfirmDialog
         open={isConfirmReceiveOpen}
@@ -227,7 +97,7 @@ export function POMobileCreateView(props: POMobileCreateViewProps) {
         items={items}
         products={products}
         totalAmount={totalAmount}
-        onConfirm={handleSubmit}
+        onConfirm={props.handleReceive}
       />
     </div>
   );

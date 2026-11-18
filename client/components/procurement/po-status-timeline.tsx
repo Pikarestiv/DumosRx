@@ -40,8 +40,8 @@ function stepsFor(po: PurchaseOrder): { label: string; state: StepState }[] {
   const steps: { label: string; state: StepState }[] = [
     { label: "Draft", state: sent || partial || received ? "done" : "current" },
   ];
-  if (po.type !== "immediate") {
-    steps.push({ label: "Sent", state: partial || received ? "done" : sent ? "current" : "upcoming" });
+  if (po.type !== "immediate" || sent || partial) {
+    steps.push({ label: "Ordered", state: partial || received ? "done" : sent ? "current" : "upcoming" });
   }
   steps.push({
     label: partial ? "Partially received" : "Received",

@@ -1,113 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { POBackButton } from "./po-back-button";
-import { PODetailsFields } from "./po-details-fields";
 import { PODetailsSummaryBar } from "./po-details-summary-bar";
 import { POItemBuilder } from "./po-item-builder";
 import { POImmediateConfirmDialog } from "./po-immediate-confirm-dialog";
+import { POCreateActions } from "./po-create-actions";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
-import type { ProductViewModel } from "@/lib/types/product";
-import type { POProduct } from "@/lib/db/queries/procurement";
-import type { POLineItemDraft } from "./po-item-ledger-table";
-
-interface Supplier {
-  id: string;
-  name: string;
-}
-
-const PO_TYPE_LABEL = {
-  immediate: "Immediate Purchase",
-  standard: "Purchase Order",
-} as const;
-
-interface PODesktopCreateViewProps {
-  poType: "standard" | "immediate";
-  setPoType: (type: "standard" | "immediate") => void;
-  suppliers: Supplier[];
-  selectedSupplierId: string;
-  setSelectedSupplierId: (id: string) => void;
-  selectedSupplierName: string;
-  notes: string;
-  setNotes: (notes: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (status: string) => void;
-  dueDate: string;
-  setDueDate: (date: string) => void;
-  amountPaid: string;
-  setAmountPaid: (amount: string) => void;
-  totalAmount: number;
-  products: POProduct[];
-  onOpenAddProduct: (productData: Partial<ProductViewModel>) => void;
-  newlyCreatedProductId: string | null;
-  onNewlyCreatedProductConsumed: () => void;
-  canEditProducts?: boolean;
-  onOpenAddSupplier: () => void;
-  items: POLineItemDraft[];
-  onItemsChange: (items: POLineItemDraft[]) => void;
-  isSubmitting: boolean;
-  handleSubmit: () => void;
-  handleSaveDraft: () => void;
-  detailsConfirmed: boolean;
-  onContinue: () => void;
-  setIsEditDetailsOpen: (open: boolean) => void;
-}
+import type { POCreateViewProps } from "./po-create-view-props";
 
 // Desktop full-screen takeover for creating a purchase order, same as the Cycle Count session in stock-batch/stock-audits.…
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-desktop-create-view-tsx-L56
-export function PODesktopCreateView(props: PODesktopCreateViewProps) {
+export function PODesktopCreateView(props: POCreateViewProps) {
   const formatCurrency = useFormatCurrency();
-  const {
-    poType,
-    setPoType,
-    suppliers,
-    selectedSupplierId,
-    setSelectedSupplierId,
-    selectedSupplierName,
-    notes,
-    setNotes,
-    paymentStatus,
-    setPaymentStatus,
-    dueDate,
-    setDueDate,
-    amountPaid,
-    setAmountPaid,
-    totalAmount,
-    products,
-    onOpenAddProduct,
-    newlyCreatedProductId,
-    onNewlyCreatedProductConsumed,
-    canEditProducts,
-    onOpenAddSupplier,
-    items,
-    onItemsChange,
-    isSubmitting,
-    handleSubmit,
-    handleSaveDraft,
-    detailsConfirmed,
-    onContinue,
-    setIsEditDetailsOpen,
-  } = props;
+  const { items, totalAmount, products, isWalkIn } = props;
   const [isConfirmReceiveOpen, setIsConfirmReceiveOpen] = useState(false);
-
-  const detailsFieldsProps = {
-    poType,
-    setPoType,
-    suppliers,
-    selectedSupplierId,
-    setSelectedSupplierId,
-    notes,
-    setNotes,
-    paymentStatus,
-    setPaymentStatus,
-    dueDate,
-    setDueDate,
-    amountPaid,
-    setAmountPaid,
-    totalAmount,
-    onOpenAddSupplier,
-  };
 
   return (
     <div className="flex fixed inset-0 z-50 flex-col bg-background">
@@ -121,85 +28,49 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
             Create Purchase Order
           </div>
           <div className="text-[12px] text-muted-foreground mt-0.5">
-            {detailsConfirmed
-              ? "Draft a formal request for stock batch replenishment"
-              : "Enter the order details to continue"}
+            {isWalkIn ? "Record stock bought at the counter" : "Build an order for your vendor"}
           </div>
         </div>
-        {detailsConfirmed && (
-          <div className="ml-auto flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
-                Estimated total
-              </div>
-              <div className="text-[15px] font-bold font-serif text-primary leading-tight">
-                {formatCurrency(totalAmount)}
-              </div>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Estimated total
             </div>
-            {poType === "immediate" && (
-              <Button
-                variant="outline"
-                className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-                onClick={handleSaveDraft}
-                disabled={isSubmitting || items.length === 0}
-              >
-                Save as Draft
-              </Button>
-            )}
-            <Button
-              className="h-10 px-5 rounded-[10px] text-[13px] font-bold"
-              onClick={
-                poType === "immediate"
-                  ? () => setIsConfirmReceiveOpen(true)
-                  : handleSubmit
-              }
-              disabled={isSubmitting || items.length === 0}
-            >
-              {isSubmitting
-                ? "Saving..."
-                : poType === "immediate"
-                  ? "Receive & Save"
-                  : "Save as Draft"}
-            </Button>
+            <div className="text-[15px] font-bold font-serif text-primary leading-tight">
+              {formatCurrency(totalAmount)}
+            </div>
           </div>
-        )}
+          <POCreateActions
+            isWalkIn={isWalkIn}
+            canReceive={props.canReceive}
+            isSubmitting={props.isSubmitting}
+            hasItems={items.length > 0}
+            onSaveDraft={props.handleSaveDraft}
+            onReceive={() => setIsConfirmReceiveOpen(true)}
+            onSend={props.handleSend}
+          />
+        </div>
       </div>
 
-      {detailsConfirmed ? (
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
-          <PODetailsSummaryBar
-            vendorName={selectedSupplierName}
-            poTypeLabel={PO_TYPE_LABEL[poType]}
-            onEdit={() => setIsEditDetailsOpen(true)}
-          />
-          <POItemBuilder
-            poType={poType}
-            products={products}
-            items={items}
-            onItemsChange={onItemsChange}
-            onOpenAddProduct={onOpenAddProduct}
-            newlyCreatedProductId={newlyCreatedProductId}
-            onNewlyCreatedProductConsumed={onNewlyCreatedProductConsumed}
-            canEditProducts={canEditProducts}
-          />
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto flex flex-col">
-          <div className="flex-1 flex justify-center p-6">
-            <div className="w-full max-w-2xl">
-              <PODetailsFields {...detailsFieldsProps} />
-            </div>
-          </div>
-          <div className="border-t border-border bg-card p-4 flex justify-center shrink-0">
-            <Button
-              className="h-11 px-6 rounded-[10px] text-[13.5px] font-bold w-full max-w-2xl"
-              onClick={onContinue}
-            >
-              Continue to Add Items
-            </Button>
-          </div>
-        </div>
-      )}
+      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-background/50">
+        <PODetailsSummaryBar
+          vendorName={props.selectedSupplierName}
+          paymentStatus={props.paymentStatus}
+          dueDate={props.dueDate}
+          amountPaid={props.amountPaid}
+          onEdit={() => props.setIsEditDetailsOpen(true)}
+        />
+        <POItemBuilder
+          poType="immediate"
+          products={products}
+          items={items}
+          onItemsChange={props.onItemsChange}
+          onOpenAddProduct={props.onOpenAddProduct}
+          newlyCreatedProductId={props.newlyCreatedProductId}
+          onNewlyCreatedProductConsumed={props.onNewlyCreatedProductConsumed}
+          canEditProducts={props.canEditProducts}
+        />
+      </div>
 
       <POImmediateConfirmDialog
         open={isConfirmReceiveOpen}
@@ -207,7 +78,7 @@ export function PODesktopCreateView(props: PODesktopCreateViewProps) {
         items={items}
         products={products}
         totalAmount={totalAmount}
-        onConfirm={handleSubmit}
+        onConfirm={props.handleReceive}
       />
     </div>
   );

@@ -15,8 +15,10 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
+  useDisplayName: () => (s: string) => s,
   capitalizeWords: (s: string) => s,
 }));
+vi.mock("@/components/procurement/owed-settlement-notice", () => ({ OwedSettlementNotice: () => null }));
 
 import { PurchaseOrderDetails } from "@/components/procurement/purchase-order-details";
 import type { PurchaseOrder } from "@/lib/db/procurement";
@@ -38,6 +40,8 @@ function po(overrides: Partial<PurchaseOrder> = {}): PurchaseOrder {
   } as PurchaseOrder;
 }
 
+const onReceiveDraft = vi.fn((_id: string, _items: unknown[]) => Promise.resolve(true));
+
 function renderDetails(order: PurchaseOrder) {
   render(
     <PurchaseOrderDetails
@@ -47,10 +51,30 @@ function renderDetails(order: PurchaseOrder) {
       onSendPO={vi.fn()}
       onDeletePO={vi.fn()}
       onReceiveGoods={vi.fn()}
+      onReceiveDraft={onReceiveDraft}
       onClose={vi.fn()}
     />,
   );
 }
+
+const draftLine = {
+  id: "line1",
+  po_id: "po1",
+  product_id: "p1",
+  product_name: "Panadol",
+  bulk_unit: "Carton",
+  base_unit: "Tablet",
+  bulk_quantity: 2,
+  quantity_received: 0,
+  units_per_bulk: 10,
+  product_units_per_bulk: 10,
+  unit_cost: 100,
+  subtotal: 200,
+  lot_number: "L1",
+  expiry_date: "2028-01-01",
+  cost_price_override: 12,
+  current_selling_price: 20,
+};
 
 function openMenu() {
   fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), {
@@ -93,10 +117,10 @@ describe("Purchase order details permissions", () => {
     expect(screen.queryByRole("menuitem", { name: /Delete order/ })).toBeNull();
   });
 
-  it("hides Mark as Sent without manage_purchase_orders", () => {
+  it("hides Send to vendor without manage_purchase_orders", () => {
     deny("manage_purchase_orders");
     renderDetails(po({ status: "pending" }));
-    expect(screen.queryByText("Mark as Sent")).toBeNull();
+    expect(screen.queryByText("Send to vendor")).toBeNull();
   });
 
   it("hides Receive Items without receive_purchase_orders, keeping the write actions", () => {
@@ -114,17 +138,45 @@ describe("Purchase order details permissions", () => {
     expect(screen.queryAllByText(/Emzor/).length).toBeGreaterThan(0);
   });
 
-  it("keeps a draft to two buttons: Edit and Mark as Sent", () => {
+  it("offers a named vendor's draft Send to vendor and Receive stock, with no Download PDF", () => {
     renderDetails(po({ status: "pending" }));
     const names = screen.getAllByRole("button").map((b) => b.textContent?.trim()).filter(Boolean);
-    expect(names).toEqual(expect.arrayContaining(["Edit", "Mark as Sent"]));
+    expect(names).toEqual(expect.arrayContaining(["Edit", "Send to vendor", "Receive stock"]));
     expect(screen.queryByText("Download PDF")).toBeNull();
   });
 
-  it("offers Receive Goods on a draft immediate purchase", () => {
-    renderDetails(po({ status: "pending", type: "immediate" }));
-    expect(screen.queryByText("Receive Goods")).not.toBeNull();
-    expect(screen.queryByText("Mark as Sent")).toBeNull();
+  it("offers a walk-in draft Receive stock and no Send to vendor, whatever its stored type", () => {
+    renderDetails(po({ status: "pending", supplier_id: null, type: "standard" }));
+    expect(screen.queryByText("Receive stock")).not.toBeNull();
+    expect(screen.queryByText("Send to vendor")).toBeNull();
+  });
+
+  it("hides Receive stock on a draft without receive_purchase_orders", () => {
+    deny("receive_purchase_orders");
+    renderDetails(po({ status: "pending", supplier_id: null }));
+    expect(screen.queryByText("Receive stock")).toBeNull();
+  });
+
+  it("confirms a draft receipt and receives the saved lines with their lot, expiry and cost", () => {
+    onReceiveDraft.mockClear();
+    renderDetails(po({ status: "pending", supplier_id: null, items: [draftLine, { ...draftLine, id: "line2", product_name: "Amoxil", bulk_quantity: 0 }] as PurchaseOrder["items"] }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Receive stock" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Amoxil has no quantity and will be left off this receipt");
+    expect(onReceiveDraft).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Receive Purchase" }));
+    expect(onReceiveDraft).toHaveBeenCalledWith("po1", [
+      expect.objectContaining({ po_item_id: "line1", quantity: 2, lot_number: "L1", expiry_date: "2028-01-01", cost_price: 12 }),
+      expect.objectContaining({ po_item_id: "line2", quantity: 0 }),
+    ]);
+  });
+
+  it("labels a sent order Ordered in its timeline", () => {
+    renderDetails(po({ status: "sent" }));
+    expect(screen.queryByText("Ordered")).not.toBeNull();
+    expect(screen.queryByText("Sent")).toBeNull();
   });
 
   it("offers Receive Remaining on a partially received order and no deleting", () => {

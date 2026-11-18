@@ -24,8 +24,7 @@ import { RequireRole } from "@/components/auth/require-role";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
-import { countSellingPriceOverrides, getOrderTotal, markRepricedLines, getValidatedAmountPaid, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
-import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
+import { dueDateToSave, getOrderTotal, getValidatedAmountPaid, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 
@@ -38,7 +37,6 @@ function EditOrderContent() {
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
-  const [seededPrices, setSeededPrices] = useState<Map<string, number | string | undefined>>(new Map());
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [amountPaid, setAmountPaid] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -51,9 +49,6 @@ function EditOrderContent() {
     string | null
   >(null);
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
-  // Was hardcoded "standard" everywhere below, which hid every Immediate-Purchase-only field (lot/expiry/New Cost/Review Pri…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-edit-page-tsx-L50
-  const [poType, setPoType] = useState<"standard" | "immediate">("standard");
 
   const displayName = useDisplayName();
   const { suppliers, products, refetch: fetchData } = useProcurementData();
@@ -72,16 +67,10 @@ function EditOrderContent() {
   const poData = poQuery.data;
 
   const seedFromPo = (po: NonNullable<typeof poData>) => {
-    const seededItems = (po.items || []).map((item) => ({
-      ...item,
-      selling_price:
-        po.type === "immediate" ? (item.current_selling_price ?? item.selling_price) : item.selling_price,
-    }));
+    const seededItems = po.items || [];
     const supplierId = po.supplier_id || SELF_PURCHASE_VENDOR_ID;
-    setPoType(po.type === "immediate" ? "immediate" : "standard");
     setSelectedSupplierId(supplierId);
     setNotes(po.notes || "");
-    setSeededPrices(new Map(seededItems.map((item) => [item.id, item.selling_price])));
     setItems(seededItems);
     setPaymentStatus(po.payment_status || "unpaid");
     setAmountPaid(po.amount_paid?.toString() || "");
@@ -147,7 +136,7 @@ function EditOrderContent() {
     onClose: () => setIsAddProductOpen(false),
   });
 
-  const totalAmount = getOrderTotal(items, poType);
+  const totalAmount = getOrderTotal(items, "immediate");
 
   const updatePurchaseOrderMutation = useUpdatePurchaseOrderMutation();
   const [isReloading, setIsReloading] = useState(false);
@@ -163,21 +152,19 @@ function EditOrderContent() {
       toast.error("Add at least one item to the order");
       return;
     }
-    const missingQuantity = quantityMissingMessage(items, displayName);
+    const missingQuantity = poData?.status === "pending" ? null : quantityMissingMessage(items, displayName);
     if (missingQuantity) {
       toast.error(missingQuantity);
       return;
     }
     if (isSubmitting) return;
 
-    const markedItems = markRepricedLines(items, seededPrices);
-    const priceOverrideCount = countSellingPriceOverrides(markedItems.filter((item) => item.reprice), products);
     updatePurchaseOrderMutation.mutate(
       {
         poId: id,
         supplierId: selectedSupplierId === SELF_PURCHASE_VENDOR_ID ? null : selectedSupplierId,
         notes,
-        items: markedItems,
+        items,
         paymentStatus,
         amountPaid:
           paymentStatus === "unpaid"
@@ -185,12 +172,11 @@ function EditOrderContent() {
             : paymentStatus === "paid"
               ? totalAmount
               : getValidatedAmountPaid(amountPaid, totalAmount),
-        dueDate: dueDate || null,
+        dueDate: dueDateToSave(paymentStatus, dueDate),
       },
       {
         onSuccess: () => {
           toast.success("Purchase Order updated successfully");
-          notifySellingPriceUpdates(priceOverrideCount);
           setIsReloading(true);
           void getPurchaseOrderById(id)
             .then((fresh) => fresh && seedFromPo(fresh))
@@ -222,7 +208,7 @@ function EditOrderContent() {
     canEditProducts,
     poId: id,
     selectedSupplierName,
-    poType,
+    poType: "immediate" as const,
     products,
     items,
     onItemsChange: setItems,
@@ -260,9 +246,6 @@ function EditOrderContent() {
       <PODetailsDialog
         open={isEditDetailsOpen}
         onOpenChange={setIsEditDetailsOpen}
-        poType={poType}
-        setPoType={() => {}}
-        hideTypeToggle
         suppliers={suppliers}
         selectedSupplierId={selectedSupplierId}
         setSelectedSupplierId={setSelectedSupplierId}

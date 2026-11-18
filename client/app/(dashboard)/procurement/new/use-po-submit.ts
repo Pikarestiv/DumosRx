@@ -1,8 +1,7 @@
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fields";
-import { getValidatedAmountPaid, countSellingPriceOverrides, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
-import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
+import { dueDateToSave, getValidatedAmountPaid, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { errorDescription } from "@/lib/utils/error-description";
 import {
@@ -10,10 +9,8 @@ import {
   useCreateAndReceivePurchaseOrderMutation,
 } from "@/lib/hooks/use-purchase-order-mutations";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
-import type { POProduct } from "@/lib/db/queries/procurement";
 
 interface UsePoSubmitArgs {
-  poType: "standard" | "immediate";
   selectedSupplierId: string;
   notes: string;
   items: POLineItemDraft[];
@@ -21,11 +18,9 @@ interface UsePoSubmitArgs {
   amountPaid: string;
   dueDate: string;
   totalAmount: number;
-  products: POProduct[];
 }
 
 export function usePoSubmit({
-  poType,
   selectedSupplierId,
   notes,
   items,
@@ -33,7 +28,6 @@ export function usePoSubmit({
   amountPaid,
   dueDate,
   totalAmount,
-  products,
 }: UsePoSubmitArgs) {
   const router = useRouter();
   const displayName = useDisplayName();
@@ -43,6 +37,7 @@ export function usePoSubmit({
   const isSubmitting =
     createPurchaseOrderMutation.isPending ||
     createAndReceivePurchaseOrderMutation.isPending;
+  const isWalkIn = selectedSupplierId === SELF_PURCHASE_VENDOR_ID;
 
   const canSubmit = ({ requireQuantities = true } = {}) => {
     if (items.length === 0) {
@@ -58,84 +53,64 @@ export function usePoSubmit({
   };
 
   const buildPayload = () => ({
-    supplierId:
-      selectedSupplierId === SELF_PURCHASE_VENDOR_ID
-        ? null
-        : selectedSupplierId,
+    supplierId: isWalkIn ? null : selectedSupplierId,
     notes,
     items,
     paymentStatus,
     amountPaid: paymentStatus === "unpaid" ? 0 : paymentStatus === "paid" ? totalAmount : getValidatedAmountPaid(amountPaid, totalAmount),
-    dueDate: dueDate || null,
+    dueDate: dueDateToSave(paymentStatus, dueDate),
   });
 
-  const handleSubmit = () => {
-    if (!canSubmit()) return;
-
-    const priceOverrideCount = countSellingPriceOverrides(items, products);
-    if (poType === "immediate") {
-      createAndReceivePurchaseOrderMutation.mutate(buildPayload(), {
-        onSuccess: (poId) => {
-          toast.success("Purchase received", {
-            description: "Stock has been added to inventory.",
-          });
-          notifySellingPriceUpdates(priceOverrideCount);
-          router.push(`/procurement?selected=${poId}`);
-        },
-        onError: (error) => {
-          console.error("Failed to create PO:", error);
-          toast.error("Couldn't save this purchase", {
-            description: errorDescription(error),
-          });
-        },
-      });
-    } else {
-      createPurchaseOrderMutation.mutate(buildPayload(), {
-        onSuccess: (poId) => {
-          toast.success("Purchase order saved as draft", {
-            description:
-              "Remember to mark it as sent once it's on its way to the vendor.",
-          });
-          router.push(`/procurement?selected=${poId}`);
-        },
-        onError: (error) => {
-          console.error("Failed to create PO:", error);
-          toast.error("Couldn't save this purchase", {
-            description: errorDescription(error),
-          });
-        },
-      });
-    }
+  const onFailure = (title: string) => (error: unknown) => {
+    console.error(title, error);
+    toast.error(title, { description: errorDescription(error) });
   };
 
-  // Parks an Immediate Purchase as an ordinary draft instead of receiving stock.
-  // Rationale: docs/CLIENT_COMMENTS.md#block-app-(dashboard)-procurement-new-use-po-submit-ts-L109
-  const handleSaveDraft = () => {
-    if (!canSubmit({ requireQuantities: false })) return;
+  const handleReceive = () => {
+    if (!canSubmit()) return;
+    createAndReceivePurchaseOrderMutation.mutate(buildPayload(), {
+      onSuccess: (poId) => {
+        toast.success("Purchase received", {
+          description: "Stock has been added to inventory.",
+        });
+        router.push(`/procurement?selected=${poId}`);
+      },
+      onError: onFailure("Couldn't save this purchase"),
+    });
+  };
 
-    const priceOverrideCount = countSellingPriceOverrides(items, products);
+  const handleSend = () => {
+    if (isWalkIn) {
+      toast.error("Choose the vendor this order is going to");
+      return;
+    }
+    if (!canSubmit()) return;
     createPurchaseOrderMutation.mutate(
-      buildPayload(),
+      { ...buildPayload(), status: "sent" },
       {
         onSuccess: (poId) => {
-          notifySellingPriceUpdates(priceOverrideCount);
-          toast.success("Purchase order saved as draft", {
-            description:
-              poType === "immediate"
-                ? "Pick up where you left off any time, receive it whenever you're ready."
-                : "Remember to mark it as sent once it's on its way to the vendor.",
+          toast.success("Order marked as ordered", {
+            description: "Download its PDF from the order to share it with the vendor.",
           });
           router.push(`/procurement?selected=${poId}`);
         },
-        onError: (error) => {
-          console.error("Failed to save PO draft:", error);
-          toast.error("Couldn't save the draft", {
-            description: errorDescription(error),
-          });
-        },
+        onError: onFailure("Couldn't save this order"),
       },
     );
   };
 
-  return { isSubmitting, handleSubmit, handleSaveDraft };
+  const handleSaveDraft = () => {
+    if (!canSubmit({ requireQuantities: false })) return;
+    createPurchaseOrderMutation.mutate(buildPayload(), {
+      onSuccess: (poId) => {
+        toast.success("Saved as draft", {
+          description: "Pick up where you left off any time, then receive it or send it to the vendor.",
+        });
+        router.push(`/procurement?selected=${poId}`);
+      },
+      onError: onFailure("Couldn't save the draft"),
+    });
+  };
+
+  return { isSubmitting, isWalkIn, handleReceive, handleSend, handleSaveDraft };
 }

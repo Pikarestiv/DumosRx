@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertTriangle } from "lucide-react";
 import {
-  countSellingPriceOverrides,
   formatProductNamesList,
+  getImmediateUnitCost,
+  getMarginCue,
   getTotalBaseUnits,
   getZeroCostLineItems,
   getZeroQuantityLineItems,
@@ -21,7 +22,6 @@ import {
   resolveReceiveButtonLabel,
 } from "./po-line-item-math";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
-import type { POProduct } from "@/lib/db/queries/procurement";
 import type { POLineItemDraft } from "./po-item-ledger-table";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { OwedSettlementNotice } from "./owed-settlement-notice";
@@ -30,12 +30,33 @@ interface POImmediateConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: POLineItemDraft[];
-  products: POProduct[];
+  products: ConfirmProduct[];
   totalAmount: number;
   onConfirm: () => void;
+  skippedItems?: POLineItemDraft[];
 }
 
-// Last stop before createAndReceivePurchaseOrder, which adds stock AND rewrites products.selling_price store-wide in the s…
+export interface ConfirmProduct {
+  id: string;
+  selling_price?: number | null;
+  cost_price?: number | null;
+}
+
+function countMarginCues(items: POLineItemDraft[], products: ConfirmProduct[]) {
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const counts = { below_cost: 0, thinner: 0 };
+  for (const item of items) {
+    if (!(Number(item.bulk_quantity) > 0)) continue;
+    const product = productMap.get(item.product_id);
+    const cue = getMarginCue({ unitCost: getImmediateUnitCost(item), sellingPrice: product?.selling_price, previousCost: product?.cost_price });
+    if (cue) counts[cue] += 1;
+  }
+  return counts;
+}
+
+const productCount = (n: number) => (n === 1 ? "1 product" : `${n} products`);
+
+// Last stop before stock is added, with no undo path.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-immediate-confirm-dialog-tsx-L31
 export function POImmediateConfirmDialog({
   open,
@@ -44,10 +65,11 @@ export function POImmediateConfirmDialog({
   products,
   totalAmount,
   onConfirm,
+  skippedItems = [],
 }: POImmediateConfirmDialogProps) {
   const formatCurrency = useFormatCurrency();
   const displayName = useDisplayName();
-  const priceChangeCount = countSellingPriceOverrides(items, products);
+  const marginCues = countMarginCues(items, products);
   const totalUnits = getTotalBaseUnits(items);
   const unitLabel = `${totalUnits} ${totalUnits === 1 ? "unit" : "units"}`;
   const zeroCostItems = getZeroCostLineItems(items);
@@ -70,16 +92,21 @@ export function POImmediateConfirmDialog({
                 , worth {formatCurrency(totalAmount)}, will be added to your
                 stock right away.
               </p>
-              {priceChangeCount > 0 ? (
-                <p>
-                  This also changes the selling price of{" "}
-                  {priceChangeCount === 1
-                    ? "1 product"
-                    : `${priceChangeCount} products`}{" "}
-                  store-wide, everywhere they are sold.
+              <p>No selling price will change.</p>
+              {(marginCues.below_cost > 0 || marginCues.thinner > 0) && (
+                <p className="text-amber-700 dark:text-amber-300">
+                  {[
+                    marginCues.below_cost > 0 && `${productCount(marginCues.below_cost)} will sell at or below this cost`,
+                    marginCues.thinner > 0 && `${productCount(marginCues.thinner)} will earn a thinner margin than before`,
+                  ].filter(Boolean).join("; ")}
+                  . Change a selling price from the product if you need to.
                 </p>
-              ) : (
-                <p>No selling price will change.</p>
+              )}
+              {skippedItems.length > 0 && (
+                <p>
+                  {formatProductNamesList(skippedItems.map((item) => displayName(item.product_name)))}{" "}
+                  {skippedItems.length === 1 ? "has" : "have"} no quantity and will be left off this receipt.
+                </p>
               )}
               {hasZeroPriceWarning && (
                 <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-950 dark:text-amber-100 space-y-2">

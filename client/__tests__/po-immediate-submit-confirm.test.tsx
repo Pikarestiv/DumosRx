@@ -42,13 +42,11 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 
 /**
- * An Immediate Purchase submit writes stock AND rewrites
- * products.selling_price store-wide, irreversibly, but the button said only
- * "Save Purchase Order" / "Save" and nothing on screen said what it was
- * about to do. The label has to name the action, and the submit has to be
- * confirmed first with a summary of what it will change.
+ * Receiving writes stock irreversibly, so the button has to name the action
+ * and the receive has to be confirmed first with a summary of what it does.
+ * Which buttons a new order offers depends on its vendor.
  */
-describe("Immediate Purchase submit confirmation", () => {
+describe("new order actions and receive confirmation", () => {
   const product: POProduct = {
     id: "p1",
     name: "Panadol",
@@ -59,218 +57,166 @@ describe("Immediate Purchase submit confirmation", () => {
     stock_quantity: 50,
     selling_price: 12.5,
   };
+  const line = (overrides: Partial<POLineItemDraft> = {}): POLineItemDraft => ({
+    product_id: "p1",
+    product_name: "Panadol",
+    bulk_unit: "Carton",
+    bulk_quantity: 2,
+    units_per_bulk: 100,
+    unit_cost: 400,
+    subtotal: 800,
+    ...overrides,
+  });
+  const handleReceive = vi.fn();
+  const handleSend = vi.fn();
+  const handleSaveDraft = vi.fn();
 
-  const items: POLineItemDraft[] = [
-    {
-      product_id: "p1",
-      product_name: "Panadol",
-      bulk_unit: "Carton",
-      bulk_quantity: 2,
-      units_per_bulk: 100,
-      unit_cost: 400,
-      subtotal: 800,
-      selling_price: 20,
-    },
-  ];
-
-  const handleSubmit = vi.fn();
-
-  function baseProps(poType: "standard" | "immediate") {
+  function baseProps(overrides: Record<string, unknown> = {}) {
     return {
-      poType,
-      setPoType: vi.fn(),
-      suppliers: [],
-      selectedSupplierId: "__self__",
-      setSelectedSupplierId: vi.fn(),
       selectedSupplierName: "Self / Walk-in Purchase",
-      notes: "",
-      setNotes: vi.fn(),
       paymentStatus: "unpaid",
-      setPaymentStatus: vi.fn(),
       dueDate: "",
-      setDueDate: vi.fn(),
       amountPaid: "",
-      setAmountPaid: vi.fn(),
       totalAmount: 800,
       products: [product],
       onOpenAddProduct: vi.fn(),
       newlyCreatedProductId: null,
       onNewlyCreatedProductConsumed: vi.fn(),
-      onOpenAddSupplier: vi.fn(),
-      items,
+      canReceive: true,
+      isWalkIn: true,
+      items: [line()],
       onItemsChange: vi.fn(),
       isSubmitting: false,
-      handleSubmit,
-      handleSaveDraft: vi.fn(),
-      detailsConfirmed: true,
-      onContinue: vi.fn(),
+      handleReceive,
+      handleSend,
+      handleSaveDraft,
       setIsEditDetailsOpen: vi.fn(),
+      ...overrides,
     };
   }
 
   beforeEach(() => {
-    handleSubmit.mockClear();
+    handleReceive.mockClear();
+    handleSend.mockClear();
+    handleSaveDraft.mockClear();
     document.body.innerHTML = "";
   });
 
-  it("labels the desktop immediate submit as a receive, not a plain save", () => {
-    render(<PODesktopCreateView {...baseProps("immediate")} />);
-    expect(
-      screen.getByRole("button", { name: "Receive & Save" }),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Save Purchase Order" })).toBeNull();
+  const openReceive = () => {
+    act(() => {
+      screen.getByRole("button", { name: "Receive stock" }).click();
+    });
+    return screen.getByRole("alertdialog");
+  };
+
+  it("leads a walk-in purchase with Receive stock and offers no Send to vendor", () => {
+    render(<PODesktopCreateView {...baseProps()} />);
+    expect(screen.getByRole("button", { name: "Receive stock" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send to vendor" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Save as Draft" })).toBeTruthy();
   });
 
-  it("asks for confirmation before an immediate submit fires, summarising items, total and price changes", () => {
-    render(<PODesktopCreateView {...baseProps("immediate")} />);
-
+  it("offers both Send to vendor and Receive stock for a named vendor", () => {
+    render(<PODesktopCreateView {...baseProps({ isWalkIn: false, selectedSupplierName: "Emzor" })} />);
     act(() => {
-      screen.getByRole("button", { name: "Receive & Save" }).click();
+      screen.getByRole("button", { name: "Send to vendor" }).click();
     });
+    expect(handleSend).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Receive stock" })).toBeTruthy();
+  });
 
-    expect(handleSubmit).not.toHaveBeenCalled();
-    const dialog = screen.getByRole("alertdialog");
-    // The units that actually reach stock (2 cartons x 100 tablets), named
-    // with the product - "1 item" read as a quantity to a store owner who
-    // had just typed a quantity of 2.
-    // Cased by the store's uppercase setting: the sentence is plain text, so
-    // it goes through useDisplayName() rather than a CSS class.
+  it("hides Receive stock from a role without receive_purchase_orders", () => {
+    render(<PODesktopCreateView {...baseProps({ canReceive: false })} />);
+    expect(screen.queryByRole("button", { name: "Receive stock" })).toBeNull();
+  });
+
+  it("asks for confirmation before receiving, summarising units, total and that no price changes", () => {
+    render(<PODesktopCreateView {...baseProps()} />);
+    const dialog = openReceive();
+
+    expect(handleReceive).not.toHaveBeenCalled();
     expect(dialog.textContent).toContain("200 units of PANADOL");
     expect(dialog.textContent).not.toContain("1 item");
     expect(dialog.textContent).toContain("₦800");
-    expect(dialog.textContent).toContain("selling price");
+    expect(dialog.textContent).toContain("No selling price will change.");
   });
 
-  it("submits once the confirmation is accepted", () => {
-    render(<PODesktopCreateView {...baseProps("immediate")} />);
-
+  it("receives once the confirmation is accepted", () => {
+    render(<PODesktopCreateView {...baseProps()} />);
+    openReceive();
     act(() => {
-      screen.getByRole("button", { name: "Receive & Save" }).click();
+      screen.getByRole("button", { name: "Receive Purchase" }).click();
     });
-    const confirm = screen
-      .getAllByRole("button")
-      .find((b) => b.textContent === "Receive Purchase");
-    expect(confirm).toBeTruthy();
-    act(() => {
-      confirm?.click();
-    });
-
-    expect(handleSubmit).toHaveBeenCalledTimes(1);
+    expect(handleReceive).toHaveBeenCalledTimes(1);
   });
 
-  it("does not gate a Standard order's draft save behind the receive confirmation", () => {
-    render(<PODesktopCreateView {...baseProps("standard")} />);
-
+  it("saves a draft without the receive confirmation", () => {
+    render(<PODesktopCreateView {...baseProps()} />);
     act(() => {
       screen.getByRole("button", { name: "Save as Draft" }).click();
     });
-
-    expect(handleSubmit).toHaveBeenCalledTimes(1);
+    expect(handleSaveDraft).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
-  it("labels and gates the mobile immediate submit the same way", () => {
-    render(<POMobileCreateView {...baseProps("immediate")} />);
-
-    const button = screen.getByRole("button", { name: "Receive" });
+  it("labels and gates the mobile receive the same way", () => {
+    render(<POMobileCreateView {...baseProps()} />);
     act(() => {
-      button.click();
+      screen.getByRole("button", { name: "Receive" }).click();
     });
-
-    expect(handleSubmit).not.toHaveBeenCalled();
+    expect(handleReceive).not.toHaveBeenCalled();
     expect(screen.getByRole("alertdialog")).toBeTruthy();
   });
 
-  it("warns when receiving an immediate purchase item with zero cost price", () => {
-    const zeroCostProps = {
-      ...baseProps("immediate"),
-      items: [
-        {
-          product_id: "p1",
-          product_name: "Panadol",
-          bulk_unit: "Carton",
-          bulk_quantity: 2,
-          units_per_bulk: 100,
-          unit_cost: 0,
-          subtotal: 0,
-          selling_price: 20,
-        },
-      ],
-    };
-    render(<PODesktopCreateView {...zeroCostProps} />);
+  it("says how many products will sell at or below cost or on a thinner margin", () => {
+    render(
+      <PODesktopCreateView
+        {...baseProps({
+          items: [line({ cost_price_override: 13 }), line({ product_id: "p2", product_name: "Amoxil", cost_price_override: 5 })],
+          products: [product, { ...product, id: "p2", name: "Amoxil" }],
+        })}
+      />,
+    );
+    const dialog = openReceive();
+    expect(dialog.textContent).toContain("1 product will sell at or below this cost");
+    expect(dialog.textContent).toContain("1 product will earn a thinner margin than before");
+  });
 
-    act(() => {
-      screen.getByRole("button", { name: "Receive & Save" }).click();
-    });
+  it("warns when receiving an item with zero cost price", () => {
+    render(<PODesktopCreateView {...baseProps({ items: [line({ unit_cost: 0, subtotal: 0 })] })} />);
+    const dialog = openReceive();
 
-    expect(handleSubmit).not.toHaveBeenCalled();
-    const dialog = screen.getByRole("alertdialog");
     expect(dialog.textContent).toContain("Price warning on items being received");
     expect(dialog.textContent).toContain("Zero Cost Price (₦0): PANADOL");
     expect(dialog.textContent).toContain("distort your inventory valuation");
-
     expect(screen.getByRole("button", { name: "Go Back & Edit Prices" })).toBeTruthy();
-    const confirm = screen.getByRole("button", { name: "Receive with ₦0 Cost" });
-    expect(confirm).toBeTruthy();
-
     act(() => {
-      confirm.click();
+      screen.getByRole("button", { name: "Receive with ₦0 Cost" }).click();
     });
-    expect(handleSubmit).toHaveBeenCalledTimes(1);
+    expect(handleReceive).toHaveBeenCalledTimes(1);
   });
 
-  it("warns when receiving an immediate purchase item with zero selling price", () => {
-    const zeroSellPriceProps = {
-      ...baseProps("immediate"),
-      items: [
-        {
-          product_id: "p1",
-          product_name: "Panadol",
-          bulk_unit: "Carton",
-          bulk_quantity: 2,
-          units_per_bulk: 100,
-          unit_cost: 400,
-          subtotal: 800,
-          selling_price: 0,
-        },
-      ],
-    };
-    render(<PODesktopCreateView {...zeroSellPriceProps} />);
+  it("warns when the product's own selling price is zero, whatever an old line carried", () => {
+    render(
+      <PODesktopCreateView
+        {...baseProps({ items: [line({ selling_price: 20 })], products: [{ ...product, selling_price: 0 }] })}
+      />,
+    );
+    const dialog = openReceive();
 
-    act(() => {
-      screen.getByRole("button", { name: "Receive & Save" }).click();
-    });
-
-    const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("Price warning on items being received");
     expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
     expect(dialog.textContent).toContain("sold for free (₦0)");
     expect(screen.getByRole("button", { name: "Receive with ₦0 Sell Price" })).toBeTruthy();
   });
 
   it("warns when both cost price and selling price are zero", () => {
-    const zeroBothProps = {
-      ...baseProps("immediate"),
-      items: [
-        {
-          product_id: "p1",
-          product_name: "Panadol",
-          bulk_unit: "Carton",
-          bulk_quantity: 2,
-          units_per_bulk: 100,
-          unit_cost: 0,
-          subtotal: 0,
-          selling_price: 0,
-        },
-      ],
-    };
-    render(<PODesktopCreateView {...zeroBothProps} />);
+    render(
+      <PODesktopCreateView
+        {...baseProps({ items: [line({ unit_cost: 0, subtotal: 0 })], products: [{ ...product, selling_price: 0 }] })}
+      />,
+    );
+    const dialog = openReceive();
 
-    act(() => {
-      screen.getByRole("button", { name: "Receive & Save" }).click();
-    });
-
-    const dialog = screen.getByRole("alertdialog");
     expect(dialog.textContent).toContain("Zero Cost Price (₦0): PANADOL");
     expect(dialog.textContent).toContain("Zero Selling Price (₦0): PANADOL");
     expect(screen.getByRole("button", { name: "Receive with ₦0 Cost & Sell Price" })).toBeTruthy();

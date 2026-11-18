@@ -9,8 +9,9 @@ import {
   clampMoneyInput,
   clampReceivedQuantity,
   outstandingBulkQuantity,
+  receivableLimit,
+  sellingPriceLabel,
   resolveBaseUnitCost,
-  sellingPricePlaceholder,
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { formatCurrency } from "@/lib/utils";
@@ -66,7 +67,7 @@ export function ReceiveLedgerTable({
               <ResponsiveTabLabel short="Cost" long="Cost / Base Unit" />
             </div>
             <div role="columnheader" className="text-right px-3 py-2">
-              <ResponsiveTabLabel short="Sell Price" long="New Selling Price" />
+              <ResponsiveTabLabel short="Sell Price" long="Selling Price" />
             </div>
             <div role="columnheader" className="text-left px-3 py-2">
               Batch #
@@ -124,7 +125,7 @@ export function ReceiveLedgerTable({
                   <Input
                     type="number"
                     min="0"
-                    max={outstanding}
+                    max={Number.isFinite(receivableLimit(item)) ? outstanding : undefined}
                     className="w-full min-w-16 text-right"
                     aria-label={`Quantity received for ${item.product_name}`}
                     value={state.quantity ?? outstanding}
@@ -132,7 +133,7 @@ export function ReceiveLedgerTable({
                       onFieldChange(
                         item.id,
                         "quantity",
-                        clampReceivedQuantity(e.target.value, outstanding),
+                        clampReceivedQuantity(e.target.value, receivableLimit(item)),
                       )
                     }
                   />
@@ -168,22 +169,9 @@ export function ReceiveLedgerTable({
                   role="cell"
                   className="px-3 py-2 text-right flex items-start"
                 >
-                  <Input
-                    type="number"
-                    min="0"
-                    step="any"
-                    className="w-full min-w-20 text-right"
-                    aria-label={`New Selling Price for ${item.product_name}`}
-                    placeholder={sellingPricePlaceholder(item.current_selling_price, currency)}
-                    value={state.selling_price ?? ""}
-                    onChange={(e) =>
-                      onFieldChange(
-                        item.id,
-                        "selling_price",
-                        clampMoneyInput(e.target.value),
-                      )
-                    }
-                  />
+                  <span className="w-full pt-2 text-right font-semibold text-foreground">
+                    {sellingPriceLabel(item.current_selling_price, currency)}
+                  </span>
                 </div>
                 <div role="cell" className="px-3 py-2 flex items-start">
                   <Input

@@ -35,11 +35,10 @@ const uncounted = {
   subtotal: 0,
 } as POLineItemDraft;
 
-function renderSubmit() {
+function renderSubmit(overrides: Partial<Parameters<typeof usePoSubmit>[0]> = {}) {
   return renderHook(
     () =>
       usePoSubmit({
-        poType: "standard",
         selectedSupplierId: "s1",
         notes: "",
         items: [uncounted],
@@ -47,11 +46,13 @@ function renderSubmit() {
         amountPaid: "",
         dueDate: "",
         totalAmount: 0,
-        products: [],
+        ...overrides,
       }),
     { wrapper },
   );
 }
+
+const counted = { ...uncounted, bulk_quantity: 2, subtotal: 200 } as POLineItemDraft;
 
 describe("usePoSubmit with an uncounted row", () => {
   beforeEach(() => {
@@ -59,9 +60,9 @@ describe("usePoSubmit with an uncounted row", () => {
     createPurchaseOrder.mockClear();
   });
 
-  it("refuses to submit the order and names the product", () => {
+  it("refuses to send the order and names the product", () => {
     const { result } = renderSubmit();
-    act(() => result.current.handleSubmit());
+    act(() => result.current.handleSend());
     expect(toastError).toHaveBeenCalledWith("Enter a quantity for Paracetamol");
     expect(createPurchaseOrder).not.toHaveBeenCalled();
   });
@@ -71,5 +72,34 @@ describe("usePoSubmit with an uncounted row", () => {
     act(() => result.current.handleSaveDraft());
     await waitFor(() => expect(createPurchaseOrder).toHaveBeenCalled());
     expect(toastError).not.toHaveBeenCalled();
+  });
+});
+
+describe("usePoSubmit sending and paying", () => {
+  beforeEach(() => {
+    toastError.mockClear();
+    createPurchaseOrder.mockClear();
+  });
+
+  it("creates an order to a named vendor already marked as sent", async () => {
+    const { result } = renderSubmit({ items: [counted], totalAmount: 200 });
+    act(() => result.current.handleSend());
+    await waitFor(() => expect(createPurchaseOrder).toHaveBeenCalled());
+    expect(createPurchaseOrder.mock.calls[0]).toEqual(["s1", "", [counted], "unpaid", 0, null, "sent"]);
+  });
+
+  it("will not send a walk-in purchase to a vendor", () => {
+    const { result } = renderSubmit({ selectedSupplierId: "__self__", items: [counted] });
+    act(() => result.current.handleSend());
+    expect(toastError).toHaveBeenCalledWith("Choose the vendor this order is going to");
+    expect(createPurchaseOrder).not.toHaveBeenCalled();
+  });
+
+  it("saves no due date on a fully paid draft and records the full total as paid", async () => {
+    const { result } = renderSubmit({ items: [counted], paymentStatus: "paid", dueDate: "2027-03-01", totalAmount: 200 });
+    act(() => result.current.handleSaveDraft());
+    await waitFor(() => expect(createPurchaseOrder).toHaveBeenCalled());
+    const [, , , paymentStatus, amountPaid, dueDate] = createPurchaseOrder.mock.calls[0] as unknown[];
+    expect([paymentStatus, amountPaid, dueDate]).toEqual(["paid", 200, null]);
   });
 });

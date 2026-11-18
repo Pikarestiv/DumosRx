@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Clock } from "lucide-react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -9,7 +9,9 @@ import { PoLineItems } from "./po-line-items";
 import { PoOrderMenu } from "./po-order-menu";
 import { PoDetailsFooter } from "./po-details-footer";
 import { usePoPdfDownload } from "./use-po-pdf-download";
+import { PODraftReceiveDialog } from "./po-draft-receive-dialog";
 import type { PurchaseOrder } from "@/lib/db/procurement";
+import type { ReceivedItemPayload } from "./receive-po-panel";
 
 interface PurchaseOrderDetailsProps {
   selectedPO: PurchaseOrder | null;
@@ -17,10 +19,11 @@ interface PurchaseOrderDetailsProps {
   getStatusBadge: (status: string) => React.ReactNode;
   onSendPO: (id: string) => void;
   onDeletePO?: (id: string) => void;
-  /** True while a status write is in flight, so "Mark as Sent" and "Delete"
+  /** True while a status write is in flight, so "Send to vendor" and "Delete"
    * lock the way "Confirm & Receive" already does. */
   isMutatingPO?: boolean;
   onReceiveGoods: () => void;
+  onReceiveDraft: (id: string, items: ReceivedItemPayload[]) => void | Promise<boolean | void>;
   onClose: () => void;
 }
 
@@ -32,8 +35,10 @@ export function PurchaseOrderDetails({
   onDeletePO,
   isMutatingPO,
   onReceiveGoods,
+  onReceiveDraft,
   onClose,
 }: PurchaseOrderDetailsProps) {
+  const [isDraftReceiveOpen, setIsDraftReceiveOpen] = useState(false);
   const router = useRouter();
   const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
   const canReceivePurchaseOrders = useHasPermission("receive_purchase_orders");
@@ -122,7 +127,14 @@ export function PurchaseOrderDetails({
           onEdit={editOrder}
           onSend={() => onSendPO(selectedPO.id)}
           onReceive={onReceiveGoods}
+          onReceiveDraft={() => setIsDraftReceiveOpen(true)}
           onDownloadPdf={() => void download()}
+        />
+        <PODraftReceiveDialog
+          po={selectedPO}
+          open={isDraftReceiveOpen}
+          onOpenChange={setIsDraftReceiveOpen}
+          onReceive={(id, items) => void onReceiveDraft(id, items)}
         />
       </div>
     </Card>

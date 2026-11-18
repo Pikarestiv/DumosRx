@@ -18,7 +18,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierCombobox } from "./supplier-combobox";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 
@@ -32,9 +31,6 @@ interface Supplier {
 export const SELF_PURCHASE_VENDOR_ID = "__self__";
 
 interface PODetailsFieldsProps {
-  poType: "standard" | "immediate";
-  setPoType: (type: "standard" | "immediate") => void;
-  poTypeLocked?: boolean;
   suppliers: Supplier[];
   selectedSupplierId: string;
   setSelectedSupplierId: (id: string) => void;
@@ -50,17 +46,10 @@ interface PODetailsFieldsProps {
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L50
   totalAmount?: number;
   onOpenAddSupplier: () => void;
-  // Editing an existing PO is only ever done for Standard POs (Immediate ones are created already "received" and never enter…
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L55
-  hideTypeToggle?: boolean;
 }
 
-/** Vendor/type/notes/payment/due-date fields — the "Order Details" step
- * shown before item entry, and re-editable afterward via PODetailsDialog. */
+/** Vendor/notes/payment/due-date fields, opened from the order's header bar. */
 export function PODetailsFields({
-  poType,
-  setPoType,
-  poTypeLocked,
   suppliers,
   selectedSupplierId,
   setSelectedSupplierId,
@@ -74,7 +63,6 @@ export function PODetailsFields({
   setAmountPaid,
   totalAmount = 0,
   onOpenAddSupplier,
-  hideTypeToggle,
 }: PODetailsFieldsProps) {
   const formatCurrency = useFormatCurrency();
   const hasOrderTotal = totalAmount > 0;
@@ -83,45 +71,6 @@ export function PODetailsFields({
 
   return (
     <div className="flex flex-col gap-4">
-      {!hideTypeToggle && (
-        <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground">
-            Order Type
-          </Label>
-          <Tabs
-            value={poType}
-            onValueChange={(val) => setPoType(val as "immediate" | "standard")}
-            className="w-fit"
-          >
-            <TabsList>
-              <TabsTrigger
-                value="immediate"
-                disabled={poTypeLocked}
-                title={
-                  poTypeLocked ? "Start a new PO to change type" : undefined
-                }
-              >
-                Immediate Purchase
-              </TabsTrigger>
-              <TabsTrigger
-                value="standard"
-                disabled={poTypeLocked}
-                title={
-                  poTypeLocked ? "Start a new PO to change type" : undefined
-                }
-              >
-                Purchase Order
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <p className="text-[11.5px] text-muted-foreground leading-snug">
-            {poType === "immediate"
-              ? "Adds stock and updates selling prices store-wide as soon as you save."
-              : "Records the order only. Stock and pricing are entered later, when you receive it."}
-          </p>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
@@ -178,32 +127,34 @@ export function PODetailsFields({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
-            Due Date (Optional)
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    When payment is due to the vendor, not when the items are
-                    expected to arrive.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </Label>
-          <DatePickerInput
-            value={dueDate}
-            onChange={(val) => setDueDate(val)}
-            disablePast
-            fromYear={new Date().getFullYear()}
-            toYear={new Date().getFullYear() + 3}
-            className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
-          />
-        </div>
+        {paymentStatus !== "paid" && (
+          <div className="space-y-1.5">
+            <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
+              Due Date (Optional)
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      When payment is due to the vendor, not when the items are
+                      expected to arrive.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
+            <DatePickerInput
+              value={dueDate}
+              onChange={(val) => setDueDate(val)}
+              disablePast
+              fromYear={new Date().getFullYear()}
+              toYear={new Date().getFullYear() + 3}
+              className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
+            />
+          </div>
+        )}
       </div>
 
       {paymentStatus === "partial" && (

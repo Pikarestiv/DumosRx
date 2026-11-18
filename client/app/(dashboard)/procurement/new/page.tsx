@@ -26,39 +26,32 @@ import { usePoSubmit } from "./use-po-submit";
 
 function CreateOrderContent() {
   const canEditProducts = useHasPermission("manage_products");
+  const canReceive = useHasPermission("receive_purchase_orders");
   const searchParams = useSearchParams();
 
-  const [poType, setPoTypeState] = useState<"standard" | "immediate">(
-    "immediate",
-  );
-  const [selectedSupplierId, setSelectedSupplierId] = useState(
+  const [selectedSupplierId, setSelectedSupplierIdState] = useState(
     SELF_PURCHASE_VENDOR_ID,
   );
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<POLineItemDraft[]>([]);
   const [paymentStatus, setPaymentStatusState] = useState("paid");
   const [isPaymentStatusTouched, setIsPaymentStatusTouched] = useState(false);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [isEditDetailsOpen, setIsEditDetailsOpen] = useState(false);
 
   const setPaymentStatus = (status: string) => {
     setIsPaymentStatusTouched(true);
     setPaymentStatusState(status);
   };
 
-  // An immediate purchase is money already handed over at the counter, so it opens on Fully Paid; a standard PO is raised be…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-new-page-tsx-L52
-  const setPoType = (type: "standard" | "immediate") => {
-    setPoTypeState(type);
+  // A walk-in purchase is paid at the counter; a vendor order is usually on credit until someone says otherwise.
+  const setSelectedSupplierId = (id: string) => {
+    setSelectedSupplierIdState(id);
     if (!isPaymentStatusTouched) {
-      setPaymentStatusState(type === "immediate" ? "paid" : "unpaid");
+      setPaymentStatusState(id === SELF_PURCHASE_VENDOR_ID ? "paid" : "unpaid");
     }
   };
-  const [amountPaid, setAmountPaid] = useState("");
-  const [dueDate, setDueDate] = useState("");
-
-  // Order details (type/vendor/notes/payment/due-date) are confirmed first; item entry only becomes the dominant content of…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-app-(dashboard)-procurement-new-page-tsx-L66
-  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
-  const [isEditDetailsOpen, setIsEditDetailsOpen] = useState(false);
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [initialProductData, setInitialProductData] =
@@ -117,10 +110,9 @@ function CreateOrderContent() {
     });
   };
 
-  const totalAmount = getOrderTotal(items, poType);
+  const totalAmount = getOrderTotal(items, "immediate");
 
-  const { isSubmitting, handleSubmit, handleSaveDraft } = usePoSubmit({
-    poType,
+  const { isSubmitting, isWalkIn, handleReceive, handleSend, handleSaveDraft } = usePoSubmit({
     selectedSupplierId,
     notes,
     items,
@@ -128,7 +120,6 @@ function CreateOrderContent() {
     amountPaid,
     dueDate,
     totalAmount,
-    products,
   });
 
   const selectedSupplierName = useMemo(() => {
@@ -141,8 +132,6 @@ function CreateOrderContent() {
   }, [suppliers, selectedSupplierId]);
 
   const detailsFieldsProps = {
-    poType,
-    setPoType,
     suppliers,
     selectedSupplierId,
     setSelectedSupplierId,
@@ -160,19 +149,23 @@ function CreateOrderContent() {
 
   const createViewProps = {
     canEditProducts,
-    ...detailsFieldsProps,
+    canReceive,
+    isWalkIn,
+    selectedSupplierName,
+    paymentStatus,
+    dueDate,
+    amountPaid,
+    totalAmount,
     products,
     items,
     onItemsChange: setItems,
     onOpenAddProduct: handleOpenAddProduct,
     newlyCreatedProductId,
     onNewlyCreatedProductConsumed: () => setNewlyCreatedProductId(null),
-    selectedSupplierName,
     isSubmitting,
-    handleSubmit,
+    handleReceive,
+    handleSend,
     handleSaveDraft,
-    detailsConfirmed,
-    onContinue: () => setDetailsConfirmed(true),
     setIsEditDetailsOpen,
   };
 

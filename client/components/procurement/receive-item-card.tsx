@@ -19,8 +19,9 @@ import {
   clampMoneyInput,
   clampReceivedQuantity,
   outstandingBulkQuantity,
+  receivableLimit,
+  sellingPriceLabel,
   resolveBaseUnitCost,
-  sellingPricePlaceholder,
 } from "./po-line-item-math";
 import { ReceiveItemCategoryEditor } from "./receive-item-category-editor";
 import { ProductName } from "@/components/ui/product-name";
@@ -102,7 +103,7 @@ export const ReceiveItemCard = React.memo(
             <Input
               type="number"
               min="0"
-              max={outstanding}
+              max={Number.isFinite(receivableLimit(item)) ? outstanding : undefined}
               aria-label={`Quantity received for ${item.product_name}`}
               value={state.quantity ?? outstanding}
               onChange={(e) =>
@@ -112,7 +113,7 @@ export const ReceiveItemCard = React.memo(
                   // min/max are only HTML hints — a typed "-5"/"500" still
                   // reaches onChange, and an unclamped value would either
                   // corrupt on-hand stock or book more than was ordered.
-                  clampReceivedQuantity(e.target.value, outstanding),
+                  clampReceivedQuantity(e.target.value, receivableLimit(item)),
                 )
               }
             />
@@ -145,22 +146,10 @@ export const ReceiveItemCard = React.memo(
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-xs">New Selling Price (Optional)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                aria-label={`New Selling Price for ${item.product_name}`}
-                placeholder={sellingPricePlaceholder(item.current_selling_price, currency)}
-                value={state.selling_price ?? ""}
-                onChange={(e) =>
-                  onFieldChange(
-                    item.id,
-                    "selling_price",
-                    clampMoneyInput(e.target.value),
-                  )
-                }
-              />
+              <Label className="text-xs">Selling Price</Label>
+              <p className="h-9 flex items-center text-sm font-semibold text-foreground">
+                {sellingPriceLabel(item.current_selling_price, currency)}
+              </p>
             </div>
           </div>
           <div className="space-y-2">

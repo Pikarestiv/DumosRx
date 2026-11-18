@@ -22,17 +22,15 @@ if (!window.matchMedia) {
 // Amount Paid is a bare number field whose value getValidatedAmountPaid silently caps at the order total on submit.
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-amount-paid-cap-test-tsx-L18
 describe("Amount Paid cap messaging", () => {
-  function renderFields(amountPaid: string, totalAmount: number) {
+  function renderFields(amountPaid: string, totalAmount: number, paymentStatus = "partial") {
     render(
       <PODetailsFields
-        poType="immediate"
-        setPoType={vi.fn()}
         suppliers={[]}
         selectedSupplierId="__self__"
         setSelectedSupplierId={vi.fn()}
         notes=""
         setNotes={vi.fn()}
-        paymentStatus="partial"
+        paymentStatus={paymentStatus}
         setPaymentStatus={vi.fn()}
         dueDate=""
         setDueDate={vi.fn()}
@@ -71,5 +69,16 @@ describe("Amount Paid cap messaging", () => {
   it("stays quiet when the typed amount is within the total", () => {
     renderFields("2000", 5000);
     expect(screen.queryByText(/capped/i)).toBeNull();
+  });
+
+  it("offers a due date while money is still owed and hides it once the order is fully paid", () => {
+    renderFields("", 1000, "unpaid");
+    expect(screen.getByText(/Due Date/)).toBeTruthy();
+    expect(screen.queryByText(/Order Type/)).toBeNull();
+  });
+
+  it("hides the due date for a fully paid order", () => {
+    renderFields("", 1000, "paid");
+    expect(screen.queryByText(/Due Date/)).toBeNull();
   });
 });

@@ -30,8 +30,8 @@ class ActivityLogActorRoleFilterTest extends TestCase
         $agent = $this->makeUser('agent', Role::where('slug', 'agent')->value('id'));
         $superAdmin = $this->makeUser('super_admin', Role::where('slug', 'super_admin')->value('id'));
 
-        ActivityLog::create(['user_id' => $agent->id, 'action' => 'TEST_AGENT_ACTION', 'description' => 'x', 'status' => 'success']);
-        ActivityLog::create(['user_id' => $superAdmin->id, 'action' => 'TEST_SUPERADMIN_ACTION', 'description' => 'x', 'status' => 'success']);
+        ActivityLog::create(['user_id' => $agent->id, 'action' => 'TEST_AGENT_ACTION', 'description' => 'x']);
+        ActivityLog::create(['user_id' => $superAdmin->id, 'action' => 'TEST_SUPERADMIN_ACTION', 'description' => 'x']);
 
         $result = $this->service->getActivityLogs(1, null, null, null, null, null, null, 'agent');
 
@@ -45,8 +45,8 @@ class ActivityLogActorRoleFilterTest extends TestCase
         $agent = $this->makeUser('agent', Role::where('slug', 'agent')->value('id'));
         $superAdmin = $this->makeUser('super_admin', Role::where('slug', 'super_admin')->value('id'));
 
-        ActivityLog::create(['user_id' => $agent->id, 'action' => 'TEST_AGENT_UNFILTERED', 'description' => 'x', 'status' => 'success']);
-        ActivityLog::create(['user_id' => $superAdmin->id, 'action' => 'TEST_ADMIN_UNFILTERED', 'description' => 'x', 'status' => 'success']);
+        ActivityLog::create(['user_id' => $agent->id, 'action' => 'TEST_AGENT_UNFILTERED', 'description' => 'x']);
+        ActivityLog::create(['user_id' => $superAdmin->id, 'action' => 'TEST_ADMIN_UNFILTERED', 'description' => 'x']);
 
         // Acts as a super_admin because this test is about the `role`
         // parameter, not about who may see super-admin actions — the viewer

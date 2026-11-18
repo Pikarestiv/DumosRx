@@ -1457,6 +1457,8 @@ The page fetches `GET /admin/stores/{id}` via `useAdminStoreDetail`; the fleet
 list row (`AdminStoreSummary`) is not enough and must not be passed through
 router state, since the page has to survive a reload and a pasted link.
 Section components live under `components/admin/stores/details/`.
+`recent_activity` entries on `AdminStoreDetail` provide `id`, `action`,
+`description`, `actor`, and `at` (`status` is omitted, per A-330).
 
 **Never trust a sync-originated column's declared type at a render site.**
 Every column on `stores` originates on the Tauri client, where it is a SQLite

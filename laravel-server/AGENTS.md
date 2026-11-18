@@ -508,7 +508,7 @@ an unknown id) is the single-store payload behind the admin panel's Store
 Details page: store profile, owner, current subscription, account manager,
 sync health, storefront publish state, Paystack subaccount/payment config,
 entity counts, the last 5 payment transactions and the last 8 activity-log
-entries. It deliberately does **not** embed the staff list — that is the
+entries (`id`, `action`, `description`, `actor`, `at`; `status` was removed in A-330 as `activity_logs` has no status column). It deliberately does **not** embed the staff list — that is the
 `/admin/users` filter above, so one implementation serves both surfaces. Its
 revenue figure comes from `AdminStoreService::revenueSubquery()`, shared with
 the fleet list so the two can't drift apart.

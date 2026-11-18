@@ -161,7 +161,6 @@ class AdminStoreDetailTest extends TestCase
             'store_id' => $this->store->id,
             'action' => 'LOGIN',
             'description' => 'Owner logged in',
-            'status' => 'success',
         ]);
 
         $otherStore = Store::create([
@@ -174,7 +173,6 @@ class AdminStoreDetailTest extends TestCase
             'store_id' => $otherStore->id,
             'action' => 'LOGIN',
             'description' => 'Somebody else logged in',
-            'status' => 'success',
         ]);
 
         $response = $this->actingAs($this->superAdmin)
@@ -184,6 +182,11 @@ class AdminStoreDetailTest extends TestCase
         $activity = $response->json('recent_activity');
         $this->assertCount(1, $activity);
         $this->assertSame('Owner logged in', $activity[0]['description']);
+        $this->assertArrayNotHasKey('status', $activity[0]);
+        $this->assertArrayHasKey('action', $activity[0]);
+        $this->assertArrayHasKey('description', $activity[0]);
+        $this->assertArrayHasKey('actor', $activity[0]);
+        $this->assertArrayHasKey('at', $activity[0]);
     }
 
     #[Test]

@@ -160,14 +160,34 @@ export async function importProductRows(
         const existingId = await findExistingProductId(row);
 
         if (existingId) {
-          await update("products", existingId, {
-            name: row.name,
-            ...(categoryId ? { category_id: categoryId } : {}),
-            ...(row.sellingPrice !== undefined ? { selling_price: row.sellingPrice } : {}),
-            ...(row.reorderLevel !== undefined ? { reorder_level: row.reorderLevel } : {}),
-            ...(row.barcode ? { barcode: row.barcode } : {}),
-            ...(row.showOnline !== undefined ? { show_online: row.showOnline ? 1 : 0 } : {}),
-          });
+          let previousPrice: number | undefined;
+          if (row.sellingPrice !== undefined) {
+            const [existing] = await query<{ selling_price: number | null }>(
+              "SELECT selling_price FROM products WHERE id = ?",
+              [existingId],
+            );
+            if (existing?.selling_price != null) {
+              previousPrice = Number(existing.selling_price);
+            }
+          }
+          const auditDetails =
+            previousPrice !== undefined && previousPrice !== row.sellingPrice
+              ? { previous_price: previousPrice }
+              : undefined;
+
+          await update(
+            "products",
+            existingId,
+            {
+              name: row.name,
+              ...(categoryId ? { category_id: categoryId } : {}),
+              ...(row.sellingPrice !== undefined ? { selling_price: row.sellingPrice } : {}),
+              ...(row.reorderLevel !== undefined ? { reorder_level: row.reorderLevel } : {}),
+              ...(row.barcode ? { barcode: row.barcode } : {}),
+              ...(row.showOnline !== undefined ? { show_online: row.showOnline ? 1 : 0 } : {}),
+            },
+            auditDetails ? { auditDetails } : undefined,
+          );
           if (options?.updateStockForMatched && row.quantity !== undefined) {
             matchedStockUpdates.set(existingId, { productId: existingId, quantity: row.quantity });
           }

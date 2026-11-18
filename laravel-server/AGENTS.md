@@ -3103,10 +3103,10 @@ and A-176 raised and nothing could answer.
   `products` the same way. Both sides still differ wherever the device's copy
   of `products.store_id` is stale: a product that left the store's scope stays
   on the device (A-291; store `571582a9`'s 2026-10-12 `+18` is that, real stock
-  on those devices, cleared by `sync:repair-product-store-stamps`), and
-  `sync:backfill-store-ids` does not move `updated_at`, so its attributions
-  never reach devices. A bundle older than A-246 still reports the old
-  predicate.
+  on those devices, cleared by `sync:repair-product-store-stamps`).
+  `sync:backfill-store-ids` now bumps `_version`, `updated_at` and `_synced_at`
+  via `SyncRowStamp::for($table)` (A-338), ensuring attributed rows re-pull to devices.
+  A bundle older than A-246 still reports the old predicate.
 
 **Client side:** `client/lib/db/sync-engine/stock-fingerprint.ts`. Note that
 `stock_batches.store_id` and `products.store_id` exist only because
@@ -4715,13 +4715,11 @@ php artisan sync:backfill-store-ids --store=<id> --apply # only rows resolving t
   `activity_logs`, `audit_logs`) is high confidence for a single-store owner
   and refused outright otherwise. `requested_products` has **no** owner column
   of any kind and is report-only: its rows can never be attributed.
-- **It does not touch `updated_at` or `_version`**, on purpose, and uses
-  `DB::table()` rather than Eloquent so neither moves. The A-288 case is a row
-  the device *already holds* (it backfilled its own copy), so no pull is needed
-  to deliver it; a device that lacks the row pulls from `last_synced = []` and
-  gets it on `store_id` alone. Bumping `updated_at` would re-deliver every
-  backfilled row to every device for no gain, and bumping `_version` would
-  break the very agreement digest this fixes.
+- **It bumps `_version`, `updated_at` and `_synced_at` (A-338)** using
+  `SyncRowStamp::for($table)`. An incremental pull filters on `updated_at`/`_synced_at > lastSynced`,
+  so without moving stamps, devices holding legacy NULL-store rows never re-pull the attributed
+  records (and local stock fingerprints disagree with cloud counts, A-246). Touched rows re-pull
+  to devices on their next incremental sync.
 - **Idempotent and chunked** (`whereNull('store_id')` + keyset paging on `id`,
   500 at a time). A second `--apply` reports "Nothing to attribute".
 - **Forward protection:** a new nullable `store_id` on a store-scoped table

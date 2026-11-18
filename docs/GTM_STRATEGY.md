@@ -11,6 +11,7 @@ To effectively penetrate the market, DumosRx must position itself against the fo
 * **Monepay (Unconfirmed exact name)**: A newer POS system reportedly being adopted by larger stores (like Makhillz).
 * **VirtualRx**: A legacy local pharmacy POS competitor with an established footprint.
 * **Barsoft**: Another legacy pharmacy POS previously used by stores like Right Health before migrating to VirtualRx.
+* **Moniepoint Moniebook, Orda, SwiftPOS**: Met in the field as of 2026-11. Moniebook is the strongest; one client switched from it and another picked us while it was courting them. Live traction numbers are in `docs/TRACTION_SNAPSHOT.md`.
 * **Cracked QuickBooks 2013**: Highly prevalent among local retail stores; users avoid subscription fees but suffer from lack of cloud sync and dedicated pharmacy modules.
 
 ---
@@ -32,19 +33,19 @@ graph TD
     A[End of 7 Day Free Trial] --> B{Choose Path}
     B -->|Subscribe| C[Enterprise - ₦15,000/mo]
     B -->|Subscribe| D[Dumos Pro - ₦8,000/mo]
-    B -->|Subscribe| E[Starter - ₦5,000/mo]
+    B -->|Subscribe| E[Starter - ₦3,000/mo]
     B -->|Downgrade| F[Dumos Free - ₦0/mo]
     
     C -->|Feature| C1[Real-time Sync / Multi-Store / Emails]
     D -->|Feature| D1[Sync every 30m / Mobile App]
-    E -->|Feature| E1[Sync every 6h / 3 Staff Limit]
+    E -->|Feature| E1[Sync every 3h / 3 Staff Limit]
     F -->|Restriction| F1[No Sync / 1 Staff Limit]
 ```
 
 1. **Option A: Subscribe to a Paid Tier**
    * **Enterprise (₦15,000/mo)**: Unlimited multi-device access. Real-time/instant cloud sync and backups. Includes priority email alerts.
    * **Dumos Pro (₦8,000/mo)**: Desktop + Mobile App + Full Web Dashboard (sync every 30 minutes). Max 10 staff accounts.
-   * **Starter (₦5,000/mo or ₦50,000/yr)**: Desktop host + up to 2 local network clients. Cloud sync limited to once every 6 hours. Max 3 staff accounts.
+   * **Starter (₦3,000/mo or ₦30,000/yr)**: Desktop host + up to 2 local network clients. Cloud sync limited to once every 3 hours (180 minutes). Max 3 staff accounts.
 2. **Option B: Downgrade to Free Tier (₦0/mo)**
    * Heavily restricted: No cloud synchronization, no backup/restore support, max 1 staff account, and limited reports. This keeps their database accessible (they don't lose their data), but cuts off the advanced ERP value.
 

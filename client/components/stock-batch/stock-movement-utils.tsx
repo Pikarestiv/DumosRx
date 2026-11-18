@@ -30,6 +30,15 @@ export interface StockMovement {
   batchNumber?: string;
   needsReview?: boolean;
   reviewed?: boolean;
+  purchaseOrderId?: string;
+}
+
+export function formatPoReference(poId?: string): string {
+  if (!poId) return "";
+  const trimmed = poId.trim();
+  if (trimmed.toUpperCase().startsWith("PO-")) return trimmed.toUpperCase();
+  const shortId = trimmed.split("-")[0]?.toUpperCase() || trimmed.toUpperCase();
+  return `PO-${shortId}`;
 }
 
 export const FILTER_TYPES = [

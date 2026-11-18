@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { formatCurrency } from "@/lib/utils";
@@ -14,7 +15,9 @@ import {
   formatMovementDate,
   formatMovementTime,
   resolveMovementDisplayType,
+  formatPoReference,
 } from "@/components/stock-batch/stock-movement-utils";
+import { parseAdjustmentReason } from "@/components/stock-batch/adjustment-derivations";
 import { DetailRow } from "./detail-row";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
@@ -106,14 +109,40 @@ export function StockMovementDetailsDialog({
           {movement.performed_by_name && (
             <DetailRow label="Performed by" value={movement.performed_by_name} />
           )}
-          <div>
-            <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
-              Reason / notes
-            </div>
-            <div className="text-[13px] text-foreground bg-muted/30 p-3 rounded-md">
-              {movement.reason || "No additional notes provided."}
-            </div>
-          </div>
+          {(() => {
+            const isSettlement = displayType === "backorder_settlement";
+            const parsed = parseAdjustmentReason(movement.reason || "");
+            const poId = isSettlement
+              ? parsed.note || undefined
+              : movement.movement_type === "purchase"
+                ? movement.reference_id || undefined
+                : undefined;
+            const displayNote = isSettlement && poId
+              ? parsed.reason || "Already sold before this delivery"
+              : movement.reason || "No additional notes provided.";
+
+            return (
+              <div>
+                <div className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wide mb-1">
+                  Reason / notes
+                </div>
+                <div className="text-[13px] text-foreground bg-muted/30 p-3 rounded-md">
+                  <div>{displayNote}</div>
+                  {poId && (
+                    <div className="mt-2 pt-2 border-t border-border/40">
+                      <Link
+                        href={`/procurement?selected=${poId}`}
+                        onClick={() => onOpenChange(false)}
+                        className="text-[12px] font-semibold text-primary inline-flex items-center gap-1 hover:underline"
+                      >
+                        View Delivery ({formatPoReference(poId)}) →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </ResponsiveModal>

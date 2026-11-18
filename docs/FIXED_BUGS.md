@@ -1,3 +1,15 @@
+### A-341 — a settlement row's link to its purchase order was a raw id in reason
+- **Fixed:** 2026-11-18, client only, TDD. Found during second independent review of `feat/sell-at-zero-stock` (Issue #341).
+- **Was:** When backorders were settled on receipt, `stock_movements.reference_id` stored the sale id being paid off, while the purchase order id was serialized into `stock_movements.reason` after `ADJUSTMENT_REASON_NOTE_SEPARATOR` (`"Already sold before this delivery — <poId>"`). Nothing parsed it in the Stock Movements views, displaying raw UUIDs in reasons and showing only sale references with no link to the delivery purchase order.
+- **Now:**
+  (1) Added `formatPoReference(poId)` in `client/components/stock-batch/stock-movement-utils.tsx`, standardizing PO displays as `PO-XXXXXXXX` while preserving existing `PO-` prefixes.
+  (2) Updated `mapMovement()` in `client/components/stock-batch/stock-movement-mapping.ts` to parse `purchaseOrderId` from settlement reasons via `parseAdjustmentReason()` and format the display reason cleanly.
+  (3) In `StockMovementDesktopRow` and `StockMovementMobileGroup`, settlements display `Settled via PO-XXXXXXXX` instead of raw UUIDs or uncontextualized sale IDs.
+  (4) In `StockMovementDetailModal` and `StockMovementDetailsDialog`, rendered a direct link (`/procurement?selected=${purchaseOrderId}`) to view the delivery purchase order.
+  (5) Updated `client/AGENTS.md` to document the settlement purchase order link parsing.
+- **Coverage:** `client/__tests__/settlement-purchase-order-link.test.tsx` (tests for `formatPoReference`, `mapMovement` parsing, `StockMovementDesktopRow` reference display, `StockMovementMobileGroup` display reason, `StockMovementDetailModal` delivery link, and `StockMovementDetailsDialog` delivery link).
+- **Compat:** Pure client-side UI parsing and navigation fix; fully compatible with existing historical rows and incoming sync deltas without schema changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

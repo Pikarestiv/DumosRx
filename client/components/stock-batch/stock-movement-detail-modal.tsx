@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
@@ -8,6 +9,7 @@ import {
   getTypeLabel,
   formatMovementDate,
   formatMovementTime,
+  formatPoReference,
 } from "./stock-movement-utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -101,7 +103,18 @@ export function StockMovementDetailModal({
                 Reference / reason
               </div>
               <div className="text-[13px] text-foreground">
-                {movement.reference || movement.reason || "-"}
+                {movement.type === "backorder_settlement" ? (
+                  <div className="flex flex-col gap-1">
+                    <div>{movement.reason || "Already sold before this delivery"}</div>
+                    {movement.reference && (
+                      <div className="text-[12px] text-muted-foreground">
+                        Sale reference: {movement.reference}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  movement.reference || movement.reason || "-"
+                )}
               </div>
             </div>
             <div>
@@ -111,6 +124,15 @@ export function StockMovementDetailModal({
               <div className="text-[13px] text-foreground">{movement.user}</div>
             </div>
           </div>
+          {movement.purchaseOrderId && (
+            <Link
+              href={`/procurement?selected=${movement.purchaseOrderId}`}
+              onClick={onClose}
+              className="text-[12px] font-semibold text-primary mt-3 flex items-center gap-1 cursor-pointer hover:underline rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+            >
+              View Delivery ({formatPoReference(movement.purchaseOrderId)}) →
+            </Link>
+          )}
           {isFlagged && (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
               <div className="text-[12px] font-semibold text-amber-700 dark:text-amber-400">

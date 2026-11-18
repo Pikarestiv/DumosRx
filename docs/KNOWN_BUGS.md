@@ -555,11 +555,6 @@ suggested tackle order rather than a strict ranking.
 - **File size:** `transaction-details-dialog.tsx` is 407 lines, over the 350 limit (`.agents/AGENTS.md` §4); split it.
 - **Fix:** shrink the list-price figure by returned quantity (or label it as the original sale), re-read at the second confirm and catch the failure with a toast, and extract the reseller block into its own component.
 
-#### A-341. `client/` — a settlement row's link to its purchase order is a raw id in `reason`
-- **Found:** 2026-10-26, second independent review of `feat/sell-at-zero-stock`.
-- **Issue:** since settlements name the sale they pay off (`reference_id` = sale id), the PO id survives only as text after `ADJUSTMENT_REASON_NOTE_SEPARATOR` in `stock_movements.reason` (`client/lib/db/queries/backorders.ts`, `settleBackordersOnReceipt()`). Nothing parses it, so the Stock Movements list cannot link a settlement to its delivery, and the reason shows a bare UUID.
-- **Fix:** either parse it with `parseAdjustmentReason()` and render a PO link, or add a nullable `stock_movements` column for a secondary reference, mirrored in `schema.ts`, `schema-migrations.ts`, the Laravel migration and `$fillable`, with `npm run test:schema` run after.
-
 #### A-343. `client/` — the cart's owed-units warning overstates the shortfall when only expired stock is left
 - **Found:** 2026-10-26, third independent review of `feat/sell-at-zero-stock`; deferred. `formatBackorderWarning()` uses `product.stock`, which excludes expired batches, but `writeSaleItemStock()` falls back to an expired batch and may sell from it, so the toast can say more units are owed than the sale actually records.
 

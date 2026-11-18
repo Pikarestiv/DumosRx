@@ -2,6 +2,7 @@ import {
   StockMovement,
   getTypeIcon,
   getTypeIconBg,
+  formatPoReference,
 } from "./stock-movement-utils";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
@@ -35,7 +36,12 @@ export function StockMovementMobileGroup({
             movement.type.toLowerCase() === "purchase" ||
             movement.type.toLowerCase() === "restock"
           )
-            displayReason = `PO-${movement.reference}`;
+            displayReason = formatPoReference(movement.reference);
+          else if (
+            movement.type.toLowerCase() === "backorder_settlement" &&
+            movement.purchaseOrderId
+          )
+            displayReason = `Settled via ${formatPoReference(movement.purchaseOrderId)}`;
 
           const isTransfer = movement.type.toLowerCase().startsWith("transfer_");
           const signColor =

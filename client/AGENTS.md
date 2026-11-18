@@ -2516,7 +2516,11 @@ permission) is read through `useFeatureGate().canSellWithoutStock`.
   stock". With the setting off both paths refuse exactly as before.
 - **Readers.** `resolveMovementDisplayType()` returns `"backorder"` /
   `"backorder_settlement"` ("Stock owed" / "Stock settled")
-  in the Stock Movements list and dashboard feed. `groupAdjustmentMovements()`
+  in the Stock Movements list and dashboard feed. `mapMovement()` parses the
+  delivery PO id out of a settlement's `reason` (A-341), displaying `Settled via
+  PO-XXXXXXXX` and rendering a direct link to the delivery purchase order
+  (`/procurement?selected=${poId}`) in `StockMovementDetailModal` and
+  `StockMovementDetailsDialog`. `groupAdjustmentMovements()`
   skips both reference types the way it skips imports, so they never appear
   in the Stock Adjustments (count) ledger and a count derivation never reads
   them. `BACKORDER_*_REASON` never equals or prefixes a

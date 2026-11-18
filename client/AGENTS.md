@@ -3279,7 +3279,7 @@ components/
                           - responsive-tab-label.tsx   short label <md, full label >=md
                           - responsive-detail-panel.tsx   sheet-on-mobile / inline-panel-on-desktop
   products/               Product Catalog page + product detail panel (product-details/ subfolder)
-  procurement/            Purchase orders (Standard + Immediate types), receiving
+  procurement/            Purchase orders (one flow; vendor picks send or receive), receiving
                            (ledger-style dense table). Create/edit flow is a
                            two-phase "details step → item entry" screen; see
                            Domain model essentials below.
@@ -3576,20 +3576,22 @@ e2e/                       Playwright end-to-end specs
   inventory read is already scoped to the active store by
   `getActiveStoreId()`, so a branch filter here would be a constant.
 
-- **Purchase Orders: Standard vs Immediate** (`lib/db/procurement.ts`,
-  `components/procurement/`). `purchase_orders.type` (`'standard' |
-  'immediate'`) is separate from `status` (`PURCHASE_ORDER_STATUSES` in
-  `lib/db/procurement.ts`: `'pending' | 'sent' | 'partially_received' |
-  'received'`) and is
-  set once at creation, never changed: a **Standard** PO is created
-  `pending` via `createPurchaseOrder()` and received later through the
-  existing `ReceivePOPanel`; an **Immediate Purchase** is created *and*
-  received in one atomic transaction via `createAndReceivePurchaseOrder()`
-  (status `received` from the moment it's inserted, stock batches created
-  in the same call). Both share one item-entry UI
-  (`POItemBuilder`/`POItemLedgerTable`/`POItemCardList`,
-  `POLineItemDraft` type), which renders a different column set per
-  `poType` rather than being two separate tables.
+- **Purchase orders: one flow, vendor decides the next step** (`lib/db/procurement.ts`,
+  `components/procurement/`). Statuses are `PURCHASE_ORDER_STATUSES`
+  (`'pending' | 'sent' | 'partially_received' | 'received'`), shown as
+  Draft, Ordered, Partially received and Received. There is no up-front
+  order type since 2026-11-18: `purchase_orders.type` is still written, as
+  `'immediate'` on every save, only so older tills keep an order's cost, lot
+  and expiry (see "Procurement price handling" below). A new order can be
+  saved as a draft (`createPurchaseOrder()`, `pending`), created already
+  sent (`createPurchaseOrder(..., "sent")`, named vendor only) or created
+  and received in one transaction (`createAndReceivePurchaseOrder()`). A
+  draft is received later through `receivePurchaseOrder()`, from the order
+  panel's confirmation sheet; a sent order through `ReceivePOPanel`. All
+  of them share one item-entry UI (`POItemBuilder`/`POItemLedgerTable`/
+  `POItemCardList`); the pages always pass the receiving column set
+  (`poType="immediate"`), and the Standard branch of those components is
+  now only reachable from tests (cleanup pending).
   `purchase_orders.supplier_id` is **nullable** — a self/walk-in purchase
   (no real vendor) is represented as `NULL`, the same convention
   `sales.customer_id` uses for "Walk-in Customer"; the UI sentinel
@@ -3600,24 +3602,29 @@ e2e/                       Playwright end-to-end specs
   comment in `lib/db/core.ts` (search `purchase_orders_nullable_supplier`)
   for why (per-store local DBs, sync, and the Vendors list all would have
   to special-case a fake row).
-  The create/edit page is a **two-phase flow**: `PODetailsFields` (vendor,
-  type, notes, payment, due date) is filled first, then item entry
-  (`POItemBuilder`) becomes the dominant full-screen content; once
-  confirmed, details collapse into `PODetailsSummaryBar` with an
-  icon-only edit button that reopens `PODetailsDialog`. Don't put the
-  details form and the item table on screen at the same time again — that
-  was the exact complaint (Moniebook-inspired) this flow replaced.
+  The create and edit screens open straight on the item ledger. Vendor,
+  payment, due date and notes sit behind `PODetailsSummaryBar`'s edit
+  button in `PODetailsDialog`; don't put the details form and the item
+  table on screen at the same time (the Moniebook-inspired complaint the
+  old details step replaced). A new order's payment status follows the
+  vendor until touched: walk-in opens Fully Paid, a named vendor Unpaid.
+  The due date is hidden and saved as NULL once the order is Fully Paid
+  (`dueDateToSave()`). A draft (`pending`) can be saved, created or
+  edited, with rows still at quantity 0; sending or receiving a new order
+  needs every quantity. The edit screen stays at `/procurement/edit?id=`:
+  the client is a static export, so a `/procurement/[id]` route would need
+  every order id at build time.
   `purchase_order_items` also persists `selling_price`,
   `cost_price_override`, `lot_number`, `expiry_date` (added 2026-09-23) so
-  an Immediate Purchase saved as a draft and resumed later keeps what was
-  typed — coerce these via `coerceOptionalNumber()` (`lib/db/procurement.ts`),
+  a draft resumed later keeps what was typed — coerce these via
+  `coerceOptionalNumber()` (`lib/db/procurement-selling-price.ts`),
   which explicitly treats `null` (what a reloaded row's unset override
   reads back as) the same as `undefined`/`""`: `Number(null) === 0` will
   silently turn "no override" into a real, permanent zero if you bypass
-  it. The **edit page reads the PO's real `type`** (not hardcoded
-  `"standard"`) to decide which columns to show — it used to assume only
-  Standard POs are ever resumed via "Edit Order," which was wrong (any
-  `pending`/`sent` PO gets that button, including an Immediate draft).
+  it. Draft orders are left out of vendor debt, order count and value, and
+  the supplier-deletion balance check (`lib/db/suppliers.ts`); they still
+  block deleting a product they list (`queries/products.ts`), because
+  receiving the draft later would add stock to a deleted product.
 
 - **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
   Receiving used to be all-or-nothing: any submitted quantity flipped the
@@ -3630,19 +3637,22 @@ e2e/                       Playwright end-to-end specs
   its ordered quantity; otherwise the PO becomes `partially_received` and
   stays receivable against its outstanding balance. Rules worth knowing
   before touching this:
-  - `outstandingBulkQuantity()`/`clampReceivedQuantity()`
+  - `outstandingBulkQuantity()`/`receivableLimit()`/`clampReceivedQuantity()`
     (`components/procurement/po-line-item-math.ts`) are the single source of
-    truth for "what's still expected" and for clamping the qty input. Both
+    truth for "what's still expected" and for clamping the qty input; an
+    uncounted line (ordered at 0) is the one uncapped case. Both
     receiving surfaces (`ReceiveLedgerTable` on tablet+, `ReceiveItemCard` on
     phones) prefill and clamp to the **outstanding** balance, not the ordered
     quantity — a row written by an older build reads back null and is treated
     as fully outstanding.
   - A submit with every line at 0 against a PO with nothing received yet is a
     deliberate no-op (status untouched), not a partial receipt.
-  - "Edit Order" is still gated to `pending`/`sent` only, and that matters:
-    `updatePurchaseOrder()` soft-deletes and re-inserts every line, which
-    would discard `quantity_received`. Don't widen that gate to
-    `partially_received` without reworking that function first.
+  - "Edit Order" is gated to `pending`/`sent` only. `updatePurchaseOrder()`
+    diffs lines in place (`reconcilePurchaseOrderLines()` in
+    `lib/db/procurement-line-diff.ts`, A-390) and never writes
+    `quantity_received`, so it no longer discards receipts. Before widening
+    the gate to `partially_received`, decide what editing a received line's
+    quantity or cost should mean; that is a product question, not a code one.
   - **Sync**: the client sends `quantity_received` in bulk units, but the
     server stores it in base units, because `SyncController::push()` scales
     `quantity_received` by `units_per_bulk` exactly as it already does for
@@ -7531,11 +7541,13 @@ what's already covered above:
   with fallback to average cost plus `stock_quantity` and `reorder_level`. This
   aligns procurement with industry-standard replacement cost, avoiding ₦0
   defaults on out-of-stock items and fractional kobo averages.
-- **Zero-price warning before receiving:** `POImmediateConfirmDialog` (`po-immediate-confirm-dialog.tsx`) and `ReceivePOPanel` (`receive-po-panel.tsx`) inspect line items before receipt and warn prominently if any product is being received with ₦0 cost price (`getZeroCostLineItems`) or ₦0 selling price (`getZeroSellingPriceLineItems`). Prevents accidental zero-cost receipts that distort inventory valuation and margins, giving the user an explicit "Go Back & Edit Prices" choice or an amber/destructive "Receive with ₦0 Price" / "Proceed Anyway" override.
-- `components/procurement/po-review-price-popover.tsx`: per-row sell-price
-  + live margin % popover on Immediate Purchase rows, so cost and sell
-  price can be set in one pass instead of a separate Product Catalog trip.
-- Retired/deleted: `po-add-item-form.tsx`, `po-line-items-list.tsx`,
+- **Zero-price warning before receiving:** `POImmediateConfirmDialog` (`po-immediate-confirm-dialog.tsx`) and `ReceivePOPanel` (`receive-po-panel.tsx`) inspect line items before receipt and warn prominently if any product is being received with ₦0 cost price (`getZeroCostLineItems`) or ₦0 selling price (`getZeroSellingPriceLineItems`, read from the product's catalog price). Prevents accidental zero-cost receipts that distort inventory valuation and margins, giving the user an explicit "Go Back & Edit Prices" choice or an amber/destructive "Receive with ₦0 Price" / "Proceed Anyway" override.
+- `components/procurement/po-sell-price-cell.tsx`: the product's selling
+  price, read-only, with a pencil to the product form and a margin cue.
+  It replaced `po-review-price-popover.tsx` (removed 2026-11-18), which let
+  an order rewrite the catalog price.
+- Retired/deleted: `po-review-price-popover.tsx`, `notify-selling-price-updates.ts`,
+  `po-add-item-form.tsx`, `po-line-items-list.tsx`,
   `po-order-form-fields.tsx`, `po-summary-pane.tsx` — all superseded by the
   components named in the Domain model bullet above. If you find a stale
   reference to any of these, it's dead documentation, not a hint they still
@@ -7690,29 +7702,33 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Procurement price handling: selling price hits the catalog on save, cost stays per batch
+## Procurement price handling: no order path writes a selling price, cost stays per batch
 
-**Writing a price**
-- `createPurchaseOrder`, `updatePurchaseOrder`, `createAndReceivePurchaseOrder` and `receivePurchaseOrder` all write a line's `selling_price` to `products` through `applyChangedSellingPrices` (`lib/db/procurement-selling-price.ts`). Cost never goes to the catalog; it lives on `stock_batches`, so Avg/Last cost move only when goods are received.
-- A price is written only when it differs from the product's live catalog price, so re-saving an untouched line never bumps or re-syncs the product.
-- `receivePurchaseOrder` applies a typed price before its zero-quantity skip, so a line received at 0 still takes its new price. It returns `"already_received"` or `"not_found"` for those orders, and the hook reports them instead of toasting a price update.
+**Selling price is read-only on an order (2026-11-18)**
+- No purchase-order path writes `products.selling_price`: not `createPurchaseOrder`, `updatePurchaseOrder`, `createAndReceivePurchaseOrder` or `receivePurchaseOrder`. `applyChangedSellingPrices`, `markRepricedLines`, `countSellingPriceOverrides`, the review-price popover and the receive panel's "New Selling Price" input are gone. A draft used to rewrite the catalog price the moment it was saved, which an autosave would have turned into repricing live products mid-typing.
+- Every line shows the product's live price read-only (`POSellPriceCell`), with a pencil that opens the full product form (`POEditProductDialog`, gated by `manage_products`). That form invalidates `procurement.productsForPO`, which is what `useProcurementData` reads, so the line's price refreshes after the edit.
+- `getMarginCue()` (`po-line-item-math.ts`) is a non-blocking cue on the line and a count in the confirmation sheet: the line's per-base-unit cost at or above the selling price ("At or below cost"), or above the product's previous cost ("Thinner margin"). A ₦0 price or cost is left to the existing zero-price warnings, which now read the catalog price only, never a line's stored one.
+- Cost never goes to the catalog; it lives on `stock_batches`, so Avg/Last cost move only when goods are received.
 
-**Never write a price the user did not touch**
-- The edit page seeds an Immediate PO's line prices from the live catalog (`current_selling_price`) and records the seeded values per PO line id. On save, `markRepricedLines` sets `reprice` only on lines whose price differs from the seed, and `applyChangedSellingPrices` skips `reprice: false` lines.
-- The seed comes from a cached query that a catalog edit or sync pull does not invalidate, so an untouched price must never be written.
-- Draft save and edit toast "Selling price updated for N items" (`notifySellingPriceUpdates`), counting only changed lines.
+**What is still stored, for older tills (§11)**
+- `purchase_order_items.selling_price` keeps being written and read: a new line stores whatever it carries (nothing, from this build) and an edited line keeps its stored value, because the edit page no longer replaces it with the live price. Older tills still apply a line price they see changed; nothing on this build acts on it. Retire the column once every active device reports this build or later.
 
-**Standard vs Immediate**
-- A Standard PO has no price, cost, lot or expiry inputs; those are entered when receiving. The order type is chosen on the details step before any item exists and is locked afterwards, so a Standard line cannot normally carry them; `createPurchaseOrder`/`updatePurchaseOrder` still strip them (`clearImmediateOnlyFields`) for any non-immediate PO, so a hidden value can neither reach the catalog nor change the stored total.
+**Order type is written for older tills, not chosen (2026-11-18)**
+- There is no type step any more. Every new order, and every order this build saves, is written `type = 'immediate'` (`ORDER_TYPE_WRITTEN_FOR_OLD_TILLS` in `lib/db/procurement.ts`), including orders sent to a vendor. The type now means nothing to this build; it exists because an older till's edit page strips cost, lot, expiry and price from any order not typed `immediate`, and its receive panel only pre-fills those fields for `immediate` orders. Writing `standard` on send, as first proposed, would have reopened that strip for every sent order. Retire with the column above.
+- `createPurchaseOrder()` takes a `status` of `pending` or `sent` instead of a type, so "Send to vendor" on a new order is one write.
+- What the user picks instead is the vendor. A walk-in order (`supplier_id` NULL) leads with "Receive stock" and has no "Send to vendor"; a named vendor leads with "Send to vendor" with "Receive stock" beside it, because buying from a named wholesaler at the counter is a real case. The same rule drives the order panel footer for drafts (`po-details-footer.tsx`), whatever the stored type. Sent orders are labelled **Ordered**; the stored status is still `sent`.
+- Receiving needs `receive_purchase_orders` everywhere, including a new order's "Receive stock", which used to need only `manage_purchase_orders`.
+
+**Receiving a draft**
+- A draft is received from its order panel: "Receive stock" opens `POImmediateConfirmDialog` through `PODraftReceiveDialog` and then runs `receivePurchaseOrder()` with the saved lines' quantity, lot, expiry and cost override, so it gets the deterministic receipt ids. Lines still at 0 are listed as left off the receipt.
+- A line ordered at 0 with nothing received is **uncounted**. `receivableLimit()` leaves its quantity input uncapped, and `receivePurchaseOrder()` records the entered count as both `bulk_quantity` and `quantity_received`, sets its `subtotal`, and re-totals the order from its lines. It still sends `bulk_quantity` and `units_per_bulk` together. A line left at 0 does not hold the order open. A non-numeric or negative quantity now receives nothing; it used to book `NaN`.
 
 **Receive panel prefill**
-- `ReceivePOPanel` seeds from the saved line only for Immediate POs: `cost_price` (the order's `cost_price_override`, per base unit) on every receipt, and `lot_number` / `expiry_date` on the first receipt only, since those belong to one delivery. Without the cost seed, a follow-up batch falls back to the line's order-time `unit_cost`, not the catalog average.
-- It never seeds `selling_price`: the catalog already has it, and re-sending a stale PO price would overwrite a later catalog edit.
+- `ReceivePOPanel` seeds from the saved line only for orders typed `immediate` (all new ones): `cost_price` (the order's `cost_price_override`, per base unit) on every receipt, and `lot_number` / `expiry_date` on the first receipt only, since those belong to one delivery. Without the cost seed, a follow-up batch falls back to the line's order-time `unit_cost`, not the catalog average.
 - Any new per-line field the PO form saves must be added to `buildInitialReceivedItems` too.
 
-**Backward compatibility (§11)**
-- A price typed on a draft saved before this release was never applied to the catalog and still is not: a Standard draft's price is never flagged as changed, and an Immediate draft's stored price is replaced by the live one when opened for edit. Re-applying a months-old price could overwrite a newer one, so a user who wants it applied re-types it.
-- Editing a Standard PO erases any stored cost, lot or expiry it carries (only reachable by switching type with values typed, before this release). Nothing in production relied on them. This note can go once no pre-release draft is open.
+**Compatibility test**
+- `__tests__/procurement-old-till-compat.test.ts` runs an order written by this build through the shipped edit-save rule and receive seeding and checks that quantity, lot, expiry and cost survive. Extend it when the order shape changes.
 
 ## Batch cost correction (`lib/db/queries/batch-cost-correction.ts`)
 

@@ -2706,14 +2706,6 @@ cost differs from what was ordered. Per BASE unit (per tablet/bag), not
 per bulk unit - the same scale as products' catalog cost and as the
 Immediate Purchase flow's "New Cost".
 
-### db-procurement-receiving-ts-L32
-
-`client/lib/db/procurement-receiving.ts:31`
-
-When set, updates the product's global selling price; lets a price
-change discovered while receiving stock be applied immediately instead
-of requiring a separate trip to the product's edit screen.
-
 ### db-procurement-receiving-ts-L36
 
 `client/lib/db/procurement-receiving.ts:34`
@@ -9980,16 +9972,6 @@ poTab isn't a query param: getPurchaseOrders() always fetches
 everything and filtering happens client-side below, so it doesn't
 belong in the key (the old effect refetched on every tab switch for
 no reason, since the underlying data never changed).
-
-### line-hooks-use-purchase-orders-ts-L106
-
-`client/lib/hooks/use-purchase-orders.ts:104`
-
-receivePurchaseOrder() writes products.selling_price synchronously
-for any line with a real override that differs from the live price, the
-same as createPurchaseOrder, updatePurchaseOrder and
-createAndReceivePurchaseOrder (all via applyChangedSellingPrices) - so it
-gets the same confirmation toast.
 
 ### line-hooks-use-report-export-ts-L120
 

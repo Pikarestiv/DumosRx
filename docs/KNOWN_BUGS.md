@@ -446,6 +446,13 @@ suggested tackle order rather than a strict ranking.
 - **Issue:** `laravel-server/app/Services/Sync/LegacySaleWithoutStockGate.php` drops a truthy `allow_sale_without_stock` from a push whose `X-App-Version` is missing or below `0.0.41`. A bundle older than the column has no column to send, so in practice it only stops a header-less client. And `INTRODUCED_IN = '0.0.41'` is correct only because 0.0.41 is not yet tagged when this merges. Any 0.0.41 build from before the feature reports the same version.
 - **Fix:** at release, if 0.0.41 has been tagged without this feature, bump the app version and `INTRODUCED_IN` together (`laravel-server/AGENTS.md`, "`LegacySaleWithoutStockGate`"). Otherwise decide whether the gate earns its keep, and delete it and its test if not.
 
+#### A-402. `client/` — an app update reloads the page and throws away an unsaved purchase order
+
+- **Found:** 2026-11-18, reviewing the procurement autosave proposal.
+- **Location:** `client/components/pwa-registrar.tsx:58-61`, the `controllerchange` handler.
+- **What's wrong:** a new deploy's service worker calls `skipWaiting()` and the page reloads at once, wherever the user is. The create and edit order screens hold every entered line in React state only, so a reload mid-entry loses them without a prompt.
+- **Fix:** autosave the draft (planned procurement Phase 2), or hold the reload while an order builder has unsaved lines and reload on leaving it. Holding the reload is not a one-line change: the old page keeps running against a new service worker whose activate step pruned the old build's chunks, so the next lazy navigation can fail. Not attempted in the one-screen branch for that reason.
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-393. `client/` — a product price edit is logged with the new price only

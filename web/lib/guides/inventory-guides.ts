@@ -13,7 +13,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     steps: [
       "Go to Settings > Register Configs (or Store Settings) and toggle on 'Allow sales beyond recorded stock'.",
       "Cashiers can now ring up products even when on-screen stock shows zero. A subtle notice reminds staff that units are recorded as owed.",
-      "When the delivery is subsequently entered via a Purchase Order or Immediate Purchase, the system automatically clears the owed units first and places the remainder on the shelf.",
+      "When the delivery is later received on a purchase order, the system automatically clears the owed units first and places the remainder on the shelf.",
       "Past sales lines are automatically re-costed from the true invoice delivery cost, ensuring your reported profits reflect reality.",
     ],
     proTip:
@@ -62,18 +62,19 @@ export const INVENTORY_GUIDES: GuideItem[] = [
   },
   {
     id: "procurement-orders",
-    title: "Supplier Procurement: Standard Purchase Orders & Immediate Purchases",
+    title: "Supplier Procurement: Purchase Orders, Counter Purchases and Drafts",
     category: "Inventory",
     badge: "Purchasing",
     readTime: "2 min read",
     videoDuration: "2:10",
     summary:
-      "Manage supplier relationships, issue formal purchase orders ahead of delivery, or log Immediate Purchases when goods are paid and received on the spot.",
+      "Order from a supplier ahead of delivery, or record goods bought and received on the spot, from one screen. Save a draft at any point and finish it later.",
     steps: [
-      "Navigate to Procurement and tap 'New Purchase Order'.",
-      "Select your supplier, expected delivery date, and add line items with agreed cost prices. Each product starts at 0 received, so enter the quantity for every row before you place or receive the order. A draft can keep a row at 0 until you've counted it.",
-      "For goods bought and paid on the spot, choose 'Immediate Purchase' to auto-receive inventory and mark payment status as fully paid.",
-      "Open an order from the Procurement list to see its panel. A draft shows 'Edit' and 'Mark as Sent'; once it is sent, 'Receive Items' appears for when the delivery truck arrives, to update shelf stock and verify invoice quantities.",
+      "Navigate to Procurement and tap 'Create Order'. You land straight on the item list: search and add products, with the quantity, cost, lot and expiry for each.",
+      "Tap the pencil on the Vendor bar to choose the supplier, payment status, due date and notes. A walk-in purchase starts as Fully Paid and a supplier order as Unpaid; the due date only shows while money is still owed.",
+      "Each line shows the product's selling price, which the order never changes. Tap its pencil to edit the product's name or price. An amber note warns when the cost is at or above the selling price, or higher than you paid last time.",
+      "For a walk-in purchase, tap 'Receive stock'. For a supplier, tap 'Send to vendor' to mark it Ordered, or 'Receive stock' if the goods are already in front of you. 'Save as Draft' keeps the order without doing either, and a draft can keep a row at 0 until you have counted it.",
+      "Receiving always shows a summary first: how many units and how much, that no selling price will change, and any margin warnings.",
     ],
     proTip:
       "DumosRx tracks your last-paid price right alongside the product's running average cost, so you always know when a supplier raises prices.",
@@ -206,13 +207,13 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     readTime: "2 min read",
     videoDuration: "1:40",
     summary:
-      "Open any purchase order to see its status, what has arrived and the one thing to do next. The panel never shows more than two buttons; everything else sits in a More actions menu.",
+      "Open any purchase order to see its status, what has arrived and what to do next. Everything that is not a next step sits in a More actions menu.",
     steps: [
-      "Open Procurement and tap an order. The header shows the order number, supplier, date and status, with a stepper below the items: Draft, Sent, Received.",
-      "A draft has two buttons: 'Edit' and 'Mark as Sent'. A draft Immediate Purchase has 'Receive Goods' instead, because there is no supplier to send it to.",
-      "When the order is sent, tap 'Receive Items' as the delivery arrives. If only part of it comes, receive what you have; the order becomes Partially received and each line shows 'Received 250 of 400' with a progress bar.",
+      "Open Procurement and tap an order. The header shows the order number, supplier, date and status, with a stepper below the items: Draft, Ordered, Received.",
+      "A draft has 'Edit' and 'Receive stock'. If it is for a supplier it also has 'Send to vendor', which marks it Ordered. Receive stock shows a summary first, and lines still at 0 are left off the receipt.",
+      "When the order is Ordered, tap 'Receive Items' as the delivery arrives. A line saved at 0 takes whatever quantity actually arrived. If only part of it comes, receive what you have; the order becomes Partially received and each line shows 'Received 250 of 400' with a progress bar.",
       "Tap 'Receive Remaining' when the rest arrives. Once every line is in, the order is locked and the panel says so.",
-      "Tap the three dots (More actions) for Download PDF, Delete order and, on a sent order, Edit order. Partially received and received orders cannot be edited or deleted.",
+      "Tap the three dots (More actions) for Download PDF, Delete order and, on an Ordered order, Edit order. Partially received and received orders cannot be edited or deleted.",
     ],
     proTip:
       "Receive a delivery as soon as it is on your shelf, even if it is only part of the order. The progress bars then double as your list of what the supplier still owes you.",

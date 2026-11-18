@@ -1,3 +1,31 @@
+### A-398 — saving a purchase-order draft rewrote the product's selling price store-wide
+- **Fixed:** 2026-11-18, client only, TDD. Found reviewing the procurement autosave proposal.
+- **Was:** `createPurchaseOrder()` and `updatePurchaseOrder()` called `applyChangedSellingPrices()`, so an Immediate draft changed `products.selling_price` the moment it was saved, before any stock arrived; both receive paths did the same.
+- **Now:** no purchase-order path writes a selling price. Lines show the catalog price read-only with a pencil to the product form and a margin cue (`POSellPriceCell`, `getMarginCue()`); the review-price popover and the receive panel's price input are removed. `purchase_order_items.selling_price` is still written and read for older tills.
+- **Coverage:** `client/__tests__/procurement-orders.test.ts`, `procurement-receiving.test.ts`, `procurement-immediate.test.ts`, `po-line-item-math.test.ts`, `po-immediate-submit-confirm.test.tsx`, `receive-item-card-price-fields.test.tsx`.
+- **Compat:** an older till still applies a line price it sees changed, as before; this build never writes one for it to see.
+
+### A-399 — draft purchase orders counted as money owed to the supplier
+- **Fixed:** 2026-11-18, client only, TDD.
+- **Was:** `getSuppliers()` and `getSupplierOutstandingBalance()` (`client/lib/db/suppliers.ts`) summed every unpaid order including `pending` drafts, so a draft inflated vendor debt, order count and value, and blocked deleting the supplier.
+- **Now:** orders in `pending` (or legacy `draft`) are left out of all three. Drafts still block deleting a product they list, on purpose (receiving one later would add stock to a deleted product).
+- **Coverage:** `client/__tests__/procurement.test.ts`, `supplier-delete.test.ts`.
+- **Compat:** read-side only; older tills keep their old totals until updated.
+
+### A-400 — a purchase-order row saved at quantity 0 could not be received, and a non-numeric quantity booked NaN
+- **Fixed:** 2026-11-18, client only, TDD.
+- **Was:** the receive inputs and `receivePurchaseOrder()` capped every line at `bulk_quantity - received`, which is 0 for a row saved uncounted, so its goods could never be entered; the edit screen also refused to save a draft with such rows. A quantity that did not parse reached the stock movement as `NaN`.
+- **Now:** an uncounted line takes the entered count as both ordered and received, gets its subtotal, and the order is re-totalled, with `bulk_quantity` and `units_per_bulk` sent together. A line left at 0 does not hold the order open. A bad quantity receives nothing. The edit screen accepts 0-quantity rows on a draft.
+- **Coverage:** `client/__tests__/procurement-receiving.test.ts` ("uncounted lines"), `po-line-item-math.test.ts` (`receivableLimit`), `receive-item-card-price-fields.test.tsx`.
+- **Compat:** an older till still caps an uncounted line at 0, as before. The server already accepts a changed `bulk_quantity` on a line.
+
+### A-401 — "Receive & Save" on a new order needed only manage_purchase_orders
+- **Fixed:** 2026-11-18, client only, TDD.
+- **Was:** the create screen's receive path booked stock with only the create permission; `receive_purchase_orders` was checked only on the order panel.
+- **Now:** "Receive stock" is shown only with `receive_purchase_orders`, on the create screen and on drafts.
+- **Coverage:** `client/__tests__/po-immediate-submit-confirm.test.tsx`, `purchase-order-details-permissions.test.tsx`.
+- **Compat:** UI gate only; the sync server never enforced either key on push.
+
 ### A-397 — a staff email edit that collided with another account's email was retried for ever and its raw SQL was returned
 - **Fixed:** 2026-11-18, server and client, TDD. Found in production: a till edited a staff member's email to the owner's own `super_admin` address; the push failed `users_email_unique` on every retry and the response `reason` carried the MySQL error with the host, database and statement.
 - **Was:** `PushConflictResolver` guarded a users INSERT against a duplicate email but nothing guarded an UPDATE, so the unique index raised on every retry; the queue row stayed retryable and the sync indicator stayed stuck until the email was edited again.

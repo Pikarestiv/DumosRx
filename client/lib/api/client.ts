@@ -89,6 +89,12 @@ class ApiClient extends FleetBillingApiClient {
     });
   }
 
+  async checkStaffEmailAvailable(email: string, ignoreId?: string) {
+    const query = new URLSearchParams({ email });
+    if (ignoreId) query.set("ignore_id", ignoreId);
+    return this.request<{ available: boolean }>(`/app/staff/email-available?${query.toString()}`);
+  }
+
   async consumeRelinkCode(code: string) {
     return this.request<{
       token: string;

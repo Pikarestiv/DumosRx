@@ -22,7 +22,6 @@ import { AdminSkeleton } from "@/components/admin/admin-skeleton";
 import { DeactivateUserDialog } from "@/components/admin/users/deactivate-user-dialog";
 import { ReactivateUserDialog } from "@/components/admin/users/reactivate-user-dialog";
 import { ResetPasswordDialog } from "@/components/admin/users/reset-password-dialog";
-import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog";
 import { SendNotificationDialog } from "@/components/admin/users/send-notification-dialog";
 import { DeleteUserDialog } from "@/components/admin/users/delete-user-dialog";
 import { UserTable } from "@/components/admin/users/user-table";
@@ -60,7 +59,6 @@ function GlobalUsersDirectoryContent() {
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
   const [isReactivateDialogOpen, setIsReactivateDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [isBulkNotifyDialogOpen, setIsBulkNotifyDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -190,7 +188,7 @@ function GlobalUsersDirectoryContent() {
               error={error}
               refetch={() => void refetch()}
               setSelectedUser={setSelectedUser}
-              setIsProfileDialogOpen={setIsProfileDialogOpen}
+              router={router}
               setIsNotifyDialogOpen={setIsNotifyDialogOpen}
               setIsResetDialogOpen={setIsResetDialogOpen}
               setIsDeactivateDialogOpen={setIsDeactivateDialogOpen}
@@ -227,12 +225,6 @@ function GlobalUsersDirectoryContent() {
         selectedUser={selectedUser}
         setSelectedUser={setSelectedUser}
         resetPasswordMutation={resetPasswordMutation}
-      />
-
-      <UserProfileDialog
-        isOpen={isProfileDialogOpen}
-        onOpenChange={setIsProfileDialogOpen}
-        selectedUser={selectedUser}
       />
 
       <SendNotificationDialog

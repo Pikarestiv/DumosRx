@@ -18,6 +18,7 @@ class SyncFailureRecorder
         'quantity_received_exceeds_ordered',
         'version_conflict',
         'stale_timestamp',
+        'email_in_use',
         // Whole-request outcomes (PG-18). These never reach the per-change
         // loop, so without them a store that syncs nothing contributes
         // nothing and the platform success rate reads 100%.

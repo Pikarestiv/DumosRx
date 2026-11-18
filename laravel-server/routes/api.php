@@ -318,6 +318,8 @@ Route::prefix('v1')->group(function () {
 
             // Emails
             Route::post('/mail/send', [MailController::class, 'send'])->middleware('role:super_admin');
+            Route::post('/mail/preview', [MailController::class, 'preview'])->middleware('role:super_admin');
+            Route::post('/mail/test', [MailController::class, 'sendTest'])->middleware('role:super_admin');
             Route::get('/mail/recipient-count', [MailController::class, 'recipientCount'])->middleware('role:super_admin');
 
             // System Configs
@@ -355,6 +357,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
             Route::post('/online-orders/{id}/ready', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markReady']);
             Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
+
+            // Staff email pre-check
+            Route::get('/staff/email-available', [\App\Http\Controllers\Api\App\StaffEmailController::class, 'available'])->middleware('permission:manage_staff');
 
             // Storefront look (owner only)
             Route::get('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'show']);

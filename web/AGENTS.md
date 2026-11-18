@@ -1302,6 +1302,22 @@ URL). `checkHasPermission` (from `use-admin-auth-store.ts`) already returns
   than "every tab inside it needs" has to be gated the same way — the nav
   filter only controls whether the page is reachable at all, not which of
   its tabs are.
+- **A person in the Users directory opens a page, not a modal.** Clicking a row, the
+  name, or "View Detailed Profile" in the kebab goes to `/admin/users/details/?id=`
+  (`adminUserDetailPath`, the same shape as the store page); the kebab cell swallows the
+  row click. `UserProfilePanel` is the profile card (edit, permissions, staff list). There
+  is no single-user endpoint, so the page searches `GET /admin/users` by id and keeps the
+  exact match. The kebab's other actions (notify, reset password, trials, deactivate,
+  delete) still live on the list page, not on the detail page.
+- **Email compose tools are shared.** `components/admin/email-compose-tools.tsx`
+  (preview iframe, `sandbox=""`, plus "Send a test to") serves both Broadcasts and
+  Email Campaigns; each caller passes its own `renderPreview` and `sendTest`. Enter in
+  the test-address field sends the test and must never submit the surrounding form,
+  or it would dispatch the real campaign or broadcast.
+  The user picker (`components/admin/user-selector.tsx`) pages through accounts 10 at a time;
+  Email Campaigns turns on its account-type filter (Everyone, Store owners, Staff, Admins)
+  with `showAccountTypeFilter`. Broadcasts leave it off, because broadcast email only
+  reaches store owners, so an admin picked there would silently receive nothing.
 - **Confirm/compose dialogs opened by a gated button don't need their own
   internal permission check** — `reset-password-dialog.tsx`,
   `deactivate-user-dialog.tsx`, `send-notification-dialog.tsx`,

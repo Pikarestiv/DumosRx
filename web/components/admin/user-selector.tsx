@@ -19,6 +19,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAdminUsers } from "@/lib/api/admin-hooks";
 import type { AdminUser } from "@/lib/types/admin";
+import type { AdminAccountType } from "@/lib/types/admin-users";
+
+const ACCOUNT_FILTERS: { value: AdminAccountType | ""; label: string }[] = [
+  { value: "", label: "Everyone" },
+  { value: "owners", label: "Store owners" },
+  { value: "staff", label: "Staff" },
+  { value: "platform", label: "Admins" },
+];
 
 interface UserSelectorProps {
   selectedUsers: AdminUser[];
@@ -26,6 +34,7 @@ interface UserSelectorProps {
   targetType?: "all" | "specific";
   onTargetTypeChange?: (type: "all" | "specific") => void;
   hideTargetToggle?: boolean;
+  showAccountTypeFilter?: boolean;
 }
 
 export function UserSelector({
@@ -34,18 +43,30 @@ export function UserSelector({
   targetType = "specific",
   onTargetTypeChange = () => undefined,
   hideTargetToggle = false,
+  showAccountTypeFilter = false,
 }: UserSelectorProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [accountType, setAccountType] = useState<AdminAccountType | "">("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 500);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading } = useAdminUsers(1, debouncedSearch);
+  const { data, isLoading } = useAdminUsers(page, debouncedSearch, "", accountType);
   const users = data?.data || [];
+  const lastPage = data?.meta?.last_page ?? 1;
+
+  const chooseAccountType = (value: AdminAccountType | "") => {
+    setAccountType(value);
+    setPage(1);
+  };
 
   const handleSelect = (user: AdminUser) => {
     const isSelected = selectedUsers.some((u) => u.id === user.id);
@@ -102,6 +123,22 @@ export function UserSelector({
             </PopoverTrigger>
             <PopoverContent className="w-[400px] p-0" align="start">
               <Command shouldFilter={false}>
+                {showAccountTypeFilter && (
+                  <div className="flex flex-wrap gap-1 border-b p-2">
+                    {ACCOUNT_FILTERS.map((filter) => (
+                      <Button
+                        key={filter.label}
+                        type="button"
+                        size="sm"
+                        variant={accountType === filter.value ? "default" : "outline"}
+                        className="h-7 rounded-full px-3 text-xs"
+                        onClick={() => chooseAccountType(filter.value)}
+                      >
+                        {filter.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-center border-b px-3">
                   <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                   <input
@@ -142,6 +179,19 @@ export function UserSelector({
                     })}
                   </CommandGroup>
                 </CommandList>
+                {lastPage > 1 && (
+                  <div className="flex items-center justify-between border-t p-2 text-xs text-muted-foreground">
+                    <Button type="button" size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                      Previous
+                    </Button>
+                    <span>
+                      Page {page} of {lastPage}
+                    </span>
+                    <Button type="button" size="sm" variant="ghost" disabled={page >= lastPage} onClick={() => setPage(page + 1)}>
+                      Next
+                    </Button>
+                  </div>
+                )}
               </Command>
             </PopoverContent>
           </Popover>

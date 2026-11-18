@@ -923,6 +923,12 @@ Call `sync(true)` before any workflow where stale local data would be
 actively misleading (e.g. Cycle Count pulls before any row can be counted:
 `usePreAuditSync()` in `lib/hooks/use-pre-audit-sync.ts`, gated by
 `isBlockedBySync()`; see "Counting on a device that is behind sync").
+A staff email is checked online first (`assertStaffEmailFree()` in
+`lib/utils/staff-email-check.ts`, called from `useMutateUser`), so a taken address
+fails the form before anything is saved (only when the email actually changed); offline,
+with the server unreachable or slower than 4 seconds, the save proceeds and the server's `email_in_use` push refusal is the backstop, handled
+as a terminal reason in `push-response.ts` (queue row dropped, `users` window
+re-pulled, one toast in `announceTerminalConflicts`).
 Daily Close syncs on open too, but never blocks: `useSyncOnOpen()`
 (`lib/hooks/use-sync-on-open.ts`) reuses `pullBeforeCount`, and
 `DailyCloseSyncNote` shows "Syncing…" then, if offline or it failed, that the

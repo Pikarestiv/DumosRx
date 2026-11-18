@@ -18,6 +18,7 @@ const KNOWN_REASONS = [
   "quantity_received_exceeds_ordered",
   "version_conflict",
   "stale_timestamp",
+  "email_in_use",
   "sync_disabled",
   "sync_throttled",
   "store_limit_exceeded",

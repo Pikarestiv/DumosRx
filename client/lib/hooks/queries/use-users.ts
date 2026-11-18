@@ -8,6 +8,8 @@ import {
   deleteUser,
   restoreUser,
 } from "@/lib/db/local-database";
+import { query } from "@/lib/db/core";
+import { assertStaffEmailFree } from "@/lib/utils/staff-email-check";
 import type { StaffCreatePayload, StaffUpdatePayload } from "@/lib/types/user";
 
 export function useUsers(storeId?: string | null) {
@@ -33,13 +35,20 @@ export function useMutateUser() {
     queryClient.invalidateQueries({ queryKey: ["users"] });
 
   const create = useMutation({
-    mutationFn: (data: StaffCreatePayload) => createUser(data),
+    mutationFn: async (data: StaffCreatePayload) => {
+      await assertStaffEmailFree(data.email);
+      return createUser(data);
+    },
     onSuccess: invalidateAllUsers,
   });
 
   const update = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: StaffUpdatePayload }) =>
-      updateUser(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: StaffUpdatePayload }) => {
+      const [current] = await query<{ email: string | null }>("SELECT email FROM users WHERE id = ?", [id]);
+      const unchanged = (data.email ?? "").trim().toLowerCase() === (current?.email ?? "").trim().toLowerCase();
+      if (!unchanged) await assertStaffEmailFree(data.email, id);
+      return updateUser(id, data);
+    },
     onSuccess: invalidateAllUsers,
   });
 

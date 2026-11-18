@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AdminUser } from "@/lib/types/admin";
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { adminUserDetailPath } from "@/lib/admin-routes";
 import { useAdminAuthStore, checkHasPermission, checkIsSuperAdmin } from "@/lib/store/use-admin-auth-store";
 
 interface UserTableProps {
@@ -39,7 +41,7 @@ interface UserTableProps {
   error: unknown;
   refetch: () => void;
   setSelectedUser: (user: AdminUser) => void;
-  setIsProfileDialogOpen: (val: boolean) => void;
+  router: AppRouterInstance;
   setIsNotifyDialogOpen: (val: boolean) => void;
   setIsResetDialogOpen: (val: boolean) => void;
   setIsDeactivateDialogOpen: (val: boolean) => void;
@@ -55,7 +57,7 @@ export function UserTable({
   error,
   refetch,
   setSelectedUser,
-  setIsProfileDialogOpen,
+  router,
   setIsNotifyDialogOpen,
   setIsResetDialogOpen,
   setIsDeactivateDialogOpen,
@@ -70,6 +72,7 @@ export function UserTable({
   const canManageAccountStatus = checkHasPermission(viewerUser, "manage_account_status");
   const canGrantTrials = checkHasPermission(viewerUser, "grant_trials");
   const canDeleteAccounts = checkIsSuperAdmin(viewerUser?.role);
+  const openUser = (user: AdminUser) => router.push(adminUserDetailPath(user.id));
 
   if (error) {
     return (
@@ -95,14 +98,29 @@ export function UserTable({
       </TableHeader>
       <TableBody>
         {userList.map((user) => (
-          <TableRow key={user.id} className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors">
+          <TableRow
+            key={user.id}
+            className="border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors cursor-pointer"
+            onClick={() => openUser(user)}
+          >
             <TableCell className="pl-6 py-5">
               <div className="flex items-center gap-4">
                 <div className={`h-10 w-10 rounded-xl ${user.role_slug === 'super_admin' ? 'bg-indigo-600 shadow-indigo-600/20' : 'bg-slate-100 dark:bg-slate-800'} border border-slate-200 dark:border-slate-700 flex items-center justify-center font-black ${user.role_slug === 'super_admin' ? 'text-white' : 'text-slate-400'} text-xs shadow-sm`}>
                   {user.name.charAt(0)}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">{user.name}</span>
+                  <a
+                    href={adminUserDetailPath(user.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                      event.preventDefault();
+                      openUser(user);
+                    }}
+                    className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  >
+                    {user.name}
+                  </a>
                   <span className="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">
                     {user.id} • {user.email}
                     {user.deletionRequested && (
@@ -146,7 +164,11 @@ export function UserTable({
                 {user.status}
               </Badge>
             </TableCell>
-            <TableCell className="pr-6">
+            <TableCell
+              className="pr-6"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
@@ -157,10 +179,7 @@ export function UserTable({
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">User Actions</DropdownMenuLabel>
                   <DropdownMenuItem 
                     className="rounded-xl px-3 py-2.5 cursor-pointer gap-3 font-bold"
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setIsProfileDialogOpen(true);
-                    }}
+                    onClick={() => openUser(user)}
                   >
                     <Eye className="h-4 w-4 text-indigo-500" />
                     View Detailed Profile

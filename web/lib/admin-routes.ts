@@ -8,3 +8,6 @@ export const adminStoreDetailPath = (storeId: string) =>
 
 export const adminStoreActivityPath = (storeId: string, storeName: string) =>
   `/admin/activity?store_id=${encodeURIComponent(storeId)}&store_name=${encodeURIComponent(storeName)}`;
+
+export const adminUserDetailPath = (userId: string) =>
+  `/admin/users/details/?id=${encodeURIComponent(userId)}`;

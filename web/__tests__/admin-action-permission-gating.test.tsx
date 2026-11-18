@@ -217,7 +217,7 @@ const userTableHandlers = {
   error: null,
   refetch: noop,
   setSelectedUser: noop,
-  setIsProfileDialogOpen: noop,
+  router: { push: noop } as unknown as AppRouterInstance,
   setIsNotifyDialogOpen: noop,
   setIsResetDialogOpen: noop,
   setIsDeactivateDialogOpen: noop,

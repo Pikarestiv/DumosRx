@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { UserProfileDialog } from "@/components/admin/users/user-profile-dialog";
+import { UserProfilePanel } from "@/components/admin/users/user-profile-panel";
 import type { AdminUser } from "@/lib/types/admin";
 
 const { viewerRole } = vi.hoisted(() => ({ viewerRole: { current: "super_admin" } }));
@@ -38,14 +38,12 @@ function buildUser(overrides: Partial<AdminUser>): AdminUser {
   };
 }
 
-describe("UserProfileDialog — Manage Permissions gate", () => {
+describe("UserProfilePanel — Manage Permissions gate", () => {
   it("shows Manage Permissions for a platform_admin target when the viewer is super_admin", () => {
     viewerRole.current = "super_admin";
     render(
-      <UserProfileDialog
-        isOpen
-        onOpenChange={vi.fn()}
-        selectedUser={buildUser({ role_slug: "platform_admin" })}
+      <UserProfilePanel
+        user={buildUser({ role_slug: "platform_admin" })}
       />,
     );
     expect(screen.getByRole("button", { name: /manage permissions/i })).toBeInTheDocument();
@@ -54,10 +52,8 @@ describe("UserProfileDialog — Manage Permissions gate", () => {
   it("shows Manage Permissions for an agent target when the viewer is super_admin", () => {
     viewerRole.current = "super_admin";
     render(
-      <UserProfileDialog
-        isOpen
-        onOpenChange={vi.fn()}
-        selectedUser={buildUser({ role: "Agent", role_slug: "agent" })}
+      <UserProfilePanel
+        user={buildUser({ role: "Agent", role_slug: "agent" })}
       />,
     );
     expect(screen.getByRole("button", { name: /manage permissions/i })).toBeInTheDocument();
@@ -66,10 +62,8 @@ describe("UserProfileDialog — Manage Permissions gate", () => {
   it("hides Manage Permissions for a super_admin target", () => {
     viewerRole.current = "super_admin";
     render(
-      <UserProfileDialog
-        isOpen
-        onOpenChange={vi.fn()}
-        selectedUser={buildUser({ role: "Super Admin", role_slug: "super_admin" })}
+      <UserProfilePanel
+        user={buildUser({ role: "Super Admin", role_slug: "super_admin" })}
       />,
     );
     expect(screen.queryByRole("button", { name: /manage permissions/i })).not.toBeInTheDocument();
@@ -78,10 +72,8 @@ describe("UserProfileDialog — Manage Permissions gate", () => {
   it("hides Manage Permissions for a store_owner target even when the viewer is super_admin", () => {
     viewerRole.current = "super_admin";
     render(
-      <UserProfileDialog
-        isOpen
-        onOpenChange={vi.fn()}
-        selectedUser={buildUser({ role: "Store Owner", role_slug: "store_owner" })}
+      <UserProfilePanel
+        user={buildUser({ role: "Store Owner", role_slug: "store_owner" })}
       />,
     );
     expect(screen.queryByRole("button", { name: /manage permissions/i })).not.toBeInTheDocument();
@@ -90,10 +82,8 @@ describe("UserProfileDialog — Manage Permissions gate", () => {
   it("hides Manage Permissions entirely when the viewer is not super_admin", () => {
     viewerRole.current = "agent";
     render(
-      <UserProfileDialog
-        isOpen
-        onOpenChange={vi.fn()}
-        selectedUser={buildUser({ role_slug: "platform_admin" })}
+      <UserProfilePanel
+        user={buildUser({ role_slug: "platform_admin" })}
       />,
     );
     expect(screen.queryByRole("button", { name: /manage permissions/i })).not.toBeInTheDocument();

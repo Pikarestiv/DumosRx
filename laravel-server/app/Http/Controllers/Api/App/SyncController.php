@@ -369,6 +369,18 @@ class SyncController extends Controller
                             }
                         }
 
+                        if ($model && $change['table_name'] === 'users' && $conflicts->emailTakenByAnotherUser($payload['email'] ?? null, $recordId)) {
+                            DB::commit();
+                            $failed[] = [
+                                'id' => $change['id'] ?? null,
+                                'table_name' => 'users',
+                                'record_id' => $recordId,
+                                'reason' => 'email_in_use',
+                            ];
+
+                            continue;
+                        }
+
                         if ($model) {
                             $isCommutativeTable = $conflicts->isQuantityOnlyStockBatchUpdate($change['table_name'], $payload);
 

@@ -126,6 +126,14 @@ class AdminMailAudienceTest extends TestCase
         $this->assertStringContainsString('Hi', $html);
     }
 
+    public function test_html_mode_drops_style_attributes_that_carry_script_urls(): void
+    {
+        $html = (new AdminCustomMail('s', '<p style="background:url(javascript:alert(1))">Hi</p><p style="color:red">Ok</p>', true))->render();
+
+        $this->assertStringNotContainsString('javascript:', $html);
+        $this->assertStringContainsString('style="color:red"', $html);
+    }
+
     public function test_plain_text_mode_still_escapes_markup(): void
     {
         $html = (new AdminCustomMail('s', '<b>x</b>'))->render();

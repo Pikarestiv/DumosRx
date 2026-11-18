@@ -49,7 +49,9 @@ class EmailHtmlSanitizer
             $isHandler = str_starts_with($name, 'on');
             $isUnsafeUrl = in_array($name, self::URL_ATTRIBUTES, true) && preg_match('/^(javascript|vbscript|data):/', $value);
 
-            if ($isHandler || $isUnsafeUrl) {
+            $isUnsafeStyle = $name === 'style' && preg_match('/javascript:|expression\(/', $value);
+
+            if ($isHandler || $isUnsafeUrl || $isUnsafeStyle) {
                 $element->removeAttribute($attribute->name);
             }
         }

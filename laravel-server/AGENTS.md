@@ -3934,6 +3934,14 @@ write path has to sit after the commit, not inside it.
 
 ## Broadcast emails (`broadcasts.send_email`)
 
+### Staff email uniqueness (A-397)
+
+A users UPDATE in `SyncController::push` whose `email` another live account holds
+(case-insensitive) is refused with `email_in_use` before any write, instead of failing
+on `users_email_unique` at every retry. Archiving a user suffixes its email with
+`_del_<ms>`, so an archived account does not hold its address. `GET /app/staff/email-available`
+(`StaffEmailController`) answers the same question for the till's online pre-check.
+
 ### Admin email campaigns (`POST /admin/mail/send`)
 
 `MailController::send()` delegates to `App\Services\Admin\AdminMailService`.

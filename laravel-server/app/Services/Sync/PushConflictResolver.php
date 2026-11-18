@@ -76,6 +76,18 @@ class PushConflictResolver
         return [false, null, null];
     }
 
+    public function emailTakenByAnotherUser(?string $email, $recordId): bool
+    {
+        if ($email === null || $email === '') {
+            return false;
+        }
+
+        return \App\Models\User::query()
+            ->whereRaw('LOWER(email) = ?', [strtolower($email)])
+            ->where('id', '!=', $recordId)
+            ->exists();
+    }
+
     public function findDuplicateInsertConflict(string $modelClass, string $tableName, array $payload, $recordId)
     {
         if ($tableName === 'users') {

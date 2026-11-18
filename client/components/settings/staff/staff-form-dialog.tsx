@@ -5,6 +5,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastTiming } from "@/lib/utils/toast-timing";
+import { StaffEmailTakenError } from "@/lib/utils/staff-email-check";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
 import { useStore } from "@/lib/context/store-context";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
@@ -166,7 +167,9 @@ export function StaffFormDialog({
     } catch (error) {
       console.error("Failed to save user:", error);
       const message = error instanceof Error ? error.message : "";
-      if (message.includes("UNIQUE")) {
+      if (error instanceof StaffEmailTakenError) {
+        toast.error(error.message);
+      } else if (message.includes("UNIQUE")) {
         toast.error("Username already exists");
       } else {
         toast.error(

@@ -33,10 +33,17 @@ export interface PushConflict {
 const isRefusedAutomaticRecost = (c: PushConflict) =>
   c.table_name === "sale_items" && c.reason === "version_conflict" && c.operation === "UPDATE";
 
+const EMAIL_IN_USE_MESSAGE =
+  "A staff email you entered is already used by another account, so it was not saved. Edit the staff member and choose a different email.";
+
 export function announceTerminalConflicts(
-  versionConflicts: PushConflict[],
+  allConflicts: PushConflict[],
   silencedConflicts: Omit<PushConflict, "reason">[],
 ): void {
+  const emailRefusals = allConflicts.filter((conflict) => conflict.reason === "email_in_use");
+  if (emailRefusals.length > 0) toast.error(EMAIL_IN_USE_MESSAGE);
+  const versionConflicts = allConflicts.filter((conflict) => conflict.reason !== "email_in_use");
+
   // Wording deliberately never blames "another device" — see
   // client/AGENTS.md, "Push details".
   const toastableConflicts = versionConflicts.filter((conflict) => {

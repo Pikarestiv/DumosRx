@@ -318,6 +318,7 @@ Route::prefix('v1')->group(function () {
 
             // Emails
             Route::post('/mail/send', [MailController::class, 'send'])->middleware('role:super_admin');
+            Route::get('/mail/recipient-count', [MailController::class, 'recipientCount'])->middleware('role:super_admin');
 
             // System Configs
             Route::put('/system-configs/{key}', [SystemConfigController::class, 'update'])->middleware('role:super_admin');

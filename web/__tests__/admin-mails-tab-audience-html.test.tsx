@@ -7,9 +7,9 @@ import { MailsTab } from "@/components/admin/views/mails-tab";
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 
 vi.mock("@/lib/api/client", () => ({ webApiClient: { request } }));
-vi.mock("@/lib/store/use-admin-auth-store", () => ({
+vi.mock("@/lib/store/use-admin-auth-store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/store/use-admin-auth-store")>()),
   useAdminAuthStore: () => ({ user: { role: "super_admin" } }),
-  checkIsSuperAdmin: (role?: string) => role === "super_admin",
 }));
 vi.mock("@/lib/api/admin-hooks", () => ({
   useAdminUsers: () => ({ data: { data: [], meta: { total: 0, last_page: 1 } }, isLoading: false }),
@@ -24,10 +24,12 @@ const renderTab = () =>
     </QueryClientProvider>,
   );
 
+const sends = () => request.mock.calls.filter(([path]) => path === "admin/mail/send");
+
 describe("MailsTab audience and HTML mode", () => {
   beforeEach(() => {
     request.mockReset();
-    request.mockResolvedValue({ success: true });
+    request.mockImplementation((path: string) => Promise.resolve(path.startsWith("admin/mail/recipient-count") ? { count: 42 } : { success: true }));
   });
 
   it("sends the message as HTML after the confirmation, to the default audience", async () => {
@@ -40,7 +42,7 @@ describe("MailsTab audience and HTML mode", () => {
     await user.click(screen.getByRole("button", { name: /send email/i }));
     await user.click(await screen.findByRole("button", { name: /send now/i }));
 
-    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(sends()).toHaveLength(1));
     expect(request).toHaveBeenCalledWith("admin/mail/send", {
       method: "POST",
       data: expect.objectContaining({
@@ -60,10 +62,22 @@ describe("MailsTab audience and HTML mode", () => {
     await user.type(screen.getByLabelText("Message Body"), "Plain");
     await user.click(screen.getByRole("button", { name: /send email/i }));
 
-    expect(request).not.toHaveBeenCalled();
+    expect(sends()).toHaveLength(0);
     await user.click(await screen.findByRole("button", { name: /send now/i }));
 
-    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
-    expect(request.mock.calls[0][1].data.is_html).toBe(false);
+    await waitFor(() => expect(sends()).toHaveLength(1));
+    expect(sends()[0][1].data.is_html).toBe(false);
+  });
+
+  it("tells the admin how many people the confirmation will email", async () => {
+    const user = userEvent.setup();
+    renderTab();
+
+    await user.type(screen.getByLabelText("Email Subject"), "Hi");
+    await user.type(screen.getByLabelText("Message Body"), "Plain");
+    expect(await screen.findByText(/42 recipients/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /send email/i }));
+
+    expect((await screen.findByRole("dialog")).textContent).toContain("42 recipients");
   });
 });

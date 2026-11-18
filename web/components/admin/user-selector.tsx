@@ -23,16 +23,16 @@ import type { AdminUser } from "@/lib/types/admin";
 interface UserSelectorProps {
   selectedUsers: AdminUser[];
   onUsersChange: (users: AdminUser[]) => void;
-  targetType: "all" | "specific";
-  onTargetTypeChange: (type: "all" | "specific") => void;
+  targetType?: "all" | "specific";
+  onTargetTypeChange?: (type: "all" | "specific") => void;
   hideTargetToggle?: boolean;
 }
 
 export function UserSelector({
   selectedUsers,
   onUsersChange,
-  targetType,
-  onTargetTypeChange,
+  targetType = "specific",
+  onTargetTypeChange = () => undefined,
   hideTargetToggle = false,
 }: UserSelectorProps) {
   const [open, setOpen] = useState(false);

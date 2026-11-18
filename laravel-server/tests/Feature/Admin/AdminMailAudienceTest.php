@@ -134,6 +134,87 @@ class AdminMailAudienceTest extends TestCase
         $this->assertStringContainsString('style="color:red"', $html);
     }
 
+    public function test_a_stray_closing_tag_does_not_cut_off_the_rest_of_the_email(): void
+    {
+        $html = (new AdminCustomMail('s', '<p>Intro</p></div><p>Important tail</p>', true))->render();
+
+        $this->assertStringContainsString('Important tail', $html);
+    }
+
+    public function test_html_mode_removes_style_blocks_and_svg_and_math_containers(): void
+    {
+        $payloads = [
+            '<svg><style><img src=x onerror=alert(1)></style></svg>',
+            '<math><style><img src=x onerror=alert(1)></style></math>',
+            '<style>@import url(javascript:alert(1));</style>',
+            '<svg><a><animate attributeName="href" values="javascript:alert(1)"/></a></svg>',
+        ];
+
+        foreach ($payloads as $payload) {
+            $html = (new AdminCustomMail('s', $payload.'<p>kept</p>', true))->render();
+
+            $this->assertStringNotContainsString('onerror', $html, $payload);
+            $this->assertStringNotContainsString('javascript:', $html, $payload);
+            $this->assertStringNotContainsString('<style', $html, $payload);
+            $this->assertStringContainsString('kept', $html, $payload);
+        }
+    }
+
+    public function test_html_mode_drops_script_urls_in_srcset_and_background(): void
+    {
+        $html = (new AdminCustomMail('s', '<img srcset="javascript:alert(1) 1x"><table background="javascript:alert(1)"><tr><td>x</td></tr></table>', true))->render();
+
+        $this->assertStringNotContainsString('javascript:', $html);
+    }
+
+    public function test_a_guest_cannot_send(): void
+    {
+        $this->postJson('/api/v1/admin/mail/send', ['subject' => 's', 'message' => 'm', 'target_type' => 'all'])->assertUnauthorized();
+        Mail::assertNothingQueued();
+    }
+
+    public function test_platform_admins_and_agents_cannot_send(): void
+    {
+        foreach (['platform@dumosrx.com', 'agent@dumosrx.com'] as $email) {
+            $this->actingAs(User::where('email', $email)->first())
+                ->postJson('/api/v1/admin/mail/send', ['subject' => 's', 'message' => 'm', 'target_type' => 'all'])
+                ->assertForbidden();
+        }
+        Mail::assertNothingQueued();
+    }
+
+    public function test_is_html_must_be_a_boolean(): void
+    {
+        $this->send(['target_type' => 'all', 'is_html' => 'yes please'])->assertStatus(422);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_deactivated_users_are_not_mailed(): void
+    {
+        User::where('email', 'cashier@shop.test')->update(['is_active' => false]);
+        User::where('email', 'owner@shop.test')->update(['is_active' => false]);
+
+        $this->send(['target_type' => 'all'])->assertOk();
+
+        $this->assertNotContains('cashier@shop.test', $this->recipients());
+        $this->assertNotContains('owner@shop.test', $this->recipients());
+    }
+
+    public function test_recipient_count_matches_what_a_send_would_reach(): void
+    {
+        $this->actingAs($this->superAdmin)->getJson('/api/v1/admin/mail/recipient-count?target_type=store_owners')
+            ->assertOk()->assertJsonPath('count', 2);
+        $this->actingAs($this->superAdmin)->getJson('/api/v1/admin/mail/recipient-count?target_type=all')
+            ->assertOk()->assertJsonPath('count', 6);
+    }
+
+    public function test_recipient_count_is_for_super_admins_only(): void
+    {
+        $this->getJson('/api/v1/admin/mail/recipient-count?target_type=all')->assertUnauthorized();
+        $this->actingAs(User::where('email', 'agent@dumosrx.com')->first())
+            ->getJson('/api/v1/admin/mail/recipient-count?target_type=all')->assertForbidden();
+    }
+
     public function test_plain_text_mode_still_escapes_markup(): void
     {
         $html = (new AdminCustomMail('s', '<b>x</b>'))->render();

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Mail, Send } from "lucide-react";
 import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { webApiClient } from "@/lib/api/client";
 import { UserSelector } from "@/components/admin/user-selector";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -50,6 +50,14 @@ export function MailsTab() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const audience = AUDIENCES.find((a) => a.value === targetType) ?? AUDIENCES[0];
+
+  const { data: recipients } = useQuery({
+    queryKey: ["admin-mail-recipient-count", targetType],
+    queryFn: () => webApiClient.request<{ count: number }>(`admin/mail/recipient-count?target_type=${targetType}`),
+    enabled: targetType !== "specific",
+  });
+  const recipientLabel =
+    recipients === undefined ? audience.noun : `${recipients.count} recipient${recipients.count === 1 ? "" : "s"} (${audience.noun})`;
 
   const sendMailMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
@@ -130,15 +138,13 @@ export function MailsTab() {
             <UserSelector
               selectedUsers={selectedUsers}
               onUsersChange={setSelectedUsers}
-              targetType="specific"
-              onTargetTypeChange={() => undefined}
               hideTargetToggle
             />
           )}
 
           {targetType !== "specific" && (
             <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              This will email {audience.noun}. You&apos;ll be asked to confirm before it sends.
+              This will email {recipientLabel}. You&apos;ll be asked to confirm before it sends.
             </p>
           )}
 
@@ -194,7 +200,7 @@ export function MailsTab() {
         open={isConfirmOpen}
         onOpenChange={setIsConfirmOpen}
         title={`Email ${audience.label.toLowerCase()}?`}
-        description={`This sends "${subject}" to ${audience.noun}. This cannot be undone.`}
+        description={`This sends "${subject}" to ${recipientLabel}. This cannot be undone.`}
         confirmLabel="Send now"
         onConfirm={dispatchMail}
       />

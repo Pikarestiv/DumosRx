@@ -37,6 +37,13 @@ class MailController extends Controller
             new OA\Response(response: 500, ref: '#/components/responses/ServerError'),
         ],
     )]
+    public function recipientCount(Request $request, AdminMailService $mail)
+    {
+        $request->validate(['target_type' => ['required', Rule::in(array_diff(AdminMailService::AUDIENCES, ['specific']))]]);
+
+        return response()->json(['count' => $mail->recipientCount($request->input('target_type'))]);
+    }
+
     public function send(Request $request, AdminMailService $mail)
     {
         $request->validate([

@@ -8,15 +8,18 @@ use DOMXPath;
 
 class EmailHtmlSanitizer
 {
-    private const REMOVED_TAGS = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'meta', 'link', 'base', 'noscript'];
+    private const REMOVED_TAGS = [
+        'script', 'style', 'svg', 'math', 'template', 'iframe', 'frameset', 'frame', 'applet', 'object', 'embed',
+        'form', 'input', 'button', 'meta', 'link', 'base', 'noscript',
+    ];
 
-    private const URL_ATTRIBUTES = ['href', 'src', 'action', 'formaction', 'xlink:href'];
+    private const URL_ATTRIBUTES = ['href', 'src', 'srcset', 'background', 'poster', 'action', 'formaction', 'xlink:href'];
 
     public static function clean(string $html): string
     {
         $document = new DOMDocument;
         libxml_use_internal_errors(true);
-        $document->loadHTML('<?xml encoding="utf-8"?><div id="sanitize-root">'.$html.'</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $document->loadHTML('<?xml encoding="utf-8"?><html><body>'.$html.'</body></html>', LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
 
         $xpath = new DOMXPath($document);
@@ -33,9 +36,9 @@ class EmailHtmlSanitizer
             }
         }
 
-        $root = $document->getElementById('sanitize-root');
+        $body = $document->getElementsByTagName('body')->item(0);
         $output = '';
-        foreach ($root->childNodes as $child) {
+        foreach ($body->childNodes as $child) {
             $output .= $document->saveHTML($child);
         }
 

@@ -3943,8 +3943,14 @@ write path has to sit after the commit, not inside it.
 audience skips null emails and the `@local.dumosrx.com` placeholder addresses
 auto-generated for staff, which the old "all" send used to mail and bounce.
 Roles are matched on the `users.role` string column only. `is_html: true` sends the body as HTML,
-cleaned by `App\Support\EmailHtmlSanitizer` (drops scripts, iframes, forms,
-`on*` handlers and `javascript:`/`data:` URLs, keeps inline styles). Old admin
+cleaned by `App\Support\EmailHtmlSanitizer`, a hand-written DOM filter, not an
+allow-list: it removes script, style, svg, math, template, iframe, frames, forms and
+embeds, `on*` handlers and `javascript:`/`data:` URLs (also in srcset/background),
+and keeps inline styles unless they carry script URLs, `@import`, comments or
+CSS escapes. Only a super_admin can send, so this is defence in depth; move to
+`symfony/html-sanitizer` before any lower role may send HTML. Audiences skip
+inactive users. `GET /admin/mail/recipient-count?target_type=` returns how many
+a non-specific audience would reach, for the confirmation dialog. Old admin
 bundles that send only `all`/`specific` and no `is_html` still work unchanged.
 
 A broadcast (`Broadcast`, `BroadcastController`) is delivered in-app by

@@ -1,3 +1,13 @@
+### A-338 — sync:backfill-store-ids wrote store_id without moving updated_at or _version
+- **Fixed:** 2026-11-18, server only, TDD. Found 2026-10-25 during review of A-246.
+- **Was:** In `laravel-server/app/Console/Commands/BackfillStoreIds.php`, the `--apply` branch ran `DB::table($table)->whereIn('id', $ids)->update(['store_id' => $storeId])`. Because `DB::table()` was used without bumping sync stamps, `updated_at`, `_synced_at`, and `_version` remained unchanged on legacy rows. Devices performing incremental syncs filter on `updated_at > lastSynced`, so attributed legacy rows were never re-offered or pulled down to devices, leaving local records with `store_id = NULL` and causing stock fingerprint discrepancies (A-246).
+- **Now:**
+  (1) `BackfillStoreIds::processTable()` spreads `SyncRowStamp::for($table)` into the `update()`, bumping `_version` via `COALESCE(_version, 0) + 1` and setting `updated_at` and `_synced_at` to the current UTC timestamp for all versioned tables.
+  (2) The command outputs a message upon `--apply`: "Touched rows will re-pull to every device on its next sync."
+  (3) Updated `laravel-server/AGENTS.md` to document the stamp bump and incremental delivery.
+- **Coverage:** `tests/Feature/BackfillStoreIdTest.php::test_an_attributed_row_bumps_sync_stamps_and_is_delivered_on_incremental_pull` (verifies `_version` increment, `updated_at` advancement, CLI output, and delivery on incremental sync with watermark).
+- **Compat:** Completely backward-compatible; devices receive the attributed row on their next incremental sync.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.

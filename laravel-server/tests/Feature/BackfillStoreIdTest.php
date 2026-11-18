@@ -73,10 +73,10 @@ class BackfillStoreIdTest extends TestCase
         ]);
     }
 
-    private function insertProduct(?string $userId, ?string $storeId = null): string
+    private function insertProduct(?string $userId, ?string $storeId = null, ?string $timestamp = null): string
     {
         $id = (string) Str::uuid();
-        $now = now()->format('Y-m-d H:i:s');
+        $now = $timestamp ?? now()->format('Y-m-d H:i:s');
 
         DB::table('products')->insert([
             'id' => $id,
@@ -252,11 +252,36 @@ class BackfillStoreIdTest extends TestCase
             ->assertSuccessful();
     }
 
-    /** @return array<int, string> */
-    private function pulledProductIds(): array
+    public function test_an_attributed_row_bumps_sync_stamps_and_is_delivered_on_incremental_pull(): void
+    {
+        $oldTime = now()->subDays(5)->format('Y-m-d H:i:s');
+        $watermark = now()->subDays(2)->toISOString();
+        $productId = $this->insertProduct($this->owner->id, null, $oldTime);
+
+        $before = $this->pulledProductIds(['products' => $watermark]);
+        $this->assertNotContains($productId, $before);
+
+        $this->artisan('sync:backfill-store-ids --apply')
+            ->expectsOutputToContain('Touched rows will re-pull to every device on its next sync.')
+            ->assertSuccessful();
+
+        $product = DB::table('products')->where('id', $productId)->first();
+        $this->assertSame($this->store->id, $product->store_id);
+        $this->assertEquals(2, $product->_version);
+        $this->assertTrue(strtotime($product->updated_at) >= strtotime('-1 minute'));
+
+        $after = $this->pulledProductIds(['products' => $watermark]);
+        $this->assertContains($productId, $after);
+    }
+
+    /**
+     * @param  array<string, string>  $lastSynced
+     * @return array<int, string>
+     */
+    private function pulledProductIds(array $lastSynced = []): array
     {
         $changes = $this->actingAs($this->owner)
-            ->postJson('/api/v1/app/sync/pull', ['last_synced' => []])
+            ->postJson('/api/v1/app/sync/pull', ['last_synced' => $lastSynced])
             ->assertOk()
             ->json('changes');
 

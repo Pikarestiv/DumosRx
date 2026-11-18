@@ -470,13 +470,6 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** `client/lib/db/schema-migrations.ts` is 925 lines and `laravel-server/app/Http/Controllers/Api/App/SyncController.php` 846, against `.agents/AGENTS.md` §4.
 - **Fix:** split the migrations by era or table group behind the same `runSchemaMigrations()` entry point; move the pull loop out of `SyncController::pull()` into a service beside `PullPager`/`PullTenantScope`. Each in its own refactor PR, with `npm run test:schema` and the sync feature tests as the guard.
 
-#### A-338. `laravel-server/` — `sync:backfill-store-ids` writes `store_id` without moving `updated_at` or `_version`, so a row it attributes never reaches a device
-- **Found:** 2026-10-25, by the review of A-246's fix.
-- **Location:** `app/Console/Commands/BackfillStoreIds.php`, the `--apply` write (`DB::table($table)->whereIn('id', $ids)->update(['store_id' => $storeId])`).
-- **What's wrong:** an incremental pull never re-offers a row whose `updated_at` and `_synced_at` did not move, so a device holding a legacy row as `store_id = NULL` keeps it that way. The stock fingerprint now counts batches through the device's copy of `products.store_id` (A-246), so a product attributed here stays outside the device's count while the server counts it. It is also the A-278 shape for any client-pushable column.
-- **Exposure:** small today. The one production run (2026-10-18) attributed 594 `activity_logs` rows and no business row (`laravel-server/AGENTS.md`, "`store_id` backfill").
-- **Fix:** spread `App\Support\SyncRowStamp::for($table)` into that update (A-278), and say in the command's output that touched rows re-pull to every device.
-
 #### A-362. `laravel-server/` — a child row can still be pointed at another tenant's store-less legacy parent
 - **Found:** 2026-10-25, fixing A-325.
 - **What's wrong:** `authorizeInsertTarget()` and A-325's `repointsToForeignParent()` resolve a child's store through its parent; a parent with `store_id = NULL` resolves to none, so the check falls back to the row's own `store_id` (INSERT) or lets it through (UPDATE). A batch can therefore be attached to another tenant's pre-backfill `NULL`-store product.

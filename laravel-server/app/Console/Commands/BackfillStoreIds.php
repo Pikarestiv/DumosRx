@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Support\SyncRowStamp;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -92,6 +93,8 @@ class BackfillStoreIds extends Command
             return self::SUCCESS;
         }
 
+        $this->line('Touched rows will re-pull to every device on its next sync.');
+
         Log::info('sync:backfill-store-ids applied', $totals + ['store' => $onlyStore]);
 
         return self::SUCCESS;
@@ -142,8 +145,9 @@ class BackfillStoreIds extends Command
             }
 
             if ($apply) {
+                $stamp = SyncRowStamp::for($table);
                 foreach ($byStore as $storeId => $ids) {
-                    DB::table($table)->whereIn('id', $ids)->update(['store_id' => $storeId]);
+                    DB::table($table)->whereIn('id', $ids)->update(['store_id' => $storeId, ...$stamp]);
                 }
             }
         }

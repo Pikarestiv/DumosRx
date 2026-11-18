@@ -708,6 +708,39 @@ async function clearOrphanedProductCategoryIds(adapter: DbAdapter): Promise<void
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-schema-migrations-ts-L784
 async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promise<void> {
   try {
+    const scratchInfo = await adapter.all(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='purchase_orders_nullable_supplier'",
+    );
+    if (scratchInfo && scratchInfo.length > 0) {
+      const poInfo = await adapter.all(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='purchase_orders'",
+      );
+      if (!poInfo || poInfo.length === 0) {
+        await adapter.run("ALTER TABLE purchase_orders_nullable_supplier RENAME TO purchase_orders");
+      } else {
+        const [scratchCount] = (await adapter.all(
+          "SELECT COUNT(*) as count FROM purchase_orders_nullable_supplier",
+        )) as [{ count: number }?];
+        if ((scratchCount?.count || 0) > 0) {
+          const poCols = (await adapter.all("PRAGMA table_info(purchase_orders)")).map((c) =>
+            String(c.name),
+          );
+          const scratchCols = (
+            await adapter.all("PRAGMA table_info(purchase_orders_nullable_supplier)")
+          ).map((c) => String(c.name));
+          const commonCols = poCols.filter((col) => scratchCols.includes(col));
+          if (commonCols.length > 0) {
+            const colList = commonCols.join(", ");
+            await adapter.run(`
+              INSERT OR IGNORE INTO purchase_orders (${colList})
+              SELECT ${colList} FROM purchase_orders_nullable_supplier
+            `);
+          }
+        }
+        await adapter.run("DROP TABLE purchase_orders_nullable_supplier");
+      }
+    }
+
     const tableInfo = await adapter.all(
       "SELECT sql FROM sqlite_master WHERE type='table' AND name='purchase_orders'",
     );

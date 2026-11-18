@@ -1,9 +1,19 @@
+### A-396 — desktop crash during purchase_orders rebuild stranded purchase order rows in scratch table
+- **Fixed:** 2026-11-18, client only, TDD (Issue #370).
+- **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a rebuild of `purchase_orders` to make `supplier_id` nullable (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, `DROP TABLE purchase_orders`, `ALTER TABLE ... RENAME TO purchase_orders`). On Tauri, each statement writes directly to disk. If a crash occurred after `DROP TABLE purchase_orders` but before rename, the subsequent boot ran `SCHEMA_SQL`, recreating an empty `purchase_orders` with nullable `supplier_id`. Because `purchase_orders` was now nullable, the migration check (`/supplier_id\s+TEXT\s+NOT\s+NULL/i`) evaluated to false, leaving all existing purchase order rows stranded permanently in `purchase_orders_nullable_supplier`.
+- **Now:**
+  (1) `relaxPurchaseOrdersSupplierIdNullable()` inspects `sqlite_master` for `purchase_orders_nullable_supplier`.
+  (2) If `purchase_orders` is missing, it immediately renames `purchase_orders_nullable_supplier` to `purchase_orders`.
+  (3) If `purchase_orders` exists and `purchase_orders_nullable_supplier` has rows, it copies all shared columns into `purchase_orders` via `INSERT OR IGNORE` (preserving any newly inserted orders and restoring stranded orders), then drops `purchase_orders_nullable_supplier`.
+- **Coverage:** `client/__tests__/purchase-orders-migration-recovery.test.ts` (verifies recovery of stranded orders when app rebooted into an empty or populated nullable `purchase_orders` table, direct rename when `purchase_orders` was absent, and proper cleanup of the scratch table).
+- **Compat:** Pure client-side migration resilience improvement; no schema or server API changes.
+
 ### A-306 — relaxPurchaseOrdersSupplierIdNullable() could not retry after an interrupted rebuild
 - **Fixed:** 2026-11-17, client only, TDD. Found during migration rebuild recovery review (Issue #214).
 - **Was:** In `client/lib/db/schema-migrations.ts`, `relaxPurchaseOrdersSupplierIdNullable()` performed a table rebuild (`CREATE TABLE purchase_orders_nullable_supplier`, copy data, drop, rename) to make `purchase_orders.supplier_id` nullable. If an interrupted boot or crash occurred between `CREATE TABLE` and rename, `purchase_orders_nullable_supplier` remained on disk. On subsequent restarts, `CREATE TABLE` without `IF NOT EXISTS` or prior drop threw an error that was swallowed in catch, leaving `purchase_orders` permanently stuck with `supplier_id NOT NULL` and failing walk-in/null-supplier orders.
 - **Now:**
   (1) Added `await adapter.run("DROP TABLE IF EXISTS purchase_orders_nullable_supplier")` before table creation in `relaxPurchaseOrdersSupplierIdNullable()`.
-  (2) The rebuild now retries cleanly when an earlier attempt died after creating the scratch table but before dropping `purchase_orders`. A death between `DROP TABLE purchase_orders` and the rename is not covered (A-396).
+  (2) The rebuild now retries cleanly when an earlier attempt died after creating the scratch table but before dropping `purchase_orders`. A death between `DROP TABLE purchase_orders` and the rename is handled by A-396 recovery.
 - **Coverage:** `client/__tests__/init-database-migrations.test.ts` (verifies migration success, null-supplier insert capability, and scratch table removal when starting with a pre-existing `purchase_orders_nullable_supplier` scratch table).
 - **Compat:** Pure client-side migration resilience fix; no schema or server API changes.
 

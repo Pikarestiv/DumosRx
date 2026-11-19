@@ -19,7 +19,9 @@ vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   capitalizeWords: (s: string) => s,
 }));
 vi.mock("@/components/procurement/owed-settlement-notice", () => ({ OwedSettlementNotice: () => null }));
+vi.mock("@/lib/db/procurement-void-receipt", () => ({ getPurchaseOrderReceipts: () => Promise.resolve([]), voidPurchaseOrderReceipt: vi.fn() }));
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PurchaseOrderDetails } from "@/components/procurement/purchase-order-details";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 
@@ -44,6 +46,7 @@ const onReceiveDraft = vi.fn((_id: string, _items: unknown[]) => Promise.resolve
 
 function renderDetails(order: PurchaseOrder) {
   render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <PurchaseOrderDetails
       selectedPO={order}
       isLoadingDetails={false}
@@ -53,7 +56,8 @@ function renderDetails(order: PurchaseOrder) {
       onReceiveGoods={vi.fn()}
       onReceiveDraft={onReceiveDraft}
       onClose={vi.fn()}
-    />,
+    />
+    </QueryClientProvider>,
   );
 }
 

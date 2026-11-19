@@ -3718,6 +3718,24 @@ e2e/                       Playwright end-to-end specs
   open-order product check; the server stores the status as given
   (`SyncPushPurchaseOrderClosedTest`).
 
+- **Void receipt (2026-11-19)** (`lib/db/procurement-void-receipt.ts`,
+  `components/procurement/po-receipts-section.tsx`). Each receipt is one
+  `purchase` movement on one batch (`reference_type = 'purchase_order'`).
+  Voiding it writes one `adjustment` movement of minus those units on that
+  same batch, `reference_type = 'purchase_order_reversal'`, under the
+  deterministic id `receiptReversalId(batchId)`, so two tills voiding the
+  same receipt collapse onto one row (`SyncPushPurchaseOrderReceiptVoidTest`).
+  The line's `quantity_received` drops by the receipt (sent with
+  `bulk_quantity` and `units_per_bulk`), the line is found by recomputing
+  `receiptBatchId(lineId, n)` (falling back to the product for older
+  random-id receipts), and the order goes back to `partially_received`, or
+  to `sent` (named vendor) / `pending` (walk-in) when nothing is left.
+  Refused when the batch now holds less than the receipt (sold or
+  adjusted), when it settled backorders (a void would have to unwind
+  re-costed sales), or when already voided. Needs `receive_purchase_orders`
+  and `adjust_stock_counts`; an AlertDialog says what changes; one
+  `RECEIVE_PO_REVERSED` audit row. Money paid is not touched.
+
 - **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
   Receiving used to be all-or-nothing: any submitted quantity flipped the
   whole PO to `received` and a guard (`status === "received"`) then blocked

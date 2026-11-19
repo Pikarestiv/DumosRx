@@ -11,6 +11,7 @@ import { PoDetailsFooter } from "./po-details-footer";
 import { usePoPdfDownload } from "./use-po-pdf-download";
 import { PODraftReceiveDialog } from "./po-draft-receive-dialog";
 import { POCloseShortDialog } from "./po-close-short-dialog";
+import { POReceiptsSection } from "./po-receipts-section";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import type { ReceivedItemPayload } from "./receive-po-panel";
 
@@ -115,6 +116,7 @@ export function PurchaseOrderDetails({
                 )}
                 <PoLineItems po={selectedPO} />
                 <PoStatusTimeline po={selectedPO} />
+                <POReceiptsSection orderId={selectedPO.id} status={selectedPO.status} />
               </>
             )}
           </div>

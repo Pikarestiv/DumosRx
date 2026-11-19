@@ -55,6 +55,7 @@ const STANDALONE_ACTIONS: Record<string, string> = {
   RECEIVE_PO: "Received goods for a purchase order",
   PO_DRAFT_EDITED: "Edited a purchase order",
   PO_CLOSED_SHORT: "Closed a purchase order short",
+  RECEIVE_PO_REVERSED: "Voided a purchase order receipt",
   SALE_RETURN: "Processed a return",
   STOCK_EXPIRED: "Marked stock as expired",
   STOCK_DAMAGED: "Marked stock as damaged",

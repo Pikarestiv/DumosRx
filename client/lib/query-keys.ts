@@ -92,6 +92,8 @@ export const queryKeys = {
         "purchase_orders",
         "purchase_order_items",
       ]),
+    receipts: (id: string) =>
+      resource(["purchase_order_receipts", id] as const, ["stock_movements", "stock_batches", "purchase_order_items"]),
     detailItems: (id: string | null) =>
       resource(["purchase_order_detail_items", id] as const, ["purchase_order_items"]),
     droppedReceiptSignal: (id: string | null) =>

@@ -98,6 +98,24 @@ describe("purchase order screen", () => {
     expect(rows("SELECT COUNT(*) FROM purchase_orders WHERE _deleted = 0")[0][0]).toBe(1);
   });
 
+  it("stays on Back when the last edit didn't save, and only leaves once told to", async () => {
+    seedDraft(null);
+    renderScreen();
+    const lot = await screen.findByLabelText("Lot or batch number for Panadol");
+    db.run("CREATE TRIGGER refuse_line_writes BEFORE UPDATE ON purchase_order_items BEGIN SELECT RAISE(ABORT, 'disk full'); END;");
+    try {
+      fireEvent.change(lot, { target: { value: "LOT-9" } });
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+      expect(await screen.findByRole("alertdialog")).toBeTruthy();
+      expect(push).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Leave anyway" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/procurement"));
+    } finally {
+      db.run("DROP TRIGGER refuse_line_writes");
+    }
+  });
+
   it("receives a draft through the confirmation sheet, booking the saved lot and expiry", async () => {
     seedDraft(null);
     renderScreen();

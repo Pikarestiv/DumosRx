@@ -8,21 +8,31 @@ import type { POLineItemDraft } from "../po-item-ledger-table";
 import { draftFromOrder, newDraft, remapLineIds, withSupplier } from "./po-draft-snapshot";
 import { recordUndo, revertField, takeUndo, type PoDraft, type RevertableField, type SaveMode, type UndoHistory } from "./po-draft-state";
 import { usePoAutosave } from "./use-po-autosave";
+import { draftFingerprintOf } from "@/lib/db/procurement-draft-fingerprint";
+import { isDraftDeletePending, scheduleDraftDelete } from "./schedule-draft-delete";
 
 export const EDITABLE_ORDER_STATUSES = new Set(["pending", "sent"]);
 
 interface UsePoOrderEditorOptions {
   initialId: string | null;
   defaultSupplierId?: string | null;
+  onReopen?: (orderId: string) => void;
 }
 
 function isTextEditingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable);
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
 }
 
-export function usePoOrderEditor({ initialId, defaultSupplierId }: UsePoOrderEditorOptions) {
+export function usePoOrderEditor({ initialId, defaultSupplierId, onReopen }: UsePoOrderEditorOptions) {
   const [orderId, setOrderId] = useState(() => initialId ?? generateId());
-  const [loadState, setLoadState] = useState<"loading" | "ready" | "missing" | "error">(initialId ? "loading" : "ready");
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "missing" | "error">(() => {
+    if (!initialId) return "ready";
+    return isDraftDeletePending(initialId) ? "missing" : "loading";
+  });
   const [status, setStatus] = useState("pending");
   const [draft, setDraftState] = useState<PoDraft>(() => newDraft(defaultSupplierId || undefined));
   const draftRef = useRef(draft);
@@ -42,16 +52,21 @@ export function usePoOrderEditor({ initialId, defaultSupplierId }: UsePoOrderEdi
     enabled: loadState === "ready" && EDITABLE_ORDER_STATUSES.has(status),
     onLineIdsRemapped: (idMap) => setDraft(remapLineIds(draftRef.current, idMap)),
     onCreated: () => window.history.replaceState(null, "", `/procurement/edit?id=${orderId}`),
+    onLeftEmpty: (id) => {
+      if (!isDraftDeletePending(id)) scheduleDraftDelete(id, { onUndo: () => onReopen?.(id) });
+    },
   });
+  const { rebase } = autosave;
 
   const seed = useCallback((po: PurchaseOrder) => {
     const opened = draftFromOrder(po);
+    rebase(draftFingerprintOf(po, po.items ?? []));
     setDraft(opened);
     setStatus(po.status);
     setBaseline(new Map(opened.items.filter((item) => item.id).map((item) => [item.id as string, item])));
     historyRef.current = { stack: [], lastPushAt: 0 };
     setCanUndo(false);
-  }, [setDraft]);
+  }, [setDraft, rebase]);
 
   const reload = useCallback(async () => {
     const po = await getPurchaseOrderById(orderId);
@@ -65,7 +80,7 @@ export function usePoOrderEditor({ initialId, defaultSupplierId }: UsePoOrderEdi
   }, [orderId, seed]);
 
   useEffect(() => {
-    if (!initialId) return;
+    if (!initialId || isDraftDeletePending(initialId)) return;
     getPurchaseOrderById(initialId)
       .then((po) => {
         if (!po) {
@@ -127,6 +142,11 @@ export function usePoOrderEditor({ initialId, defaultSupplierId }: UsePoOrderEdi
     return copyId;
   }, [setDraft]);
 
+  const takeOver = useCallback(async () => {
+    if (!(await reload())) return;
+    autosave.takeOver();
+  }, [reload, autosave]);
+
   return {
     orderId,
     loadState,
@@ -142,6 +162,7 @@ export function usePoOrderEditor({ initialId, defaultSupplierId }: UsePoOrderEdi
     undo,
     revert,
     reload,
+    takeOver,
     startCopy,
     setSupplier: (id: string) => change((current) => withSupplier(current, id), "now"),
     autosave,

@@ -19,12 +19,15 @@ export function newDraft(supplierId: string = SELF_PURCHASE_VENDOR_ID): PoDraft 
 }
 
 export function draftFromOrder(po: PurchaseOrder): PoDraft {
+  const items = (po.items || []) as POLineItemDraft[];
+  const total = getOrderTotal(items);
+  const paid = effectiveAmountPaid(po);
   return {
     supplierId: po.supplier_id || SELF_PURCHASE_VENDOR_ID,
     notes: po.notes || "",
-    items: (po.items || []) as POLineItemDraft[],
-    paidInFull: false,
-    amountPaid: String(effectiveAmountPaid(po) || ""),
+    items,
+    paidInFull: total > 0 && paid >= total,
+    amountPaid: String(paid || ""),
     dueDate: po.due_date || "",
     paymentTouched: true,
   };

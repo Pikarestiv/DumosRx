@@ -1,12 +1,11 @@
 "use client";
 
 import { PoSaveBanner } from "./po-save-status";
-import type { RecordedConflict } from "@/lib/db/sync-engine/conflict-log";
 import type { BlockedReason } from "./use-po-autosave";
 
 interface PoOrderBannersProps {
   saveError: Error | null;
-  conflicts: RecordedConflict[];
+  conflicted: boolean;
   blocked: BlockedReason | null;
   otherDeviceLabel: string;
   lockedSince: string | null;
@@ -28,7 +27,7 @@ export function PoOrderBanners(props: PoOrderBannersProps) {
           actions={[{ label: "Retry", run: props.onRetry }, { label: "Save now", run: props.onRetry }]}
         />
       )}
-      {props.conflicts.length > 0 && !props.blocked && (
+      {props.conflicted && !props.blocked && (
         <PoSaveBanner
           tone="warning"
           title={`Your edit wasn't saved because ${props.otherDeviceLabel} changed it first`}

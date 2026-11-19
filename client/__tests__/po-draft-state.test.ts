@@ -9,6 +9,7 @@ import {
   type PoDraft,
 } from "@/components/procurement/order-screen/po-draft-state";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
+import type { PurchaseOrder } from "@/lib/db/procurement";
 
 const line = (overrides: Partial<POLineItemDraft> = {}): POLineItemDraft => ({
   id: "l1", product_id: "p1", product_name: "Panadol", bulk_unit: "Carton",
@@ -76,3 +77,24 @@ describe("changes against the order as opened", () => {
     expect(reverted[1].bulk_quantity).toBe(1);
   });
 });
+
+describe("reopening a saved order", () => {
+  const order = (fields: Record<string, unknown>) => ({
+    id: "po1", supplier_id: "s1", status: "pending", type: "immediate", total_amount: 200, created_at: "", vendor_name: "Emzor",
+    payment_status: "unpaid", amount_paid: 0, items: [line()], ...fields,
+  }) as unknown as PurchaseOrder;
+
+  it("opens a fully paid order with Paid in full on, including an older paid row whose amount was never stored", async () => {
+    const { draftFromOrder } = await import("@/components/procurement/order-screen/po-draft-snapshot");
+    expect(draftFromOrder(order({ payment_status: "paid", amount_paid: 200 })).paidInFull).toBe(true);
+    expect(draftFromOrder(order({ payment_status: "paid", amount_paid: null })).paidInFull).toBe(true);
+  });
+
+  it("opens a part-paid or unpaid order, or one with nothing counted yet, with the toggle off", async () => {
+    const { draftFromOrder } = await import("@/components/procurement/order-screen/po-draft-snapshot");
+    expect(draftFromOrder(order({ payment_status: "partial", amount_paid: 50 })).paidInFull).toBe(false);
+    expect(draftFromOrder(order({})).paidInFull).toBe(false);
+    expect(draftFromOrder(order({ items: [line({ bulk_quantity: 0, subtotal: 0 })], total_amount: 0 })).paidInFull).toBe(false);
+  });
+});
+

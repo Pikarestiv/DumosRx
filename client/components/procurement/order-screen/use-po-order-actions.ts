@@ -26,6 +26,7 @@ export function usePoOrderActions(editor: Editor) {
   const pdf = usePoPdfDownload(null);
   const [receivePo, setReceivePo] = useState<PurchaseOrder | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [isLeaveUnsavedOpen, setIsLeaveUnsavedOpen] = useState(false);
   const { orderId, autosave } = editor;
   const openList = () => router.push(`/procurement?selected=${orderId}`);
 
@@ -62,9 +63,19 @@ export function usePoOrderActions(editor: Editor) {
     isGeneratingPdf: pdf.isGenerating,
     receivePo,
     closeReceive: () => setReceivePo(null),
+    isLeaveUnsavedOpen,
+    stay: () => setIsLeaveUnsavedOpen(false),
+    leaveAnyway: () => {
+      setIsLeaveUnsavedOpen(false);
+      router.push("/procurement");
+    },
     back: () => run(async () => {
       await autosave.scheduler.flush();
-      if (autosave.persisted) await autosave.release();
+      if (autosave.scheduler.lastError()) {
+        setIsLeaveUnsavedOpen(true);
+        return;
+      }
+      await autosave.leave();
       router.push("/procurement");
     }),
     downloadPdf: () => run(async () => {
@@ -109,9 +120,10 @@ export function usePoOrderActions(editor: Editor) {
     }),
     deleteDraft: () => run(async () => {
       await autosave.scheduler.flush();
+      if (autosave.persistedRef.current) {
+        scheduleDraftDelete(orderId, { onUndo: () => router.push(`/procurement/edit?id=${orderId}`) });
+      }
       router.push("/procurement");
-      if (!autosave.persisted) return;
-      scheduleDraftDelete(orderId, { onUndo: () => router.push(`/procurement/edit?id=${orderId}`) });
     }),
   };
 }

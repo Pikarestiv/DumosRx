@@ -89,4 +89,27 @@ describe("draft order lock", () => {
     await draft.releaseDraftLock("po1", "DRX-MINE");
     expect(rows("SELECT editing_device_id FROM purchase_orders")[0][0]).toBe("DRX-OTHER");
   });
+
+  it("refreshes only this till's own lock, without an audit row, and leaves another till's lock alone", async () => {
+    await draft.saveDraftOrder(snapshot(1));
+    db.run("UPDATE purchase_orders SET editing_at = '2026-01-01T00:00:00.000Z'");
+    db.run("DELETE FROM audit_logs");
+
+    expect(await draft.refreshDraftLock("po1", mine)).toBe(true);
+    expect(rows("SELECT editing_at > '2026-01-01T00:00:00.000Z' FROM purchase_orders")[0][0]).toBe(1);
+    expect(rows("SELECT COUNT(*) FROM audit_logs")[0][0]).toBe(0);
+
+    lockedBy("DRX-OTHER", 2);
+    const theirs = rows("SELECT editing_at FROM purchase_orders")[0][0];
+    expect(await draft.refreshDraftLock("po1", mine)).toBe(false);
+    expect(rows("SELECT editing_device_id, editing_at FROM purchase_orders")[0]).toEqual(["DRX-OTHER", theirs]);
+  });
+
+  it("does not refresh a lock on an order that is no longer a draft", async () => {
+    await draft.saveDraftOrder(snapshot(1));
+    db.run("UPDATE purchase_orders SET status = 'received', editing_at = '2026-01-01T00:00:00.000Z'");
+
+    expect(await draft.refreshDraftLock("po1", mine)).toBe(false);
+    expect(rows("SELECT editing_at FROM purchase_orders")[0][0]).toBe("2026-01-01T00:00:00.000Z");
+  });
 });

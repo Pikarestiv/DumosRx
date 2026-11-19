@@ -3656,17 +3656,50 @@ e2e/                       Playwright end-to-end specs
     local save keeps the draft on screen with a banner (Retry / Save now).
     An unresolved `_sync_conflicts` row on the order or a line shows "your
     edit wasn't saved because another device changed it first" with Reload
-    their version or Keep mine as a new draft (a copy under new ids). An
-    order received, closed or deleted on another till stops saving
-    (`not_editable` / `deleted`).
-  - **Undo and revert:** Ctrl+Z (outside a textarea) and the header's undo
+    their version or Keep mine as a new draft (a copy under new ids), and
+    makes the screen read-only until one is picked. An order received,
+    closed or deleted on another till stops saving (`not_editable` /
+    `deleted`).
+  - **Never a stale snapshot over newer rows (2026-11-19):** the screen
+    keeps a fingerprint of the order as it last saw it in the local DB
+    (`draftFingerprintOf()`/`storedDraftFingerprint()` in
+    `lib/db/procurement-draft-fingerprint.ts`: vendor, notes, amount paid,
+    due date and every live line's id, product, quantity, units, cost,
+    override, lot and expiry, normalised so a server read-back of this
+    till's own save, `6.0` for `6` or `"100.00"` for `100`, matches).
+    `saveDraftOrder()` takes it as `base` and returns `stale` without
+    writing when the stored order no longer matches, or when the order or a
+    line has an unresolved `_sync_conflicts` row (so typing between a
+    terminal conflict and its re-pull cannot requeue the losing values).
+    `stale` shows the conflict banner and makes the screen read-only. It
+    deliberately ignores `_version`/`updated_at`: push acks and pulls move
+    those for this till's own writes. Take over reloads from the DB before
+    it writes, and the screen reloads whenever the lock passes to or from
+    another till while nothing is pending (`useReloadOnLockHandover`).
+    Tests: `__tests__/po-order-rebase.test.tsx`.
+  - **Undo and revert:** Ctrl+Z (outside an input, textarea or editable
+    element, so native undo in a field is untouched) and the header's undo
     button step back through this session's edits (typing bursts grouped
     within a second, 50 steps). Each changed quantity, cost, lot or expiry
     shows "was X · revert" against the order as it was opened. Nothing is
     kept across sessions.
-  - **Back and delete:** Back saves and leaves, with no discard prompt.
-    Delete draft is in the header menu and only happens when its 6 s undo
-    toast closes (`schedule-draft-delete.ts`), so no undelete has to sync.
+  - **Back and delete:** Back saves and leaves, with no discard prompt,
+    unless the last save failed: then an AlertDialog offers Stay or Leave
+    anyway (`po-leave-unsaved-dialog.tsx`). Leaving any other way (browser
+    or Android back, a nav link) runs the same `leave()` from the unmount
+    cleanup: flush the pending save from refs, release this till's lock, and
+    schedule the delete of a draft left with no items. Delete draft is in
+    the header menu and only happens when its 6 s undo toast closes
+    (`schedule-draft-delete.ts`), so no undelete has to sync; while that
+    toast is up the draft will not open (`isDraftDeletePending()`).
+  - **No empty drafts:** a draft row is created only with its first item,
+    and a draft whose last item was removed is deleted on leaving, behind
+    the same undo toast. At start-up `removeEmptyDraftsOf()`
+    (`lib/db/procurement-empty-drafts.ts`) deletes this user's `pending`
+    drafts with no live line, no notes and nothing paid that have not been
+    touched for 10 minutes; anything with an item, notes or a payment, and
+    other users' drafts, are never touched (`purchase_orders` has no device
+    column, so "this user's" stands in for "this device's").
     Create Order offers "Continue order from X (N items, 2h ago)?" for this
     user's latest draft with items from the last 24 hours. The order list
     shows each draft's age and nudges after 30 days; nothing deletes a
@@ -3678,8 +3711,14 @@ e2e/                       Playwright end-to-end specs
     return `locked` and the screen read-only with "Being edited on {label}"
     and Take over, which saves with `takeOver` and writes the lock *before*
     the lines so it is queued first (the queue is ordered by `created_at`,
-    which a merged UPDATE keeps). Back clears the lock (`releaseDraftLock()`,
-    only if it is still this till's). The server fences other tills' line
+    which a merged UPDATE keeps). Leaving clears the lock (`releaseDraftLock()`,
+    only if it is still this till's). While the screen is open and someone
+    touched it in the last 3 minutes, `useLockHeartbeat` restamps
+    `editing_at` every 3 minutes (`refreshDraftLock()`: header-only, no
+    audit row, only while the lock is still this till's), so an idle holder
+    loses the lock 10 minutes after the last activity rather than the last
+    save. The server clamps a pushed `editing_at` that runs ahead of its
+    clock. The server fences other tills' line
     edits too (laravel-server/AGENTS.md, "Purchase-order draft lock"); its
     refusal `draft_locked` is terminal here (`push-response.ts`). The
     columns are in `schema.ts`, `SYNC_COLUMN_MIGRATIONS` and the
@@ -3702,9 +3741,11 @@ e2e/                       Playwright end-to-end specs
   because `suppliers.ts`, the payables queries and every older till filter
   on it. A stored `paid` with a lower `amount_paid` (older builds could
   leave it at 0) reads as paid up to the total (`effectiveAmountPaid()`).
-  A reopened order opens with its stored amount, not the toggle, so a paid
-  order whose total later grows (an edit, or counting an uncounted line at
-  receipt, which re-derives in `refreshOrderTotal()`) becomes `partial`.
+  A reopened order whose amount paid covers its total (and whose total is
+  above 0) opens with Paid in full on, so editing it keeps it paid; one
+  part-paid opens with its stored amount. Counting an uncounted line at
+  receipt re-derives in `refreshOrderTotal()`, so a paid order whose total
+  grows there becomes `partial`.
   The due date shows and saves only while a balance remains. Retire
   writing `payment_status` once every active device reports this build.
 - **Closed short (2026-11-19)** (`lib/db/procurement-close.ts`). A

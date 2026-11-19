@@ -1,3 +1,17 @@
+### A-405 — taking over a draft, or editing after another till let go of it, wrote this screen's stale copy over the other till's work
+- **Fixed:** 2026-11-19, client only, TDD. Found in review before the one-screen order flow merged.
+- **Was:** the order screen seeded its draft once and every save reconciled that whole snapshot into the DB. Take over saved immediately, so lines the other till changed or added after this screen opened were reverted or soft-deleted; the same happened on the first keystroke after the other till released the lock, and after a conflict banner.
+- **Now:** `saveDraftOrder()` takes the fingerprint of the order as the screen last saw it and returns `stale` without writing when the stored order moved or an unresolved conflict exists; the screen shows the conflict banner read-only. Take over reloads first, and the screen reloads when the lock passes to or from another till. Leaving by any route flushes and frees the lock; Back after a failed save asks first; an idle-but-open screen keeps its lock alive by a 3-minute heartbeat.
+- **Coverage:** `client/__tests__/po-order-rebase.test.tsx`, `po-order-leave.test.tsx`, `po-order-screen.test.tsx`, `use-lock-heartbeat.test.ts`, `procurement-draft-lock.test.ts`.
+- **Compat:** client only; the stamp is local and never synced.
+
+### A-404 — a draft purchase order with no line items stayed in the list
+- **Fixed:** 2026-11-19, client only, TDD. Reported by the owner ("PO-1D8B85E1, Draft, LINE ITEMS 0, Total 0").
+- **Was:** removing the last item from an autosaved draft soft-deleted its lines but kept the order row, so an empty Draft with a ₦0 total sat in the list.
+- **Now:** leaving the screen with no items schedules the draft's delete behind the 6 s undo toast, and start-up removes this user's pending drafts with no live line, no notes and nothing paid that were last touched over 10 minutes ago (`lib/db/procurement-empty-drafts.ts`). Nothing with an item, notes or a payment is ever removed.
+- **Coverage:** `client/__tests__/procurement-empty-drafts.test.ts`, `po-order-leave.test.tsx`.
+- **Compat:** a soft delete, synced like any other; older tills drop the row on pull.
+
 ### A-402 — an app update reloaded the page and threw away an unsaved purchase order
 - **Fixed:** 2026-11-19, client only, TDD.
 - **Was:** `components/pwa-registrar.tsx` reloaded the moment a new service worker took control, and the order screens kept every line in React state only.

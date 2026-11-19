@@ -3,6 +3,12 @@ import { deletePurchaseOrder } from "@/lib/db/procurement";
 
 export const DRAFT_DELETE_UNDO_MS = 6000;
 
+const pendingDeletes = new Set<string>();
+
+export function isDraftDeletePending(id: string): boolean {
+  return pendingDeletes.has(id);
+}
+
 interface ToastOptions {
   duration: number;
   action: { label: string; onClick: () => void };
@@ -18,13 +24,16 @@ interface ScheduleDraftDeleteOptions {
 
 export function scheduleDraftDelete(id: string, { onUndo, deleteFn = deletePurchaseOrder, showToast = sonnerToast }: ScheduleDraftDeleteOptions): void {
   let settled = false;
+  pendingDeletes.add(id);
   const commit = () => {
     if (settled) return;
     settled = true;
-    deleteFn(id).catch((err) => {
-      console.error("Failed to delete draft purchase order", err);
-      sonnerToast.error("Couldn't delete the draft");
-    });
+    deleteFn(id)
+      .catch((err) => {
+        console.error("Failed to delete draft purchase order", err);
+        sonnerToast.error("Couldn't delete the draft");
+      })
+      .finally(() => pendingDeletes.delete(id));
   };
   showToast("Draft deleted", {
     duration: DRAFT_DELETE_UNDO_MS,
@@ -32,6 +41,7 @@ export function scheduleDraftDelete(id: string, { onUndo, deleteFn = deletePurch
       label: "Undo",
       onClick: () => {
         settled = true;
+        pendingDeletes.delete(id);
         onUndo();
       },
     },

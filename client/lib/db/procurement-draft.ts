@@ -6,6 +6,7 @@ import { AUDIT_ACTIONS } from "./audit-actions";
 import { getStoredUser } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
+import { hasUnresolvedOrderConflicts, storedDraftFingerprint } from "./procurement-draft-fingerprint";
 
 export interface DraftOrderSnapshot {
   id: string;
@@ -17,6 +18,7 @@ export interface DraftOrderSnapshot {
   dueDate: string | null;
   lock?: DraftLockHolder;
   takeOver?: boolean;
+  base?: string;
 }
 
 export interface DraftLockHolder {
@@ -27,11 +29,12 @@ export interface DraftLockHolder {
 
 export const LOCK_FRESH_MS = 10 * 60 * 1000;
 
-export type DraftSaveOutcome = "created" | "updated" | "unchanged" | "not_editable" | "deleted" | "locked";
+export type DraftSaveOutcome = "created" | "updated" | "unchanged" | "not_editable" | "deleted" | "locked" | "stale";
 
 export interface DraftSaveResult {
   outcome: DraftSaveOutcome;
   lineIdMap: Map<string, string>;
+  fingerprint?: string;
 }
 
 const EDITABLE_STATUSES = new Set(["pending", "sent"]);
@@ -82,6 +85,16 @@ export async function releaseDraftLock(orderId: string, deviceId: string): Promi
   );
 }
 
+export async function refreshDraftLock(orderId: string, lock: DraftLockHolder): Promise<boolean> {
+  const [stored] = await query<{ editing_device_id: string | null; status: string; _deleted: number | null }>(
+    "SELECT editing_device_id, status, _deleted FROM purchase_orders WHERE id = ?",
+    [orderId],
+  );
+  if (!stored || stored._deleted || !EDITABLE_STATUSES.has(stored.status) || stored.editing_device_id !== lock.deviceId) return false;
+  await update("purchase_orders", orderId, { editing_at: new Date().toISOString() }, { skipAudit: true });
+  return true;
+}
+
 function orderTotal(items: DraftPOLineItem[]): number {
   return roundMoney(items.reduce((sum, item) => sum + roundMoney(immediateLineAmount(item)), 0));
 }
@@ -124,39 +137,51 @@ async function createDraft(snapshot: DraftOrderSnapshot, now: string): Promise<M
 
 export async function saveDraftOrder(snapshot: DraftOrderSnapshot): Promise<DraftSaveResult> {
   return transaction(async () => {
-    const now = new Date().toISOString();
-    const [stored] = await query<StoredHeader>(
-      `SELECT status, supplier_id, notes, payment_status, amount_paid, due_date, total_amount, editing_device_id, editing_at, _deleted
-       FROM purchase_orders WHERE id = ?`,
-      [snapshot.id],
-    );
-
-    if (!stored) {
-      if (snapshot.items.length === 0) return { outcome: "unchanged", lineIdMap: new Map() };
-      return { outcome: "created", lineIdMap: await createDraft(snapshot, now) };
-    }
-    if (stored._deleted) return { outcome: "deleted", lineIdMap: new Map() };
-    if (!EDITABLE_STATUSES.has(stored.status)) return { outcome: "not_editable", lineIdMap: new Map() };
-
-    const lock = snapshot.lock;
-    if (lock && !snapshot.takeOver && lockHeldByAnother(stored, lock.deviceId, new Date(now))) {
-      return { outcome: "locked", lineIdMap: new Map() };
-    }
-
-    const header = headerFields(snapshot);
-    const writeHeader = () =>
-      update("purchase_orders", snapshot.id, { ...header, ...lockFields(lock, now), type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS }, { skipAudit: true });
-    const claimsLock = !!lock && stored.editing_device_id !== lock.deviceId;
-    if (claimsLock) await writeHeader();
-    const { idMap: lineIdMap, writes } = await reconcilePurchaseOrderLines(snapshot.id, snapshot.items, now, { skipAudit: true });
-    const changedHeader = headerChanged(stored, header);
-
-    if (!claimsLock && !changedHeader && writes === 0) return { outcome: "unchanged", lineIdMap };
-    if (!claimsLock) await writeHeader();
-    await logAction(AUDIT_ACTIONS.PO_DRAFT_EDITED, "purchase_orders", snapshot.id, {
-      item_count: snapshot.items.length,
-      total_amount: header.total_amount,
-    });
-    return { outcome: "updated", lineIdMap };
+    const result = await writeDraftOrder(snapshot);
+    const wrote = result.outcome === "created" || result.outcome === "updated" || result.outcome === "unchanged";
+    return wrote ? { ...result, fingerprint: await storedDraftFingerprint(snapshot.id) } : result;
   });
+}
+
+async function writeDraftOrder(snapshot: DraftOrderSnapshot): Promise<DraftSaveResult> {
+  const now = new Date().toISOString();
+  const [stored] = await query<StoredHeader>(
+    `SELECT status, supplier_id, notes, payment_status, amount_paid, due_date, total_amount, editing_device_id, editing_at, _deleted
+     FROM purchase_orders WHERE id = ?`,
+    [snapshot.id],
+  );
+
+  if (!stored) {
+    if (snapshot.items.length === 0) return { outcome: "unchanged", lineIdMap: new Map() };
+    return { outcome: "created", lineIdMap: await createDraft(snapshot, now) };
+  }
+  if (stored._deleted) return { outcome: "deleted", lineIdMap: new Map() };
+  if (!EDITABLE_STATUSES.has(stored.status)) return { outcome: "not_editable", lineIdMap: new Map() };
+
+  const lock = snapshot.lock;
+  if (lock && !snapshot.takeOver && lockHeldByAnother(stored, lock.deviceId, new Date(now))) {
+    return { outcome: "locked", lineIdMap: new Map() };
+  }
+  if (await baseMoved(snapshot)) return { outcome: "stale", lineIdMap: new Map() };
+
+  const header = headerFields(snapshot);
+  const writeHeader = () =>
+    update("purchase_orders", snapshot.id, { ...header, ...lockFields(lock, now), type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS }, { skipAudit: true });
+  const claimsLock = !!lock && stored.editing_device_id !== lock.deviceId;
+  if (claimsLock) await writeHeader();
+  const { idMap: lineIdMap, writes } = await reconcilePurchaseOrderLines(snapshot.id, snapshot.items, now, { skipAudit: true });
+  const changedHeader = headerChanged(stored, header);
+
+  if (!claimsLock && !changedHeader && writes === 0) return { outcome: "unchanged", lineIdMap };
+  if (!claimsLock) await writeHeader();
+  await logAction(AUDIT_ACTIONS.PO_DRAFT_EDITED, "purchase_orders", snapshot.id, {
+    item_count: snapshot.items.length,
+    total_amount: header.total_amount,
+  });
+  return { outcome: "updated", lineIdMap };
+}
+
+async function baseMoved(snapshot: DraftOrderSnapshot): Promise<boolean> {
+  if (await hasUnresolvedOrderConflicts(snapshot.id)) return true;
+  return snapshot.base !== undefined && (await storedDraftFingerprint(snapshot.id)) !== snapshot.base;
 }

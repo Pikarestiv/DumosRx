@@ -3178,6 +3178,10 @@ unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
 same for any other card-shaped shortcut rather than re-adding a bare
 `onClick` div.
 
+## Dashboard Recent Activity "View All" opens the Activity Log (2026-11-19)
+
+`dashboard-recent-activity.tsx` links "View All" to `/activity-log`, not `/reports`. The two read the same scope: `use-dashboard-overview.ts` and `ActivityLogPage` both show everyone's entries with `view_activity_log` and only the viewer's own without it, and the page has no route guard, so the link is shown to everyone. Cashiers do not have Activity Log in their sidebar but land on their own entries, which is what their feed shows. The page takes no query parameters, so the link cannot preselect a filter. Covered by `__tests__/dashboard-recent-activity-view-all.test.tsx`.
+
 ## A toast with its own duration uses `toastTiming()` (2026-11-13, A-360)
 
 Every toast carries a countdown bar (`app/globals.css`) that runs over
@@ -3870,12 +3874,14 @@ quantity field right above them is in *bulk* units and the old
 `item.unit_cost` placeholder read as per-carton.
 
 **Each `stock_batches` row keeps the singular cost it was received at, and
-that is the figure FEFO deduction uses.** Be careful with COGS, though: this
-doc used to claim margin/COGS read that batch cost, and they do not.
-`sale_items.cost_price` is snapshotted from the POS cart, which carries the
-**averaged** `cost_price` from `getProductsWithStock()` — so COGS is computed
-from the average, and that average is an unrounded division on every device.
-The averaged figure is otherwise a **display/reporting** one. A small new
+since 2026-11-18 that is the figure a sale's COGS uses** (see "Sale COGS is
+the cost of the batches the sale consumed" below). The POS cart still
+carries the **averaged** `cost_price` from `getProductsWithStock()`, but
+`recordSaleItemStock()` only uses it when the product has no real batch
+cost at all (units no costed batch covered take the Last Bought Price
+first). Sales rung up before that release, and sales from tills still on
+an older bundle, carry the average. The averaged figure is otherwise a
+**display/reporting** one. A small new
 batch barely moves a large displayed average, which reads as "the cost I
 typed didn't save"; `notifyCostRecorded()` in `lib/hooks/use-purchase-orders.ts`
 is the confirmation that says otherwise, and the receive inputs show the
@@ -7919,16 +7925,35 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Batch cost correction (`lib/db/queries/batch-cost-correction.ts`)
 
-The product detail panel's Batches tab (`product-batch-history.tsx`) lets a user with **both** `view_cost_fields` and `edit_product_cost` correct one batch's `cost_price` through `BatchCostEditDialog` (input, then a confirm step). Without `view_cost_fields` the tab shows no batch cost, total value or edit control; before this it showed cost to everyone.
+Two surfaces, one editor. The product detail panel's Batches tab (`product-batch-history.tsx`, pencil, `BatchCostEditDialog`) and the catalog list's cost cell (`components/products/batch-cost/catalog-cost-cell.tsx`, 2026-11-18) both mount `BatchCostEditor` (`components/products/batch-cost/batch-cost-editor.tsx`): input, optional reason, warnings, a live preview, and a single **Save cost** (the old Review then Confirm step is gone). Editing needs **both** `view_cost_fields` and `edit_product_cost`; no new permission. Without `view_cost_fields` neither surface shows batch cost (the catalog has no cost column at all); without `edit_product_cost` the catalog popover is a read-only breakdown.
+
+- **The catalog popover** (`BatchCostBreakdown`): an anchored `Popover` at 768px and up, `ResponsiveModal` (bottom sheet) below; the cell only exists on the desktop row layout (640px+), so phones reach a cost through the detail panel. Batches are listed in real FEFO order (`fefoSellOrder()`, the JS twin of `FEFO_ORDER_SQL`; the first one carries "Sells first"), then held-but-unsellable ones (expired/inactive), then sold-out ones behind "Show N sold-out batches". Sold-out batches stay editable: they feed Last Bought Price. Each row: received date/time, "From PO-xxxx" (`getStockBatchesForProductDetails()` now returns `purchase_order_id` from the batch's `reference_type = 'purchase_order'` movement, so `queryKeys.products.batches` also lists `stock_movements`) or the supplier, lot, expiry, units left (only with quantity visibility), cost. The footer spells the average out (`averageCostTerms()`: units at each cost over units held, `NULL` cost counted as 0 like the SQL) and the last received cost (`lastReceivedBatch()`, same rules as `lastBoughtPriceSql`). The content wrapper stops click/key/context-menu propagation, because React bubbles portal events into the catalog row, whose Enter/click select the product.
+- **Preview and warnings** are client-side over the loaded batches (`lib/utils/batch-cost-breakdown.ts`): this batch, the average, the stock value (both only with quantity visibility) and profit per unit at the current selling price, old to new, with a "Change selling price" link to the product edit form. Warnings: a cost of 0; a cost at least 5x above or below the median of the product's other costed batches (the extra-zero typo); and each batch that will sell before the edited one, flagged when its cost is at or above the selling price.
+- **Reason:** `correctBatchCostPrice(batchId, cost, reason?)` adds `reason` (`lib/constants/batch-cost-reasons.ts`; unknown values are dropped) to the audit details; the History tab prints "Reason: …" with or without cost visibility. Older bundles ignore the key.
 
 - **What it writes:** one `update("stock_batches", id, { cost_price })`, rounded to 2 dp, so it syncs as a cost-only UPDATE. A cost-only push is *not* quantity-only, so the server applies its normal strict `_version` check (`SyncEndpointTest::test_push_sync_keeps_a_cost_correction_valid_after_another_device_sells`); no server change was needed. The server does not validate the value, so the client range check (`isValidBatchCostPrice`: finite, 0 to 1,000,000,000) is the only one. An unchanged cost writes nothing.
 - **Audit trail:** the same `update()` call logs the row under the named action `BATCH_COST_CORRECTED`, with `previous_cost_price`, `batch_number` and `product_id` merged into the logged details through `update()`'s `auditDetails` option. No stock movement and no `stock_audits` row: quantity does not change, and `stock_audits` is product-level. `getProductHistory()` pulls these rows into the product's History tab by batch, which is why `queryKeys.products.history` also lists `stock_batches`. Without `view_cost_fields` the History tab prints the row without either cost (`describeAuditDetails(..., canViewCost)`; the permission is part of the query key). The Activity Log detail panel does not gate them yet (A-380).
-- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), and the cost of future sales via that average. **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), customer return valuation (which uses the sale-time `sale_items.cost_price` snapshot to guarantee full returns net COGS to zero, per A-374), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
+- **What it changes:** stock value, the product's average and last-bought cost (all read live from `stock_batches`), and the COGS of future sales that take units from that batch (see "Sale COGS is the cost of the batches the sale consumed"). **What it does not:** `sale_items.cost_price` (sale-time snapshot, used by every COGS/profit figure), customer return valuation (which uses the sale-time `sale_items.cost_price` snapshot to guarantee full returns net COGS to zero, per A-374), the receipt's `stock_movements.unit_cost/total_cost` (so stock MoM history stays as received), and `purchase_order_items` (what was ordered and paid, per "Receiving cost scale" above).
 - Expired, sold-out and inactive batches are editable on purpose: a zero-quantity batch still feeds Last Bought Price and return valuation.
+
+## Sale COGS is the cost of the batches the sale consumed (2026-11-18)
+
+Owner decision: profit uses the real FEFO batch cost, not the active-batch average. `writeSaleItemStock()` (`lib/db/queries/inventory-sale-stock.ts`) works out its deductions first and only then inserts the `sale_items` row, so it can write:
+
+- `sale_items.cost_price` = the unit-weighted cost of what the line actually took, rounded to the kobo: 2 units of a ₦600 batch and 3 of a ₦800 one book ₦720.
+- each `sale` movement's `unit_cost`/`total_cost` = that batch's cost, so a line spanning two batches leaves two movements at two costs.
+- **The fallback is the Last Bought Price, then the cart's average** (owner decision, 2026-11-19). Units a batch did not hold (an oversell, the fallback/expired/`SALE-` batches) and units from a batch whose `cost_price` is `NULL` or `<= 0` are costed at `getLastPurchaseCost()` (`lastBoughtPriceSql` in `products.ts`: the newest batch with a cost above 0 whose number is not `ADJ-%`, read once before any `SALE-` batch is opened, active or not). A `SALE-` batch opened by the sale is created at that cost too. Only when no such batch exists does the line use the cart's average (`costPrice`). The uncosted-batch rule keeps A-335's reasoning: a batch with no cost must not book the whole price as profit. Spot-sourced lines are unchanged (`sourcingCost`). **Effect on reported profit:** an oversold or uncosted unit is now costed at what the store last actually paid, not the blended average, so on a product whose cost is rising its COGS is higher (profit lower) than it was before this change, and lower on one whose cost is falling. One quirk: an earlier sale's `SALE-` batch counts as a "real" cost, because `lastBoughtPriceSql` only excludes `ADJ-%`.
+- **A line booked as owed stays wholly at the average**, and the Last Bought Price fallback above does not apply to it. When `recordShortfallAsOwed` leaves units owed, the held units are costed at the average too. `recostSale()` (`backorders.ts`) re-costs from `estimate + settled shift / units`, where the estimate is the `backorder` rows' cost; a till on an older bundle re-costs that way, so a batch-weighted base would make an old and a new till rewrite the same `sale_items` row back and forth on every pull. This can go once every active till runs the 2026-11-18 bundle or later: then the base can be the sale movements' weighted `unit_cost` (falling back to the estimate when they are not local) and the held units can use their batch cost.
+
+**What that means for reported profit.** Every report still sums the `sale_items.cost_price` snapshot (`reports.ts`, `bi-metrics.ts`, `report-trends.ts`, `finance.ts`), so nothing there changed; what changed is the number written into it. Margin now moves with the batch mix: selling the last of a cheap batch shows more profit than the next sale from a dearer one. Historical sales are not rewritten. A till still on an older bundle keeps booking the average, so during the rollout a store's profit is a mix of both; both are sale-time snapshots, so neither is wrong for the sale it describes. Offline, each till costs a sale from its local batches, so two tills that disagree about which batch is left book what each one saw.
+
+**Returns still net to zero.** Return valuation reads the sale's own `sale_items.cost_price` (A-374), so a full return reverses exactly what the sale booked. Covered by `__tests__/sale-cogs-fefo-batch-cost.test.ts` and the FEFO case in `__tests__/returns-cost-basis-sale-item.test.ts`.
+
+**FEFO order lives in one place:** `FEFO_ORDER_SQL` in `lib/db/queries/inventory-batches.ts` (expiry ascending, `NULL` and `''` both last, then `created_at`). The FEFO batch lookups behind a sale and the transfer source query use it; `fefoSellOrder()` (`lib/utils/batch-cost-breakdown.ts`) is its JS twin for the "Sells first" marker. Change both together (A-420).
 
 ## "Average cost" always carries a tooltip
 
-Average cost is a quantity-weighted blend across stock batches, and clients read a single number as "the cost". Wherever it is shown (catalog Avg Cost header, product pricing card, PO "Current Cost" header and phone card) wrap the label in `HintTooltip` with `AVG_COST_HINT` / `CURRENT_COST_HINT` from `lib/constants/cost-hints.ts`. `SortableHeaderCell` takes a `tooltip` prop for sortable headers.
+Average cost is a quantity-weighted blend across stock batches, and clients read a single number as "the cost". Wherever it is shown (catalog Avg Cost header, the cost breakdown popover's footer, product pricing card, PO "Current Cost" header and phone card) wrap the label in `HintTooltip` with `AVG_COST_HINT` / `CURRENT_COST_HINT` from `lib/constants/cost-hints.ts`. `SortableHeaderCell` takes a `tooltip` prop for sortable headers. Since sale COGS moved to the consumed batch cost (2026-11-18) the hint also says a sale is costed at the batch it sells from, not at the average; keep that sentence while the average is shown anywhere near profit.
 
 ## Money inputs use `step="any"`
 

@@ -22,7 +22,7 @@ export const queryKeys = {
       resource(["products", "basicInfo", id] as const, ["products"]),
     history: (id: string, viewerId?: string) =>
       resource(["productHistory", id, viewerId] as const, ["audit_logs", "stock_movements", "stock_batches"]),
-    batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches"]),
+    batches: (id?: string) => resource(["productBatches", id] as const, ["stock_batches", "stock_movements"]),
     creator: (id?: string) => resource(["productCreator", id] as const, ["audit_logs"]),
     deletionBlockers: (id: string | null) =>
       resource(["productDeletionBlockers", id] as const, [

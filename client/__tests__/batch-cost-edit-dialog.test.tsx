@@ -70,19 +70,18 @@ describe("BatchCostEditDialog", () => {
   }
 
   const costInput = () => screen.getByLabelText(/new cost price/i);
-  const review = () => screen.getByRole("button", { name: /review change/i });
+  const save = () => screen.getByRole("button", { name: /save cost/i });
 
-  it("saves the corrected cost only after the owner confirms it", async () => {
+  it("saves the corrected cost in one step and previews it first", async () => {
     const onOpenChange = renderDialog();
 
     fireEvent.change(costInput(), { target: { value: "120" } });
-    fireEvent.click(review());
 
-    expect(screen.getByText(/past sales keep the cost they were sold at/i)).toBeTruthy();
-    expect(screen.getByText(/₦1,200/)).toBeTruthy();
+    expect(screen.getByLabelText(/what changes/i).textContent).toMatch(/This batch₦1,200 → ₦120/);
+    expect(screen.getByText(/keep the cost they were sold at/i)).toBeTruthy();
     expect(storedCost()).toBe(1200);
 
-    fireEvent.click(screen.getByRole("button", { name: /confirm change/i }));
+    fireEvent.click(save());
 
     await waitFor(() => expect(storedCost()).toBe(120));
     expect(toast.success).toHaveBeenCalled();
@@ -94,29 +93,28 @@ describe("BatchCostEditDialog", () => {
     ["an empty field", ""],
     ["text", "abc"],
     ["an absurdly large figure", "5000000000"],
-  ])("will not review %s", (_label, value) => {
+  ])("will not save %s", (_label, value) => {
     renderDialog();
 
     fireEvent.change(costInput(), { target: { value } });
 
-    expect((review() as HTMLButtonElement).disabled).toBe(true);
+    expect((save() as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("will not review an unchanged cost", () => {
+  it("will not save an unchanged cost", () => {
     renderDialog();
 
     expect((costInput() as HTMLInputElement).value).toBe("1200");
-    expect((review() as HTMLButtonElement).disabled).toBe(true);
+    expect((save() as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("returns to the input from the confirm step without saving", () => {
-    renderDialog();
+  it("closes without saving on cancel", () => {
+    const onOpenChange = renderDialog();
 
     fireEvent.change(costInput(), { target: { value: "120" } });
-    fireEvent.click(review());
-    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
 
-    expect((costInput() as HTMLInputElement).value).toBe("120");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(storedCost()).toBe(1200);
   });
 
@@ -125,8 +123,7 @@ describe("BatchCostEditDialog", () => {
     const onOpenChange = renderDialog();
 
     fireEvent.change(costInput(), { target: { value: "120" } });
-    fireEvent.click(review());
-    fireEvent.click(screen.getByRole("button", { name: /confirm change/i }));
+    fireEvent.click(save());
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expect(onOpenChange).not.toHaveBeenCalledWith(false);

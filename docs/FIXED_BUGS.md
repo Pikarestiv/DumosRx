@@ -1,3 +1,10 @@
+### A-420 — a batch whose expiry was stored as '' sold before every dated batch
+- **Fixed:** 2026-11-18, client only, TDD. Found while moving sale COGS onto the FEFO batch cost.
+- **Was:** the FEFO deduction order in `getBatchesForProduct()`, `getAllActiveBatchesForProduct()` (`lib/db/queries/inventory-batches.ts`) and the stock-transfer source query (`stock-transfers.ts`) was `ORDER BY (expiry_date IS NULL), expiry_date, created_at`. An empty-string expiry is not `NULL` and sorts before any date, so a batch saved with `''` (an old import or form path) was sold and transferred first, while the Batches tab's "sell first" badge treated it as no expiry and put it last. Harmless while every sale was costed at the average; once a sale books the consumed batch's own cost it moved profit.
+- **Now:** one `FEFO_ORDER_SQL` (`inventory-batches.ts`) sorts on `NULLIF(expiry_date, '')`, so `''` and `NULL` both mean "no expiry" and go after dated batches; the transfer query imports it.
+- **Coverage:** `client/__tests__/sale-cogs-fefo-batch-cost.test.ts` ("takes an undated batch after a dated one even when its expiry was stored as ''").
+- **Compat:** ordering only; no stored value changes. Older tills keep the old order until updated, which only matters for a product that has a `''` batch.
+
 ### A-407 — a till's offline purchase-order edits were thrown away when another till had changed the order first
 - **Fixed:** 2026-11-19, client only, TDD. The owner's scenario: till B takes over a draft and keeps editing offline while till A keeps editing online; B comes back.
 - **Was:** the server refused B's header (`version_conflict`) and lines (`draft_locked`), the client dropped the queue rows as terminal, recorded only the field names in `_sync_conflicts`, and the re-pull put A's version over B's rows. Unless B's order screen was still open (and B clicked "Keep mine as a new draft"), nothing B typed survived.

@@ -87,6 +87,22 @@ describe("correctBatchCostPrice", () => {
     });
   });
 
+  it("records the reason given for the correction", async () => {
+    await correctBatchCostPrice("batch-1", 120, "typo_at_receiving");
+
+    const [details] = db.exec(
+      `SELECT details FROM audit_logs WHERE table_name = 'stock_batches' AND record_id = 'batch-1'`,
+    )[0].values[0];
+    expect(JSON.parse(String(details))).toMatchObject({ reason: "typo_at_receiving", previous_cost_price: 1200 });
+  });
+
+  it("records no reason when none was picked, and drops one it does not know", async () => {
+    await correctBatchCostPrice("batch-1", 120, "made_up" as never);
+
+    const [details] = db.exec(`SELECT details FROM audit_logs WHERE record_id = 'batch-1'`)[0].values[0];
+    expect(JSON.parse(String(details))).not.toHaveProperty("reason");
+  });
+
   it("shows the correction in the product's own history", async () => {
     await correctBatchCostPrice("batch-1", 120);
 

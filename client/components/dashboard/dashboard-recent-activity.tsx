@@ -63,7 +63,7 @@ export function DashboardRecentActivity({
           Recent Activity
         </CardTitle>
         <Link
-          href="/reports"
+          href="/activity-log"
           className="text-xs font-medium text-primary hover:text-primary/80 flex items-center shrink-0 whitespace-nowrap"
         >
           View All

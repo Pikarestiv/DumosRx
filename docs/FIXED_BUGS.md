@@ -1,3 +1,17 @@
+### A-407 — a till's offline purchase-order edits were thrown away when another till had changed the order first
+- **Fixed:** 2026-11-19, client only, TDD. The owner's scenario: till B takes over a draft and keeps editing offline while till A keeps editing online; B comes back.
+- **Was:** the server refused B's header (`version_conflict`) and lines (`draft_locked`), the client dropped the queue rows as terminal, recorded only the field names in `_sync_conflicts`, and the re-pull put A's version over B's rows. Unless B's order screen was still open (and B clicked "Keep mine as a new draft"), nothing B typed survived.
+- **Now:** the refused edits are kept automatically as a "Recovered copy of PO-XXXX" draft (new ids, same vendor, notes, lines, quantities, costs, lot and expiry; unpaid) with a toast and a notice on the order list, under a deterministic id so retries do not duplicate it (`lib/db/procurement-recovered-copy.ts`).
+- **Coverage:** `client/__tests__/push-order-recovered-copy.test.ts`, `recovered-copies-notice.test.tsx`.
+- **Compat:** the copy is an ordinary `pending` order, so older tills and the server see a normal new draft.
+
+### A-408 — a receive-only role could not count a draft's uncounted lines
+- **Fixed:** 2026-11-19, client only, TDD. Found in review before the one-screen order flow merged.
+- **Was:** "Receive stock" on a draft opened a confirmation sheet that received the saved quantities only, so a role with `receive_purchase_orders` but not `manage_purchase_orders` had uncounted lines dropped and could not type lot, expiry or cost.
+- **Now:** for that role "Receive stock" opens `ReceivePOPanel`, where uncounted lines take the delivered count.
+- **Coverage:** `client/__tests__/purchase-order-details-permissions.test.tsx`, `receive-item-card-price-fields.test.tsx`.
+- **Compat:** client only.
+
 ### A-405 — taking over a draft, or editing after another till let go of it, wrote this screen's stale copy over the other till's work
 - **Fixed:** 2026-11-19, client only, TDD. Found in review before the one-screen order flow merged.
 - **Was:** the order screen seeded its draft once and every save reconciled that whole snapshot into the DB. Take over saved immediately, so lines the other till changed or added after this screen opened were reverted or soft-deleted; the same happened on the first keystroke after the other till released the lock, and after a conflict banner.

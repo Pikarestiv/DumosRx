@@ -112,6 +112,7 @@ export const queryKeys = {
     suppliersForPO: () => resource(["procurementSuppliersForPO"] as const, ["suppliers"]),
     productsForPO: () =>
       resource(["procurementProductsForPO"] as const, ["products", "stock_batches"]),
+    recoveredCopies: () => resource(["procurementRecoveredCopies"] as const, ["purchase_orders"]),
   },
   customers: {
     all: () => resource(["customers"] as const, ["customers"]),

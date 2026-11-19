@@ -3728,6 +3728,28 @@ e2e/                       Playwright end-to-end specs
     columns are in `schema.ts`, `SYNC_COLUMN_MIGRATIONS` and the
     `purchase_orders_nullable_supplier` rebuild, which runs after the column
     migrations and would otherwise drop them.
+  - **Recovered copies (2026-11-19):** when a push refuses this till's
+    purchase-order edits as `version_conflict`, `stale_timestamp` or
+    `draft_locked`, `pushChanges()` calls `recoverRejectedOrderEdits()`
+    (`lib/db/sync-engine/recover-order-edits.ts`) in the same batch
+    transaction, before `settleFailedChanges()` drops the queue rows and
+    long before the re-pull overwrites the local rows. For each `pending`/
+    `sent` order with a live line it copies the local header and lines, as
+    they stand, into a new `pending` draft ("Recovered copy of PO-XXXX: …"
+    in its notes, unpaid, nothing received) under
+    `deterministicId("po_recovered_copy", orderId, fingerprint)`, so the
+    same rejected content never makes a second copy, and an already
+    deleted copy is not resurrected. A refused header change that carried
+    only lock or bookkeeping keys (a heartbeat, a release) recovers
+    nothing. A toast names the copy, and `RecoveredCopiesNotice` on the
+    order list points at pending recovered drafts until each is received,
+    deleted or has its notes changed. Limits: it copies what the local
+    rows hold when the refusal arrives, so an edit already overwritten by
+    an earlier pull is not recoverable; lines this till deleted are simply
+    absent from the copy; the money paid is never copied. The work runs
+    under a SAVEPOINT and any failure is logged and skipped, never failing
+    the sync batch. Tests: `__tests__/push-order-recovered-copy.test.ts`,
+    `recovered-copies-notice.test.tsx`.
   - **App updates:** `pwa-registrar.tsx` awaits every flush registered
     through `lib/utils/reload-guard.ts` (at most 2 s) before reloading (A-402).
   - **Actions:** Download PDF lives in the "..." menu only, for every

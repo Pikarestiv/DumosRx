@@ -71,9 +71,9 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Order from a supplier ahead of delivery, or record goods bought and received on the spot, from one screen. Save a draft at any point and finish it later.",
     steps: [
       "Navigate to Procurement and tap 'Create Order'. You land straight on the item list: search and add products, with the quantity, cost, lot and expiry for each.",
-      "Tap the pencil on the Vendor bar to choose the supplier, payment status, due date and notes. A walk-in purchase starts as Fully Paid and a supplier order as Unpaid; the due date only shows while money is still owed.",
+      "Tap the pencil on the Vendor bar to choose the supplier, the amount paid, due date and notes. Type what you have paid, or tap 'Paid in full'; the order works out whether it is unpaid, part paid or fully paid. A walk-in purchase starts as paid in full, and the due date only shows while money is still owed.",
       "Each line shows the product's selling price, which the order never changes. Tap its pencil to edit the product's name or price. An amber note warns when the cost is at or above the selling price, or higher than you paid last time.",
-      "For a walk-in purchase, tap 'Receive stock'. For a supplier, tap 'Send to vendor' to mark it Ordered, or 'Receive stock' if the goods are already in front of you. 'Save as Draft' keeps the order without doing either, and a draft can keep a row at 0 until you have counted it.",
+      "The order saves itself as a draft from the first item. For a walk-in purchase, tap 'Receive stock'. For a supplier, tap 'Send to vendor' to mark it Ordered and share its PDF, or 'Receive stock' if the goods are already in front of you. A draft can keep a row at 0 until you have counted it, and 'Download PDF' works on drafts too.",
       "Receiving always shows a summary first: how many units and how much, that no selling price will change, and any margin warnings.",
     ],
     proTip:
@@ -210,9 +210,9 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Open any purchase order to see its status, what has arrived and what to do next. Everything that is not a next step sits in a More actions menu.",
     steps: [
       "Open Procurement and tap an order. The header shows the order number, supplier, date and status, with a stepper below the items: Draft, Ordered, Received.",
-      "A draft has 'Edit' and 'Receive stock'. If it is for a supplier it also has 'Send to vendor', which marks it Ordered. Receive stock shows a summary first, and lines still at 0 are left off the receipt.",
+      "A draft has 'Edit', 'Download PDF' and 'Receive stock'. If it is for a supplier it also has 'Send to vendor', which marks it Ordered and opens your phone's share sheet with the PDF (or downloads it). Receive stock shows a summary first, and lines still at 0 are left off the receipt.",
       "When the order is Ordered, tap 'Receive Items' as the delivery arrives. A line saved at 0 takes whatever quantity actually arrived. If only part of it comes, receive what you have; the order becomes Partially received and each line shows 'Received 250 of 400' with a progress bar.",
-      "Tap 'Receive Remaining' when the rest arrives. Once every line is in, the order is locked and the panel says so.",
+      "Tap 'Receive Remaining' when the rest arrives, or 'Close short' if the vendor will not deliver it. Once every line is in, the order is locked and the panel says so.",
       "Tap the three dots (More actions) for Download PDF, Delete order and, on an Ordered order, Edit order. Partially received and received orders cannot be edited or deleted.",
     ],
     proTip:

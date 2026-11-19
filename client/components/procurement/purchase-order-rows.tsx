@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { type PurchaseOrder } from "@/lib/db/procurement";
+import { DraftAgeBadge } from "./draft-age-badge";
 import { getPayableDueState } from "@/lib/utils/payables";
 import { getLocalTodayDate } from "@/lib/utils";
 
@@ -138,6 +139,7 @@ export function PurchaseOrderMobileRow({
         </span>
         {getStatusBadge(order.status)}
         <PayableDueBadge order={order} />
+        <DraftAgeBadge order={order} />
       </div>
     </div>
   );
@@ -176,6 +178,7 @@ export function PurchaseOrderRow({
         <div className="flex flex-wrap items-center gap-1">
           {getStatusBadge(order.status)}
           <PayableDueBadge order={order} />
+          <DraftAgeBadge order={order} />
         </div>
       </TableCell>
     </TableRow>

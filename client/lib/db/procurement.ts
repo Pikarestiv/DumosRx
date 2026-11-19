@@ -44,6 +44,7 @@ export interface PurchaseOrder {
   total_amount: number;
   notes?: string;
   created_at: string;
+  updated_at?: string;
   received_at?: string;
   vendor_name: string;
   payment_status: string;

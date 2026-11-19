@@ -92,30 +92,47 @@ describe("a sale books the cost of the batches it actually consumed", () => {
     expect(lineCost()).toBe(166.67);
   });
 
-  it("books units the shelf could not cover at the cart's average", async () => {
-    batch("b1", 2, 600, day(30));
+  it("books units the shelf could not cover at the last bought price", async () => {
+    batch("b1", 2, 600, day(30), "2026-01-01T00:00:00.000Z");
+    batch("b0", 0, 750, day(60), "2026-06-01T00:00:00.000Z");
+    db.run(`UPDATE stock_batches SET is_active = 0 WHERE id = 'b0'`);
     await sell(5);
 
-    expect(lineCost()).toBe(660);
-    expect(movementCosts()).toEqual({ b1: { unit: 660, total: 3300 } });
+    expect(lineCost()).toBe((2 * 600 + 3 * 750) / 5);
+    expect(movementCosts()).toEqual({ b1: { unit: 690, total: 3450 } });
   });
 
-  it("falls back to the average for a batch received without a cost", async () => {
+  it("books a batch received without a cost at the last bought price", async () => {
     batch("b1", 2, 0, day(30));
     batch("b2", 1, null, day(60));
     batch("b3", 10, 800, day(300));
+    batch("sold", 0, 900, day(90), "2026-06-01T00:00:00.000Z");
     await sell(5);
 
-    expect(lineCost()).toBe(740);
+    expect(lineCost()).toBe((3 * 900 + 2 * 800) / 5);
     expect(movementCosts()).toEqual({
-      b1: { unit: CART_AVERAGE, total: 1400 },
-      b2: { unit: CART_AVERAGE, total: 700 },
+      b1: { unit: 900, total: 1800 },
+      b2: { unit: 900, total: 900 },
       b3: { unit: 800, total: 1600 },
     });
   });
 
-  it("books the average on a SALE batch opened for a product with no batches", async () => {
+  it("books a SALE batch at the last bought price of a batch no longer active", async () => {
+    db.run(
+      `INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, is_active, _deleted, store_id, created_at)
+       VALUES ('old', 'p1', 'OLD', 0, 750, 0, 0, '${STORE_ID}', '2026-01-01T00:00:00.000Z')`,
+    );
     await sell(2);
+
+    expect(lineCost()).toBe(750);
+    expect(Number(scalar(`SELECT cost_price FROM stock_batches WHERE batch_number LIKE 'SALE%'`))).toBe(750);
+  });
+
+  it("falls back to the cart's average only when no real batch cost exists at all", async () => {
+    batch("adj", 0, 500, null);
+    db.run(`UPDATE stock_batches SET batch_number = 'ADJ-1' WHERE id = 'adj'`);
+    batch("free", 2, 0, day(30));
+    await sell(4);
 
     expect(lineCost()).toBe(CART_AVERAGE);
   });

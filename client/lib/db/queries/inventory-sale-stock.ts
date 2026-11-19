@@ -3,6 +3,7 @@ import type { StockBatch } from "@/lib/types/stock-batch";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { BACKORDER_REASON, BACKORDER_REFERENCE_TYPE, OVERSELL_COMPENSATION_REASON, OVERSELL_REFERENCE_TYPE } from "@/lib/constants/stock-adjustments";
 import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
+import { getLastPurchaseCost } from "./products";
 import {
   getBatchesForProduct,
   getAnyActiveBatchForProduct,
@@ -57,9 +58,9 @@ async function writeShortfallCompensation(c: ShortfallCompensation) {
   }, { correlationId: c.correlationId });
 }
 
-const heldUnitCost = (batch: StockBatch | undefined, averageCost: number) => {
+const heldUnitCost = (batch: StockBatch | undefined, fallbackCost: number) => {
   const cost = Number(batch?.cost_price ?? 0);
-  return Number.isFinite(cost) && cost > 0 ? cost : averageCost;
+  return Number.isFinite(cost) && cost > 0 ? cost : fallbackCost;
 };
 
 // Inserts the sale_items row for one cart line and deducts/logs the stock it consumed.
@@ -98,6 +99,9 @@ async function writeSaleItemStock({
   }
   // Prefer FEFO picking among batches that still show positive stock; if the product's true stock is already fully depleted, fall back to whatev…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-queries-inventory-ts-L171
+  const averageCost = costPrice || 0;
+  const lastBoughtCost = await getLastPurchaseCost(productId);
+  const fallbackCost = lastBoughtCost > 0 ? lastBoughtCost : averageCost;
   let batches = await getBatchesForProduct(productId);
   if (batches.length === 0) {
     batches = await getAnyActiveBatchForProduct(productId);
@@ -110,7 +114,7 @@ async function writeSaleItemStock({
   if (batches.length === 0) {
     batches = [
       await getOrCreateTargetBatchForProduct(productId, {
-        unitCost: costPrice || 0,
+        unitCost: fallbackCost,
         batchNumberPrefix: "SALE",
       }),
     ];
@@ -177,12 +181,11 @@ async function writeSaleItemStock({
     }
   }
 
-  const averageCost = costPrice || 0;
   const bookedAsOwed = Boolean(recordShortfallAsOwed) && shortfallByBatchId.size > 0;
   const consumedCost = (batchId: string, units: number) => {
     if (bookedAsOwed) return units * averageCost;
     const unheld = shortfallByBatchId.get(batchId) ?? 0;
-    return (units - unheld) * heldUnitCost(batchById.get(batchId), averageCost) + unheld * averageCost;
+    return (units - unheld) * heldUnitCost(batchById.get(batchId), fallbackCost) + unheld * fallbackCost;
   };
   let lineCost = 0;
   for (const [batchId, units] of deductionByBatchId) lineCost += consumedCost(batchId, units);

@@ -3578,20 +3578,22 @@ e2e/                       Playwright end-to-end specs
 
 - **Purchase orders: one flow, vendor decides the next step** (`lib/db/procurement.ts`,
   `components/procurement/`). Statuses are `PURCHASE_ORDER_STATUSES`
-  (`'pending' | 'sent' | 'partially_received' | 'received'`), shown as
-  Draft, Ordered, Partially received and Received. There is no up-front
-  order type since 2026-11-18: `purchase_orders.type` is still written, as
-  `'immediate'` on every save, only so older tills keep an order's cost, lot
-  and expiry (see "Procurement price handling" below). A new order can be
-  saved as a draft (`createPurchaseOrder()`, `pending`), created already
-  sent (`createPurchaseOrder(..., "sent")`, named vendor only) or created
-  and received in one transaction (`createAndReceivePurchaseOrder()`). A
-  draft is received later through `receivePurchaseOrder()`, from the order
-  panel's confirmation sheet; a sent order through `ReceivePOPanel`. All
-  of them share one item-entry UI (`POItemBuilder`/`POItemLedgerTable`/
-  `POItemCardList`); the pages always pass the receiving column set
-  (`poType="immediate"`), and the Standard branch of those components is
-  now only reachable from tests (cleanup pending).
+  (`'pending' | 'sent' | 'partially_received' | 'received' | 'closed'`),
+  shown as Draft, Ordered, Partially received, Received and Closed short.
+  There is no up-front order type since 2026-11-18: `purchase_orders.type`
+  is still written, as `'immediate'` on every save, only so older tills
+  keep an order's cost, lot and expiry (see "Procurement price handling"
+  below). Every order the screen builds is written by `saveDraftOrder()`
+  (`lib/db/procurement-draft.ts`) as a `pending` draft; Send to vendor then
+  sets `sent` (`updatePurchaseOrderStatus()`), and Receive stock runs
+  `receivePurchaseOrder()` on the saved draft. `createPurchaseOrder()` is
+  now used only by the demo loader (`lib/demo/loader.ts`) and tests, and
+  `createAndReceivePurchaseOrder()` only by four test files (logged in
+  `docs/KNOWN_BUGS.md`). A draft is received from the order panel's
+  confirmation sheet (or `ReceivePOPanel` for a receive-only role); a sent
+  order through `ReceivePOPanel`. All of them share one item-entry UI
+  (`POItemBuilder`/`POItemLedgerTable`/`POItemCardList`), which has only
+  the receiving column set; the Standard branch is gone.
   `purchase_orders.supplier_id` is **nullable** — a self/walk-in purchase
   (no real vendor) is represented as `NULL`, the same convention
   `sales.customer_id` uses for "Walk-in Customer"; the UI sentinel
@@ -7913,7 +7915,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Any new per-line field the PO form saves must be added to `buildInitialReceivedItems` too.
 
 **Compatibility test**
-- `__tests__/procurement-old-till-compat.test.ts` runs an order written by this build through the shipped edit-save rule and receive seeding and checks that quantity, lot, expiry and cost survive. Extend it when the order shape changes.
+- `__tests__/procurement-old-till-compat.test.ts` replays the shipped edit save and receive-panel seeding in plain SQL (never this build's code) against orders this build wrote, including an older standard draft it re-typed, and checks that quantity, lot, expiry, cost and `payment_status` survive. `procurement-open-legacy-orders.test.tsx` opens every legacy shape (uncounted Immediate draft, cleared standard draft, sent, paid with no stored amount, paid with a due date, partially received, legacy `draft` status, NULL lock columns) and asserts that opening writes nothing. `pull-new-order-into-old-till.test.ts` pulls a closed order carrying the lock columns into a schema without them. The schema rebuild that keeps the lock columns is pinned in `init-database-migrations.test.ts`. Extend these when the order shape changes.
 
 ## Batch cost correction (`lib/db/queries/batch-cost-correction.ts`)
 

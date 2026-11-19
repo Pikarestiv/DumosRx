@@ -1,3 +1,10 @@
+### A-422 — a second staff account without an email failed with "Username already exists"
+- **Fixed:** 2026-11-19, client and server, TDD. Reported from the Agidi branch: every username tried gave the same error.
+- **Was:** the staff form sends a blank email as `""`, and `users.email` is `UNIQUE`, so the second account with no email failed with `UNIQUE constraint failed: users.email`. The form mapped every unique-constraint failure to "Username already exists", which sent the user hunting for a username clash that did not exist. The server's own unique index on `users.email` had the same problem for a push from an older till.
+- **Now:** a blank email is stored as `NULL` on create and edit (`normalizeStaffEmail()`, `lib/utils/staff-save-errors.ts`), `PushPayloadNormalizer` does the same for pushes, and the form reports the column that clashed (`staffSaveErrorMessage()`).
+- **Coverage:** `client/__tests__/staff-blank-email.test.tsx` (real in-memory database), `laravel-server/tests/Feature/SyncPushStaffBlankEmailTest.php`.
+- **Compat:** nothing is rewritten in bulk. An existing `''` email row stays valid (at most one can exist per device) and becomes `NULL` the next time that account is edited. The server normalisation can go once every active device sends `NULL`.
+
 ### A-420 — a batch whose expiry was stored as '' sold before every dated batch
 - **Fixed:** 2026-11-18, client only, TDD. Found while moving sale COGS onto the FEFO batch cost.
 - **Was:** the FEFO deduction order in `getBatchesForProduct()`, `getAllActiveBatchesForProduct()` (`lib/db/queries/inventory-batches.ts`) and the stock-transfer source query (`stock-transfers.ts`) was `ORDER BY (expiry_date IS NULL), expiry_date, created_at`. An empty-string expiry is not `NULL` and sorts before any date, so a batch saved with `''` (an old import or form path) was sold and transferred first, while the Batches tab's "sell first" badge treated it as no expiry and put it last. Harmless while every sale was costed at the average; once a sale books the consumed batch's own cost it moved profit.

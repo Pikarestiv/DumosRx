@@ -117,20 +117,14 @@ export function immediateLineAmount(item: {
   );
 }
 
-export function getLineTotal(item: POLineItemDraft, poType: "standard" | "immediate"): number {
-  if (poType !== "immediate") return item.bulk_quantity * item.unit_cost;
+export function getLineTotal(item: POLineItemDraft): number {
   return roundMoney(immediateLineAmount(item));
 }
 
 // The order's total: every screen that shows an "Estimated total" must go through this rather than reducing over its own f…
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-line-item-math-ts-L160
-export function getOrderTotal(
-  items: POLineItemDraft[],
-  poType: "standard" | "immediate",
-): number {
-  return roundMoney(
-    items.reduce((sum, item) => sum + getLineTotal(item, poType), 0),
-  );
+export function getOrderTotal(items: POLineItemDraft[]): number {
+  return roundMoney(items.reduce((sum, item) => sum + getLineTotal(item), 0));
 }
 
 // Validates the free-text "Amount Paid" field before it's ever written to the PO:

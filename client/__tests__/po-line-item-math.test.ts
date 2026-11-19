@@ -22,15 +22,13 @@ describe("po-line-item-math", () => {
       // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L21
       const line = item({ bulk_quantity: 1, unit_cost: 1000, units_per_bulk: 3 });
       expect(getImmediateUnitCost(line)).toBe(333.33);
-      expect(getLineTotal(line, "immediate")).toBe(1000);
-      expect(getOrderTotal([line], "immediate")).toBe(1000);
+      expect(getLineTotal(line)).toBe(1000);
+      expect(getOrderTotal([line])).toBe(1000);
     });
 
-    it("agrees with the standard-PO flow for the same line", () => {
+    it("bills a line with no override at bulk_quantity times the per-carton cost, as orders always have", () => {
       const line = item({ bulk_quantity: 2, unit_cost: 1000, units_per_bulk: 12 });
-      expect(getLineTotal(line, "immediate")).toBe(
-        getLineTotal(line, "standard"),
-      );
+      expect(getLineTotal(line)).toBe(2000);
     });
 
     it("multiplies an override up from the base unit, since that is how it was typed", () => {
@@ -41,12 +39,12 @@ describe("po-line-item-math", () => {
         cost_price_override: 90,
       });
       expect(immediateLineAmount(line)).toBe(1800);
-      expect(getLineTotal(line, "immediate")).toBe(1800);
+      expect(getLineTotal(line)).toBe(1800);
     });
 
     it("rounds an order total rather than leaving float noise", () => {
       const line = item({ bulk_quantity: 1, unit_cost: 1000, units_per_bulk: 3, cost_price_override: 333.333 });
-      expect(Number.isInteger(getOrderTotal([line, line, line], "immediate") * 100)).toBe(true);
+      expect(Number.isInteger(getOrderTotal([line, line, line]) * 100)).toBe(true);
     });
   });
 
@@ -102,23 +100,23 @@ describe("po-line-item-math", () => {
   });
 
   describe("getLineTotal", () => {
-    it("standard type: bulk_quantity times the per-carton unit_cost", () => {
-      expect(getLineTotal(item({ bulk_quantity: 2 }), "standard")).toBe(74400);
+    it("no override: bulk_quantity times the per-carton unit_cost", () => {
+      expect(getLineTotal(item({ bulk_quantity: 2 }))).toBe(74400);
     });
 
-    it("immediate type, no override: matches the pre-override total (unit_cost is already per-carton)", () => {
-      expect(getLineTotal(item(), "immediate")).toBe(37200);
+    it("no override: matches the pre-override total (unit_cost is already per-carton)", () => {
+      expect(getLineTotal(item())).toBe(37200);
     });
 
-    it("immediate type, with override: scales the per-tablet override by units_per_bulk, not just bulk_quantity", () => {
+    it("with override: scales the per-tablet override by units_per_bulk, not just bulk_quantity", () => {
       // Regression: entering a new per-tablet cost (650) previously produced a total of bulk_quantity * 650 = 650, silently drop…
       // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L119
-      expect(getLineTotal(item({ cost_price_override: 650 }), "immediate")).toBe(39000);
+      expect(getLineTotal(item({ cost_price_override: 650 }))).toBe(39000);
     });
 
-    it("immediate type, with override and multiple cartons", () => {
+    it("with override and multiple cartons", () => {
       expect(
-        getLineTotal(item({ bulk_quantity: 3, cost_price_override: 650 }), "immediate"),
+        getLineTotal(item({ bulk_quantity: 3, cost_price_override: 650 })),
       ).toBe(117000);
     });
   });

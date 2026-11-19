@@ -61,7 +61,6 @@ describe("PO item search over the builder's own catalog", () => {
   function renderBuilder() {
     render(
       <POItemBuilder
-        poType="immediate"
         products={products}
         items={[]}
         onItemsChange={vi.fn()}

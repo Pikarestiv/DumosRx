@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { POSellPriceCell } from "./po-sell-price-cell";
+import { POWasMarker } from "./po-was-marker";
+import type { RevertableField } from "./order-screen/po-draft-state";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -20,7 +22,6 @@ import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { CURRENT_COST_HINT } from "@/lib/constants/cost-hints";
 
 interface POItemCardListProps {
-  poType: "standard" | "immediate";
   rows: POItemRow[];
   products: POProduct[];
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
@@ -28,6 +29,8 @@ interface POItemCardListProps {
   onEditProduct?: (productId: string) => void;
   onFocusSearch?: () => void;
   isFiltered?: boolean;
+  baseline?: Map<string, POLineItemDraft>;
+  onRevertField?: (lineId: string, field: RevertableField) => void;
 }
 
 /** Memoised for the same reason as POItemLedgerRow: a keystroke in one
@@ -36,25 +39,28 @@ const POItemCard = React.memo(function POItemCard({
   item,
   index,
   product,
-  poType,
   onUpdateItem,
   onRemoveItem,
   onEditProduct,
+  baseline,
+  onRevertField,
 }: {
   item: POLineItemDraft;
   index: number;
   product: POProduct | undefined;
-  poType: "standard" | "immediate";
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
   onEditProduct?: (productId: string) => void;
+  baseline?: Map<string, POLineItemDraft>;
+  onRevertField?: (lineId: string, field: RevertableField) => void;
 }) {
+  const was = (field: RevertableField) => <POWasMarker item={item} field={field} baseline={baseline} onRevert={onRevertField} />;
   const formatCurrency = useFormatCurrency();
   const hasTouchCapability = useHasTouchCapability();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);
-  const total = getLineTotal(item, poType);
+  const total = getLineTotal(item);
 
   return (
     <div className="group p-4 space-y-3">
@@ -73,15 +79,13 @@ const POItemCard = React.memo(function POItemCard({
               />
             )}
           </div>
-          {poType === "immediate" && (
-            <p className="text-[12px] text-muted-foreground">
-              Stock: {stock} ·{" "}
-              <HintTooltip text={CURRENT_COST_HINT}>
-                <span tabIndex={0}>Current Cost</span>
-              </HintTooltip>
-              : {formatCurrency(currentCost)}
-            </p>
-          )}
+          <p className="text-[12px] text-muted-foreground">
+            Stock: {stock} ·{" "}
+            <HintTooltip text={CURRENT_COST_HINT}>
+              <span tabIndex={0}>Current Cost</span>
+            </HintTooltip>
+            : {formatCurrency(currentCost)}
+          </p>
         </div>
         <Button
           type="button"
@@ -98,7 +102,7 @@ const POItemCard = React.memo(function POItemCard({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            {poType === "immediate" ? "Received" : "Qty"} ({item.bulk_unit})
+            Received ({item.bulk_unit})
           </Label>
           <EditableNumberCell
             value={item.bulk_quantity}
@@ -106,94 +110,78 @@ const POItemCard = React.memo(function POItemCard({
             parse={(raw) => parseInt(raw, 10)}
             min={0}
             widthClassName="w-full"
-            ariaLabel={`${poType === "immediate" ? "Received" : "Quantity"} for ${item.product_name}`}
+            ariaLabel={`Received for ${item.product_name}`}
           />
+          {was("bulk_quantity")}
         </div>
         <div className="space-y-1">
           <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            {poType === "immediate" ? "New Cost" : "Unit Cost"}
+            New Cost
           </Label>
-          {poType === "immediate" ? (
-            <Input
-              type="number"
-              min={0}
-              step="any"
-              aria-label={`New Cost for ${item.product_name}`}
-              placeholder={formatCurrency(currentCost)}
-              value={item.cost_price_override ?? ""}
-              onChange={(e) =>
-                onUpdateItem(index, {
-                  cost_price_override: clampMoneyInput(e.target.value),
-                })
-              }
-            />
-          ) : (
-            <EditableNumberCell
-              value={item.unit_cost}
-              onCommit={(val) => onUpdateItem(index, { unit_cost: val, subtotal: item.bulk_quantity * val })}
-              parse={parseFloat}
-              min={0}
-              step="any"
-              widthClassName="w-full"
-              ariaLabel={`Unit Cost for ${item.product_name}`}
-            />
-          )}
+          <Input
+            type="number"
+            min={0}
+            step="any"
+            aria-label={`New Cost for ${item.product_name}`}
+            placeholder={formatCurrency(currentCost)}
+            value={item.cost_price_override ?? ""}
+            onChange={(e) =>
+              onUpdateItem(index, {
+                cost_price_override: clampMoneyInput(e.target.value),
+              })
+            }
+          />
+          {was("cost_price_override")}
         </div>
       </div>
 
-      {poType === "immediate" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Lot/Batch (Optional)
-            </Label>
-            <Input
-              aria-label={`Lot or batch number for ${item.product_name}`}
-              placeholder="e.g. BATCH-123"
-              value={item.lot_number || ""}
-              onChange={(e) => onUpdateItem(index, { lot_number: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Expiry (Optional)
-            </Label>
-            <DatePickerInput
-              value={item.expiry_date}
-              onChange={(val) => onUpdateItem(index, { expiry_date: val })}
-              ariaLabel={`Expiry date for ${item.product_name}`}
-              placeholder="Select"
-              disablePast
-              fromYear={new Date().getFullYear()}
-              toYear={new Date().getFullYear() + 15}
-            />
-          </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Lot/Batch (Optional)
+          </Label>
+          <Input
+            aria-label={`Lot or batch number for ${item.product_name}`}
+            placeholder="e.g. BATCH-123"
+            value={item.lot_number || ""}
+            onChange={(e) => onUpdateItem(index, { lot_number: e.target.value })}
+          />
+          {was("lot_number")}
         </div>
-      )}
+        <div className="space-y-1">
+          <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Expiry (Optional)
+          </Label>
+          <DatePickerInput
+            value={item.expiry_date}
+            onChange={(val) => onUpdateItem(index, { expiry_date: val })}
+            ariaLabel={`Expiry date for ${item.product_name}`}
+            placeholder="Select"
+            disablePast
+            fromYear={new Date().getFullYear()}
+            toYear={new Date().getFullYear() + 15}
+          />
+          {was("expiry_date")}
+        </div>
+      </div>
 
       <div className="flex items-center justify-between pt-1">
-        <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
-          {poType === "immediate" ? "Total" : "Subtotal"}
-        </span>
-        <span className="text-[14px] font-bold text-foreground">
-          {formatCurrency(total)}
-        </span>
+        <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">Total</span>
+        <span className="text-[14px] font-bold text-foreground">{formatCurrency(total)}</span>
       </div>
 
-      {poType === "immediate" && (
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
-            Sell Price
-          </span>
-          <POSellPriceCell
-            productName={item.product_name}
-            sellingPrice={product?.selling_price}
-            unitCost={effectiveUnitCost}
-            previousCost={product?.cost_price}
-            onEditProduct={onEditProduct ? () => onEditProduct(item.product_id) : undefined}
-          />
-        </div>
-      )}
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
+          Sell Price
+        </span>
+        <POSellPriceCell
+          productName={item.product_name}
+          sellingPrice={product?.selling_price}
+          unitCost={effectiveUnitCost}
+          previousCost={product?.cost_price}
+          onEditProduct={onEditProduct ? () => onEditProduct(item.product_id) : undefined}
+        />
+      </div>
     </div>
   );
 });
@@ -203,7 +191,6 @@ const POItemCard = React.memo(function POItemCard({
  * use even with horizontal scroll below 640px, same reasoning as
  * ReceiveItemCard in receive-po-panel.tsx. */
 export function POItemCardList({
-  poType,
   rows,
   products,
   onUpdateItem,
@@ -211,6 +198,8 @@ export function POItemCardList({
   onEditProduct,
   onFocusSearch,
   isFiltered,
+  baseline,
+  onRevertField,
 }: POItemCardListProps) {
   const productMap = useProductMap(products);
 
@@ -243,10 +232,11 @@ export function POItemCardList({
           item={item}
           index={index}
           product={productMap.get(item.product_id)}
-          poType={poType}
           onUpdateItem={onUpdateItem}
           onRemoveItem={onRemoveItem}
           onEditProduct={onEditProduct}
+          baseline={baseline}
+          onRevertField={onRevertField}
         />
       ))}
     </div>

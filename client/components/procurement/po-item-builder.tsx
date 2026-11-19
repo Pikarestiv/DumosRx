@@ -11,12 +11,12 @@ import { POEditProductDialog } from "./po-edit-product-dialog";
 import { POItemCardList } from "./po-item-card-list";
 import { addOrMergeLineItem } from "./po-line-item-math";
 import type { POProduct } from "@/lib/db/queries/procurement";
+import type { RevertableField } from "./order-screen/po-draft-state";
 import type { ProductViewModel } from "@/lib/types/product";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { useOutstandingBackorders } from "@/lib/hooks/use-outstanding-backorders";
 
 interface POItemBuilderProps {
-  poType: "standard" | "immediate";
   products: POProduct[];
   items: POLineItemDraft[];
   onItemsChange: (items: POLineItemDraft[]) => void;
@@ -24,12 +24,13 @@ interface POItemBuilderProps {
   newlyCreatedProductId?: string | null;
   onNewlyCreatedProductConsumed?: () => void;
   canEditProducts?: boolean;
+  baseline?: Map<string, POLineItemDraft>;
+  onRevertField?: (lineId: string, field: RevertableField) => void;
 }
 
 // Search-to-add-a-row bulk item entry, replacing the old one-at-a-time POAddItemForm + separate cart summary.
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-item-builder-tsx-L26
 export function POItemBuilder({
-  poType,
   products,
   items,
   onItemsChange,
@@ -37,6 +38,8 @@ export function POItemBuilder({
   newlyCreatedProductId,
   onNewlyCreatedProductConsumed,
   canEditProducts,
+  baseline,
+  onRevertField,
 }: POItemBuilderProps) {
   const displayName = useDisplayName();
   const [searchValue, setSearchValue] = useState("");
@@ -219,23 +222,25 @@ export function POItemBuilder({
 
       {isTabletUp ? (
         <POItemLedgerTable
-          poType={poType}
           rows={visibleRows}
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
           onEditProduct={canEditProducts ? setEditingProductId : undefined}
+          baseline={baseline}
+          onRevertField={onRevertField}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
         />
       ) : (
         <POItemCardList
-          poType={poType}
           rows={visibleRows}
           products={products}
           onUpdateItem={handleUpdateItem}
           onRemoveItem={handleRemoveItem}
           onEditProduct={canEditProducts ? setEditingProductId : undefined}
+          baseline={baseline}
+          onRevertField={onRevertField}
           onFocusSearch={focusSearch}
           isFiltered={itemFilter.trim().length > 0}
         />

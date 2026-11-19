@@ -132,7 +132,6 @@ describe("POItemBuilder list editing", () => {
   function renderBuilder(items: POLineItemDraft[], onItemsChange = vi.fn()) {
     render(
       <POItemBuilder
-        poType="immediate"
         products={[product, second]}
         items={items}
         onItemsChange={onItemsChange}
@@ -161,7 +160,6 @@ describe("POItemBuilder list editing", () => {
       seen.push(current);
       return (
         <POItemBuilder
-          poType="immediate"
           products={[product, second]}
           items={current}
           onItemsChange={setCurrent}

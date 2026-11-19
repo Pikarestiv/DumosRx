@@ -17,8 +17,8 @@ interface PODetailsDialogProps {
   setSelectedSupplierId: (id: string) => void;
   notes: string;
   setNotes: (notes: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (status: string) => void;
+  paidInFull: boolean;
+  setPaidInFull: (paidInFull: boolean) => void;
   dueDate: string;
   setDueDate: (date: string) => void;
   amountPaid: string;
@@ -37,8 +37,8 @@ export function PODetailsDialog({
   setSelectedSupplierId,
   notes,
   setNotes,
-  paymentStatus,
-  setPaymentStatus,
+  paidInFull,
+  setPaidInFull,
   dueDate,
   setDueDate,
   amountPaid,
@@ -64,8 +64,8 @@ export function PODetailsDialog({
         setSelectedSupplierId={setSelectedSupplierId}
         notes={notes}
         setNotes={setNotes}
-        paymentStatus={paymentStatus}
-        setPaymentStatus={setPaymentStatus}
+        paidInFull={paidInFull}
+        setPaidInFull={setPaidInFull}
         dueDate={dueDate}
         setDueDate={setDueDate}
         amountPaid={amountPaid}

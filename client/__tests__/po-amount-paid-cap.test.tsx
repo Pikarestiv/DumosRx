@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { PODetailsFields } from "@/components/procurement/po-details-fields";
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -22,7 +22,8 @@ if (!window.matchMedia) {
 // Amount Paid is a bare number field whose value getValidatedAmountPaid silently caps at the order total on submit.
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-po-amount-paid-cap-test-tsx-L18
 describe("Amount Paid cap messaging", () => {
-  function renderFields(amountPaid: string, totalAmount: number, paymentStatus = "partial") {
+  const setPaidInFull = vi.fn();
+  function renderFields(amountPaid: string, totalAmount: number, paidInFull = false) {
     render(
       <PODetailsFields
         suppliers={[]}
@@ -30,8 +31,8 @@ describe("Amount Paid cap messaging", () => {
         setSelectedSupplierId={vi.fn()}
         notes=""
         setNotes={vi.fn()}
-        paymentStatus={paymentStatus}
-        setPaymentStatus={vi.fn()}
+        paidInFull={paidInFull}
+        setPaidInFull={setPaidInFull}
         dueDate=""
         setDueDate={vi.fn()}
         amountPaid={amountPaid}
@@ -71,14 +72,36 @@ describe("Amount Paid cap messaging", () => {
     expect(screen.queryByText(/capped/i)).toBeNull();
   });
 
-  it("offers a due date while money is still owed and hides it once the order is fully paid", () => {
-    renderFields("", 1000, "unpaid");
+  it("offers a due date while money is still owed", () => {
+    renderFields("", 1000);
     expect(screen.getByText(/Due Date/)).toBeTruthy();
     expect(screen.queryByText(/Order Type/)).toBeNull();
   });
 
-  it("hides the due date for a fully paid order", () => {
-    renderFields("", 1000, "paid");
+  it("hides the due date once the order is paid in full or the amount paid covers the total", () => {
+    renderFields("", 1000, true);
     expect(screen.queryByText(/Due Date/)).toBeNull();
+    document.body.innerHTML = "";
+    renderFields("1000", 1000);
+    expect(screen.queryByText(/Due Date/)).toBeNull();
+  });
+
+  it("derives unpaid, part paid or fully paid from the amount instead of asking for a status", () => {
+    renderFields("", 5000);
+    expect(screen.getByText(/^Unpaid/)).toBeTruthy();
+    document.body.innerHTML = "";
+    renderFields("2000", 5000);
+    expect(screen.getByText(/Part paid, a balance remains/)).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: /payment status/i })).toBeNull();
+  });
+
+  it("marks the order paid in full with one tap and shows the total as paid", () => {
+    renderFields("", 5000);
+    fireEvent.click(screen.getByRole("button", { name: "Paid in full" }));
+    expect(setPaidInFull).toHaveBeenCalledWith(true);
+    document.body.innerHTML = "";
+    renderFields("", 5000, true);
+    expect((screen.getByLabelText("Amount Paid") as HTMLInputElement).value).toBe("5000");
+    expect(screen.getByText(/^Fully paid/)).toBeTruthy();
   });
 });

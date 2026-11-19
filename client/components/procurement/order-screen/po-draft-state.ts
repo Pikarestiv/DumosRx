@@ -4,7 +4,7 @@ export interface PoDraft {
   supplierId: string;
   notes: string;
   items: POLineItemDraft[];
-  paymentStatus: string;
+  paidInFull: boolean;
   amountPaid: string;
   dueDate: string;
   paymentTouched: boolean;

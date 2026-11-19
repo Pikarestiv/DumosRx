@@ -17,6 +17,7 @@ import {
   resolveBaseUnitCost,
 } from "@/components/procurement/po-line-item-math";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { derivePaymentStatus, effectiveAmountPaid } from "@/components/procurement/po-payment";
 
 /** Per-line-item receiving overrides submitted from the "Receive Order" form:
  * only po_item_id is required, the rest default to the ordered quantity/PO id. */
@@ -51,7 +52,17 @@ async function refreshOrderTotal(poId: string): Promise<void> {
     "SELECT SUM(subtotal) as total FROM purchase_order_items WHERE po_id = ? AND _deleted = 0",
     [poId],
   );
-  await update("purchase_orders", poId, { total_amount: roundMoney(Number(row?.total) || 0) });
+  const [order] = await query<{ payment_status: string | null; amount_paid: number | null; total_amount: number | null }>(
+    "SELECT payment_status, amount_paid, total_amount FROM purchase_orders WHERE id = ?",
+    [poId],
+  );
+  const total = roundMoney(Number(row?.total) || 0);
+  const amountPaid = effectiveAmountPaid(order ?? {});
+  await update("purchase_orders", poId, {
+    total_amount: total,
+    amount_paid: amountPaid,
+    payment_status: derivePaymentStatus(amountPaid, total),
+  });
 }
 
 export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedItem[]) {

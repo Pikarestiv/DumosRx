@@ -8,6 +8,7 @@ import { POItemBuilder } from "../po-item-builder";
 import { POMobileSummaryDrawer } from "../po-mobile-summary-drawer";
 import { getLineTotal } from "../po-line-item-math";
 import type { POLineItemDraft } from "../po-item-ledger-table";
+import { amountPaidForSave, derivePaymentStatus } from "../po-payment";
 import { itemsChangeMode, type PoDraft, type RevertableField, type SaveMode } from "./po-draft-state";
 
 interface PoOrderBodyProps {
@@ -30,6 +31,7 @@ interface PoOrderBodyProps {
 
 export function PoOrderBody(props: PoOrderBodyProps) {
   const { draft } = props;
+  const amountPaid = amountPaidForSave(draft, props.totalAmount);
   const onItemsChange = (items: POLineItemDraft[]) =>
     props.onChange((current) => ({ ...current, items }), itemsChangeMode(draft.items, items));
 
@@ -42,9 +44,9 @@ export function PoOrderBody(props: PoOrderBodyProps) {
         {props.banners}
         <PODetailsSummaryBar
           vendorName={props.supplierName}
-          paymentStatus={draft.paymentStatus}
+          paymentStatus={derivePaymentStatus(amountPaid, props.totalAmount)}
           dueDate={draft.dueDate}
-          amountPaid={draft.amountPaid}
+          amountPaid={String(amountPaid)}
           onEdit={props.onOpenDetails}
         />
         <fieldset disabled={props.readOnly} className="contents">

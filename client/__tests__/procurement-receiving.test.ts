@@ -266,6 +266,24 @@ describe("procurement-receiving.ts", () => {
       expect(db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`)[0].values[0][0]).toBe(3500);
     });
 
+    it("turns a fully paid order part paid when counting a line raises its total", async () => {
+      const { poId, counted, uncounted } = await seedWithUncountedLine();
+      db.run(`UPDATE purchase_orders SET payment_status = 'paid', amount_paid = 2000 WHERE id = '${poId}'`);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: counted, quantity: 2 }, { po_item_id: uncounted, quantity: 3 }]);
+
+      expect(db.exec(`SELECT total_amount, amount_paid, payment_status FROM purchase_orders WHERE id = '${poId}'`)[0].values[0]).toEqual([3500, 2000, "partial"]);
+    });
+
+    it("keeps an old 'paid' order with no amount recorded as paid up to its old total", async () => {
+      const { poId, counted, uncounted } = await seedWithUncountedLine();
+      db.run(`UPDATE purchase_orders SET payment_status = 'paid', amount_paid = 0 WHERE id = '${poId}'`);
+
+      await receivePurchaseOrder(poId, [{ po_item_id: counted, quantity: 2 }, { po_item_id: uncounted, quantity: 3 }]);
+
+      expect(db.exec(`SELECT amount_paid, payment_status FROM purchase_orders WHERE id = '${poId}'`)[0].values[0]).toEqual([2000, "partial"]);
+    });
+
     it("sends the counted quantity with units_per_bulk so the server scales it", async () => {
       const { poId, counted, uncounted } = await seedWithUncountedLine();
       db.run(`DELETE FROM _sync_queue`);

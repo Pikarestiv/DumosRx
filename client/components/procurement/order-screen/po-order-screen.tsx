@@ -158,12 +158,12 @@ export function PoOrderScreen({ initialId, defaultSupplierId }: PoOrderScreenPro
         setSelectedSupplierId={editor.setSupplier}
         notes={draft.notes}
         setNotes={(notes) => change((d) => ({ ...d, notes }), "debounced")}
-        paymentStatus={draft.paymentStatus}
-        setPaymentStatus={(paymentStatus) => change((d) => ({ ...d, paymentStatus, paymentTouched: true }), "now")}
+        paidInFull={draft.paidInFull}
+        setPaidInFull={(paidInFull) => change((d) => ({ ...d, paidInFull, amountPaid: paidInFull ? d.amountPaid : "", paymentTouched: true }), "now")}
         dueDate={draft.dueDate}
         setDueDate={(dueDate) => change((d) => ({ ...d, dueDate }), "now")}
         amountPaid={draft.amountPaid}
-        setAmountPaid={(amountPaid) => change((d) => ({ ...d, amountPaid }), "debounced")}
+        setAmountPaid={(amountPaid) => change((d) => ({ ...d, amountPaid, paidInFull: false, paymentTouched: true }), "debounced")}
         totalAmount={editor.totalAmount}
         onOpenAddSupplier={() => setIsAddSupplierOpen(true)}
       />

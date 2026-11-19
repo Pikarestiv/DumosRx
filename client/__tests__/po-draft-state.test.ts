@@ -15,7 +15,7 @@ const line = (overrides: Partial<POLineItemDraft> = {}): POLineItemDraft => ({
   bulk_quantity: 2, units_per_bulk: 10, unit_cost: 100, subtotal: 200, ...overrides,
 });
 const draft = (notes: string): PoDraft => ({
-  supplierId: "__self__", notes, items: [], paymentStatus: "paid", amountPaid: "", dueDate: "", paymentTouched: false,
+  supplierId: "__self__", notes, items: [], paidInFull: true, amountPaid: "", dueDate: "", paymentTouched: false,
 });
 
 describe("session undo history", () => {

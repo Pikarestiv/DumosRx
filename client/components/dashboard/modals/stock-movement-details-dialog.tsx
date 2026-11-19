@@ -16,6 +16,7 @@ import {
   resolveMovementDisplayType,
 } from "@/components/stock-batch/stock-movement-utils";
 import { DetailRow } from "./detail-row";
+import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
 interface StockMovementDetailsDialogProps {
@@ -37,6 +38,7 @@ export function StockMovementDetailsDialog({
     enabled: !!movement?.product_id && open,
   });
   const productInfo = productInfoQuery.data ?? null;
+  const capsClass = useUppercaseDisplayClass();
 
   if (!movement) return null;
 
@@ -61,7 +63,7 @@ export function StockMovementDetailsDialog({
             {getTypeIcon(displayType)}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[15px] font-semibold truncate">
+            <div className={`text-[15px] font-semibold truncate ${capsClass}`}>
               {productInfo
                 ? `${productInfo.name}${productInfo.dosage_form ? ` (${productInfo.dosage_form})` : ""}`
                 : productInfoQuery.isError

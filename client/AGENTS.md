@@ -3693,6 +3693,31 @@ e2e/                       Playwright end-to-end specs
     Receive stock flushes the draft and runs `receivePurchaseOrder()` from
     the confirmation sheet, on new orders as well as resumed ones.
 
+- **Payment is the amount paid (2026-11-19)** (`components/procurement/po-payment.ts`).
+  `purchase_orders.amount_paid` is the stored truth; the order screen has an
+  Amount Paid field and a Paid in full toggle (which tracks the total while
+  on), and the status is derived: nothing paid is `unpaid`, less than the
+  total `partial`, the total or more `paid` (`derivePaymentStatus()`).
+  `payment_status` is still written, from that derivation, on every save,
+  because `suppliers.ts`, the payables queries and every older till filter
+  on it. A stored `paid` with a lower `amount_paid` (older builds could
+  leave it at 0) reads as paid up to the total (`effectiveAmountPaid()`).
+  A reopened order opens with its stored amount, not the toggle, so a paid
+  order whose total later grows (an edit, or counting an uncounted line at
+  receipt, which re-derives in `refreshOrderTotal()`) becomes `partial`.
+  The due date shows and saves only while a balance remains. Retire
+  writing `payment_status` once every active device reports this build.
+- **Closed short (2026-11-19)** (`lib/db/procurement-close.ts`). A
+  `partially_received` order the vendor will not complete can be closed
+  (`manage_purchase_orders`, AlertDialog): status `closed`, `total_amount`
+  re-priced to what actually arrived, payment re-derived, one
+  `PO_CLOSED_SHORT` audit row. Line quantities are kept as ordered.
+  `receivePurchaseOrder()` now refuses any non-receivable status
+  (`not_receivable`). Older tills show the raw status in the badge
+  fallback, treat it as not receivable, and leave it out of the
+  open-order product check; the server stores the status as given
+  (`SyncPushPurchaseOrderClosedTest`).
+
 - **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
   Receiving used to be all-or-nothing: any submitted quantity flipped the
   whole PO to `received` and a guard (`status === "received"`) then blocked

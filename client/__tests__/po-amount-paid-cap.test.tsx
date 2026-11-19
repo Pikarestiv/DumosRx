@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PODetailsFields } from "@/components/procurement/po-details-fields";
 
 vi.mock("@/lib/context/store-context", () => ({
@@ -81,7 +81,7 @@ describe("Amount Paid cap messaging", () => {
   it("hides the due date once the order is paid in full or the amount paid covers the total", () => {
     renderFields("", 1000, true);
     expect(screen.queryByText(/Due Date/)).toBeNull();
-    document.body.innerHTML = "";
+    cleanup();
     renderFields("1000", 1000);
     expect(screen.queryByText(/Due Date/)).toBeNull();
   });
@@ -89,7 +89,7 @@ describe("Amount Paid cap messaging", () => {
   it("derives unpaid, part paid or fully paid from the amount instead of asking for a status", () => {
     renderFields("", 5000);
     expect(screen.getByText(/^Unpaid/)).toBeTruthy();
-    document.body.innerHTML = "";
+    cleanup();
     renderFields("2000", 5000);
     expect(screen.getByText(/Part paid, a balance remains/)).toBeTruthy();
     expect(screen.queryByRole("combobox", { name: /payment status/i })).toBeNull();
@@ -99,7 +99,7 @@ describe("Amount Paid cap messaging", () => {
     renderFields("", 5000);
     fireEvent.click(screen.getByRole("button", { name: "Paid in full" }));
     expect(setPaidInFull).toHaveBeenCalledWith(true);
-    document.body.innerHTML = "";
+    cleanup();
     renderFields("", 5000, true);
     expect((screen.getByLabelText("Amount Paid") as HTMLInputElement).value).toBe("5000");
     expect(screen.getByText(/^Fully paid/)).toBeTruthy();

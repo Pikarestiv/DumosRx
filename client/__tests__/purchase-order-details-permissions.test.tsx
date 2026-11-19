@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 // Procurement used to be one coarse RequireRole gate (isAdmin || canManageStockBatch) covering creating, editing, sending,…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-purchase-order-details-permissions-test-tsx-L4
@@ -170,6 +170,23 @@ describe("Purchase order details permissions", () => {
       expect.objectContaining({ po_item_id: "line1", quantity: 2, lot_number: "L1", expiry_date: "2028-01-01", cost_price: 12 }),
       expect.objectContaining({ po_item_id: "line2", quantity: 0 }),
     ]);
+  });
+
+  it("offers Close short on a partially received order to managers only, behind a confirmation", () => {
+    renderDetails(po({ status: "partially_received" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close short" }));
+    expect(screen.getByRole("alertdialog").textContent).toContain("vendor will not deliver the rest");
+
+    cleanup();
+    deny("manage_purchase_orders");
+    renderDetails(po({ status: "partially_received" }));
+    expect(screen.queryByRole("button", { name: "Close short" })).toBeNull();
+  });
+
+  it("shows a closed-short order as locked with no receive action", () => {
+    renderDetails(po({ status: "closed" }));
+    expect(screen.queryByText("Closed short. The rest of this order will not be delivered.")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /^Receive/ })).toBeNull();
   });
 
   it("labels a sent order Ordered in its timeline", () => {

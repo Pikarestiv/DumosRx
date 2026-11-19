@@ -10,6 +10,7 @@ import { PoOrderMenu } from "./po-order-menu";
 import { PoDetailsFooter } from "./po-details-footer";
 import { usePoPdfDownload } from "./use-po-pdf-download";
 import { PODraftReceiveDialog } from "./po-draft-receive-dialog";
+import { POCloseShortDialog } from "./po-close-short-dialog";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import type { ReceivedItemPayload } from "./receive-po-panel";
 
@@ -39,6 +40,7 @@ export function PurchaseOrderDetails({
   onClose,
 }: PurchaseOrderDetailsProps) {
   const [isDraftReceiveOpen, setIsDraftReceiveOpen] = useState(false);
+  const [isCloseShortOpen, setIsCloseShortOpen] = useState(false);
   const router = useRouter();
   const canManagePurchaseOrders = useHasPermission("manage_purchase_orders");
   const canReceivePurchaseOrders = useHasPermission("receive_purchase_orders");
@@ -131,8 +133,10 @@ export function PurchaseOrderDetails({
           }}
           onReceive={onReceiveGoods}
           onReceiveDraft={() => setIsDraftReceiveOpen(true)}
+          onCloseShort={() => setIsCloseShortOpen(true)}
           onDownloadPdf={() => void download()}
         />
+        <POCloseShortDialog orderId={selectedPO.id} open={isCloseShortOpen} onOpenChange={setIsCloseShortOpen} />
         <PODraftReceiveDialog
           po={selectedPO}
           open={isDraftReceiveOpen}

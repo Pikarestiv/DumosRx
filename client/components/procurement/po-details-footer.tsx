@@ -12,6 +12,7 @@ interface PoDetailsFooterProps {
   onSend: () => void;
   onReceive: () => void;
   onReceiveDraft: () => void;
+  onCloseShort: () => void;
   onDownloadPdf: () => void;
 }
 
@@ -34,6 +35,7 @@ export function PoDetailsFooter({
   onSend,
   onReceive,
   onReceiveDraft,
+  onCloseShort,
   onDownloadPdf,
 }: PoDetailsFooterProps) {
   const isDraft = po.status === "pending";
@@ -46,8 +48,9 @@ export function PoDetailsFooter({
     }
   } else if (canReceive && po.status === "sent") {
     actions.push({ label: "Receive Items", run: onReceive, primary: true });
-  } else if (canReceive && po.status === "partially_received") {
-    actions.push({ label: "Receive Remaining", run: onReceive, primary: true });
+  } else if (po.status === "partially_received") {
+    if (canManage) actions.push({ label: "Close short", run: onCloseShort, primary: false });
+    if (canReceive) actions.push({ label: "Receive Remaining", run: onReceive, primary: true });
   }
 
   return (
@@ -75,6 +78,11 @@ export function PoDetailsFooter({
           </Button>
         ))}
       </div>
+      {po.status === "closed" && (
+        <p className="text-center text-[13px] text-muted-foreground">
+          Closed short. The rest of this order will not be delivered.
+        </p>
+      )}
       {po.status === "received" && (
         <p className="text-center text-[13px] text-muted-foreground">
           All items received. This order is now locked.

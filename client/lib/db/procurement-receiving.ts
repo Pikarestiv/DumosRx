@@ -7,6 +7,7 @@ import { settleBackordersOnReceipt } from "./queries/backorders";
 import { insert, update } from "./base-helpers";
 import {
   getPurchaseOrderById,
+  isReceivablePurchaseOrderStatus,
   updatePurchaseOrderStatus,
   type DraftPOLineItem,
 } from "./procurement";
@@ -69,6 +70,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
   const poData = await getPurchaseOrderById(id);
   if (!poData) return "not_found";
   if (poData.status === "received") return "already_received";
+  if (!isReceivablePurchaseOrderStatus(poData.status)) return "not_receivable";
 
   const now = new Date().toISOString();
 

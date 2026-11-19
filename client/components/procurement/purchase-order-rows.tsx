@@ -55,6 +55,12 @@ export function getStatusBadge(status: string) {
           <ArrowRight className="w-3 h-3 mr-1" /> Ordered
         </Badge>
       );
+    case "closed":
+      return (
+        <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
+          Closed short
+        </Badge>
+      );
     case "pending":
     case "draft":
       return (

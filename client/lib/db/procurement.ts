@@ -21,6 +21,7 @@ export const PURCHASE_ORDER_STATUSES = [
   "sent",
   "partially_received",
   "received",
+  "closed",
 ] as const;
 
 export type PurchaseOrderStatus = (typeof PURCHASE_ORDER_STATUSES)[number];

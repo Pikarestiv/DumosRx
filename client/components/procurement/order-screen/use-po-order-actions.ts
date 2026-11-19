@@ -80,7 +80,7 @@ export function usePoOrderActions(editor: Editor) {
     confirmReceive: (_id: string, items: ReceivedItem[]) => run(async () => {
       const status = await receivePurchaseOrder(orderId, items);
       setReceivePo(null);
-      if (status === "already_received" || status === "not_found" || status === undefined) {
+      if (status === "already_received" || status === "not_found" || status === "not_receivable" || status === undefined) {
         toast.info("Nothing was received, the order is unchanged.");
         return;
       }

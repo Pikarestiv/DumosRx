@@ -99,6 +99,11 @@ export function usePurchaseOrders() {
         void fetchPurchaseOrders();
         return true;
       }
+      if (status === "not_receivable") {
+        toast.info("This order is closed, so nothing can be received against it.");
+        void fetchPurchaseOrders();
+        return true;
+      }
       if (status === "not_found") {
         toast.error("Couldn't find this order", {
           description: "It may have been deleted on another device.",

@@ -3986,6 +3986,8 @@ on `users_email_unique` at every retry. Archiving a user suffixes its email with
 `_del_<ms>`, so an archived account does not hold its address. `GET /app/staff/email-available`
 (`StaffEmailController`) answers the same question for the till's online pre-check.
 
+A blank staff email in a `users` push (what a till that has not updated sends for a staff account with no email) is stored as `NULL` by `PushPayloadNormalizer`, because `users.email` is unique and two empty strings collide while two `NULL`s do not (`SyncPushStaffBlankEmailTest`). Retire this once every active device runs the client that already sends `NULL` (A-422).
+
 ### Admin email campaigns (`POST /admin/mail/send`)
 
 `MailController::send()` delegates to `App\Services\Admin\AdminMailService`.

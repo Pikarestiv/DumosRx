@@ -33,6 +33,7 @@ import { hashPin } from "@/lib/utils/pin-hash";
 import { getStoredUser } from "@/lib/storage-keys";
 import { serializeRequeuePayload } from "./requeue-payload";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { normalizeStaffEmail } from "@/lib/utils/staff-save-errors";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -250,6 +251,7 @@ export async function getUsers(storeId?: string | null) {
 export async function createUser(data: StaffCreatePayload) {
   return await insert("users", {
     ...data,
+    email: normalizeStaffEmail(data.email),
     // Staff created here are created LOCALLY and pushed up by the sync engine, so this is a real PIN write site:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-local-database-ts-L259
     ...(data.pin ? { pin: hashPin(data.pin) } : {}),
@@ -264,7 +266,8 @@ export async function createUser(data: StaffCreatePayload) {
 export async function updateUser(id: string, data: StaffUpdatePayload) {
   // Same reasoning as createUser(): an admin changing someone's PIN from
   // the staff dialog must store a hash, not the 4 digits they typed.
-  return await update("users", id, data.pin ? { ...data, pin: hashPin(data.pin) } : data);
+  const normalized = "email" in data ? { ...data, email: normalizeStaffEmail(data.email) } : data;
+  return await update("users", id, normalized.pin ? { ...normalized, pin: hashPin(normalized.pin) } : normalized);
 }
 
 export async function deleteUser(id: string) {

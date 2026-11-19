@@ -92,6 +92,9 @@ class PushPayloadNormalizer
                 $payload['last_name'] = $parts[1] ?? '';
             }
             unset($payload['name']);
+            if (array_key_exists('email', $payload) && is_string($payload['email']) && trim($payload['email']) === '') {
+                $payload['email'] = null;
+            }
         }
 
         if ($change['table_name'] === 'feedback' && $currentUser && ! $isSuperAdmin) {

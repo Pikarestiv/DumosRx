@@ -929,6 +929,13 @@ fails the form before anything is saved (only when the email actually changed); 
 with the server unreachable or slower than 4 seconds, the save proceeds and the server's `email_in_use` push refusal is the backstop, handled
 as a terminal reason in `push-response.ts` (queue row dropped, `users` window
 re-pulled, one toast in `announceTerminalConflicts`).
+A staff email is optional and a blank one is stored as `NULL`, never `''`
+(`normalizeStaffEmail()` in `lib/utils/staff-save-errors.ts`, applied by
+`createUser()` and `updateUser()`): `users.email` is `UNIQUE`, and SQLite lets any
+number of `NULL`s coexist but only one `''`. A unique-constraint failure on the
+staff form is reported by the column that clashed (`staffSaveErrorMessage()`),
+not always as "Username already exists". An older row saved with `''` is left
+alone and clears itself the next time that account is edited.
 Daily Close syncs on open too, but never blocks: `useSyncOnOpen()`
 (`lib/hooks/use-sync-on-open.ts`) reuses `pullBeforeCount`, and
 `DailyCloseSyncNote` shows "Syncing…" then, if offline or it failed, that the

@@ -201,6 +201,9 @@ class SyncController extends Controller
                     $clientNamedStoreId = ! empty($payload['store_id']);
 
                     $payload = $normalizer->normalizePushPayload($request, $change, $payload, $currentStoreId, $currentUser, $isSuperAdmin, $allowedStoreIds, $allowedUserIds, $ownerId);
+                    if ($change['table_name'] === 'purchase_orders') {
+                        $payload = $lockFence->prepareOrderPayload($payload);
+                    }
 
                     $recordId = $change['record_id'] ?? ($payload['id'] ?? null);
 

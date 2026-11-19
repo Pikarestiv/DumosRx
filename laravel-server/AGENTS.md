@@ -2542,11 +2542,25 @@ till's own `X-Device-Id`/label; Back clears it; "Take over" overwrites it.
   before the INSERT/UPDATE branches) refuses a `purchase_order_items` INSERT,
   or an UPDATE without `quantity_received`, with the reason `draft_locked`
   when the parent's `editing_device_id` is set, differs from the push's
-  `X-Device-Id`, and the parent's server `updated_at` is under 10 minutes
-  old. Freshness is judged on the server clock, never the client's
-  `editing_at` (which is display-only). Receipts (any payload carrying
+  `X-Device-Id`, and the parent's `editing_at` (falling back to `updated_at`)
+  is under 10 minutes old. Receipts (any payload carrying
   `quantity_received`) and DELETEs are never fenced: a receipt from another
   till must not lose its line update while its batch and movement land.
+- **Clock:** both `editing_at` and `updated_at` arrive from the till's own
+  clock (`forceFill` keeps a client `updated_at`). `prepareOrderPayload()`
+  clamps a pushed `editing_at` that is ahead of the server to the server's
+  now, so a till whose clock runs hours fast cannot hold a lock for hours.
+  A till whose clock is behind only makes its lock go stale sooner (fails
+  open). Freshness is therefore judged on a server-bounded `editing_at`.
+- **Deploy order: migrate first, then ship the client.** The deploy does not
+  run migrations (A-210) and `deploy-client.yml` does not wait for the
+  backend. Two safeguards keep a deploy that lands before the migration
+  from stalling anyone: the fence checks `Schema::hasColumn('purchase_orders',
+  'editing_device_id')` once per process and stands aside when it is missing,
+  and `prepareOrderPayload()` drops the four `editing_*` keys from a
+  `purchase_orders` payload on such a server instead of letting `forceFill`
+  hit an unknown column (`SyncPushPurchaseOrderLockSchemaTest`). The lock is
+  simply off until the migration runs; nothing is refused or lost.
 - **Old clients:** a till that never sets the columns leaves the lock NULL,
   and a NULL lock is open. An old till that edits a draft a new till has
   locked gets `draft_locked`, which it does not know, so it retries until the
@@ -2557,7 +2571,9 @@ till's own `X-Device-Id`/label; Back clears it; "Take over" overwrites it.
 - **Label:** `PullRowMapper` replaces `editing_device_label` with the
   `ResolvesDeviceLabels` answer (nickname over sniffed label) when it has
   one, so the client's own sniffed label is only the fallback.
-- Tests: `tests/Feature/SyncPushPurchaseOrderLockTest.php`.
+- Tests: `tests/Feature/SyncPushPurchaseOrderLockTest.php`,
+  `tests/Feature/SyncPushPurchaseOrderLockSchemaTest.php` (fixture in
+  `tests/Feature/Concerns/PurchaseOrderLockFixture.php`).
 
 ## Device labels: sniffed is device-wide, nicknames are store-scoped
 

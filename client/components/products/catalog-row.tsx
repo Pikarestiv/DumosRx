@@ -15,6 +15,7 @@ import { describeStock } from "@/lib/utils/stock-status";
 import { ProductImage } from "./product-image";
 import { EditProductPencil } from "./edit-product-pencil";
 import { useProductImageConfig } from "@/lib/product-images/config-store";
+import { CatalogCostCell } from "./batch-cost/catalog-cost-cell";
 
 const NO_LABEL_PERMISSION =
   "You don't have permission to print product labels. Ask an admin for the “Print Product Labels” permission.";
@@ -42,6 +43,7 @@ export interface CatalogRowProps {
   categoryOptions: string[];
   canEdit: boolean;
   showCostColumn: boolean;
+  canEditCost?: boolean;
   canEditSellingPrice: boolean;
   canAdjustStockQuantity: boolean;
   showStockQuantity: boolean;
@@ -68,6 +70,7 @@ function CatalogRowInner({
   categoryOptions,
   canEdit,
   showCostColumn,
+  canEditCost = false,
   canEditSellingPrice,
   canAdjustStockQuantity,
   showStockQuantity,
@@ -194,17 +197,13 @@ function CatalogRowInner({
             onSave={onSaveCategory}
           />
           {showCostColumn && (
-            <div className="text-[13px] font-medium text-muted-foreground">
-              {product.costPrice > 0 ? formatCurrency(product.costPrice) : "-"}
-              {product.lastBoughtPrice != null && (
-                <div
-                  className="text-[10px] font-normal text-muted-foreground/60"
-                  title="Cost of the most recently received stock batch"
-                >
-                  Last: {formatCurrency(product.lastBoughtPrice)}
-                </div>
-              )}
-            </div>
+            <CatalogCostCell
+              product={product}
+              canEditCost={canEditCost}
+              canSeeQuantities={showStockQuantity}
+              formatCurrency={formatCurrency}
+              onChangeSellingPrice={onEditProduct}
+            />
           )}
           <EditableQuickNumberCell
             displayValue={formatCurrency(product.sellingPrice)}

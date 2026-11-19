@@ -74,4 +74,14 @@ describe("product History tab and batch cost corrections", () => {
 
     expect(await screen.findByText(/Batch #LOT-7: cost price 1,234 → 567\./)).toBeTruthy();
   });
+
+  it("shows the reason given for the correction", async () => {
+    const { correctBatchCostPrice } = await import("@/lib/db/queries/batch-cost-correction");
+    await correctBatchCostPrice("batch-1", 600, "supplier_invoice_corrected");
+    granted.add("view_activity_log");
+    granted.add("view_cost_fields");
+    renderHistory();
+
+    expect(await screen.findByText(/cost price 567 → 600\. Reason: Supplier invoice corrected\./)).toBeTruthy();
+  });
 });

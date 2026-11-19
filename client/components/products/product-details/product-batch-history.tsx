@@ -7,6 +7,7 @@ import { BatchCostEditDialog } from "./batch-cost-edit-dialog";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateSafe, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
+import { fefoSellOrder } from "@/lib/utils/batch-cost-breakdown";
 
 interface ProductBatchHistoryProps {
   batches: StockBatch[];
@@ -17,6 +18,8 @@ interface ProductBatchHistoryProps {
   canEditCost?: boolean;
   currencyCode?: string;
   formatPrice?: (amount: number) => string;
+  sellingPrice?: number | null;
+  onChangeSellingPrice?: () => void;
 }
 
 function NoBatchRecordsFound({ storeType }: { storeType: string }) {
@@ -38,6 +41,8 @@ export function ProductBatchHistory({
   canEditCost = false,
   currencyCode,
   formatPrice,
+  sellingPrice,
+  onChangeSellingPrice,
 }: ProductBatchHistoryProps) {
   const [costEditBatch, setCostEditBatch] = useState<StockBatch | null>(null);
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(
@@ -65,23 +70,7 @@ export function ProductBatchHistory({
     setExpandedBatchId((prev) => (prev === id ? null : id));
   };
 
-  const sellFirstBatchId = [...batches]
-    .filter(
-      (b) =>
-        b.is_active !== 0 &&
-        b.quantity > 0 &&
-        (!b.expiry_date || new Date(b.expiry_date) > new Date()),
-    )
-    .sort((a, b) => {
-      if (!a.expiry_date !== !b.expiry_date) return a.expiry_date ? -1 : 1;
-      if (a.expiry_date && b.expiry_date) {
-        const diff = new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
-        if (diff !== 0) return diff;
-      }
-      return (
-        new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
-      );
-    })[0]?.id;
+  const sellFirstBatchId = fefoSellOrder(batches)[0]?.id;
 
   return (
     <div className="flex flex-col gap-3">
@@ -220,6 +209,9 @@ export function ProductBatchHistory({
       {costEditBatch && (
         <BatchCostEditDialog
           batch={costEditBatch}
+          batches={batches}
+          sellingPrice={sellingPrice}
+          onChangeSellingPrice={onChangeSellingPrice}
           open
           onOpenChange={(open) => !open && setCostEditBatch(null)}
           currencyCode={currencyCode}

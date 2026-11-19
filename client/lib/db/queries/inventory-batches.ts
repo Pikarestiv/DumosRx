@@ -28,7 +28,10 @@ export async function getBatchTrackingData() {
 export async function getStockBatchesForProductDetails(productId: string) {
   try {
     return await query<StockBatch>(
-      `SELECT sb.*, s.name AS supplier_name
+      `SELECT sb.*, s.name AS supplier_name,
+              (SELECT sm.reference_id FROM stock_movements sm
+                WHERE sm.stock_batch_id = sb.id AND sm.reference_type = 'purchase_order' AND sm._deleted = 0
+                ORDER BY sm.created_at LIMIT 1) AS purchase_order_id
          FROM stock_batches sb
          LEFT JOIN suppliers s ON s.id = sb.supplier_id AND s._deleted = 0
         WHERE sb.product_id = ? AND sb._deleted = 0

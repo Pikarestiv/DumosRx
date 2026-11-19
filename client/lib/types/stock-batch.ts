@@ -8,6 +8,7 @@ export interface StockBatch {
   cost_price?: number;
   supplier_id?: string;
   supplier_name?: string;
+  purchase_order_id?: string | null;
   manufacture_date?: string;
   location?: string;
   is_active?: number;

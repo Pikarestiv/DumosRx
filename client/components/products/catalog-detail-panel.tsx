@@ -246,6 +246,8 @@ export function CatalogDetailPanel({
               canEditCost={canEditCost}
               currencyCode={storeProfile?.currency}
               formatPrice={formatPrice}
+              sellingPrice={product.sellingPrice}
+              onChangeSellingPrice={() => onEditProduct(product)}
             />
           </TabsContent>
 

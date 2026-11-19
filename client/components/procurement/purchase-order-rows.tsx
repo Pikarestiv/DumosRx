@@ -15,10 +15,7 @@ import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { type PurchaseOrder } from "@/lib/db/procurement";
 import { getPayableDueState } from "@/lib/utils/payables";
 import { getLocalTodayDate } from "@/lib/utils";
-
-function formatPONumber(id: string) {
-  return `PO-${id.split("-")[0].toUpperCase()}`;
-}
+import { formatPONumber } from "@/lib/utils/po-number";
 
 export function PayableDueBadge({ order }: { order: PurchaseOrder }) {
   const state = getPayableDueState(order, getLocalTodayDate());

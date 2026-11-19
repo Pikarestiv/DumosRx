@@ -3759,7 +3759,10 @@ e2e/                       Playwright end-to-end specs
   `partially_received` order the vendor will not complete can be closed
   (`manage_purchase_orders`, AlertDialog): status `closed`, `total_amount`
   re-priced to what actually arrived, payment re-derived, one
-  `PO_CLOSED_SHORT` audit row. Line quantities are kept as ordered.
+  `PO_CLOSED_SHORT` audit row. Line quantities are kept as ordered. When
+  what was paid is above what arrived the order stays `paid` and the
+  confirmation says "Overpaid by X" (`getCloseShortPreview()`); there is no
+  vendor credit ledger, so the difference is settled outside the app.
   `receivePurchaseOrder()` now refuses any non-receivable status
   (`not_receivable`). Older tills show the raw status in the badge
   fallback, treat it as not receivable, and leave it out of the
@@ -3783,6 +3786,8 @@ e2e/                       Playwright end-to-end specs
   re-costed sales), or when already voided. Needs `receive_purchase_orders`
   and `adjust_stock_counts`; an AlertDialog says what changes; one
   `RECEIVE_PO_REVERSED` audit row. Money paid is not touched.
+  The "sold" check reads this till's batch quantity, which cannot see
+  another till's unpulled sale (A-406, open).
 
 - **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
   Receiving used to be all-or-nothing: any submitted quantity flipped the

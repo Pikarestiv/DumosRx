@@ -446,6 +446,14 @@ suggested tackle order rather than a strict ranking.
 - **Issue:** `laravel-server/app/Services/Sync/LegacySaleWithoutStockGate.php` drops a truthy `allow_sale_without_stock` from a push whose `X-App-Version` is missing or below `0.0.41`. A bundle older than the column has no column to send, so in practice it only stops a header-less client. And `INTRODUCED_IN = '0.0.41'` is correct only because 0.0.41 is not yet tagged when this merges. Any 0.0.41 build from before the feature reports the same version.
 - **Fix:** at release, if 0.0.41 has been tagged without this feature, bump the app version and `INTRODUCED_IN` together (`laravel-server/AGENTS.md`, "`LegacySaleWithoutStockGate`"). Otherwise decide whether the gate earns its keep, and delete it and its test if not.
 
+#### A-406. `client/` + `laravel-server/` — voiding a purchase-order receipt trusts this till's copy of the batch quantity
+
+- **Found:** 2026-11-19, reviewing the one-screen order flow.
+- **Location:** `blockFor()` in `client/lib/db/procurement-void-receipt.ts` refuses a void when `stock_batches.quantity` is below the receipt; the server applies the `purchase_order_reversal` movement without that check.
+- **What's wrong:** the local quantity only knows this till's sales and whatever has been pulled. If another till sold from the batch and that sale has not reached this till yet, the void is accepted here, and the server then derives the batch as `MAX(0, sum)`, silently clamping it to 0, so units that were sold are both "returned to the vendor" and gone.
+- **Why not guarded on the client:** this till cannot see another till's unpushed sale, so no cheap local check closes it; blocking while this till's own sale pushes are unsynced would not help either, because its own sales are already in the local quantity.
+- **Fix:** refuse a `purchase_order_reversal` movement on the server when the batch's derived quantity is below the reversal, with a terminal reason the client shows ("some of this delivery has been sold on another till"), and add a `SyncPushPurchaseOrderReceiptVoidTest` case.
+
 #### A-403. `client/` — a batch with an empty-string expiry is sold first, while the Batches tab says it sells last
 
 - **Found:** 2026-11-19, reviewing the batch cost-edit idea.

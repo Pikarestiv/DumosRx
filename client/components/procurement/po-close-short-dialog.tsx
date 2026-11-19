@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,7 +12,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { closePurchaseOrderShort } from "@/lib/db/procurement-close";
+import { closePurchaseOrderShort, getCloseShortPreview } from "@/lib/db/procurement-close";
+import { formatCurrency } from "@/lib/utils";
+import { useStore } from "@/lib/context/store-context";
 import { errorDescription } from "@/lib/utils/error-description";
 
 interface POCloseShortDialogProps {
@@ -21,6 +24,13 @@ interface POCloseShortDialogProps {
 }
 
 export function POCloseShortDialog({ orderId, open, onOpenChange }: POCloseShortDialogProps) {
+  const currency = useStore().storeProfile?.currency;
+  const { data: preview } = useQuery({
+    queryKey: ["purchase_order_close_short_preview", orderId],
+    queryFn: () => getCloseShortPreview(orderId),
+    enabled: open,
+    gcTime: 0,
+  });
   const close = async () => {
     try {
       const outcome = await closePurchaseOrderShort(orderId);
@@ -41,6 +51,13 @@ export function POCloseShortDialog({ orderId, open, onOpenChange }: POCloseShort
             its total drops to what has arrived, and what you still owe is worked out from that. Stock
             already received is not touched.
           </AlertDialogDescription>
+          {!!preview && preview.overpaidBy > 0 && (
+            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+              Overpaid by {formatCurrency(preview.overpaidBy, currency)}. You paid {formatCurrency(preview.amountPaid, currency)} and what
+              arrived comes to {formatCurrency(preview.receivedTotal, currency)}. The order stays Paid; settle the difference with
+              the vendor.
+            </p>
+          )}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep it open</AlertDialogCancel>

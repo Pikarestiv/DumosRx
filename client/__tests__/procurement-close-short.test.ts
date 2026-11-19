@@ -55,4 +55,22 @@ describe("closing a purchase order short", () => {
     expect(await receivePurchaseOrder("po1", [{ po_item_id: "l1", quantity: 6 }])).toBe("not_receivable");
     expect(rows("SELECT quantity_received FROM purchase_order_items WHERE id = 'l1'")[0][0]).toBe(4);
   });
+
+  it("keeps an overpaid order paid when it closes short and reports by how much it was overpaid", async () => {
+    db.run("UPDATE purchase_orders SET amount_paid = 10000, payment_status = 'paid'");
+    const { getCloseShortPreview } = await import("@/lib/db/procurement-close");
+
+    expect(await getCloseShortPreview("po1")).toEqual({ receivedTotal: 7000, amountPaid: 10000, overpaidBy: 3000 });
+    await closePurchaseOrderShort("po1");
+
+    expect(rows("SELECT total_amount, amount_paid, payment_status FROM purchase_orders")).toEqual([[7000, 10000, "paid"]]);
+  });
+
+  it("reports no overpayment on a part-paid order, and counts an older paid row with no stored amount as paid in full", async () => {
+    const { getCloseShortPreview } = await import("@/lib/db/procurement-close");
+    expect((await getCloseShortPreview("po1"))?.overpaidBy).toBe(0);
+    db.run("UPDATE purchase_orders SET amount_paid = NULL, payment_status = 'paid'");
+    expect(await getCloseShortPreview("po1")).toEqual({ receivedTotal: 7000, amountPaid: 10000, overpaidBy: 3000 });
+    expect(await getCloseShortPreview("missing")).toBeNull();
+  });
 });

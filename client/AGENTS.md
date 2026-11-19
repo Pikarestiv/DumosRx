@@ -3757,8 +3757,8 @@ e2e/                       Playwright end-to-end specs
     as fully outstanding.
   - A submit with every line at 0 against a PO with nothing received yet is a
     deliberate no-op (status untouched), not a partial receipt.
-  - "Edit Order" is gated to `pending`/`sent` only. `updatePurchaseOrder()`
-    diffs lines in place (`reconcilePurchaseOrderLines()` in
+  - "Edit Order" is gated to `pending`/`sent` only. `saveDraftOrder()`
+    (which replaced `updatePurchaseOrder()` on 2026-11-19) diffs lines in place (`reconcilePurchaseOrderLines()` in
     `lib/db/procurement-line-diff.ts`, A-390) and never writes
     `quantity_received`, so it no longer discards receipts. Before widening
     the gate to `partially_received`, decide what editing a received line's

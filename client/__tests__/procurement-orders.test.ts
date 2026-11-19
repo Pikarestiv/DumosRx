@@ -10,11 +10,14 @@ vi.mock("idb-keyval", () => ({
 describe("procurement.ts order writes", () => {
   let db: Database;
   let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
-  let updatePurchaseOrder: typeof import("@/lib/db/procurement").updatePurchaseOrder;
+  let saveDraftOrder: typeof import("@/lib/db/procurement-draft").saveDraftOrder;
+  const updatePurchaseOrder = (poId: string, supplierId: string | null, notes: string, items: Parameters<typeof saveDraftOrder>[0]["items"]) =>
+    saveDraftOrder({ id: poId, supplierId, notes, items, paymentStatus: "unpaid", amountPaid: 0, dueDate: null });
   let deletePurchaseOrder: typeof import("@/lib/db/procurement").deletePurchaseOrder;
 
   beforeAll(async () => {
-    ({ createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder } = await import("@/lib/db/procurement"));
+    ({ createPurchaseOrder, deletePurchaseOrder } = await import("@/lib/db/procurement"));
+    ({ saveDraftOrder } = await import("@/lib/db/procurement-draft"));
     db = await createProcurementTestDb();
   });
 
@@ -176,7 +179,7 @@ describe("procurement.ts order writes", () => {
     });
   });
 
-  describe("updatePurchaseOrder", () => {
+  describe("saving an existing order", () => {
     it("derives total_amount and each item's subtotal from bulk_quantity * unit_cost, ignoring a stale subtotal field", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
       const poId = await createPurchaseOrder(
@@ -263,7 +266,7 @@ describe("procurement.ts order writes", () => {
     });
   });
 
-  describe("updatePurchaseOrder compatibility", () => {
+  describe("saving an existing order for older tills", () => {
     const panadol = { product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", units_per_bulk: 100, unit_cost: 500 };
 
     beforeEach(() => {

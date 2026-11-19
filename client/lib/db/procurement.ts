@@ -1,7 +1,6 @@
 import { query, generateId, transaction, getActiveStoreId } from "./core";
 import { insert, update, softDelete } from "./base-helpers";
 import { coerceOptionalNumber } from "./procurement-selling-price";
-import { reconcilePurchaseOrderLines } from "./procurement-line-diff";
 import { getStoredUser } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { immediateLineAmount } from "@/components/procurement/po-line-item-math";
@@ -254,40 +253,6 @@ export async function createPurchaseOrder(
         created_at: now
       });
     }
-
-    return poId;
-  });
-}
-
-export async function updatePurchaseOrder(
-  poId: string,
-  supplierId: string | null,
-  notes: string,
-  items: DraftPOLineItem[],
-  paymentStatus: string = 'unpaid',
-  amountPaid: number = 0,
-  dueDate: string | null = null
-) {
-  const now = new Date().toISOString();
-  let totalAmount = 0;
-
-  for (const item of items) {
-    totalAmount += roundMoney(immediateLineAmount(item));
-  }
-
-  return transaction(async () => {
-    await update("purchase_orders", poId, {
-      supplier_id: supplierId,
-      type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS,
-      payment_status: paymentStatus,
-      amount_paid: amountPaid,
-      due_date: dueDate,
-      total_amount: roundMoney(totalAmount),
-      notes,
-      updated_at: now
-    });
-
-    await reconcilePurchaseOrderLines(poId, items, now);
 
     return poId;
   });

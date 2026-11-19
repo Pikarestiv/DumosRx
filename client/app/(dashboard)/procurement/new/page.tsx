@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { RequireRole } from "@/components/auth/require-role";
 import { PoOrderScreen } from "@/components/procurement/order-screen/po-order-screen";
 import { PoResumeDraftPrompt } from "@/components/procurement/order-screen/po-resume-draft-prompt";
@@ -12,7 +12,10 @@ const RESUME_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function CreateOrderContent() {
   const router = useRouter();
-  const defaultSupplierId = useSearchParams().get("supplierId");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const defaultSupplierId = searchParams.get("supplierId");
+  const savedOrderId = pathname === "/procurement/edit" ? searchParams.get("id") : null;
   const [userId] = useState(() => getStoredUser()?.id ?? null);
   const [recent, setRecent] = useState<RecentDraft | null | undefined>(userId ? undefined : null);
 
@@ -23,6 +26,7 @@ function CreateOrderContent() {
       .catch(() => setRecent(null));
   }, [userId]);
 
+  if (savedOrderId) return <PoOrderScreen key={savedOrderId} initialId={savedOrderId} />;
   if (recent === undefined) return null;
   if (recent) {
     return (

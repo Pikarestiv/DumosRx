@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { resolveMovementDisplayType } from "@/components/stock-batch/stock-movement-utils";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
+import { batchCostReasonLabel } from "@/lib/constants/batch-cost-reasons";
 
 interface HistoryItem {
   id: string;
@@ -265,9 +266,11 @@ function describeAuditDetails(action: string, details: string | null, canViewCos
   }
 
   if (a === "batch_cost_corrected") {
-    if (!canViewCost) return `Batch #${parsed.batch_number || "Default"}: cost price corrected.`;
+    const reason = batchCostReasonLabel(parsed.reason);
+    const reasonText = reason ? ` Reason: ${reason}.` : "";
+    if (!canViewCost) return `Batch #${parsed.batch_number || "Default"}: cost price corrected.${reasonText}`;
     const formatCost = (value: unknown) => (typeof value === "number" ? value.toLocaleString() : "-");
-    return `Batch #${parsed.batch_number || "Default"}: cost price ${formatCost(parsed.previous_cost_price)} → ${formatCost(parsed.cost_price)}.`;
+    return `Batch #${parsed.batch_number || "Default"}: cost price ${formatCost(parsed.previous_cost_price)} → ${formatCost(parsed.cost_price)}.${reasonText}`;
   }
 
   const entries = Object.entries(parsed).filter(

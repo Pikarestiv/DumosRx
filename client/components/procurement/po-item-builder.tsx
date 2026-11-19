@@ -96,7 +96,7 @@ export function POItemBuilder({
       );
       onItemsChangeRef.current(next);
       if (merged) {
-        toast.success(`Quantity increased for ${displayName(product.name)}`);
+        toast.success(`${displayName(product.name)} is already on this order`);
       }
     },
     [displayName],

@@ -71,7 +71,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Manage supplier relationships, issue formal purchase orders ahead of delivery, or log Immediate Purchases when goods are paid and received on the spot.",
     steps: [
       "Navigate to Procurement and tap 'New Purchase Order'.",
-      "Select your supplier, expected delivery date, and add line items with agreed cost prices.",
+      "Select your supplier, expected delivery date, and add line items with agreed cost prices. Each product starts at 0 received, so enter the quantity for every row before you place or receive the order. A draft can keep a row at 0 until you've counted it.",
       "For goods bought and paid on the spot, choose 'Immediate Purchase' to auto-receive inventory and mark payment status as fully paid.",
       "Open an order from the Procurement list to see its panel. A draft shows 'Edit' and 'Mark as Sent'; once it is sent, 'Receive Items' appears for when the delivery truck arrives, to update shelf stock and verify invoice quantities.",
     ],
@@ -150,12 +150,33 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     steps: [
       "Open Inventory > Catalog, select the product, and open its Batches tab.",
       "Tap the pencil icon beside the batch whose cost is wrong.",
-      "Enter the correct cost per unit and tap 'Review change'.",
-      "Check the summary of what changes, then tap 'Confirm change'. The correction syncs to your other tills and is recorded in the Activity Log and the product's History tab.",
+      "Enter the correct cost per unit. The box below shows what changes as you type: this batch, the average cost, the stock value and the profit per unit at your selling price.",
+      "Optionally pick a reason (Typo at receiving, Supplier invoice corrected, Other), then tap 'Save cost'. The correction syncs to your other tills and is recorded, with its reason, in the Activity Log and the product's History tab.",
     ],
     proTip:
-      "Only staff with both 'View Cost & Margin Fields' and 'Edit Product Cost Price' see the pencil. Make sure other tills have synced before you edit, so two people do not correct the same batch at once.",
+      "Only staff with both 'View Cost & Margin Fields' and 'Edit Product Cost Price' see the pencil. You can also correct a cost straight from the catalog list: see the 'See and Fix What a Product Costs' guide.",
     videoPlaceholderText: "Video Walkthrough: Correcting a batch cost price from the product's Batches tab",
+  },
+  {
+    id: "cost-breakdown",
+    title: "See and Fix What a Product Costs: The Cost Breakdown in the Catalog",
+    category: "Inventory",
+    badge: "New",
+    readTime: "3 min read",
+    videoDuration: "2:00",
+    summary:
+      "Click a product's cost in the catalog to see every batch behind it: when it arrived, which order it came from, its lot, expiry, units left and cost, and which batch sells first. Correct a wrong cost right there. Each sale is costed at the batch it sells from, so this is what your profit is built on.",
+    steps: [
+      "Open Inventory > Catalog on a computer or tablet and click the cost figure (the one with the small arrow) on any product row.",
+      "Read the batches: received date and time, 'From PO-...' when it came in on a purchase order, lot, expiry and units left. The batch marked 'Sells first' is the one the next sale takes stock from (earliest expiry first).",
+      "The line at the bottom explains the average, for example 'Average 670 = (13 x 650 + 2 x 800) / 15 units', and shows the last cost you received the product at.",
+      "Sold-out batches are hidden; tap 'Show sold-out batches' to see them. They can still be corrected, because the last cost you paid comes from them.",
+      "To correct a cost, tap 'Edit' beside the batch, type the right cost and check the preview, then tap 'Save cost'. Read any warning first: a cost of 0, a cost far from your other batches (an extra zero), or an older batch that will sell before this one.",
+      "Profit looks wrong at your selling price? Tap 'Change selling price' under the preview to open the product's edit form.",
+    ],
+    proTip:
+      "Correcting a cost never changes sales you have already made: their profit stays as it was recorded. It also leaves the purchase order and what you paid the supplier untouched. Staff without 'Edit Product Cost Price' see the breakdown but cannot change it, and staff without 'View Cost & Margin Fields' do not see costs at all.",
+    videoPlaceholderText: "Video Walkthrough: Reading a product's cost breakdown and correcting a batch cost from the catalog",
   },
   {
     id: "product-images",

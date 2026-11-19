@@ -80,6 +80,7 @@ export function CatalogList({
 }: CatalogListProps) {
   const { canManageStockBatch, isAdmin, user } = useAuth();
   const showCostColumn = useHasPermission("view_cost_fields");
+  const canEditCost = useHasPermission("edit_product_cost");
   const canEditSellingPrice = useHasPermission("edit_product_price");
   const canAdjustStockQuantity = useHasPermission("adjust_stock_counts");
   const showStockQuantity =
@@ -287,6 +288,7 @@ export function CatalogList({
                     categoryOptions={categoryOptions}
                     canEdit={canManageStockBatch}
                     showCostColumn={showCostColumn}
+                    canEditCost={canEditCost}
                     canEditSellingPrice={canEditSellingPrice}
                     canAdjustStockQuantity={canAdjustStockQuantity}
                     showStockQuantity={showStockQuantity}

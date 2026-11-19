@@ -6,6 +6,7 @@ import {
   generateId,
 } from "@/lib/db/local-database";
 import { roundMoney } from "@/lib/utils/pos-calculations";
+import { FEFO_ORDER_SQL } from "./inventory-batches";
 import { checkIsAdmin } from "@/lib/context/auth-context";
 import {
   getSourceProduct,
@@ -68,7 +69,7 @@ async function getAvailableSourceBatches(
     `SELECT id, quantity, cost_price, expiry_date, created_at FROM stock_batches
      WHERE product_id = ? AND store_id = ? AND _deleted = 0 AND is_active = 1 AND quantity > 0
        AND (expiry_date IS NULL OR expiry_date = '' OR date(expiry_date) > date('now'))
-     ORDER BY (expiry_date IS NULL) ASC, expiry_date ASC, created_at ASC`,
+     ORDER BY ${FEFO_ORDER_SQL}`,
     [productId, storeId],
   );
 }

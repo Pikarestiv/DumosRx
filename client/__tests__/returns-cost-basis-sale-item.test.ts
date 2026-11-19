@@ -181,4 +181,28 @@ describe("A-374: Returns value movements from sale_items.cost_price, not live ba
     expect(reportedReturnedCogs).toBe(10000);
     expect(grossCogs - reportedReturnedCogs).toBe(10000);
   });
+  it("nets COGS to zero when a sale booked at its FEFO batch costs is fully returned", async () => {
+    const { recordSaleItemStock } = await import("@/lib/db/queries/inventory");
+    const expiry = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+    run(`INSERT INTO products (id, name, selling_price) VALUES ('p-fefo', 'Ibuprofen 400mg', 1000)`);
+    run(`INSERT INTO stock_batches (id, product_id, batch_number, quantity, cost_price, expiry_date, is_active)
+         VALUES ('b-near', 'p-fefo', 'BN-N', 2, 600, '${expiry(30)}', 1), ('b-far', 'p-fefo', 'BN-F', 10, 800, '${expiry(300)}', 1)`);
+    run(`INSERT INTO sales (id, transaction_number, subtotal, total_amount, amount_paid, payment_method, payment_status, transaction_date)
+         VALUES ('s-fefo', 'TXN-FEFO-1', 5000, 5000, 5000, 'cash', 'completed', '2026-11-12T10:00:00.000Z')`);
+    const saleItemId = await recordSaleItemStock({
+      saleId: "s-fefo", productId: "p-fefo", quantity: 5, unitPrice: 1000, costPrice: 750, subtotal: 5000, cashierId: "user-1",
+    });
+
+    const sale = { id: "s-fefo", subtotal: 5000, total_amount: 5000, payment_method: "cash", payment_status: "completed" };
+    const saleItem = { id: saleItemId, sale_id: "s-fefo", product_id: "p-fefo", quantity: 5, unit_price: 1000,
+      cost_price: Number(scalar(`SELECT cost_price FROM sale_items WHERE id = '${saleItemId}'`)), total_price: 5000 };
+    await processReturn({
+      sale, userId: "user-1", reason: "Wrong item", totalRefund: 5000,
+      itemsToReturn: [{ ...saleItem, returnQuantity: 5, discardQuantity: 0 }], saleItems: [saleItem],
+    });
+
+    const biMetrics = await getBIMetrics("2026-11-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z", undefined, "2026-11-30T23:59:59.999Z");
+    expect(biMetrics.cogsData[0]?.total).toBe(2 * 600 + 3 * 800);
+    expect(biMetrics.returnedCogsData[0]?.total).toBe(2 * 600 + 3 * 800);
+  });
 });

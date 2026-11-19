@@ -9066,12 +9066,13 @@ with useCallback.
 
 `client/components/procurement/po-line-item-math.ts:5`
 
-Adding a product to the order being built. Picking the same product twice
-used to append a second row for it, leaving two lines for one product to
-be reconciled by hand (and two competing sets of lot/expiry/price
-overrides); the second pick is almost always "one more of these", so it
-increments the row that already exists. `merged` lets the caller say which
-of the two happened.
+Adding a product to the order being built. A new row starts at 0 received,
+never a prefilled 1, so a user who forgets to count a product cannot mistake
+the default for a quantity they entered; saving is blocked until every row
+has one. Picking the same product twice used to append a second row for it
+(two lines for one product, two competing sets of lot/expiry/price
+overrides), so the second pick leaves the existing row untouched. `merged`
+lets the caller say which of the two happened.
 
 ## block-components-procurement-po-line-item-math-ts-L47
 

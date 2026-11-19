@@ -1,8 +1,9 @@
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SELF_PURCHASE_VENDOR_ID } from "@/components/procurement/po-details-fields";
-import { getValidatedAmountPaid, countSellingPriceOverrides } from "@/components/procurement/po-line-item-math";
+import { getValidatedAmountPaid, countSellingPriceOverrides, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
 import { notifySellingPriceUpdates } from "@/components/procurement/notify-selling-price-updates";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { errorDescription } from "@/lib/utils/error-description";
 import {
   useCreatePurchaseOrderMutation,
@@ -35,6 +36,7 @@ export function usePoSubmit({
   products,
 }: UsePoSubmitArgs) {
   const router = useRouter();
+  const displayName = useDisplayName();
   const createPurchaseOrderMutation = useCreatePurchaseOrderMutation();
   const createAndReceivePurchaseOrderMutation =
     useCreateAndReceivePurchaseOrderMutation();
@@ -42,9 +44,14 @@ export function usePoSubmit({
     createPurchaseOrderMutation.isPending ||
     createAndReceivePurchaseOrderMutation.isPending;
 
-  const canSubmit = () => {
+  const canSubmit = ({ requireQuantities = true } = {}) => {
     if (items.length === 0) {
       toast.error("Add at least one item to the order");
+      return false;
+    }
+    const missingQuantity = requireQuantities ? quantityMissingMessage(items, displayName) : null;
+    if (missingQuantity) {
+      toast.error(missingQuantity);
       return false;
     }
     return !isSubmitting;
@@ -104,7 +111,7 @@ export function usePoSubmit({
   // Parks an Immediate Purchase as an ordinary draft instead of receiving stock.
   // Rationale: docs/CLIENT_COMMENTS.md#block-app-(dashboard)-procurement-new-use-po-submit-ts-L109
   const handleSaveDraft = () => {
-    if (!canSubmit()) return;
+    if (!canSubmit({ requireQuantities: false })) return;
 
     const priceOverrideCount = countSellingPriceOverrides(items, products);
     createPurchaseOrderMutation.mutate(

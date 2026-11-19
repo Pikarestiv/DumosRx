@@ -13,6 +13,10 @@ vi.mock("@/components/ui/responsive-modal", () => ({
   }) => (open ? <div>{children}</div> : null),
 }));
 
+vi.mock("@/lib/hooks/use-uppercase-display", () => ({
+  useUppercaseDisplayClass: () => "uppercase",
+}));
+
 vi.mock("@/lib/db/queries/products", () => ({
   getProductBasicInfo: vi.fn(() => Promise.resolve({ name: "Paracetamol 500mg", dosage_form: null })),
 }));
@@ -52,5 +56,11 @@ describe("StockMovementDetailsDialog A-124 import type", () => {
       reason: "Damaged stock removed",
     });
     expect(await screen.findByText("adjustment")).toBeTruthy();
+  });
+
+  it("shows the product name with the store's caps setting", async () => {
+    renderDialog(baseMovement);
+    const name = await screen.findByText("Paracetamol 500mg");
+    expect(name.className).toContain("uppercase");
   });
 });

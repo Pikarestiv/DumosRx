@@ -54,7 +54,7 @@ test.describe('Procurement Module', () => {
     await expect(addProductDialog.getByRole('textbox').first()).toHaveValue('Paracetamol 500mg (Test)');
   });
 
-  test('should save a walk-in draft, receive it from the order panel, and increase product stock', async ({ page }) => {
+  test('should autosave a walk-in order, receive it from the order screen, and increase product stock', async ({ page }) => {
     test.setTimeout(90000);
     await loginAsPaidTier(page);
 
@@ -120,15 +120,12 @@ test.describe('Procurement Module', () => {
     await qtyInput.fill(String(orderedQty));
     await qtyInput.blur();
 
-    await page.getByRole('button', { name: /^Save as Draft$/i }).locator('visible=true').first().click();
+    // The order autosaves from its first item; the header says so once the quantity has saved.
+    await expect(page.getByText(/Saved (on this device|· synced)/).first()).toBeVisible({ timeout: 15000 });
 
-    // Lands back on /procurement with the new PO's detail panel open
-    // (purchase-order-details.tsx).
-    await expect(page.getByText(/^Draft$/).first()).toBeVisible({ timeout: 15000 });
-
-    // A walk-in draft leads with "Receive stock", which opens the confirmation sheet
+    // A walk-in order leads with "Receive stock", which opens the confirmation sheet
     // (po-draft-receive-dialog.tsx) and then runs receivePurchaseOrder().
-    await page.getByRole('button', { name: /^Receive stock$/i }).click();
+    await page.getByRole('button', { name: /^Receive stock$/i }).locator('visible=true').first().click();
     await page.getByRole('alertdialog').getByRole('button', { name: /^Receive/ }).click();
 
     // receivePurchaseOrder() (lib/db/procurement-receiving.ts) ran: PO is

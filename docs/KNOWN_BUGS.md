@@ -446,6 +446,13 @@ suggested tackle order rather than a strict ranking.
 - **Issue:** `laravel-server/app/Services/Sync/LegacySaleWithoutStockGate.php` drops a truthy `allow_sale_without_stock` from a push whose `X-App-Version` is missing or below `0.0.41`. A bundle older than the column has no column to send, so in practice it only stops a header-less client. And `INTRODUCED_IN = '0.0.41'` is correct only because 0.0.41 is not yet tagged when this merges. Any 0.0.41 build from before the feature reports the same version.
 - **Fix:** at release, if 0.0.41 has been tagged without this feature, bump the app version and `INTRODUCED_IN` together (`laravel-server/AGENTS.md`, "`LegacySaleWithoutStockGate`"). Otherwise decide whether the gate earns its keep, and delete it and its test if not.
 
+#### A-403. `client/` — a batch with an empty-string expiry is sold first, while the Batches tab says it sells last
+
+- **Found:** 2026-11-19, reviewing the batch cost-edit idea.
+- **Location:** `getBatchesForProduct()` in `client/lib/db/queries/inventory-batches.ts` orders by `(expiry_date IS NULL) ASC, expiry_date ASC`; `product-batch-history.tsx`'s "sell first" badge treats `''` as no expiry.
+- **What's wrong:** `''` is not NULL and sorts before every date, so FEFO deducts an empty-expiry batch ahead of dated ones, and the badge points at a different batch from the one that actually sells.
+- **Fix:** treat `''` as NULL in the SQL order (`(expiry_date IS NULL OR expiry_date = '') ASC`) and add a test; check which writers still store `''`.
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-393. `client/` — a product price edit is logged with the new price only
@@ -667,6 +674,7 @@ Logged per the 2026-10-25 rule: each file a fix edits that was already over the 
 - `client/lib/db/core.ts`: 1294 lines, already over (A-375 added `stock_audit_drafts` to `LOCAL_WIPE_TABLES`; A-379 made `persistDatabaseExport()` report failure; A-384 added the reader-tab save guard, the per-call persist result and the pre-handoff flush hook).
 
 ### Architecture
+- `client/lib/db/procurement-receiving.ts`'s `createAndReceivePurchaseOrder()` is no longer called by any screen since the autosaving order screen receives drafts through `receivePurchaseOrder()` (2026-11-19). It is kept because four test files (`procurement-immediate`, `procurement-receiving`, `procurement-receipt-timestamps`, `sell-at-zero-stock-receipt`) pin cost-scaling and backorder-settlement behaviour through it; port those to `receivePurchaseOrder()` and delete it.
 
 - **File-size guideline exceeded by design in a few hot spots:** `client/lib/db/core.ts` (~1,270 lines), `laravel-server/.../SyncController.php` (~810 lines after the 2026-10-24 service split; what remains is `push()`'s per-change loop, see `laravel-server/AGENTS.md`), and `client/app/setup/use-onboarding.ts` (~640 lines, flagged by `/code-review` during the A-156 fix) are all well past the project's 350-line guideline — known, not tracked toward a split. `getProductsWithDetails()`-style "load everything, filter in React" is the deliberate norm for catalog/customer/PO lists; where that stops being fine isn't written down anywhere.
 - **The admin users/stores backend quartet was already over 350 lines before the 2026-10-08 admin-panel Phase 1 work touched it, and stayed over, not pushed over:** `AdminUserService.php` (546 → 610), `AdminStoreService.php` (565 → 584), `AdminStoreController.php` (518 → 557) and `AdminUserController.php` (549 → 552, the one of the four not called out when this phase started). None of the four were split, by design — the phase's rule was that only a file it pushed *past* 350 gets split, and all four were already past it. Every class the phase actually created (`Filters/UserListFilters.php`, `Filters/StoreListFilters.php`, `Support/ListSortResolver.php`, `Support/QueryInput.php`, `AdminStoreReferrerService.php`) is well under the limit.

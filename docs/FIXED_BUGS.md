@@ -1,3 +1,10 @@
+### A-423 — editing the store owner's own account demanded a Group the owner cannot have, and the staff cards disagreed
+- **Fixed:** 2026-11-19, client only, TDD. Reported while editing the owner's account.
+- **Was:** the staff form required a Group for every account, and the owner belongs to no group, so the picker had nothing to choose; picking any listed group would have sent that group's role with the save and demoted the owner. Separately, "Total Staff" excluded the store owner (a plan seat limit) while "Active Now" counted the owner, so the cards could read 2 and 3, and "Active Now" meant "not deactivated", not signed in.
+- **Now:** the owner's form shows "Store Owner: full access" instead of a picker, `validateStaffForm()` does not require a group for `store_owner`, and `buildStaffUpdatePayload()` never sends a role or group for the owner. The cards read "Total Staff" (with "Excludes the store owner") and "Active accounts", both without the owner.
+- **Coverage:** `client/__tests__/staff-owner-account-and-stats.test.tsx`.
+- **Compat:** UI only; no stored value or sync payload changes for any existing account.
+
 ### A-422 — a second staff account without an email failed with "Username already exists"
 - **Fixed:** 2026-11-19, client and server, TDD. Reported from the Agidi branch: every username tried gave the same error.
 - **Was:** the staff form sends a blank email as `""`, and `users.email` is `UNIQUE`, so the second account with no email failed with `UNIQUE constraint failed: users.email`. The form mapped every unique-constraint failure to "Username already exists", which sent the user hunting for a username clash that did not exist. The server's own unique index on `users.email` had the same problem for a push from an older till.

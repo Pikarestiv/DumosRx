@@ -22,6 +22,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+export const STORE_OWNER_ROLE = "store_owner";
+
 export interface StaffFormData {
   first_name: string;
   last_name: string;
@@ -151,6 +153,14 @@ export function StaffFormFields({
           }
         />
       </div>
+      {formData.role === STORE_OWNER_ROLE ? (
+        <div className="grid gap-2">
+          <Label>Group</Label>
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            Store Owner: full access to everything. The owner is not part of any group.
+          </p>
+        </div>
+      ) : (
       <div className="grid gap-2">
         <div className="flex items-center gap-2">
           <Label htmlFor="role">Group *</Label>
@@ -194,6 +204,7 @@ export function StaffFormFields({
           </SelectContent>
         </Select>
       </div>
+      )}
       {availableStores && availableStores.length > 1 && (
         <div className="grid gap-2">
           <Label htmlFor="store_id">Assigned Store</Label>

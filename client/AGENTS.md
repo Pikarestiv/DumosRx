@@ -3925,6 +3925,15 @@ unrecognised key in a stored array grants nothing and is harmless) and add
 the replacement as a new key. `PermissionCatalogEntry.category` exists only
 to group rows for the Roles & Permissions matrix UI.
 
+**The store owner has no permission group.** The staff form's Group is required
+for every other role, but for an account whose role is `store_owner`
+(`STORE_OWNER_ROLE`) it is replaced by a "full access" note,
+`validateStaffForm()` skips the check, and `buildStaffUpdatePayload()` never
+sends a `role` or `permission_group_id`, because choosing a group sets the
+account's role to that group's `based_on_role` and would demote the owner.
+The staff cards count seats without the owner: "Total Staff" and "Active
+accounts" both exclude `store_owner`.
+
 **A permission group carries the id of the user it was loaded for.**
 `getUserPermissionGroup()` returns `{ userId, id, permissions }` and
 `hasPermission()`/`useHasPermission()`/`useOwnPermissionGroupId()`/

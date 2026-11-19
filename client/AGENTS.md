@@ -3178,6 +3178,10 @@ unfocusable div. Pinned by `__tests__/metric-card-keyboard.test.tsx`. Do the
 same for any other card-shaped shortcut rather than re-adding a bare
 `onClick` div.
 
+## Dashboard Recent Activity "View All" opens the Activity Log (2026-11-19)
+
+`dashboard-recent-activity.tsx` links "View All" to `/activity-log`, not `/reports`. The two read the same scope: `use-dashboard-overview.ts` and `ActivityLogPage` both show everyone's entries with `view_activity_log` and only the viewer's own without it, and the page has no route guard, so the link is shown to everyone. Cashiers do not have Activity Log in their sidebar but land on their own entries, which is what their feed shows. The page takes no query parameters, so the link cannot preselect a filter. Covered by `__tests__/dashboard-recent-activity-view-all.test.tsx`.
+
 ## A toast with its own duration uses `toastTiming()` (2026-11-13, A-360)
 
 Every toast carries a countdown bar (`app/globals.css`) that runs over

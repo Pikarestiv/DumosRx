@@ -1,3 +1,10 @@
+### A-423 — editing the store owner's own account demanded a Group the owner cannot have, and the staff cards disagreed
+- **Fixed:** 2026-11-19, client only, TDD. Reported while editing the owner's account.
+- **Was:** the staff form required a Group for every account, and the owner belongs to no group, so the picker had nothing to choose; picking any listed group would have sent that group's role with the save and demoted the owner. Separately, "Total Staff" excluded the store owner (a plan seat limit) while "Active Now" counted the owner, so the cards could read 2 and 3, and "Active Now" meant "not deactivated", not signed in.
+- **Now:** the owner's form shows "Store Owner: full access" instead of a picker, `validateStaffForm()` does not require a group for `store_owner`, and `buildStaffUpdatePayload()` never sends a role or group for the owner. The cards read "Total Staff" (with "Excludes the store owner") and "Active accounts", both without the owner.
+- **Coverage:** `client/__tests__/staff-owner-account-and-stats.test.tsx`.
+- **Compat:** UI only; no stored value or sync payload changes for any existing account.
+
 ### A-420 — a batch whose expiry was stored as '' sold before every dated batch
 - **Fixed:** 2026-11-18, client only, TDD. Found while moving sale COGS onto the FEFO batch cost.
 - **Was:** the FEFO deduction order in `getBatchesForProduct()`, `getAllActiveBatchesForProduct()` (`lib/db/queries/inventory-batches.ts`) and the stock-transfer source query (`stock-transfers.ts`) was `ORDER BY (expiry_date IS NULL), expiry_date, created_at`. An empty-string expiry is not `NULL` and sorts before any date, so a batch saved with `''` (an old import or form path) was sold and transferred first, while the Batches tab's "sell first" badge treated it as no expiry and put it last. Harmless while every sale was costed at the average; once a sale books the consumed batch's own cost it moved profit.

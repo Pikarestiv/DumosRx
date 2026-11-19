@@ -1,4 +1,4 @@
-import { Download, Edit2, Loader2 } from "lucide-react";
+import { Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 
@@ -7,13 +7,11 @@ interface PoDetailsFooterProps {
   canManage: boolean;
   canReceive: boolean;
   isMutating?: boolean;
-  isGeneratingPdf: boolean;
   onEdit: () => void;
   onSend: () => void;
   onReceive: () => void;
   onReceiveDraft: () => void;
   onCloseShort: () => void;
-  onDownloadPdf: () => void;
 }
 
 const BUTTON = "h-12 rounded-[10px] text-[15px] font-semibold";
@@ -30,13 +28,11 @@ export function PoDetailsFooter({
   canManage,
   canReceive,
   isMutating,
-  isGeneratingPdf,
   onEdit,
   onSend,
   onReceive,
   onReceiveDraft,
   onCloseShort,
-  onDownloadPdf,
 }: PoDetailsFooterProps) {
   const isDraft = po.status === "pending";
   const isWalkIn = !po.supplier_id;
@@ -62,10 +58,6 @@ export function PoDetailsFooter({
             Edit
           </Button>
         )}
-        <Button variant="outline" className={`flex-1 ${BUTTON}`} onClick={onDownloadPdf} disabled={isGeneratingPdf}>
-          {isGeneratingPdf ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Download className="h-[18px] w-[18px]" />}
-          {isGeneratingPdf ? "Preparing..." : "Download PDF"}
-        </Button>
         {actions.map((action) => (
           <Button
             key={action.label}

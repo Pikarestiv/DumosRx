@@ -138,15 +138,26 @@ describe("Purchase order details permissions", () => {
   it("still shows the order itself and Download PDF without either key", () => {
     deny("manage_purchase_orders", "receive_purchase_orders");
     renderDetails(po());
-    expect(screen.queryByText("Download PDF")).not.toBeNull();
     expect(screen.queryAllByText(/Emzor/).length).toBeGreaterThan(0);
+    openMenu();
+    expect(screen.queryByRole("menuitem", { name: "Download PDF" })).not.toBeNull();
   });
 
-  it("offers a named vendor's draft Send to vendor, Receive stock and Download PDF", () => {
+  it("offers a named vendor's draft Edit, Send to vendor and Receive stock", () => {
     renderDetails(po({ status: "pending" }));
     const names = screen.getAllByRole("button").map((b) => b.textContent?.trim()).filter(Boolean);
-    expect(names).toEqual(expect.arrayContaining(["Edit", "Send to vendor", "Receive stock", "Download PDF"]));
+    expect(names).toEqual(expect.arrayContaining(["Edit", "Send to vendor", "Receive stock"]));
   });
+
+  it.each(["pending", "sent", "partially_received", "received", "closed"])(
+    "keeps Download PDF in the menu, not the footer, for a %s order",
+    (status) => {
+      renderDetails(po({ status }));
+      expect(screen.queryByRole("button", { name: /Download PDF/ })).toBeNull();
+      openMenu();
+      expect(screen.queryByRole("menuitem", { name: "Download PDF" })).not.toBeNull();
+    },
+  );
 
   it("offers a walk-in draft Receive stock and no Send to vendor, whatever its stored type", () => {
     renderDetails(po({ status: "pending", supplier_id: null, type: "standard" }));
@@ -206,9 +217,8 @@ describe("Purchase order details permissions", () => {
     expect(screen.queryByRole("menuitem", { name: /Delete order/ })).toBeNull();
   });
 
-  it("locks a received order to Download PDF with a notice", () => {
+  it("locks a received order with a notice and no receive action", () => {
     renderDetails(po({ status: "received" }));
-    expect(screen.queryByText("Download PDF")).not.toBeNull();
     expect(screen.queryByText("All items received. This order is now locked.")).not.toBeNull();
     expect(screen.queryByRole("button", { name: /^Receive/ })).toBeNull();
   });

@@ -73,12 +73,24 @@ describe("purchase order screen", () => {
       </QueryClientProvider>,
     );
 
-  it("leads a walk-in draft with Receive stock and offers no Send to vendor, with Download PDF beside it", async () => {
+  it("leads a walk-in draft with Receive stock and offers no Send to vendor, with Download PDF in the menu", async () => {
     seedDraft(null);
     renderScreen();
     expect(await screen.findByRole("button", { name: "Receive stock" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Send to vendor" })).toBeNull();
-    expect(screen.getByRole("button", { name: /Download PDF/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Download PDF/ })).toBeNull();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More order actions" }), { button: 0, ctrlKey: false, pointerType: "mouse" });
+    expect(await screen.findByRole("menuitem", { name: "Download PDF" })).toBeTruthy();
+  });
+
+  it("still offers Download PDF while another till holds the draft", async () => {
+    seedDraft("s1");
+    db.run(`UPDATE purchase_orders SET editing_device_id = 'DRX-COUNTER-2', editing_device_label = 'Counter 2', editing_at = ?`, [new Date().toISOString()]);
+    renderScreen();
+    expect(await screen.findByText("Being edited on Counter 2")).toBeTruthy();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More order actions" }), { button: 0, ctrlKey: false, pointerType: "mouse" });
+    expect(await screen.findByRole("menuitem", { name: "Download PDF" })).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: /Delete/ })).toBeNull();
   });
 
   it("hides Receive stock from a role without receive_purchase_orders", async () => {

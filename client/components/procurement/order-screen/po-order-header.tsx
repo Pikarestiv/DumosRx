@@ -77,10 +77,6 @@ export function PoOrderHeader(props: PoOrderHeaderProps) {
             <Undo2 className="h-4 w-4" />
           </Button>
         )}
-        <Button variant="outline" className={size} aria-label="Download PDF" onClick={props.onDownloadPdf} disabled={props.isGeneratingPdf || !props.persisted}>
-          {props.isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          {props.compact ? "PDF" : "Download PDF"}
-        </Button>
         {showReceive && (
           <Button variant={props.isWalkIn || !props.isDraft ? "default" : "outline"} className={size} onClick={props.onReceive} disabled={props.isBusy || !props.persisted}>
             Receive stock
@@ -91,7 +87,7 @@ export function PoOrderHeader(props: PoOrderHeaderProps) {
             Send to vendor
           </Button>
         )}
-        {props.persisted && !props.readOnly && (
+        {props.persisted && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="More order actions">
@@ -99,10 +95,16 @@ export function PoOrderHeader(props: PoOrderHeaderProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem className="h-11 text-destructive" onSelect={props.onDelete}>
-                <Trash2 className="h-4 w-4" />
-                {props.isDraft ? "Delete draft" : "Delete order"}
+              <DropdownMenuItem className="h-11" disabled={props.isGeneratingPdf} onSelect={props.onDownloadPdf}>
+                {props.isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {props.isGeneratingPdf ? "Preparing..." : "Download PDF"}
               </DropdownMenuItem>
+              {!props.readOnly && (
+                <DropdownMenuItem className="h-11 text-destructive" onSelect={props.onDelete}>
+                  <Trash2 className="h-4 w-4" />
+                  {props.isDraft ? "Delete draft" : "Delete order"}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

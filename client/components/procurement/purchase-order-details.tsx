@@ -127,7 +127,6 @@ export function PurchaseOrderDetails({
           canManage={canManagePurchaseOrders}
           canReceive={canReceivePurchaseOrders}
           isMutating={isMutatingPO}
-          isGeneratingPdf={isGenerating}
           onEdit={editOrder}
           onSend={() => {
             onSendPO(selectedPO.id);
@@ -136,7 +135,6 @@ export function PurchaseOrderDetails({
           onReceive={onReceiveGoods}
           onReceiveDraft={() => setIsDraftReceiveOpen(true)}
           onCloseShort={() => setIsCloseShortOpen(true)}
-          onDownloadPdf={() => void download()}
         />
         <POCloseShortDialog orderId={selectedPO.id} open={isCloseShortOpen} onOpenChange={setIsCloseShortOpen} />
         <PODraftReceiveDialog

@@ -3730,7 +3730,10 @@ e2e/                       Playwright end-to-end specs
     migrations and would otherwise drop them.
   - **App updates:** `pwa-registrar.tsx` awaits every flush registered
     through `lib/utils/reload-guard.ts` (at most 2 s) before reloading (A-402).
-  - **Actions:** Download PDF is available on drafts too; Send to vendor
+  - **Actions:** Download PDF lives in the "..." menu only, for every
+    status (`PoOrderMenu` on the order panel, the header's "More order
+    actions" on the order screen, which also shows it read-only); the order
+    panel's footer has no PDF button. Send to vendor
     marks the order sent and hands its PDF to `navigator.share` where the
     device can share files, otherwise downloads it (`lib/utils/share-file.ts`).
     Receive stock flushes the draft and runs `receivePurchaseOrder()` from

@@ -133,7 +133,7 @@ export function PurchaseOrderDetails({
             void share({ ...selectedPO, status: "sent" });
           }}
           onReceive={onReceiveGoods}
-          onReceiveDraft={() => setIsDraftReceiveOpen(true)}
+          onReceiveDraft={() => (canManagePurchaseOrders ? setIsDraftReceiveOpen(true) : onReceiveGoods())}
           onCloseShort={() => setIsCloseShortOpen(true)}
         />
         <POCloseShortDialog orderId={selectedPO.id} open={isCloseShortOpen} onOpenChange={setIsCloseShortOpen} />

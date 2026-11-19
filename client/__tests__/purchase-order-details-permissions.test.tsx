@@ -42,6 +42,7 @@ function po(overrides: Partial<PurchaseOrder> = {}): PurchaseOrder {
   } as PurchaseOrder;
 }
 
+const onReceiveGoods = vi.fn();
 const onReceiveDraft = vi.fn((_id: string, _items: unknown[]) => Promise.resolve(true));
 
 function renderDetails(order: PurchaseOrder) {
@@ -53,7 +54,7 @@ function renderDetails(order: PurchaseOrder) {
       getStatusBadge={() => null}
       onSendPO={vi.fn()}
       onDeletePO={vi.fn()}
-      onReceiveGoods={vi.fn()}
+      onReceiveGoods={onReceiveGoods}
       onReceiveDraft={onReceiveDraft}
       onClose={vi.fn()}
     />
@@ -185,6 +186,17 @@ describe("Purchase order details permissions", () => {
       expect.objectContaining({ po_item_id: "line1", quantity: 2, lot_number: "L1", expiry_date: "2028-01-01", cost_price: 12 }),
       expect.objectContaining({ po_item_id: "line2", quantity: 0 }),
     ]);
+  });
+
+  it("sends a receive-only role to the receiving panel for a draft, where uncounted lines can be counted", () => {
+    deny("manage_purchase_orders");
+    onReceiveGoods.mockClear();
+    renderDetails(po({ status: "pending", supplier_id: null, items: [{ ...draftLine, bulk_quantity: 0 }] as PurchaseOrder["items"] }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Receive stock" }));
+
+    expect(onReceiveGoods).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 
   it("offers Close short on a partially received order to managers only, behind a confirmation", () => {

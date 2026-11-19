@@ -7878,7 +7878,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Receiving needs `receive_purchase_orders` everywhere, including a new order's "Receive stock", which used to need only `manage_purchase_orders`.
 
 **Receiving a draft**
-- A draft is received from its order panel: "Receive stock" opens `POImmediateConfirmDialog` through `PODraftReceiveDialog` and then runs `receivePurchaseOrder()` with the saved lines' quantity, lot, expiry and cost override, so it gets the deterministic receipt ids. Lines still at 0 are listed as left off the receipt.
+- A draft is received from its order panel: "Receive stock" opens `POImmediateConfirmDialog` through `PODraftReceiveDialog` and then runs `receivePurchaseOrder()` with the saved lines' quantity, lot, expiry and cost override, so it gets the deterministic receipt ids. Lines still at 0 are listed as left off the receipt. That sheet is for roles that can also edit the order (`manage_purchase_orders`). A receive-only role (`receive_purchase_orders` alone) cannot fix a draft's quantities, so its "Receive stock" opens `ReceivePOPanel` instead, as an Immediate draft's "Receive Goods" did before 2026-11-18: quantities (uncounted lines uncapped), lot, expiry and cost are typed there.
 - A line ordered at 0 with nothing received is **uncounted**. `receivableLimit()` leaves its quantity input uncapped, and `receivePurchaseOrder()` records the entered count as both `bulk_quantity` and `quantity_received`, sets its `subtotal`, and re-totals the order from its lines. It still sends `bulk_quantity` and `units_per_bulk` together. A line left at 0 does not hold the order open. A non-numeric or negative quantity now receives nothing; it used to book `NaN`.
 
 **Receive panel prefill**

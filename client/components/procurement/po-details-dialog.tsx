@@ -12,22 +12,19 @@ interface Supplier {
 interface PODetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  poType: "standard" | "immediate";
-  setPoType: (type: "standard" | "immediate") => void;
   suppliers: Supplier[];
   selectedSupplierId: string;
   setSelectedSupplierId: (id: string) => void;
   notes: string;
   setNotes: (notes: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (status: string) => void;
+  paidInFull: boolean;
+  setPaidInFull: (paidInFull: boolean) => void;
   dueDate: string;
   setDueDate: (date: string) => void;
   amountPaid: string;
   setAmountPaid: (amount: string) => void;
   totalAmount?: number;
   onOpenAddSupplier: () => void;
-  hideTypeToggle?: boolean;
 }
 
 // Re-opens PODetailsFields after the order-details step has been confirmed, so vendor/notes/payment/due-date stay editable…
@@ -35,22 +32,19 @@ interface PODetailsDialogProps {
 export function PODetailsDialog({
   open,
   onOpenChange,
-  poType,
-  setPoType,
   suppliers,
   selectedSupplierId,
   setSelectedSupplierId,
   notes,
   setNotes,
-  paymentStatus,
-  setPaymentStatus,
+  paidInFull,
+  setPaidInFull,
   dueDate,
   setDueDate,
   amountPaid,
   setAmountPaid,
   totalAmount,
   onOpenAddSupplier,
-  hideTypeToggle,
 }: PODetailsDialogProps) {
   return (
     <ResponsiveModal
@@ -65,23 +59,19 @@ export function PODetailsDialog({
       }
     >
       <PODetailsFields
-        poType={poType}
-        setPoType={setPoType}
-        poTypeLocked
         suppliers={suppliers}
         selectedSupplierId={selectedSupplierId}
         setSelectedSupplierId={setSelectedSupplierId}
         notes={notes}
         setNotes={setNotes}
-        paymentStatus={paymentStatus}
-        setPaymentStatus={setPaymentStatus}
+        paidInFull={paidInFull}
+        setPaidInFull={setPaidInFull}
         dueDate={dueDate}
         setDueDate={setDueDate}
         amountPaid={amountPaid}
         setAmountPaid={setAmountPaid}
         totalAmount={totalAmount}
         onOpenAddSupplier={onOpenAddSupplier}
-        hideTypeToggle={hideTypeToggle}
       />
     </ResponsiveModal>
   );

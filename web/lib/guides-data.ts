@@ -1,6 +1,7 @@
 import type { GuideItem, GuideCategory } from "./guides/types";
 import { POS_GUIDES } from "./guides/pos-guides";
 import { INVENTORY_GUIDES } from "./guides/inventory-guides";
+import { PROCUREMENT_GUIDES } from "./guides/procurement-guides";
 import { FINANCE_GUIDES } from "./guides/finance-guides";
 import { OPERATIONS_GUIDES } from "./guides/operations-guides";
 
@@ -9,6 +10,7 @@ export * from "./guides/types";
 export const GUIDES: GuideItem[] = [
   ...POS_GUIDES,
   ...INVENTORY_GUIDES,
+  ...PROCUREMENT_GUIDES,
   ...FINANCE_GUIDES,
   ...OPERATIONS_GUIDES,
 ];

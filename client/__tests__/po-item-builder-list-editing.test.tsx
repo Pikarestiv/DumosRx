@@ -85,6 +85,13 @@ describe("addOrMergeLineItem", () => {
     expect(result.items[0].bulk_quantity).toBe(0);
   });
 
+  it("gives every new row its own id up front, so an autosave can find it again", () => {
+    const first = addOrMergeLineItem([], product).items[0];
+    const other = addOrMergeLineItem([], second).items[0];
+    expect(first.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first.id).not.toBe(other.id);
+  });
+
   it("leaves the existing row's quantity alone instead of duplicating it", () => {
     const result = addOrMergeLineItem([line({ bulk_quantity: 3 })], product);
     expect(result.merged).toBe(true);
@@ -125,7 +132,6 @@ describe("POItemBuilder list editing", () => {
   function renderBuilder(items: POLineItemDraft[], onItemsChange = vi.fn()) {
     render(
       <POItemBuilder
-        poType="immediate"
         products={[product, second]}
         items={items}
         onItemsChange={onItemsChange}
@@ -154,7 +160,6 @@ describe("POItemBuilder list editing", () => {
       seen.push(current);
       return (
         <POItemBuilder
-          poType="immediate"
           products={[product, second]}
           items={current}
           onItemsChange={setCurrent}

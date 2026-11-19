@@ -4,13 +4,7 @@ import { HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -18,9 +12,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SupplierCombobox } from "./supplier-combobox";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
+import { amountPaidForSave, derivePaymentStatus } from "./po-payment";
 
 interface Supplier {
   id: string;
@@ -31,17 +25,20 @@ interface Supplier {
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L30
 export const SELF_PURCHASE_VENDOR_ID = "__self__";
 
+const PAYMENT_STATUS_TEXT = {
+  unpaid: "Unpaid",
+  partial: "Part paid, a balance remains",
+  paid: "Fully paid",
+} as const;
+
 interface PODetailsFieldsProps {
-  poType: "standard" | "immediate";
-  setPoType: (type: "standard" | "immediate") => void;
-  poTypeLocked?: boolean;
   suppliers: Supplier[];
   selectedSupplierId: string;
   setSelectedSupplierId: (id: string) => void;
   notes: string;
   setNotes: (notes: string) => void;
-  paymentStatus: string;
-  setPaymentStatus: (status: string) => void;
+  paidInFull: boolean;
+  setPaidInFull: (paidInFull: boolean) => void;
   dueDate: string;
   setDueDate: (date: string) => void;
   amountPaid: string;
@@ -50,78 +47,33 @@ interface PODetailsFieldsProps {
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L50
   totalAmount?: number;
   onOpenAddSupplier: () => void;
-  // Editing an existing PO is only ever done for Standard POs (Immediate ones are created already "received" and never enter…
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-fields-tsx-L55
-  hideTypeToggle?: boolean;
 }
 
-/** Vendor/type/notes/payment/due-date fields — the "Order Details" step
- * shown before item entry, and re-editable afterward via PODetailsDialog. */
+/** Vendor/notes/payment/due-date fields, opened from the order's header bar. */
 export function PODetailsFields({
-  poType,
-  setPoType,
-  poTypeLocked,
   suppliers,
   selectedSupplierId,
   setSelectedSupplierId,
   notes,
   setNotes,
-  paymentStatus,
-  setPaymentStatus,
+  paidInFull,
+  setPaidInFull,
   dueDate,
   setDueDate,
   amountPaid,
   setAmountPaid,
   totalAmount = 0,
   onOpenAddSupplier,
-  hideTypeToggle,
 }: PODetailsFieldsProps) {
   const formatCurrency = useFormatCurrency();
   const hasOrderTotal = totalAmount > 0;
   const exceedsOrderTotal =
-    hasOrderTotal && Number(amountPaid) > totalAmount;
+    !paidInFull && hasOrderTotal && Number(amountPaid) > totalAmount;
+  const shownAmount = paidInFull ? String(totalAmount) : amountPaid;
+  const paymentStatus = derivePaymentStatus(amountPaidForSave({ paidInFull, amountPaid }, totalAmount), totalAmount);
 
   return (
     <div className="flex flex-col gap-4">
-      {!hideTypeToggle && (
-        <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground">
-            Order Type
-          </Label>
-          <Tabs
-            value={poType}
-            onValueChange={(val) => setPoType(val as "immediate" | "standard")}
-            className="w-fit"
-          >
-            <TabsList>
-              <TabsTrigger
-                value="immediate"
-                disabled={poTypeLocked}
-                title={
-                  poTypeLocked ? "Start a new PO to change type" : undefined
-                }
-              >
-                Immediate Purchase
-              </TabsTrigger>
-              <TabsTrigger
-                value="standard"
-                disabled={poTypeLocked}
-                title={
-                  poTypeLocked ? "Start a new PO to change type" : undefined
-                }
-              >
-                Purchase Order
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <p className="text-[11.5px] text-muted-foreground leading-snug">
-            {poType === "immediate"
-              ? "Adds stock and updates selling prices store-wide as soon as you save."
-              : "Records the order only. Stock and pricing are entered later, when you receive it."}
-          </p>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1.5">
           <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
@@ -151,8 +103,8 @@ export function PODetailsFields({
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
-            Payment Status
+          <Label htmlFor="po-amount-paid" className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
+            Amount Paid
             <TooltipProvider delayDuration={0}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -160,84 +112,79 @@ export function PODetailsFields({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>
-                    Whether the vendor has been paid for this order yet.
-                    Doesn&apos;t affect receiving stock or item entry.
+                    What has been paid to the vendor so far. Unpaid, part paid or
+                    fully paid follows from it. Doesn&apos;t affect receiving stock.
                   </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </Label>
-          <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-            <SelectTrigger className="w-full border border-border rounded-[10px] px-3.5 h-11 data-[size=default]:h-11 text-[13px] bg-card shadow-sm">
-              <SelectValue placeholder="Select status..." />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem value="unpaid">Unpaid (Full Credit)</SelectItem>
-              <SelectItem value="partial">Partial Payment</SelectItem>
-              <SelectItem value="paid">Fully Paid</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
-            Due Date (Optional)
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>
-                    When payment is due to the vendor, not when the items are
-                    expected to arrive.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </Label>
-          <DatePickerInput
-            value={dueDate}
-            onChange={(val) => setDueDate(val)}
-            disablePast
-            fromYear={new Date().getFullYear()}
-            toYear={new Date().getFullYear() + 3}
-            className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
-          />
-        </div>
-      </div>
-
-      {paymentStatus === "partial" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-1.5 md:col-span-2">
-            <Label className="text-[12.5px] font-semibold text-foreground">
-              Amount Paid (Initial Payment)
-            </Label>
+          <div className="flex gap-2">
             <Input
+              id="po-amount-paid"
               type="number"
               inputMode="decimal"
               min={0}
               step="any"
               max={hasOrderTotal ? totalAmount : undefined}
-              aria-label="Amount Paid (Initial Payment)"
+              aria-label="Amount Paid"
               placeholder="0.00"
               className="w-full border border-border rounded-[10px] px-3.5 h-11 text-[13px] bg-card shadow-sm"
-              value={amountPaid}
+              value={shownAmount}
               onChange={(e) => setAmountPaid(e.target.value)}
             />
-            <p className="text-[11.5px] text-muted-foreground leading-snug">
-              {hasOrderTotal
-                ? `Max ${formatCurrency(totalAmount)} — the order total.`
-                : "The order total comes from the items you add next; anything above it is capped when you save."}
-            </p>
-            {exceedsOrderTotal && (
-              <p className="text-[11.5px] text-destructive font-medium leading-snug">
-                Above the order total — this will be capped at{" "}
-                {formatCurrency(totalAmount)} when you save.
-              </p>
-            )}
+            <Button
+              type="button"
+              variant={paidInFull ? "default" : "outline"}
+              className="h-11 shrink-0 rounded-[10px]"
+              aria-pressed={paidInFull}
+              onClick={() => setPaidInFull(!paidInFull)}
+            >
+              Paid in full
+            </Button>
           </div>
+          <p className="text-[11.5px] text-muted-foreground leading-snug">
+            {PAYMENT_STATUS_TEXT[paymentStatus]}
+            {hasOrderTotal
+              ? ` · Max ${formatCurrency(totalAmount)}, the order total.`
+              : " · The total comes from the items you add."}
+          </p>
+          {exceedsOrderTotal && (
+            <p className="text-[11.5px] text-destructive font-medium leading-snug">
+              Above the order total — this will be capped at{" "}
+              {formatCurrency(totalAmount)}.
+            </p>
+          )}
         </div>
-      )}
+        {paymentStatus !== "paid" && (
+          <div className="space-y-1.5">
+            <Label className="text-[12.5px] font-semibold text-foreground flex items-center gap-1">
+              Due Date (Optional)
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="w-3 h-3 opacity-50 cursor-pointer" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      When payment is due to the vendor, not when the items are
+                      expected to arrive.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
+            <DatePickerInput
+              value={dueDate}
+              onChange={(val) => setDueDate(val)}
+              disablePast
+              fromYear={new Date().getFullYear()}
+              toYear={new Date().getFullYear() + 3}
+              className="w-full [&_input]:bg-card [&_input]:shadow-sm [&_input]:border [&_input]:border-border [&_input]:rounded-[10px] [&_input]:px-3.5 [&_input]:h-11 [&_input]:text-[13px]"
+            />
+          </div>
+        )}
+      </div>
 
       <div className="space-y-1.5">
         <Label className="text-[12.5px] font-semibold text-foreground">

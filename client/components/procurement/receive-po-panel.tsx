@@ -38,7 +38,6 @@ export interface ReceivedItemPayload {
   lot_number?: string;
   expiry_date?: string;
   cost_price?: string | number;
-  selling_price?: string | number;
   // The product's live selling_price when this panel was opened - carried through unedited so the caller can tell whether a…
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-receive-po-panel-tsx-L35
   current_selling_price?: number | null;

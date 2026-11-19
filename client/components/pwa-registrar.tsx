@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { runBeforeReload } from "@/lib/utils/reload-guard";
+
+const RELOAD_FLUSH_TIMEOUT_MS = 2000;
 // Side-effect import only:
 // Rationale: docs/CLIENT_COMMENTS.md#line-components-pwa-registrar-tsx-L5
 import "@/lib/hooks/use-install-prompt";
@@ -58,7 +61,7 @@ export function PwaRegistrar() {
       // Reloads immediately rather than after a delay to let the toast be seen (the original version waited 1200ms):
       // Rationale: docs/CLIENT_COMMENTS.md#line-components-pwa-registrar-tsx-L83
       toast.info("App updated - reloading...");
-      window.location.reload();
+      void runBeforeReload(RELOAD_FLUSH_TIMEOUT_MS).then(() => window.location.reload());
     };
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
 

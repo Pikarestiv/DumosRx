@@ -8,6 +8,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { SupplierManagement } from "@/components/stock-batch/supplier-management";
 import { RequestedProductsTab } from "./requested-products-tab";
 import { ProcurementTabNav } from "./procurement-tab-nav";
+import { RecoveredCopiesNotice } from "./recovered-copies-notice";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 
 // Radix only mounts the active TabsContent's children, so tying registration to this tab-scoped component (rather than the…
@@ -75,6 +76,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
           className="flex flex-col flex-1 min-h-0 mt-0 border-0 p-0"
         >
           <OrdersPullToRefresh onRefresh={fetchPurchaseOrders} />
+          <RecoveredCopiesNotice />
 
           <PurchaseOrderTable
             orders={filteredOrders}

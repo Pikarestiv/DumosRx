@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, countSellingPriceOverrides, getTotalBaseUnits, immediateLineAmount, getOrderTotal, addOrMergeLineItem, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
+import { getImmediateUnitCost, getLineTotal, getValidatedAmountPaid, getMarginCue, dueDateToSave, costOverriddenLines, receivableLimit, clampReceivedQuantity, getTotalBaseUnits, immediateLineAmount, getOrderTotal, addOrMergeLineItem, quantityMissingMessage } from "@/components/procurement/po-line-item-math";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 
 function item(overrides: Partial<POLineItemDraft> = {}): POLineItemDraft {
@@ -22,15 +22,13 @@ describe("po-line-item-math", () => {
       // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L21
       const line = item({ bulk_quantity: 1, unit_cost: 1000, units_per_bulk: 3 });
       expect(getImmediateUnitCost(line)).toBe(333.33);
-      expect(getLineTotal(line, "immediate")).toBe(1000);
-      expect(getOrderTotal([line], "immediate")).toBe(1000);
+      expect(getLineTotal(line)).toBe(1000);
+      expect(getOrderTotal([line])).toBe(1000);
     });
 
-    it("agrees with the standard-PO flow for the same line", () => {
+    it("bills a line with no override at bulk_quantity times the per-carton cost, as orders always have", () => {
       const line = item({ bulk_quantity: 2, unit_cost: 1000, units_per_bulk: 12 });
-      expect(getLineTotal(line, "immediate")).toBe(
-        getLineTotal(line, "standard"),
-      );
+      expect(getLineTotal(line)).toBe(2000);
     });
 
     it("multiplies an override up from the base unit, since that is how it was typed", () => {
@@ -41,12 +39,12 @@ describe("po-line-item-math", () => {
         cost_price_override: 90,
       });
       expect(immediateLineAmount(line)).toBe(1800);
-      expect(getLineTotal(line, "immediate")).toBe(1800);
+      expect(getLineTotal(line)).toBe(1800);
     });
 
     it("rounds an order total rather than leaving float noise", () => {
       const line = item({ bulk_quantity: 1, unit_cost: 1000, units_per_bulk: 3, cost_price_override: 333.333 });
-      expect(Number.isInteger(getOrderTotal([line, line, line], "immediate") * 100)).toBe(true);
+      expect(Number.isInteger(getOrderTotal([line, line, line]) * 100)).toBe(true);
     });
   });
 
@@ -102,23 +100,23 @@ describe("po-line-item-math", () => {
   });
 
   describe("getLineTotal", () => {
-    it("standard type: bulk_quantity times the per-carton unit_cost", () => {
-      expect(getLineTotal(item({ bulk_quantity: 2 }), "standard")).toBe(74400);
+    it("no override: bulk_quantity times the per-carton unit_cost", () => {
+      expect(getLineTotal(item({ bulk_quantity: 2 }))).toBe(74400);
     });
 
-    it("immediate type, no override: matches the pre-override total (unit_cost is already per-carton)", () => {
-      expect(getLineTotal(item(), "immediate")).toBe(37200);
+    it("no override: matches the pre-override total (unit_cost is already per-carton)", () => {
+      expect(getLineTotal(item())).toBe(37200);
     });
 
-    it("immediate type, with override: scales the per-tablet override by units_per_bulk, not just bulk_quantity", () => {
+    it("with override: scales the per-tablet override by units_per_bulk, not just bulk_quantity", () => {
       // Regression: entering a new per-tablet cost (650) previously produced a total of bulk_quantity * 650 = 650, silently drop…
       // Rationale: docs/CLIENT_COMMENTS.md#line-__tests__-po-line-item-math-test-ts-L119
-      expect(getLineTotal(item({ cost_price_override: 650 }), "immediate")).toBe(39000);
+      expect(getLineTotal(item({ cost_price_override: 650 }))).toBe(39000);
     });
 
-    it("immediate type, with override and multiple cartons", () => {
+    it("with override and multiple cartons", () => {
       expect(
-        getLineTotal(item({ bulk_quantity: 3, cost_price_override: 650 }), "immediate"),
+        getLineTotal(item({ bulk_quantity: 3, cost_price_override: 650 })),
       ).toBe(117000);
     });
   });
@@ -151,29 +149,39 @@ describe("po-line-item-math", () => {
     });
   });
 
-  describe("countSellingPriceOverrides", () => {
-    const products = [{ id: "p1", selling_price: 20 }];
-
-    it("counts only lines with a real, non-blank selling_price override that actually differs from the product's current price", () => {
-      const items = [
-        item({ selling_price: 12.5 }), // differs - counts
-        item({ selling_price: "" }), // blank - doesn't count
-        item({ selling_price: undefined }), // unset - doesn't count
-        item({ selling_price: null as unknown as undefined }), // a PO reloaded from the DB hands back SQL NULL, not undefined
-      ];
-      expect(countSellingPriceOverrides(items, products)).toBe(1);
+  describe("getMarginCue", () => {
+    it("flags a cost at or above the selling price", () => {
+      expect(getMarginCue({ unitCost: 25, sellingPrice: 20, previousCost: 10 })).toBe("below_cost");
+      expect(getMarginCue({ unitCost: 20, sellingPrice: 20, previousCost: 10 })).toBe("below_cost");
     });
 
-    it("returns 0 when no line has an override", () => {
-      expect(countSellingPriceOverrides([item(), item()], products)).toBe(0);
+    it("flags a cost that rose since the last one, thinning the margin", () => {
+      expect(getMarginCue({ unitCost: 15, sellingPrice: 20, previousCost: 12 })).toBe("thinner");
     });
 
-    it("does not count a line whose override equals the product's current price (no real change)", () => {
-      expect(countSellingPriceOverrides([item({ selling_price: 20 })], products)).toBe(0);
+    it("stays quiet when the margin holds or improves", () => {
+      expect(getMarginCue({ unitCost: 12, sellingPrice: 20, previousCost: 12 })).toBeNull();
+      expect(getMarginCue({ unitCost: 9, sellingPrice: 20, previousCost: 12 })).toBeNull();
     });
 
-    it("counts a line whose override is a real, explicit zero, different from the current price", () => {
-      expect(countSellingPriceOverrides([item({ selling_price: 0 })], products)).toBe(1);
+    it("stays quiet without a selling price or cost to compare, which other warnings cover", () => {
+      expect(getMarginCue({ unitCost: 15, sellingPrice: 0, previousCost: 12 })).toBeNull();
+      expect(getMarginCue({ unitCost: 0, sellingPrice: 20, previousCost: 12 })).toBeNull();
+      expect(getMarginCue({ unitCost: 15, sellingPrice: null, previousCost: null })).toBeNull();
+      expect(getMarginCue({ unitCost: 15, sellingPrice: 20, previousCost: null })).toBeNull();
+      expect(getMarginCue({ unitCost: Number.NaN, sellingPrice: 20, previousCost: 12 })).toBeNull();
+    });
+  });
+
+  describe("dueDateToSave", () => {
+    it("saves no due date once the order is fully paid", () => {
+      expect(dueDateToSave("paid", "2027-01-01")).toBeNull();
+    });
+
+    it("keeps the due date while money is owed, and saves blank as null", () => {
+      expect(dueDateToSave("unpaid", "2027-01-01")).toBe("2027-01-01");
+      expect(dueDateToSave("partial", "2027-01-01")).toBe("2027-01-01");
+      expect(dueDateToSave("unpaid", "")).toBeNull();
     });
   });
 });
@@ -228,5 +236,28 @@ describe("quantityMissingMessage", () => {
 
   it("is null once every row has a quantity", () => {
     expect(quantityMissingMessage([row("A", 2)])).toBeNull();
+  });
+});
+
+describe("costOverriddenLines", () => {
+  it("ignores a line received at quantity zero, since no batch is created for it", () => {
+    const lines = costOverriddenLines([
+      { product_id: "a", cost_price: 5, quantity: 3 },
+      { product_id: "b", cost_price: 7, quantity: 0 },
+      { product_id: "c", cost_price: 9 },
+    ]);
+    expect(lines.map((l) => l.productId)).toEqual(["a", "c"]);
+  });
+});
+
+describe("receivableLimit", () => {
+  it("caps a counted line at what is still outstanding", () => {
+    expect(receivableLimit({ bulk_quantity: 10, quantity_received: 4 })).toBe(6);
+    expect(clampReceivedQuantity("9", receivableLimit({ bulk_quantity: 10, quantity_received: 4 }))).toBe(6);
+  });
+
+  it("leaves a line ordered at zero uncapped so the delivered count can be entered", () => {
+    expect(clampReceivedQuantity("7", receivableLimit({ bulk_quantity: 0, quantity_received: 0 }))).toBe(7);
+    expect(clampReceivedQuantity("-3", receivableLimit({ bulk_quantity: 0, quantity_received: null }))).toBe(0);
   });
 });

@@ -269,6 +269,7 @@ export function PurchaseOrderTable({
             onDeletePO={onDeletePO}
             isMutatingPO={isMutatingPO}
             onReceiveGoods={() => setPanelView("receive")}
+            onReceiveDraft={onReceivePO}
             onClose={() => setSelectedOrderId(null)}
           />
         )}

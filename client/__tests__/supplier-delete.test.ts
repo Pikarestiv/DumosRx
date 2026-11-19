@@ -102,6 +102,17 @@ describe("deleteSupplier", () => {
     expect(isDeleted("v1")).toBe(false);
   });
 
+  it("does not count a draft order as money owed, so the supplier can still be deleted", async () => {
+    seedSupplier();
+    db.run(
+      `INSERT INTO purchase_orders (id, supplier_id, status, payment_status, total_amount, amount_paid, _deleted)
+       VALUES ('po-draft', 'v1', 'pending', 'unpaid', 1000, 0, 0)`,
+    );
+    expect(await procurement.getSupplierOutstandingBalance("v1")).toBe(0);
+    await procurement.deleteSupplier("v1");
+    expect(isDeleted("v1")).toBe(true);
+  });
+
   it("soft-deletes a supplier with nothing outstanding", async () => {
     seedSupplier();
     await procurement.deleteSupplier("v1");

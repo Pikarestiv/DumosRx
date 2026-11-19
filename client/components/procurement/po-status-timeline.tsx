@@ -34,17 +34,18 @@ function Connector({ filled }: { filled: boolean }) {
 }
 
 function stepsFor(po: PurchaseOrder): { label: string; state: StepState }[] {
-  const received = po.status === "received";
+  const closed = po.status === "closed";
+  const received = po.status === "received" || closed;
   const partial = po.status === "partially_received";
   const sent = po.status === "sent";
   const steps: { label: string; state: StepState }[] = [
     { label: "Draft", state: sent || partial || received ? "done" : "current" },
   ];
-  if (po.type !== "immediate") {
-    steps.push({ label: "Sent", state: partial || received ? "done" : sent ? "current" : "upcoming" });
+  if (po.type !== "immediate" || sent || partial) {
+    steps.push({ label: "Ordered", state: partial || received ? "done" : sent ? "current" : "upcoming" });
   }
   steps.push({
-    label: partial ? "Partially received" : "Received",
+    label: closed ? "Closed short" : partial ? "Partially received" : "Received",
     state: received ? "done" : partial ? "current" : "upcoming",
   });
   return steps;

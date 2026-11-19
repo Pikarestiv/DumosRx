@@ -151,6 +151,9 @@ export function DatabaseProvider({ children }: DatabaseProviderProps) {
         import("@/lib/db/queries/procurement").then(({ promoteDraftPurchaseOrdersToPending }) => {
           promoteDraftPurchaseOrdersToPending().catch(console.error);
         }).catch(console.error);
+        import("@/lib/db/procurement-empty-drafts").then(({ removeEmptyDraftsOf }) => {
+          removeEmptyDraftsOf().catch(console.error);
+        }).catch(console.error);
         // Once per install, never re-armed: client/AGENTS.md, "The boot-time
         // orphan scan".
         Promise.all([

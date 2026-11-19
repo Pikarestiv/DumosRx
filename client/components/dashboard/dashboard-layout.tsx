@@ -43,6 +43,7 @@ import { queryClient } from "@/lib/query-client";
 import { usePostRestoreCloudLinkNotice } from "@/lib/hooks/use-post-restore-cloud-link-notice";
 import { isTourEligible } from "@/lib/utils/tour-eligibility";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
+import { isOrderScreenRoute } from "@/lib/utils/order-screen-route";
 
 const DashboardTour = dynamic(
   () => import("./dashboard-tour").then((m) => m.DashboardTour),
@@ -140,7 +141,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const isPosFullscreen = isPosRoute && posFullscreen;
   // Create Purchase Order gets a POS-style full-screen takeover, but only on mobile (<lg).
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L150
-  const isCreatePORoute = pathname.startsWith("/procurement/new");
+  const isCreatePORoute = isOrderScreenRoute(pathname);
   // Settings is a full-screen takeover on every breakpoint (like POS/create-PO):
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L154
   const isSettingsRoute = pathname.startsWith("/settings");

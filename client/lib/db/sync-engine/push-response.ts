@@ -15,6 +15,7 @@ const NON_RETRYABLE_CONFLICT_REASONS = new Set([
   "quantity_received_exceeds_ordered",
   "permission_denied",
   "email_in_use",
+  "draft_locked",
 ]);
 
 // No pull can ever settle these, so left unsynced they are requeued and re-refused for ever.
@@ -27,7 +28,7 @@ const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
 
 // Reasons where the server kept a row this device now disagrees with, so the device has to be made to re-pull it.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L55
-const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp", "email_in_use"]);
+const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp", "email_in_use", "draft_locked"]);
 
 export async function settleFailedChanges(
   failed: NonNullable<PushResponse["failed"]>,

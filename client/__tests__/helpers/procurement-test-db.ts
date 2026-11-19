@@ -11,6 +11,7 @@ const PROCUREMENT_SCHEMA = `
     order_date TEXT, status TEXT DEFAULT 'pending', type TEXT DEFAULT 'standard',
     payment_status TEXT DEFAULT 'unpaid',
     amount_paid REAL DEFAULT 0, due_date TEXT, total_amount REAL DEFAULT 0, notes TEXT,
+    editing_device_id TEXT, editing_device_label TEXT, editing_user_id TEXT, editing_at TEXT,
     created_at TEXT, received_at TEXT, updated_at TEXT,
     _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
   );
@@ -47,6 +48,10 @@ const PROCUREMENT_SCHEMA = `
   CREATE TABLE _sync_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT, record_id TEXT,
     operation TEXT, payload TEXT, created_at TEXT, retry_count INTEGER DEFAULT 0, next_retry_at TEXT
+  );
+  CREATE TABLE _sync_conflicts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, table_name TEXT NOT NULL, record_id TEXT NOT NULL,
+    reason TEXT NOT NULL, fields TEXT, detected_at TEXT NOT NULL, resolved_at TEXT
   );
   CREATE TABLE audit_logs (
     id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT, action TEXT, table_name TEXT,

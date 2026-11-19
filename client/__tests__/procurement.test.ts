@@ -30,10 +30,10 @@ describe("procurement.ts queries", () => {
         `INSERT INTO suppliers (id, name, created_at) VALUES ('sup1', 'Emzor', '2026-01-01')`,
       );
       db.run(
-        `INSERT INTO purchase_orders (id, supplier_id, total_amount, amount_paid, payment_status, order_date, _deleted)
+        `INSERT INTO purchase_orders (id, supplier_id, status, total_amount, amount_paid, payment_status, order_date, _deleted)
          VALUES
-           ('po1', 'sup1', 100000, 100000, 'paid', '2026-01-05', 0),
-           ('po2', 'sup1', 50000, 20000, 'unpaid', '2026-02-10', 0)`,
+           ('po1', 'sup1', 'received', 100000, 100000, 'paid', '2026-01-05', 0),
+           ('po2', 'sup1', 'sent', 50000, 20000, 'unpaid', '2026-02-10', 0)`,
       );
 
       const { data } = await getSuppliers();
@@ -73,6 +73,23 @@ describe("procurement.ts queries", () => {
       expect(data[0].total_debt).toBe(0);
     });
 
+    it("leaves draft orders out of order stats and debt, since nothing has been ordered from the vendor yet", async () => {
+      db.run(`INSERT INTO suppliers (id, name, created_at) VALUES ('supD', 'Drafted', '2026-01-01')`);
+      db.run(
+        `INSERT INTO purchase_orders (id, supplier_id, status, total_amount, amount_paid, payment_status, order_date, _deleted)
+         VALUES
+           ('poD1', 'supD', 'pending', 40000, 0, 'unpaid', '2026-04-01', 0),
+           ('poD2', 'supD', 'draft', 7000, 0, 'unpaid', '2026-04-02', 0),
+           ('poD3', 'supD', 'sent', 5000, 0, 'unpaid', '2026-04-03', 0)`,
+      );
+
+      const { data } = await getSuppliers();
+
+      expect(data[0].total_orders).toBe(1);
+      expect(data[0].total_value).toBe(5000);
+      expect(data[0].total_debt).toBe(5000);
+    });
+
     it("excludes soft-deleted suppliers entirely", async () => {
       db.run(`INSERT INTO suppliers (id, name, created_at, _deleted) VALUES ('sup4', 'Gone', '2026-01-01', 1)`);
 
@@ -87,10 +104,10 @@ describe("procurement.ts queries", () => {
           ('supA', 'A', '2026-01-01'), ('supB', 'B', '2026-01-02')`,
       );
       db.run(
-        `INSERT INTO purchase_orders (id, supplier_id, total_amount, amount_paid, payment_status, order_date, _deleted)
+        `INSERT INTO purchase_orders (id, supplier_id, status, total_amount, amount_paid, payment_status, order_date, _deleted)
          VALUES
-           ('poA1', 'supA', 10000, 10000, 'paid', '2026-01-10', 0),
-           ('poB1', 'supB', 99999, 0, 'unpaid', '2026-01-11', 0)`,
+           ('poA1', 'supA', 'received', 10000, 10000, 'paid', '2026-01-10', 0),
+           ('poB1', 'supB', 'partially_received', 99999, 0, 'unpaid', '2026-01-11', 0)`,
       );
 
       const { data } = await getSuppliers();

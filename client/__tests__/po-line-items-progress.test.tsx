@@ -50,4 +50,13 @@ describe("PO status steps", () => {
     expect(screen.queryByText("Ordered")).toBeNull();
     expect(screen.getByText("Received")).toBeTruthy();
   });
+
+  it("shows the cost each unit came to when the line was received at a cost entered at receiving", () => {
+    const received = order({
+      status: "received",
+      items: [{ product_name: "Liquid wash", bulk_quantity: 2, quantity_received: 2, unit_cost: 0, subtotal: 200 }] as PurchaseOrder["items"],
+    });
+    render(<PoLineItems po={received} />);
+    expect(screen.getByText(/2 × .*100/)).toBeTruthy();
+  });
 });

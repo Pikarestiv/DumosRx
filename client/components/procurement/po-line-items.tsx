@@ -47,7 +47,7 @@ export function PoLineItems({ po }: { po: PurchaseOrder }) {
                   {item.product_name || "Unknown Product"}
                 </div>
                 <div className="mt-0.5 text-[13px] text-muted-foreground">
-                  {item.bulk_quantity} × {formatCurrency(item.unit_cost || 0)}
+                  {item.bulk_quantity} × {formatCurrency(item.unit_cost || (Number(item.bulk_quantity) > 0 ? (item.subtotal || 0) / Number(item.bulk_quantity) : 0))}
                 </div>
               </div>
               <div className="shrink-0 text-[15px] font-semibold tabular-nums">

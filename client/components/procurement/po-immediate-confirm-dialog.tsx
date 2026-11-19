@@ -169,7 +169,7 @@ export function POImmediateConfirmDialog({
                   . Go back and enter what you received.
                 </p>
               )}
-              <p>This cannot be undone.</p>
+              <p>You can void this receipt later, but only while none of it has been sold.</p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

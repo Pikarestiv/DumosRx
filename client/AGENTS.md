@@ -3626,6 +3626,59 @@ e2e/                       Playwright end-to-end specs
   block deleting a product they list (`queries/products.ts`), because
   receiving the draft later would add stock to a deleted product.
 
+- **Order screen autosave (2026-11-19)** (`components/procurement/order-screen/`).
+  `/procurement/new` and `/procurement/edit?id=` render the same
+  `PoOrderScreen`. The order id is generated in memory when the screen
+  opens; nothing is written until the first item is added, then
+  `saveDraftOrder()` (`lib/db/procurement-draft.ts`) creates the row under
+  that id and the address is swapped to `/procurement/edit?id=` with
+  `window.history.replaceState` so the mounted screen keeps its state.
+  - **When it writes:** a row added or removed, a vendor, payment status or
+    due date picked, a revert or an undo save at once; typing (quantity,
+    cost, lot, notes, amount paid) saves 700 ms after it pauses
+    (`lib/utils/autosave-scheduler.ts`, serialised, never two saves at
+    once). `pagehide`, `visibilitychange` to hidden, Back and every action
+    button flush first. Lines carry their own id from the moment they are
+    added (`addOrMergeLineItem`), and `reconcilePurchaseOrderLines()` inserts
+    a new line under that id, so a save touches only the rows that changed;
+    a line whose id another till already used gets a new id, reported back
+    through `lineIdMap`. `bulk_quantity` and `units_per_bulk` still travel
+    together.
+  - **Audit volume:** autosave writes pass `skipAudit` to `insert()`/
+    `update()`/`softDelete()`. The draft's first insert logs the normal
+    `INSERT`, and every later save logs `PO_DRAFT_EDITED`, which is in
+    `DEDUPABLE_AUDIT_ACTIONS`: it coalesces into one row (with
+    `occurrence_count`) until that row syncs. Never put a stock, receipt or
+    batch write behind `skipAudit`.
+  - **Status and failures:** the header reads "Saved on this device" while
+    the order or a line is still queued and "Saved · synced" once none is
+    (`getOrderSyncState()`, polled every 4 s), with "Save now". A failed
+    local save keeps the draft on screen with a banner (Retry / Save now).
+    An unresolved `_sync_conflicts` row on the order or a line shows "your
+    edit wasn't saved because another device changed it first" with Reload
+    their version or Keep mine as a new draft (a copy under new ids). An
+    order received, closed or deleted on another till stops saving
+    (`not_editable` / `deleted`).
+  - **Undo and revert:** Ctrl+Z (outside a textarea) and the header's undo
+    button step back through this session's edits (typing bursts grouped
+    within a second, 50 steps). Each changed quantity, cost, lot or expiry
+    shows "was X · revert" against the order as it was opened. Nothing is
+    kept across sessions.
+  - **Back and delete:** Back saves and leaves, with no discard prompt.
+    Delete draft is in the header menu and only happens when its 6 s undo
+    toast closes (`schedule-draft-delete.ts`), so no undelete has to sync.
+    Create Order offers "Continue order from X (N items, 2h ago)?" for this
+    user's latest draft with items from the last 24 hours. The order list
+    shows each draft's age and nudges after 30 days; nothing deletes a
+    draft automatically.
+  - **App updates:** `pwa-registrar.tsx` awaits every flush registered
+    through `lib/utils/reload-guard.ts` (at most 2 s) before reloading (A-402).
+  - **Actions:** Download PDF is available on drafts too; Send to vendor
+    marks the order sent and hands its PDF to `navigator.share` where the
+    device can share files, otherwise downloads it (`lib/utils/share-file.ts`).
+    Receive stock flushes the draft and runs `receivePurchaseOrder()` from
+    the confirmation sheet, on new orders as well as resumed ones.
+
 - **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
   Receiving used to be all-or-nothing: any submitted quantity flipped the
   whole PO to `received` and a guard (`status === "received"`) then blocked

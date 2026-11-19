@@ -2,7 +2,10 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { saveDraftOrder, type DraftSaveOutcome } from "@/lib/db/procurement-draft";
+import { releaseDraftLock, saveDraftOrder, type DraftLockHolder, type DraftSaveOutcome } from "@/lib/db/procurement-draft";
+import { getDeviceId } from "@/lib/utils/device-id";
+import { getDeviceLabel } from "@/lib/utils/device-label";
+import { getStoredUser } from "@/lib/storage-keys";
 import { getOrderSyncState } from "@/lib/db/queries/procurement-draft-status";
 import { createAutosaveScheduler, type AutosaveScheduler, type AutosaveState } from "@/lib/utils/autosave-scheduler";
 import { registerBeforeReload } from "@/lib/utils/reload-guard";
@@ -21,13 +24,18 @@ interface UsePoAutosaveOptions {
   onCreated: () => void;
 }
 
-export type BlockedReason = Extract<DraftSaveOutcome, "not_editable" | "deleted">;
+export type BlockedReason = Extract<DraftSaveOutcome, "not_editable" | "deleted" | "locked">;
+
+function thisTill(): DraftLockHolder {
+  return { deviceId: getDeviceId(), deviceLabel: getDeviceLabel(), userId: getStoredUser()?.id ?? null };
+}
 
 export function usePoAutosave({ orderId, draftRef, initiallyPersisted, enabled, onLineIdsRemapped, onCreated }: UsePoAutosaveOptions) {
   const [saveState, setSaveState] = useState<AutosaveState>("idle");
   const [persisted, setPersisted] = useState(initiallyPersisted);
   const [blocked, setBlocked] = useState<BlockedReason | null>(null);
   const [saveError, setSaveError] = useState<Error | null>(null);
+  const takeOverRef = useRef(false);
   const callbacks = useRef({ onLineIdsRemapped, onCreated, enabled });
   useLayoutEffect(() => {
     callbacks.current = { onLineIdsRemapped, onCreated, enabled };
@@ -42,13 +50,16 @@ export function usePoAutosave({ orderId, draftRef, initiallyPersisted, enabled, 
         },
         save: async () => {
           if (!callbacks.current.enabled) return;
-          const result = await saveDraftOrder(toSnapshot(orderId, draftRef.current));
+          const result = await saveDraftOrder(toSnapshot(orderId, draftRef.current, thisTill(), takeOverRef.current));
+          if (result.outcome !== "locked") takeOverRef.current = false;
           if (result.lineIdMap.size > 0) callbacks.current.onLineIdsRemapped(result.lineIdMap);
           if (result.outcome === "created") {
             setPersisted(true);
             callbacks.current.onCreated();
           }
-          if (result.outcome === "not_editable" || result.outcome === "deleted") setBlocked(result.outcome);
+          if (result.outcome === "not_editable" || result.outcome === "deleted" || result.outcome === "locked") {
+            setBlocked(result.outcome);
+          }
         },
       });
     return created;
@@ -94,6 +105,13 @@ export function usePoAutosave({ orderId, draftRef, initiallyPersisted, enabled, 
     blocked,
     pendingWrites: syncQuery.data?.pendingWrites ?? 0,
     conflicts: syncQuery.data?.conflicts ?? [],
+    lock: syncQuery.data?.lock ?? null,
     refreshSyncState: () => void syncQuery.refetch(),
+    takeOver: () => {
+      takeOverRef.current = true;
+      setBlocked(null);
+      scheduler.request("now");
+    },
+    release: () => releaseDraftLock(orderId, getDeviceId()),
   };
 }

@@ -9,6 +9,8 @@ interface PoOrderBannersProps {
   conflicts: RecordedConflict[];
   blocked: BlockedReason | null;
   otherDeviceLabel: string;
+  lockedSince: string | null;
+  onTakeOver: () => void;
   onRetry: () => void;
   onReloadTheirs: () => void;
   onKeepMineAsCopy: () => void;
@@ -46,6 +48,14 @@ export function PoOrderBanners(props: PoOrderBannersProps) {
             { label: "Open the order", run: props.onOpenOrder },
             { label: "Keep mine as a new draft", run: props.onKeepMineAsCopy },
           ]}
+        />
+      )}
+      {props.lockedSince && (
+        <PoSaveBanner
+          tone="warning"
+          title={`Being edited on ${props.otherDeviceLabel}`}
+          description={`Last saved there ${props.lockedSince}. You can look, but changes here are not saved unless you take over.`}
+          actions={[{ label: "Take over", run: props.onTakeOver }]}
         />
       )}
       {props.blocked === "deleted" && (

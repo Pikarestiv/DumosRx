@@ -54,6 +54,9 @@ export interface PurchaseOrder {
   items?: PurchaseOrderItem[];
   ordered_by?: string;
   ordered_by_name?: string;
+  editing_device_id?: string | null;
+  editing_device_label?: string | null;
+  editing_at?: string | null;
 }
 
 export interface PurchaseOrderItem {

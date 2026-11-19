@@ -87,6 +87,7 @@ class SyncController extends Controller
     public function push(Request $request)
     {
         $authorizer = app(SyncWriteAuthorizer::class);
+        $lockFence = app(\App\Services\Sync\PurchaseOrderLockFence::class);
         $activity = app(SyncActivityRecorder::class);
         $validation = app(SyncGate::class)->validateSync($request, true);
         if (! $validation['valid']) {
@@ -223,6 +224,19 @@ class SyncController extends Controller
                                 unset($payload['store_id']);
                             }
                         }
+                    }
+
+                    if ($change['table_name'] === 'purchase_order_items'
+                        && $lockFence->refuses($change['operation'], $payload, $recordId, $request->header('X-Device-Id'))) {
+                        DB::commit();
+                        $failed[] = [
+                            'id' => $change['id'] ?? null,
+                            'table_name' => $change['table_name'],
+                            'record_id' => $recordId,
+                            'reason' => 'draft_locked',
+                        ];
+
+                        continue;
                     }
 
                     if ($change['operation'] === 'INSERT') {

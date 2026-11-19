@@ -11,6 +11,7 @@ const PROCUREMENT_SCHEMA = `
     order_date TEXT, status TEXT DEFAULT 'pending', type TEXT DEFAULT 'standard',
     payment_status TEXT DEFAULT 'unpaid',
     amount_paid REAL DEFAULT 0, due_date TEXT, total_amount REAL DEFAULT 0, notes TEXT,
+    editing_device_id TEXT, editing_device_label TEXT, editing_user_id TEXT, editing_at TEXT,
     created_at TEXT, received_at TEXT, updated_at TEXT,
     _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
   );

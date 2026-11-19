@@ -12,6 +12,9 @@ import { useProcurementData } from "@/lib/hooks/use-procurement-data";
 import { useCreateSupplierMutation } from "@/lib/hooks/use-supplier-mutations";
 import { errorDescription } from "@/lib/utils/error-description";
 import { resolveConflictsForRecords } from "@/lib/db/sync-engine/conflict-log";
+import { lockHeldByAnother } from "@/lib/db/procurement-draft";
+import { getDeviceId } from "@/lib/utils/device-id";
+import { formatDistanceToNowStrict } from "date-fns";
 import type { ProductViewModel } from "@/lib/types/product";
 import type { SupplierPayload } from "@/lib/types/supplier";
 import { SELF_PURCHASE_VENDOR_ID } from "../po-details-fields";
@@ -82,7 +85,15 @@ export function PoOrderScreen({ initialId, defaultSupplierId }: PoOrderScreenPro
     );
   }
 
-  const readOnly = !editor.isEditable || autosave.blocked !== null;
+  const lock = autosave.lock;
+  const lockedByOther = autosave.blocked === "locked" || (!!lock && lockHeldByAnother(lock, getDeviceId(), new Date()));
+  const otherDeviceLabel = lock?.editing_device_id && lock.editing_device_id !== getDeviceId()
+    ? lock.editing_device_label || "Unnamed device"
+    : "another device";
+  const lockedSince = lockedByOther && lock?.editing_at
+    ? formatDistanceToNowStrict(new Date(lock.editing_at), { addSuffix: true })
+    : lockedByOther ? "recently" : null;
+  const readOnly = !editor.isEditable || autosave.blocked !== null || lockedByOther;
 
   return (
     <div className={`fixed inset-0 ${isDesktop ? "z-50" : "z-40 fixed-visual-viewport"} flex flex-col bg-background`}>
@@ -114,8 +125,10 @@ export function PoOrderScreen({ initialId, defaultSupplierId }: PoOrderScreenPro
           <PoOrderBanners
             saveError={autosave.saveError}
             conflicts={autosave.conflicts}
-            blocked={autosave.blocked}
-            otherDeviceLabel="another device"
+            blocked={autosave.blocked === "locked" ? null : autosave.blocked}
+            otherDeviceLabel={otherDeviceLabel}
+            lockedSince={lockedSince}
+            onTakeOver={autosave.takeOver}
             onRetry={() => autosave.scheduler.request("now")}
             onReloadTheirs={() => void resolveConflictsForRecords(conflictRecords).then(() => editor.reload()).then(autosave.refreshSyncState)}
             onKeepMineAsCopy={() => void resolveConflictsForRecords(conflictRecords).then(() => editor.startCopy())}

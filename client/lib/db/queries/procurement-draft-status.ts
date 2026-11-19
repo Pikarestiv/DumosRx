@@ -1,9 +1,16 @@
 import { query, getActiveStoreId } from "../core";
 import { getUnresolvedConflicts, type RecordedConflict } from "../sync-engine/conflict-log";
 
+export interface OrderLockState {
+  editing_device_id: string | null;
+  editing_device_label: string | null;
+  editing_at: string | null;
+}
+
 export interface OrderSyncState {
   pendingWrites: number;
   conflicts: RecordedConflict[];
+  lock: OrderLockState | null;
 }
 
 async function lineIds(poId: string): Promise<string[]> {
@@ -23,7 +30,11 @@ export async function getOrderSyncState(poId: string): Promise<OrderSyncState> {
     ...(await getUnresolvedConflicts("purchase_orders", [poId])),
     ...(await getUnresolvedConflicts("purchase_order_items", items)),
   ];
-  return { pendingWrites: Number(queued?.count) || 0, conflicts };
+  const [lock] = await query<OrderLockState>(
+    "SELECT editing_device_id, editing_device_label, editing_at FROM purchase_orders WHERE id = ?",
+    [poId],
+  );
+  return { pendingWrites: Number(queued?.count) || 0, conflicts, lock: lock ?? null };
 }
 
 export interface RecentDraft {

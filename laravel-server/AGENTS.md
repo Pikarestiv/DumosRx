@@ -2531,6 +2531,34 @@ by-value copy. A refusal reached through the probe used to be recorded as
 `INSERT` although the server judged an `UPDATE`, which read as "a brand-new
 record could not be saved" — the opposite of what happened.
 
+## Purchase-order draft lock (2026-11-19)
+
+`purchase_orders` carries an advisory editing lock written by the client's
+order screen: `editing_device_id`, `editing_device_label`, `editing_user_id`
+and `editing_at` (migration `2026_11_19_000001`). Every autosave stamps the
+till's own `X-Device-Id`/label; Back clears it; "Take over" overwrites it.
+
+- **Fencing:** `PurchaseOrderLockFence` (called from `SyncController::push()`
+  before the INSERT/UPDATE branches) refuses a `purchase_order_items` INSERT,
+  or an UPDATE without `quantity_received`, with the reason `draft_locked`
+  when the parent's `editing_device_id` is set, differs from the push's
+  `X-Device-Id`, and the parent's server `updated_at` is under 10 minutes
+  old. Freshness is judged on the server clock, never the client's
+  `editing_at` (which is display-only). Receipts (any payload carrying
+  `quantity_received`) and DELETEs are never fenced: a receipt from another
+  till must not lose its line update while its batch and movement land.
+- **Old clients:** a till that never sets the columns leaves the lock NULL,
+  and a NULL lock is open. An old till that edits a draft a new till has
+  locked gets `draft_locked`, which it does not know, so it retries until the
+  lock goes stale 10 minutes after the holder's last save; nothing is lost.
+  New clients treat it as terminal (`_sync_conflicts`, re-pull) and show
+  their order screen's conflict banner. Retirement: none needed; the fence
+  is the feature.
+- **Label:** `PullRowMapper` replaces `editing_device_label` with the
+  `ResolvesDeviceLabels` answer (nickname over sniffed label) when it has
+  one, so the client's own sniffed label is only the fallback.
+- Tests: `tests/Feature/SyncPushPurchaseOrderLockTest.php`.
+
 ## Device labels: sniffed is device-wide, nicknames are store-scoped
 
 `ResolvesDeviceLabels` is the one place a device's display name comes from

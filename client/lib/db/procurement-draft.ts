@@ -15,9 +15,19 @@ export interface DraftOrderSnapshot {
   paymentStatus: string;
   amountPaid: number;
   dueDate: string | null;
+  lock?: DraftLockHolder;
+  takeOver?: boolean;
 }
 
-export type DraftSaveOutcome = "created" | "updated" | "unchanged" | "not_editable" | "deleted";
+export interface DraftLockHolder {
+  deviceId: string;
+  deviceLabel: string;
+  userId: string | null;
+}
+
+export const LOCK_FRESH_MS = 10 * 60 * 1000;
+
+export type DraftSaveOutcome = "created" | "updated" | "unchanged" | "not_editable" | "deleted" | "locked";
 
 export interface DraftSaveResult {
   outcome: DraftSaveOutcome;
@@ -34,7 +44,42 @@ interface StoredHeader {
   amount_paid: number | null;
   due_date: string | null;
   total_amount: number | null;
+  editing_device_id: string | null;
+  editing_at: string | null;
   _deleted: number | null;
+}
+
+export function lockHeldByAnother(
+  order: { editing_device_id?: string | null; editing_at?: string | null },
+  deviceId: string,
+  now: Date,
+): boolean {
+  if (!order.editing_device_id || order.editing_device_id === deviceId || !order.editing_at) return false;
+  return now.getTime() - new Date(order.editing_at).getTime() < LOCK_FRESH_MS;
+}
+
+function lockFields(lock: DraftLockHolder | undefined, now: string) {
+  if (!lock) return {};
+  return {
+    editing_device_id: lock.deviceId,
+    editing_device_label: lock.deviceLabel,
+    editing_user_id: lock.userId,
+    editing_at: now,
+  };
+}
+
+export async function releaseDraftLock(orderId: string, deviceId: string): Promise<void> {
+  const [stored] = await query<{ editing_device_id: string | null }>(
+    "SELECT editing_device_id FROM purchase_orders WHERE id = ?",
+    [orderId],
+  );
+  if (stored?.editing_device_id !== deviceId) return;
+  await update(
+    "purchase_orders",
+    orderId,
+    { editing_device_id: null, editing_device_label: null, editing_user_id: null, editing_at: null },
+    { skipAudit: true },
+  );
 }
 
 function orderTotal(items: DraftPOLineItem[]): number {
@@ -71,6 +116,7 @@ async function createDraft(snapshot: DraftOrderSnapshot, now: string): Promise<M
     ordered_by: getStoredUser()?.id ?? null,
     created_at: now,
     ...headerFields(snapshot),
+    ...lockFields(snapshot.lock, now),
   });
   const { idMap } = await reconcilePurchaseOrderLines(snapshot.id, snapshot.items, now, { skipAudit: true });
   return idMap;
@@ -80,7 +126,7 @@ export async function saveDraftOrder(snapshot: DraftOrderSnapshot): Promise<Draf
   return transaction(async () => {
     const now = new Date().toISOString();
     const [stored] = await query<StoredHeader>(
-      `SELECT status, supplier_id, notes, payment_status, amount_paid, due_date, total_amount, _deleted
+      `SELECT status, supplier_id, notes, payment_status, amount_paid, due_date, total_amount, editing_device_id, editing_at, _deleted
        FROM purchase_orders WHERE id = ?`,
       [snapshot.id],
     );
@@ -92,14 +138,21 @@ export async function saveDraftOrder(snapshot: DraftOrderSnapshot): Promise<Draf
     if (stored._deleted) return { outcome: "deleted", lineIdMap: new Map() };
     if (!EDITABLE_STATUSES.has(stored.status)) return { outcome: "not_editable", lineIdMap: new Map() };
 
-    const header = headerFields(snapshot);
-    const changedHeader = headerChanged(stored, header);
-    if (changedHeader) {
-      await update("purchase_orders", snapshot.id, { ...header, type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS }, { skipAudit: true });
+    const lock = snapshot.lock;
+    if (lock && !snapshot.takeOver && lockHeldByAnother(stored, lock.deviceId, new Date(now))) {
+      return { outcome: "locked", lineIdMap: new Map() };
     }
-    const { idMap: lineIdMap, writes } = await reconcilePurchaseOrderLines(snapshot.id, snapshot.items, now, { skipAudit: true });
 
-    if (!changedHeader && writes === 0) return { outcome: "unchanged", lineIdMap };
+    const header = headerFields(snapshot);
+    const writeHeader = () =>
+      update("purchase_orders", snapshot.id, { ...header, ...lockFields(lock, now), type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS }, { skipAudit: true });
+    const claimsLock = !!lock && stored.editing_device_id !== lock.deviceId;
+    if (claimsLock) await writeHeader();
+    const { idMap: lineIdMap, writes } = await reconcilePurchaseOrderLines(snapshot.id, snapshot.items, now, { skipAudit: true });
+    const changedHeader = headerChanged(stored, header);
+
+    if (!claimsLock && !changedHeader && writes === 0) return { outcome: "unchanged", lineIdMap };
+    if (!claimsLock) await writeHeader();
     await logAction(AUDIT_ACTIONS.PO_DRAFT_EDITED, "purchase_orders", snapshot.id, {
       item_count: snapshot.items.length,
       total_amount: header.total_amount,

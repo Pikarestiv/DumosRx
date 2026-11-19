@@ -137,4 +137,29 @@ describe("purchase order screen", () => {
 
     await waitFor(() => expect(rows("SELECT resolved_at IS NOT NULL FROM _sync_conflicts")[0][0]).toBe(1));
   });
+
+  it("opens a draft another till is editing read-only, and Take over makes this till the editor", async () => {
+    seedDraft(null);
+    db.run(`UPDATE purchase_orders SET editing_device_id = 'DRX-COUNTER-2', editing_device_label = 'Counter 2', editing_at = ?`, [new Date().toISOString()]);
+    renderScreen();
+
+    expect(await screen.findByText("Being edited on Counter 2")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Receive stock" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Take over" }));
+
+    const { getDeviceId } = await import("@/lib/utils/device-id");
+    await waitFor(() => expect(rows("SELECT editing_device_id FROM purchase_orders")[0][0]).toBe(getDeviceId()));
+    await waitFor(() => expect(screen.queryByText("Being edited on Counter 2")).toBeNull(), { timeout: 6000 });
+  });
+
+  it("releases this till's lock when leaving with Back", async () => {
+    seedDraft(null);
+    const { getDeviceId } = await import("@/lib/utils/device-id");
+    db.run(`UPDATE purchase_orders SET editing_device_id = ?, editing_at = ?`, [getDeviceId(), new Date().toISOString()]);
+    renderScreen();
+    fireEvent.click(await screen.findByRole("button", { name: "Back" }));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/procurement"));
+    expect(rows("SELECT editing_device_id FROM purchase_orders")[0][0]).toBeNull();
+  });
 });

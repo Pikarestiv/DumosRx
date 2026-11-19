@@ -1,5 +1,5 @@
 import type { PurchaseOrder } from "@/lib/db/procurement";
-import type { DraftOrderSnapshot } from "@/lib/db/procurement-draft";
+import type { DraftLockHolder, DraftOrderSnapshot } from "@/lib/db/procurement-draft";
 import { SELF_PURCHASE_VENDOR_ID } from "../po-details-fields";
 import { dueDateToSave, getOrderTotal, getValidatedAmountPaid } from "../po-line-item-math";
 import type { POLineItemDraft } from "../po-item-ledger-table";
@@ -42,7 +42,7 @@ export function amountPaidToSave(draft: PoDraft, total: number): number {
   return getValidatedAmountPaid(draft.amountPaid, total);
 }
 
-export function toSnapshot(id: string, draft: PoDraft): DraftOrderSnapshot {
+export function toSnapshot(id: string, draft: PoDraft, lock?: DraftLockHolder, takeOver = false): DraftOrderSnapshot {
   const total = getOrderTotal(draft.items);
   return {
     id,
@@ -52,6 +52,8 @@ export function toSnapshot(id: string, draft: PoDraft): DraftOrderSnapshot {
     paymentStatus: draft.paymentStatus,
     amountPaid: amountPaidToSave(draft, total),
     dueDate: dueDateToSave(draft.paymentStatus, draft.dueDate),
+    lock,
+    takeOver,
   };
 }
 

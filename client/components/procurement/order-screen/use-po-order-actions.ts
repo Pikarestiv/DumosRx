@@ -64,6 +64,7 @@ export function usePoOrderActions(editor: Editor) {
     closeReceive: () => setReceivePo(null),
     back: () => run(async () => {
       await autosave.scheduler.flush();
+      if (autosave.persisted) await autosave.release();
       router.push("/procurement");
     }),
     downloadPdf: () => run(async () => {

@@ -3671,6 +3671,20 @@ e2e/                       Playwright end-to-end specs
     user's latest draft with items from the last 24 hours. The order list
     shows each draft's age and nudges after 30 days; nothing deletes a
     draft automatically.
+  - **Draft lock (2026-11-19):** every save stamps `editing_device_id`,
+    `editing_device_label`, `editing_user_id` and `editing_at` on the order
+    (`saveDraftOrder()`'s `lock`). A lock another till stamped less than 10
+    minutes ago (`lockHeldByAnother()`, `LOCK_FRESH_MS`) makes the save
+    return `locked` and the screen read-only with "Being edited on {label}"
+    and Take over, which saves with `takeOver` and writes the lock *before*
+    the lines so it is queued first (the queue is ordered by `created_at`,
+    which a merged UPDATE keeps). Back clears the lock (`releaseDraftLock()`,
+    only if it is still this till's). The server fences other tills' line
+    edits too (laravel-server/AGENTS.md, "Purchase-order draft lock"); its
+    refusal `draft_locked` is terminal here (`push-response.ts`). The
+    columns are in `schema.ts`, `SYNC_COLUMN_MIGRATIONS` and the
+    `purchase_orders_nullable_supplier` rebuild, which runs after the column
+    migrations and would otherwise drop them.
   - **App updates:** `pwa-registrar.tsx` awaits every flush registered
     through `lib/utils/reload-guard.ts` (at most 2 s) before reloading (A-402).
   - **Actions:** Download PDF is available on drafts too; Send to vendor

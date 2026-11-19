@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-purchase-order-details-permissions-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
+const closeShortPreview = vi.fn(() => Promise.resolve<{ receivedTotal: number; amountPaid: number; overpaidBy: number } | null>(null));
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => hasPermission(key),
@@ -17,6 +18,13 @@ vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
   useDisplayName: () => (s: string) => s,
   capitalizeWords: (s: string) => s,
+}));
+vi.mock("@/lib/db/procurement-close", () => ({
+  getCloseShortPreview: () => closeShortPreview(),
+  closePurchaseOrderShort: vi.fn(),
+}));
+vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
+  useDroppedReceiptSignal: () => ({ signal: null, dismiss: vi.fn() }),
 }));
 vi.mock("@/components/procurement/owed-settlement-notice", () => ({ OwedSettlementNotice: () => null }));
 vi.mock("@/lib/db/procurement-void-receipt", () => ({ getPurchaseOrderReceipts: () => Promise.resolve([]), voidPurchaseOrderReceipt: vi.fn() }));
@@ -208,6 +216,13 @@ describe("Purchase order details permissions", () => {
     deny("manage_purchase_orders");
     renderDetails(po({ status: "partially_received" }));
     expect(screen.queryByRole("button", { name: "Close short" })).toBeNull();
+  });
+
+  it("warns how much was overpaid when closing a paid order short", async () => {
+    closeShortPreview.mockResolvedValueOnce({ receivedTotal: 3000, amountPaid: 5000, overpaidBy: 2000 });
+    renderDetails(po({ status: "partially_received" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close short" }));
+    expect(await screen.findByText(/Overpaid by/)).toBeTruthy();
   });
 
   it("shows a closed-short order as locked with no receive action", () => {

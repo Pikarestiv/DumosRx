@@ -166,6 +166,14 @@ Phase 1, the offline intent router, has shipped (`client/AGENTS.md`, "In-app Ass
 - **Action:** Decide whether real register-session management (open register with a starting float, log cash in/out during the shift, close with a counted-vs-expected reconciliation) is worth building, or whether the reporting-only version is intentional for this market.
 - **Effort:** ~1 week+: new session state machine, cash-count UI, discrepancy reporting, and offline-sync implications (register sessions need to reconcile like everything else in the sync engine).
 
+### Staff who work in more than one store (logged 2026-11-19)
+
+- **Current state:** a staff account belongs to exactly one store. The link is the single `users.store_id` column (`User::employerStore()` is a plain `belongsTo`), and the local `users` table is `UNIQUE(store_id, username)`. Owners can own several stores because ownership lives on the store (`stores.user_id`), which is why an owner can switch stores and a staff member, including an admin-role one, cannot. The only workaround today is a separate staff account per store with a different email or username.
+- **What to build:** a staff-membership pivot (for example `store_staff`: user, store, role) so one person can hold a different role in each store, with `users.store_id` kept as their home store so shipped tills and the existing tenant resolution keep working (`.agents/AGENTS.md` §11). The server should accept an acting-store header for staff only when the pivot lists that store, as it already refuses an unverified `X-Store-Id` for owners. Then follow it through the sync scoping, the till's login user list, per-store permissions, the staff screens and the local schema (`npm run test:schema`).
+- **Why it is large and sensitive:** it widens who can read each store's data. Tenant resolution (`ScopesToTenant`, `SyncOwnershipResolver`), sync pulls, the license check and the till login all assume one store per staff user today. Start with a read-only scoping pass that lists every place that reads `users.store_id` before any code is written.
+- **Open questions:** one login across stores or linked per-store accounts; whether a person can have a different role per store; how a till (a device tied to a store) lets a multi-store staff member in; whether the staff-count or plan limits count a person once or once per store. Not verified: the staff-creation controller and the till login code were not read when this was logged.
+- **Effort:** ~1 week+, with a security review.
+
 ### WhatsApp Integration System
 
 > **Use Meta WhatsApp Cloud API directly (no middleman BSP needed).**

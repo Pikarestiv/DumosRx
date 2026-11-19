@@ -3633,6 +3633,10 @@ e2e/                       Playwright end-to-end specs
   `saveDraftOrder()` (`lib/db/procurement-draft.ts`) creates the row under
   that id and the address is swapped to `/procurement/edit?id=` with
   `window.history.replaceState` so the mounted screen keeps its state.
+  Next 16 syncs `usePathname()` with that swap, so `DashboardLayout` treats
+  both addresses as the full-screen order route (`isOrderScreenRoute()`,
+  `lib/utils/order-screen-route.ts`): below `lg` the bottom nav is hidden on
+  both, and never appears over the screen after the first item is saved.
   - **When it writes:** a row added or removed, a vendor, payment status or
     due date picked, a revert or an undo save at once; typing (quantity,
     cost, lot, notes, amount paid) saves 700 ms after it pauses

@@ -49,6 +49,7 @@ export function useActionCenterAlerts(
   oversoldProduct?: string,
   owedCount = 0,
   owedProduct?: string,
+  onOpenProfileChecklist?: () => void,
 ) {
   const { isAuthenticated, isAdmin, user } = useAuth();
   const { storeProfile } = useStore();
@@ -169,7 +170,8 @@ export function useActionCenterAlerts(
             icon: Settings,
             priority: "info",
             actionLabel: "Complete Now",
-            actionRoute: "/settings/store",
+            actionRoute: onOpenProfileChecklist ? undefined : "/settings/store",
+            onAction: onOpenProfileChecklist,
           });
         }
       } else {
@@ -192,7 +194,7 @@ export function useActionCenterAlerts(
           icon: Clock,
           priority: "warning",
           actionLabel: "Check Now",
-          actionRoute: "/inventory/catalog",
+          actionRoute: "/inventory/catalog?status=expiring_soon",
         });
       }
 
@@ -284,7 +286,7 @@ export function useActionCenterAlerts(
           icon: RefreshCw,
           priority: "warning", // or info depending on severity
           actionLabel: "Sync Status",
-          actionRoute: "/settings/cloud",
+          actionRoute: "/settings/diagnostics",
         });
       }
     }

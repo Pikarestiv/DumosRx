@@ -30,4 +30,22 @@ describe("ResponsiveModal on mobile when swipe-to-dismiss is off", () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("passes dismissOnOutsideClick=false to prevent outside interaction from closing", () => {
+    const onOpenChange = vi.fn();
+    render(
+      <ResponsiveModal
+        open
+        onOpenChange={onOpenChange}
+        title="Add"
+        swipeToDismiss={false}
+        dismissOnOutsideClick={false}
+      >
+        <input aria-label="Name" />
+      </ResponsiveModal>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });

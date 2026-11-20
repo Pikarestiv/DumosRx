@@ -610,13 +610,6 @@ suggested tackle order rather than a strict ranking.
 
 ---
 
-#### A-426. `client/` — the settings Categories list still gives unmatched categories an arbitrary icon
-
-- **Found:** 2026-11-19, while fixing the services icons.
-- **Location:** `getCategoryIcon()` in `client/lib/constants/category-icons.tsx`, used by `components/settings/store/categories-card.tsx`.
-- **What's wrong:** a category with no keyword match gets an icon from a hash of its name, so unrelated categories (a clinic's "Dentals", "Laser treatments") show a syringe or a droplet. POS service cards no longer do this (`getServiceIcon()`); the categories list was left as it was.
-- **Fix:** give unmatched categories one neutral icon, or reuse `getServiceIcon()` for stores whose items are services.
-
 ## Accepted tradeoffs (no fix planned)
 
 #### PG-14. `web/` — two more nav items are role-gated over permission-gated endpoints (same class as the Operations bug fixed in Phase 1)

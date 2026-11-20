@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -35,6 +35,7 @@ export function ProductImageSection({ productId, productName: storedName, imageK
   const canEdit = useHasPermission("manage_products");
   const image = useProductImageUpload(productId);
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   if (!config.enabled) return null;
@@ -81,10 +82,26 @@ export function ProductImageSection({ productId, productName: storedName, imageK
               onChange={(event) => void onFileChosen(event)}
               tabIndex={-1}
             />
-            <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => fileInput.current?.click()}>
-              {image.isBusy && image.status !== "removing" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-2" />}
-              {hasImage ? "Replace image" : "Upload image"}
-            </Button>
+            <input
+              ref={cameraInput}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              aria-label={`Take a photo of ${productName}`}
+              onChange={(event) => void onFileChosen(event)}
+              tabIndex={-1}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => fileInput.current?.click()}>
+                {image.isBusy && image.status !== "removing" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-2" />}
+                {hasImage ? "Replace image" : "Upload image"}
+              </Button>
+              <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => cameraInput.current?.click()}>
+                <Camera className="w-4 h-4 mr-2" />
+                Take photo
+              </Button>
+            </div>
             {hasImage && (
               <Button type="button" size="sm" variant="ghost" className="text-destructive" disabled={disabled} onClick={() => setConfirmingRemove(true)}>
                 <Trash2 className="w-4 h-4 mr-2" />

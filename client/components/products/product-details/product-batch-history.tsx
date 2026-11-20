@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Boxes, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { BatchCostEditDialog } from "./batch-cost-edit-dialog";
@@ -20,6 +20,7 @@ interface ProductBatchHistoryProps {
   formatPrice?: (amount: number) => string;
   sellingPrice?: number | null;
   onChangeSellingPrice?: () => void;
+  highlightBatchId?: string | null;
 }
 
 function NoBatchRecordsFound({ storeType }: { storeType: string }) {
@@ -43,11 +44,22 @@ export function ProductBatchHistory({
   formatPrice,
   sellingPrice,
   onChangeSellingPrice,
+  highlightBatchId,
 }: ProductBatchHistoryProps) {
   const [costEditBatch, setCostEditBatch] = useState<StockBatch | null>(null);
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(
-    batches.length === 1 ? batches[0]?.id : null,
+    highlightBatchId || (batches.length === 1 ? batches[0]?.id : null),
   );
+
+  useEffect(() => {
+    if (highlightBatchId) {
+      setExpandedBatchId(highlightBatchId);
+      const el = document.getElementById(`batch-card-${highlightBatchId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [highlightBatchId]);
 
   if (loadingBatches) {
     return (
@@ -100,9 +112,12 @@ export function ProductBatchHistory({
             ? formatCost(batch.cost_price * batch.quantity)
             : null;
 
+        const isHighlighted = highlightBatchId === batch.id;
+
         return (
           <div
             key={batch.id}
+            id={`batch-card-${batch.id}`}
             role="button"
             tabIndex={0}
             aria-expanded={isExpanded}
@@ -113,7 +128,11 @@ export function ProductBatchHistory({
                 toggleExpand(batch.id);
               }
             }}
-            className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2 cursor-pointer hover:border-border/80 transition-colors"
+            className={`bg-card border rounded-xl p-4 flex flex-col gap-2 cursor-pointer transition-all ${
+              isHighlighted
+                ? "border-primary ring-2 ring-primary/30"
+                : "border-border hover:border-border/80"
+            }`}
           >
             <div className="flex justify-between items-start">
               <span className="font-semibold text-[14px]">

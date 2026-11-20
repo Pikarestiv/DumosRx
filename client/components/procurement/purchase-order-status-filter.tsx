@@ -49,6 +49,18 @@ export function PurchaseOrderStatusFilter({
           Received
         </TabsTrigger>
         <TabsTrigger
+          value="overdue"
+          className="data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-red-500/20 data-[state=active]:text-red-600 data-[state=active]:hover:text-red-600 data-[state=active]:border-red-600"
+        >
+          Overdue
+        </TabsTrigger>
+        <TabsTrigger
+          value="due-soon"
+          className="data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-600 data-[state=active]:hover:text-amber-600 data-[state=active]:border-amber-600"
+        >
+          Due Soon
+        </TabsTrigger>
+        <TabsTrigger
           value="missing-expiry"
           className="data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:bg-primary/10 data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:text-primary data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-600 data-[state=active]:hover:text-orange-600 data-[state=active]:border-orange-600"
         >

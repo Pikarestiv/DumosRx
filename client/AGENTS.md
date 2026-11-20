@@ -3652,7 +3652,7 @@ e2e/                       Playwright end-to-end specs
   both, and never appears over the screen after the first item is saved.
   - **When it writes:** a row added or removed, a vendor, payment status or
     due date picked, a revert or an undo save at once; typing (quantity,
-    cost, lot, notes, amount paid) saves 700 ms after it pauses
+    cost, lot, notes, amount paid) saves 3 s after it pauses (`AUTOSAVE_DEBOUNCE_MS`; raised from 700 ms so a purchase order is not written on every pause in typing)
     (`lib/utils/autosave-scheduler.ts`, serialised, never two saves at
     once). `pagehide`, `visibilitychange` to hidden, Back and every action
     button flush first. Lines carry their own id from the moment they are
@@ -7974,6 +7974,8 @@ Owner decision: profit uses the real FEFO batch cost, not the active-batch avera
 **What that means for reported profit.** Every report still sums the `sale_items.cost_price` snapshot (`reports.ts`, `bi-metrics.ts`, `report-trends.ts`, `finance.ts`), so nothing there changed; what changed is the number written into it. Margin now moves with the batch mix: selling the last of a cheap batch shows more profit than the next sale from a dearer one. Historical sales are not rewritten. A till still on an older bundle keeps booking the average, so during the rollout a store's profit is a mix of both; both are sale-time snapshots, so neither is wrong for the sale it describes. Offline, each till costs a sale from its local batches, so two tills that disagree about which batch is left book what each one saw.
 
 **Returns still net to zero.** Return valuation reads the sale's own `sale_items.cost_price` (A-374), so a full return reverses exactly what the sale booked. Covered by `__tests__/sale-cogs-fefo-batch-cost.test.ts` and the FEFO case in `__tests__/returns-cost-basis-sale-item.test.ts`.
+
+**Product details panel (`components/products/catalog-detail-panel.tsx`).** The Details tab is `product-details/product-overview-cards.tsx`: KPI tiles, then Pricing / Stock & expiry / Product details as a `Section` (heading outside, flush-row card inside; the house card, not `bg-card`). Cost-derived figures render only with `view_cost_fields`. "Last counted" reads `product.lastAuditedAt` (latest reconciled `stock_audits` row, so a product counted with no variance on a day it was not in a count still shows its previous date). The tab bar (`product-detail-tab-nav.tsx`) must override the shared `TabsTrigger`'s active `bg-primary` with `data-[state=active]:bg-transparent` (and its hover twin), otherwise the active label renders primary-on-primary. The Movements text for a product's audit rows lives in `product-details/product-audit-description.ts`: empty fields are dropped on create, and only the four real flags (`is_active`, `show_online`, `requires_prescription`, `is_controlled`) render as Yes/No, so `units_per_bulk` 1 is "1", not "Yes". "Add to order" deep-links `/procurement/new?productId=`, which `PoOrderScreen` seeds through its `initialProductId` prop into the same add-after-create path.
 
 **FEFO order lives in one place:** `FEFO_ORDER_SQL` in `lib/db/queries/inventory-batches.ts` (expiry ascending, `NULL` and `''` both last, then `created_at`). The FEFO batch lookups behind a sale and the transfer source query use it; `fefoSellOrder()` (`lib/utils/batch-cost-breakdown.ts`) is its JS twin for the "Sells first" marker. Change both together (A-420).
 

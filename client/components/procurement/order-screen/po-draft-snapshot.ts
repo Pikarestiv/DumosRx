@@ -1,5 +1,6 @@
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import type { DraftLockHolder, DraftOrderSnapshot } from "@/lib/db/procurement-draft";
+import { getStoredUser } from "@/lib/storage-keys";
 import { SELF_PURCHASE_VENDOR_ID } from "../po-details-fields";
 import { dueDateToSave, getOrderTotal } from "../po-line-item-math";
 import { amountPaidForSave, derivePaymentStatus, effectiveAmountPaid } from "../po-payment";
@@ -15,6 +16,7 @@ export function newDraft(supplierId: string = SELF_PURCHASE_VENDOR_ID): PoDraft 
     amountPaid: "",
     dueDate: "",
     paymentTouched: false,
+    ordered_by: getStoredUser()?.id ?? null,
   };
 }
 
@@ -30,6 +32,7 @@ export function draftFromOrder(po: PurchaseOrder): PoDraft {
     amountPaid: String(paid || ""),
     dueDate: po.due_date || "",
     paymentTouched: true,
+    ordered_by: po.ordered_by ?? null,
   };
 }
 
@@ -50,6 +53,7 @@ export function toSnapshot(id: string, draft: PoDraft, lock?: DraftLockHolder, t
     paymentStatus,
     amountPaid,
     dueDate: dueDateToSave(paymentStatus, draft.dueDate),
+    ordered_by: draft.ordered_by ?? lock?.userId ?? getStoredUser()?.id ?? null,
     lock,
     takeOver,
   };

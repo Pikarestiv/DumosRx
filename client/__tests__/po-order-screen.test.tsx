@@ -66,10 +66,10 @@ describe("purchase order screen", () => {
             VALUES ('l1', 'po1', 'p1', ?, 0, 10, 100, ?, 'LOT-1', '2028-01-01', 0)`, [quantity, quantity * 100]);
   };
 
-  const renderScreen = (initialId: string | null = "po1") =>
+  const renderScreen = (initialId: string | null = "po1", initialProductId?: string) =>
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
-        <PoOrderScreen initialId={initialId} />
+        <PoOrderScreen initialId={initialId} initialProductId={initialProductId} />
       </QueryClientProvider>,
     );
 
@@ -81,6 +81,11 @@ describe("purchase order screen", () => {
     expect(screen.queryByRole("button", { name: /Download PDF/ })).toBeNull();
     fireEvent.pointerDown(screen.getByRole("button", { name: "More order actions" }), { button: 0, ctrlKey: false, pointerType: "mouse" });
     expect(await screen.findByRole("menuitem", { name: "Download PDF" })).toBeTruthy();
+  });
+
+  it("starts a new order with the product it was opened for already on a line", async () => {
+    renderScreen(null, "p1");
+    await waitFor(() => expect(screen.getAllByText("Panadol")).toHaveLength(2));
   });
 
   it("still offers Download PDF while another till holds the draft", async () => {

@@ -149,13 +149,13 @@ export function CategoryCombobox({
       />
 
       {open && (showCreateRow || filtered.length > 0 || names.length === 0) && (
-        <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none animate-in fade-in-0 zoom-in-95 overflow-hidden">
+        <div className="absolute z-[999] w-full mt-1 bg-popover text-popover-foreground shadow-xl rounded-md border border-border outline-none">
           <div
             ref={listRef}
             id={listboxId}
             role="listbox"
             aria-label="Categories"
-            className="max-h-60 overflow-y-auto overscroll-contain stable-scrollbar p-1"
+            className="max-h-60 overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] stable-scrollbar rounded-md p-1"
           >
             {showCreateRow && (
               <div

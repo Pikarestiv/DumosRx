@@ -26,6 +26,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("selected");
+  const deepLinkStatus = searchParams.get("status");
 
   useEffect(() => {
     if (selectedId) {
@@ -36,8 +37,7 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
         (newParams.toString() ? `?${newParams.toString()}` : "");
       router.replace(newUrl);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
+  }, [selectedId, router, searchParams]);
 
   const {
     loading,
@@ -55,6 +55,18 @@ export function ProcurementManagement({ initialTab = "orders" }: ProcurementMana
     handleDeletePO,
     isMutatingPO,
   } = usePurchaseOrders();
+
+  useEffect(() => {
+    if (deepLinkStatus) {
+      setPoTab(deepLinkStatus);
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("status");
+      const newUrl =
+        window.location.pathname +
+        (newParams.toString() ? `?${newParams.toString()}` : "");
+      router.replace(newUrl);
+    }
+  }, [deepLinkStatus, router, searchParams, setPoTab]);
 
   const handleTabChange = (value: string) => {
     if (value === "orders") {

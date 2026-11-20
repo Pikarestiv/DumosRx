@@ -168,16 +168,36 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     summary:
       "Click a product's cost in the catalog to see every batch behind it: when it arrived, which order it came from, its lot, expiry, units left and cost, and which batch sells first. Correct a wrong cost right there. Each sale is costed at the batch it sells from, so this is what your profit is built on.",
     steps: [
-      "Open Inventory > Catalog on a computer or tablet and click the cost figure (the one with the small arrow) on any product row.",
+      "Open Inventory > Catalog on a computer or tablet and click the cost figure (the one with the small arrow) on any product row, or open a product and tap 'From N batches' under Avg cost on its Details tab.",
       "Read the batches: received date and time, 'From PO-...' when it came in on a purchase order, lot, expiry and units left. The batch marked 'Sells first' is the one the next sale takes stock from (earliest expiry first).",
       "The line at the bottom explains the average, for example 'Average 670 = (13 x 650 + 2 x 800) / 15 units', and shows the last cost you received the product at.",
       "Sold-out batches are hidden; tap 'Show sold-out batches' to see them. They can still be corrected, because the last cost you paid comes from them.",
-      "To correct a cost, tap 'Edit' beside the batch, type the right cost and check the preview, then tap 'Save cost'. Read any warning first: a cost of 0, a cost far from your other batches (an extra zero), or an older batch that will sell before this one.",
-      "Profit looks wrong at your selling price? Tap 'Change selling price' under the preview to open the product's edit form.",
+      "To correct a cost, tap the pencil beside the batch, type the right cost, pick a reason and check 'After this correction', then tap 'Save correction'. Read any warning first: a cost of 0, a cost far from your other batches (an extra zero), or an older batch that will sell before this one.",
+      "Profit looks wrong at your selling price? Close the breakdown and tap 'Change price' on the product's Details tab.",
     ],
     proTip:
       "Correcting a cost never changes sales you have already made: their profit stays as it was recorded. It also leaves the purchase order and what you paid the supplier untouched. Staff without 'Edit Product Cost Price' see the breakdown but cannot change it, and staff without 'View Cost & Margin Fields' do not see costs at all.",
     videoPlaceholderText: "Video Walkthrough: Reading a product's cost breakdown and correcting a batch cost from the catalog",
+  },
+  {
+    id: "product-details-panel",
+    title: "The Product Details Panel: Stock, Price, Margin and Expiry at a Glance",
+    category: "Inventory",
+    badge: "New",
+    readTime: "2 min read",
+    videoDuration: "1:30",
+    summary:
+      "Open a product in the Catalog to see how much is in stock, what it sells for, what it costs you and what you make on each unit, all on one screen, with the next things to do one tap away.",
+    steps: [
+      "Open Inventory > Catalog and select a product. The top row has Edit, Adjust stock and Add to order. 'Add to order' opens a new purchase order with this product already on its first line.",
+      "The four cards show In stock (with your reorder level), Selling price, Avg cost and Margin. Tap 'From N batches' under Avg cost to see exactly how that average is worked out.",
+      "Under Pricing, compare your profit and margin on the average cost of stock on the shelf with what restocking costs now (the last cost you received). Tap 'Change price' to edit the selling price.",
+      "Under Stock & expiry, see the next expiry date and when the product was last counted. Tap 'Add' or 'Count now' to fix whichever is missing.",
+      "Switch to Batches for every batch on hand, or Movements for the history: who changed what, with the date and time.",
+    ],
+    proTip:
+      "Margin here is worked out on the average cost, while 'Last cost' shows what restocking costs today. If the last cost margin is much lower, it is time to raise the price. Staff without permission to view cost fields do not see the cost, margin or pricing figures.",
+    videoPlaceholderText: "Video Walkthrough: Reading the product details panel and acting from it",
   },
   {
     id: "product-images",
@@ -190,7 +210,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Give each product one photo. It shows in your catalog, on the POS product tiles so cashiers find items faster, and on your online store's product cards.",
     steps: [
       "Open Inventory > Catalog and select the product.",
-      "In the Image section at the top of the details panel, tap 'Upload image' and pick a photo, or take one with your phone or tablet camera.",
+      "In the Image section at the bottom of the Details tab, tap 'Upload image' and pick a photo, or take one with your phone or tablet camera.",
       "The photo is shrunk on your device before it uploads, so even a large camera photo uploads quickly. You need an internet connection; offline, the buttons are disabled and the rest of the product still saves as normal.",
       "Use 'Replace image' to change the photo, or 'Remove image' to go back to the category icon. Every till picks up the change on its next sync, and your online store on its next refresh.",
       "On a slower till, turn off 'Show product images in POS grid' in Settings > Register Configs. The POS then shows the category icon instead.",

@@ -43,7 +43,9 @@ const BACKDROP_ICONS: Record<string, React.ElementType> = {
   "pending-sync": CloudUpload,
 };
 
-export interface ActionCenterProps {
+import { StoreProfileChecklistDialog } from "./store-profile-checklist-dialog";
+
+interface ActionCenterProps {
   expiringCount: number;
   lowStockCount: number;
   missingExpiryCount: number;
@@ -125,6 +127,7 @@ export function DashboardActionCenter({
   owedCount,
   owedProduct,
 }: ActionCenterProps) {
+  const [showProfileChecklist, setShowProfileChecklist] = useState(false);
   const alerts = useActionCenterAlerts(
     expiringCount,
     lowStockCount,
@@ -133,6 +136,7 @@ export function DashboardActionCenter({
     oversoldProduct,
     owedCount,
     owedProduct,
+    () => setShowProfileChecklist(true),
   );
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
@@ -184,6 +188,10 @@ export function DashboardActionCenter({
           </div>
         ))}
       </div>
+      <StoreProfileChecklistDialog
+        open={showProfileChecklist}
+        onOpenChange={setShowProfileChecklist}
+      />
     </div>
   );
 }

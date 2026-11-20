@@ -13,6 +13,7 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver;
 }
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }) }));
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => granted.has(key),
 }));
@@ -74,7 +75,7 @@ function openBatchesTab() {
       <CatalogDetailPanel product={product} onEditProduct={vi.fn()} />
     </QueryClientProvider>,
   );
-  fireEvent.mouseDown(screen.getByRole("tab", { name: "Batches" }));
+  fireEvent.mouseDown(screen.getByRole("tab", { name: /^Batches/ }));
 }
 
 const editButton = () => screen.queryByRole("button", { name: "Edit cost price for batch LOT-7" });

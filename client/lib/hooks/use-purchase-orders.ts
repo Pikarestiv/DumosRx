@@ -15,7 +15,8 @@ import {
   costOverriddenLines,
 } from "@/components/procurement/po-line-item-math";
 import { getAverageCostPrice } from "@/lib/db/queries/products";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getLocalTodayDate } from "@/lib/utils";
+import { getPayableDueState } from "@/lib/utils/payables";
 import { useStore } from "@/lib/context/store-context";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/lib/context/auth-context";
@@ -170,6 +171,7 @@ export function usePurchaseOrders() {
   };
 
   const { results: filteredOrders, isFuzzyFallback } = useMemo(() => {
+    const today = getLocalTodayDate();
     const preFilteredOrders = purchaseOrders.filter((po) => {
       if (poTab === "all") return true;
       if (poTab === "missing-expiry") {
@@ -177,6 +179,12 @@ export function usePurchaseOrders() {
           (po.status === "received" || po.status === "partially_received") &&
           po.has_missing_expiry
         );
+      }
+      if (poTab === "overdue") {
+        return getPayableDueState(po, today) === "overdue";
+      }
+      if (poTab === "due-soon") {
+        return getPayableDueState(po, today) === "due_soon";
       }
       return po.status === poTab;
     });

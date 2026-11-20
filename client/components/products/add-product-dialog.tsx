@@ -170,6 +170,7 @@ export function AddProductDialog({
     <>
       <ResponsiveModal
         swipeToDismiss={false}
+        dismissOnOutsideClick={false}
         open={open}
         onOpenChange={onOpenChange}
         title={

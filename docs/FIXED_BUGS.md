@@ -64,7 +64,7 @@
 ### A-402 — an app update reloaded the page and threw away an unsaved purchase order
 - **Fixed:** 2026-11-19, client only, TDD.
 - **Was:** `components/pwa-registrar.tsx` reloaded the moment a new service worker took control, and the order screens kept every line in React state only.
-- **Now:** the order screen autosaves (first item creates the draft; edits save after a pause (700 ms then, 5 s since 2026-11-20), at once for added or removed rows, and on `pagehide`/`visibilitychange`), and the registrar awaits every registered flush (`lib/utils/reload-guard.ts`, at most 2 s) before reloading. A committed sql.js write is already persisted to IndexedDB when its transaction resolves, so a flushed save survives the reload.
+- **Now:** the order screen autosaves (first item creates the draft; edits save after a pause (700 ms then, 3 s since 2026-11-20), at once for added or removed rows, and on `pagehide`/`visibilitychange`), and the registrar awaits every registered flush (`lib/utils/reload-guard.ts`, at most 2 s) before reloading. A committed sql.js write is already persisted to IndexedDB when its transaction resolves, so a flushed save survives the reload.
 - **Coverage:** `client/__tests__/reload-guard.test.ts`, `po-order-editor-autosave.test.tsx` (pagehide flush).
 - **Compat:** client only. A save that takes longer than 2 s still loses its last keystrokes; the reload is never blocked for longer.
 

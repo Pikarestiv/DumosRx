@@ -14,7 +14,7 @@ import { toSnapshot } from "./po-draft-snapshot";
 import { useLockHeartbeat } from "./use-lock-heartbeat";
 import type { PoDraft } from "./po-draft-state";
 
-export const AUTOSAVE_DEBOUNCE_MS = 5000;
+export const AUTOSAVE_DEBOUNCE_MS = 3000;
 const SYNC_POLL_MS = 4000;
 
 interface UsePoAutosaveOptions {

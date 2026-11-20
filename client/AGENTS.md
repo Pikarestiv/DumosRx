@@ -3652,7 +3652,7 @@ e2e/                       Playwright end-to-end specs
   both, and never appears over the screen after the first item is saved.
   - **When it writes:** a row added or removed, a vendor, payment status or
     due date picked, a revert or an undo save at once; typing (quantity,
-    cost, lot, notes, amount paid) saves 5 s after it pauses (`AUTOSAVE_DEBOUNCE_MS`; raised from 700 ms so a purchase order is not written on every pause in typing)
+    cost, lot, notes, amount paid) saves 3 s after it pauses (`AUTOSAVE_DEBOUNCE_MS`; raised from 700 ms so a purchase order is not written on every pause in typing)
     (`lib/utils/autosave-scheduler.ts`, serialised, never two saves at
     once). `pagehide`, `visibilitychange` to hidden, Back and every action
     button flush first. Lines carry their own id from the moment they are

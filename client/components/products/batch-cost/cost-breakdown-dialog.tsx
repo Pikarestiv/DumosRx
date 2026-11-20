@@ -94,10 +94,15 @@ export function CostBreakdownDialog({
     ? (((sellingPrice - preview.average.to) / sellingPrice) * 100).toFixed(1)
     : null;
 
+  const GRID = "grid grid-cols-[1fr_72px_96px_28px] items-center gap-x-2";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[460px] p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
-        <DialogHeader className="p-5 pb-3 border-b border-border/60">
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-[460px] p-0 gap-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl"
+      >
+        <DialogHeader className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-start justify-between">
             <div>
               <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
@@ -108,6 +113,8 @@ export function CostBreakdownDialog({
               </p>
             </div>
             <button
+              type="button"
+              aria-label="Close"
               onClick={() => onOpenChange(false)}
               className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
             >
@@ -116,112 +123,107 @@ export function CostBreakdownDialog({
           </div>
         </DialogHeader>
 
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto stable-scrollbar">
-          <div className="space-y-3">
-            <div className="grid grid-cols-[1fr_80px_100px] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pb-1 border-b border-border/40">
-              <span>Batch</span>
-              <span className="text-center">Units left</span>
-              <span className="text-right">Cost</span>
-            </div>
+        <div className="max-h-[70vh] overflow-y-auto stable-scrollbar">
+          <div className={`${GRID} px-5 py-2.5 text-xs font-medium text-muted-foreground border-b border-slate-200 dark:border-slate-800`}>
+            <span>Batch</span>
+            <span className="text-right">Units left</span>
+            <span className="text-right">Cost</span>
+            <span />
+          </div>
 
-            <div className="divide-y divide-border/40">
-              {activeBatches.map((batch) => {
-                const isLatest = latestBatch?.id === batch.id;
-                const isCurrentEdit = editingBatchId === batch.id;
-                const vendorOrPo = batch.purchase_order_id ? `PO ${formatPONumber(batch.purchase_order_id)}` : batch.supplier_name || "Direct";
-                const expiryText = batch.expiry_date?.trim() ? `exp ${formatDateToDDMMYYYY(batch.expiry_date)}` : "no expiry";
+          <div className="divide-y divide-slate-200 dark:divide-slate-800">
+            {activeBatches.map((batch) => {
+              const isLatest = latestBatch?.id === batch.id;
+              const isCurrentEdit = editingBatchId === batch.id;
+              const vendorOrPo = batch.purchase_order_id ? `PO ${formatPONumber(batch.purchase_order_id)}` : batch.supplier_name || "Direct";
+              const expiryText = batch.expiry_date?.trim() ? `exp ${formatDateToDDMMYYYY(batch.expiry_date)}` : "no expiry";
 
-                return (
-                  <div key={batch.id} className="py-2.5 space-y-2">
-                    <div className="grid grid-cols-[1fr_80px_100px] items-center text-xs">
-                      <div>
-                        <div className="font-semibold text-foreground">
-                          Received {formatDateSafe(batch.created_at ?? "", "dd/MM/yyyy", "date unknown")}
-                          {isLatest && <span className="font-medium text-muted-foreground"> · latest</span>}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {vendorOrPo} · {expiryText}
-                        </div>
+              return (
+                <div key={batch.id} className={isCurrentEdit ? "bg-primary/5" : undefined}>
+                  <div className={`${GRID} px-5 py-3 text-xs`}>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-foreground text-[13px]">
+                        Received {formatDateSafe(batch.created_at ?? "", "dd/MM/yyyy", "date unknown")}
+                        {isLatest && <span> · latest</span>}
                       </div>
-
-                      <div className="text-center font-semibold text-foreground">
-                        {batch.quantity}
-                      </div>
-
-                      <div className="flex items-center justify-end gap-1.5 font-bold tabular-nums">
-                        {!isCurrentEdit ? (
-                          <>
-                            <span>{formatPrice(batch.cost_price ?? 0)}</span>
-                            {canEditCost && (
-                              <button
-                                type="button"
-                                onClick={() => startEdit(batch)}
-                                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <div className="flex flex-col items-end">
-                            <span className="text-[11px] line-through text-muted-foreground">
-                              {formatPrice(batch.cost_price ?? 0)}
-                            </span>
-                            <Input
-                              type="number"
-                              min={0}
-                              step="any"
-                              value={costInput}
-                              onChange={(e) => setCostInput(e.target.value)}
-                              className="h-8 w-20 text-right font-bold text-xs p-1"
-                              autoFocus
-                            />
-                          </div>
-                        )}
+                      <div className="text-[11px] text-muted-foreground">
+                        {vendorOrPo} · {expiryText}
                       </div>
                     </div>
-
-                    {isCurrentEdit && (
-                      <div className="space-y-1 pt-1 border-t border-border/30">
-                        <label className="text-[11px] font-medium text-muted-foreground">Reason</label>
-                        <Select value={reason} onValueChange={(val) => setReason(val as BatchCostReason)}>
-                          <SelectTrigger className="h-8 text-xs bg-muted/30">
-                            <SelectValue placeholder="Select reason" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BATCH_COST_REASONS.map((r) => (
-                              <SelectItem key={r.value} value={r.value} className="text-xs">
-                                {r.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    <div className="text-right font-medium text-foreground tabular-nums">{batch.quantity}</div>
+                    {isCurrentEdit ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-[11px] line-through text-muted-foreground tabular-nums">
+                          {formatPrice(batch.cost_price ?? 0)}
+                        </span>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={costInput}
+                          onChange={(e) => setCostInput(e.target.value)}
+                          className="h-9 w-24 text-right font-bold text-sm px-2 border-primary ring-1 ring-primary"
+                          autoFocus
+                        />
                       </div>
+                    ) : (
+                      <div className="text-right font-bold text-foreground tabular-nums">{formatPrice(batch.cost_price ?? 0)}</div>
+                    )}
+                    {canEditCost && !isCurrentEdit ? (
+                      <button
+                        type="button"
+                        aria-label="Edit cost"
+                        onClick={() => startEdit(batch)}
+                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <span />
                     )}
                   </div>
-                );
-              })}
-            </div>
+
+                  {isCurrentEdit && (
+                    <div className="px-5 pb-4 space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">Reason</label>
+                      <Select value={reason} onValueChange={(val) => setReason(val as BatchCostReason)}>
+                        <SelectTrigger className="h-10 w-full text-sm bg-white dark:bg-slate-900">
+                          <SelectValue placeholder="Select reason" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BATCH_COST_REASONS.map((r) => (
+                            <SelectItem key={r.value} value={r.value} className="text-sm">
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {soldOutBatches.length > 0 && (
-            <div className="border-t border-border/40 pt-2">
+            <div className="border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowSoldOut(!showSoldOut)}
-                className="flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline"
+                className="flex w-full items-center gap-2 px-5 py-3 text-xs text-primary font-semibold hover:bg-muted/30"
               >
                 {showSoldOut ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {showSoldOut ? "Hide sold-out batches" : `Show ${soldOutBatches.length} sold-out batches (read-only)`}
+                {showSoldOut ? "Hide sold-out batches" : `Show sold-out batches (read-only)`}
               </button>
 
               {showSoldOut && (
-                <div className="divide-y divide-border/30 pt-2 opacity-60">
+                <div className="divide-y divide-slate-200 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800 opacity-60">
                   {soldOutBatches.map((b) => (
-                    <div key={b.id} className="grid grid-cols-[1fr_80px_100px] py-1.5 text-xs">
+                    <div key={b.id} className={`${GRID} px-5 py-2 text-xs`}>
                       <span className="truncate">Batch #{b.batch_number || "Default"}</span>
-                      <span className="text-center">0</span>
-                      <span className="text-right">{formatPrice(b.cost_price ?? 0)}</span>
+                      <span className="text-right">0</span>
+                      <span className="text-right tabular-nums">{formatPrice(b.cost_price ?? 0)}</span>
+                      <span />
                     </div>
                   ))}
                 </div>
@@ -229,55 +231,41 @@ export function CostBreakdownDialog({
             </div>
           )}
 
-          <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/50 space-y-1 text-xs">
-            <div className="font-bold text-foreground">
-              How {average != null ? formatPrice(average) : "₦0"} is worked out
+          <div className="px-5 py-4 bg-muted/40 border-y border-slate-200 dark:border-slate-800 space-y-1">
+            <div className="text-xs font-bold text-foreground">
+              How {average != null ? formatPrice(average) : formatPrice(0)} is worked out
             </div>
-            <p className="text-muted-foreground text-[11.5px] leading-relaxed">
+            <p className="text-[13px] text-foreground leading-relaxed">
               ({terms.map((t) => `${t.units} × ${formatPrice(t.cost)}`).join(" + ")}) ÷ {units} units
             </p>
             {latestBatch && (
-              <p className="text-[11px] text-muted-foreground pt-0.5">
-                &ldquo;Last cost&rdquo; is the latest batch received: <span className="font-semibold text-foreground">{formatPrice(latestBatch.cost_price ?? 0)}</span>.
+              <p className="text-[11px] text-muted-foreground">
+                &ldquo;Last cost&rdquo; is the latest batch received: {formatPrice(latestBatch.cost_price ?? 0)}.
               </p>
             )}
           </div>
 
           {preview && (
-            <div className="p-3.5 rounded-2xl bg-primary/5 border border-primary/20 space-y-2 text-xs">
-              <div className="font-bold text-foreground">After this correction</div>
-              <div className="grid grid-cols-2 gap-y-1.5 text-muted-foreground">
-                <span>Avg cost</span>
-                <span className="text-right font-semibold text-foreground">
-                  {formatPrice(preview.average?.from ?? 0)} → {formatPrice(preview.average?.to ?? 0)}
-                </span>
-                <span>Stock value</span>
-                <span className="text-right font-semibold text-foreground">
-                  {formatPrice(preview.stockValue.from)} → {formatPrice(preview.stockValue.to)}
-                </span>
-                {currentMargin && newMargin && (
-                  <>
-                    <span>Margin at {formatPrice(sellingPrice ?? 0)}</span>
-                    <span className="text-right font-semibold text-foreground">
-                      {currentMargin}% → {newMargin}%
-                    </span>
-                  </>
-                )}
-              </div>
+            <div className="px-5 py-4 space-y-2 text-[13px]">
+              <div className="text-xs font-bold text-foreground">After this correction</div>
+              <PreviewRow label="Avg cost" value={`${formatPrice(preview.average?.from ?? 0)} → ${formatPrice(preview.average?.to ?? 0)}`} />
+              <PreviewRow label="Stock value" value={`${formatPrice(preview.stockValue.from)} → ${formatPrice(preview.stockValue.to)}`} />
+              {currentMargin && newMargin && (
+                <PreviewRow label={`Margin at ${formatPrice(sellingPrice ?? 0)}`} value={`${currentMargin}% → ${newMargin}%`} />
+              )}
             </div>
           )}
         </div>
 
-        <div className="p-4 border-t border-border/60 flex items-center justify-end gap-2 bg-muted/10">
-          <Button variant="outline" size="sm" onClick={editingBatchId ? cancelEdit : () => onOpenChange(false)}>
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
+          <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={editingBatchId ? cancelEdit : () => onOpenChange(false)}>
             Cancel
           </Button>
           {editingBatchId && (
             <Button
-              size="sm"
               disabled={!isChanged || correctCost.isPending}
               onClick={handleSave}
-              className="bg-primary text-primary-foreground font-semibold"
+              className="flex-[2] h-11 rounded-xl bg-primary text-primary-foreground font-semibold"
             >
               {correctCost.isPending ? "Saving…" : "Save correction"}
             </Button>
@@ -285,5 +273,14 @@ export function CostBreakdownDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PreviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-bold text-foreground tabular-nums">{value}</span>
+    </div>
   );
 }

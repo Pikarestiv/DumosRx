@@ -152,7 +152,11 @@ export function ProductOverviewCards({
           </button>
         </ValueRow>
         <ValueRow label="Last counted">
-          <span className="font-medium text-foreground">Never</span>
+          <span className="font-medium text-foreground">
+            {product.lastAuditedAt
+              ? formatDateSafe(product.lastAuditedAt, "dd/MM/yyyy HH:mm", "Never")
+              : "Never"}
+          </span>
           <button
             type="button"
             onClick={() => router.push(`/inventory/batches?action=adjust&productId=${product.id}`)}
@@ -173,17 +177,17 @@ export function ProductOverviewCards({
         <button
           type="button"
           onClick={() => onEditProduct(product)}
-          className="flex w-full items-start gap-2 px-4 py-3 text-left text-primary hover:bg-muted/30"
+          className="flex w-full flex-col gap-0.5 px-4 py-3 text-left hover:bg-muted/30"
         >
-          <Plus className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-          <div>
-            <span className="font-semibold text-xs">
+          <span className="flex items-center gap-2 text-primary">
+            <Plus className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-semibold text-xs leading-none">
               {product.genericName || product.dosageForm ? "Edit details" : "Add details"}
             </span>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              Generic name, strength, dosage form, NAFDAC no., manufacturer
-            </p>
-          </div>
+          </span>
+          <span className="pl-[22px] text-[11px] text-muted-foreground leading-snug">
+            Generic name, strength, dosage form, NAFDAC no., manufacturer
+          </span>
         </button>
       </Section>
 

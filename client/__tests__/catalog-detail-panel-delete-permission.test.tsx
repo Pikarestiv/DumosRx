@@ -11,6 +11,7 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver;
 }
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }) }));
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => hasPermission(key),
 }));
@@ -50,17 +51,14 @@ vi.mock("@/components/products/product-details/use-product-details", () => ({
   }),
 }));
 
-vi.mock("@/components/products/product-details/product-basic-info", () => ({
-  ProductBasicInfo: () => null,
+vi.mock("@/components/products/batch-cost/cost-breakdown-dialog", () => ({
+  CostBreakdownDialog: () => null,
 }));
-vi.mock("@/components/products/product-details/product-supplier-info", () => ({
-  ProductSupplierInfo: () => null,
+vi.mock("@/components/products/product-details/product-overview-cards", () => ({
+  ProductOverviewCards: () => null,
 }));
-vi.mock("@/components/products/product-details/product-pricing-info", () => ({
-  ProductPricingInfo: () => null,
-}));
-vi.mock("@/components/products/product-details/product-stock-info", () => ({
-  ProductStockInfo: () => null,
+vi.mock("@/components/products/product-details/product-image-section", () => ({
+  ProductImageSection: () => null,
 }));
 vi.mock("@/components/products/product-details/product-batch-history", () => ({
   ProductBatchHistory: () => null,

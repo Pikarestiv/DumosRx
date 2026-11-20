@@ -15,6 +15,7 @@ function CreateOrderContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const defaultSupplierId = searchParams.get("supplierId");
+  const initialProductId = searchParams.get("productId");
   const savedOrderId = pathname === "/procurement/edit" ? searchParams.get("id") : null;
   const [userId] = useState(() => getStoredUser()?.id ?? null);
   const [recent, setRecent] = useState<RecentDraft | null | undefined>(userId ? undefined : null);
@@ -37,7 +38,7 @@ function CreateOrderContent() {
       />
     );
   }
-  return <PoOrderScreen initialId={null} defaultSupplierId={defaultSupplierId} />;
+  return <PoOrderScreen initialId={null} defaultSupplierId={defaultSupplierId} initialProductId={initialProductId} />;
 }
 
 export default function CreateOrderPage() {

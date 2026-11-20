@@ -1,3 +1,10 @@
+### A-427 — the product panel's "Last counted" always read "Never"
+- **Fixed:** 2026-11-20, client only. Found while vetting the product details redesign.
+- **Was:** the redesigned Details tab hardcoded "Never" next to "Count now", dropping the `lastAuditedAt` the old stock card used.
+- **Now:** it shows `product.lastAuditedAt` as `dd/MM/yyyy HH:mm`, and "Never" only when the product has no reconciled audit.
+- **Coverage:** `client/__tests__/product-overview-cards.test.tsx`.
+- **Compat:** UI only.
+
 ### A-423 — editing the store owner's own account demanded a Group the owner cannot have, and the staff cards disagreed
 - **Fixed:** 2026-11-19, client only, TDD. Reported while editing the owner's account.
 - **Was:** the staff form required a Group for every account, and the owner belongs to no group, so the picker had nothing to choose; picking any listed group would have sent that group's role with the save and demoted the owner. Separately, "Total Staff" excluded the store owner (a plan seat limit) while "Active Now" counted the owner, so the cards could read 2 and 3, and "Active Now" meant "not deactivated", not signed in.

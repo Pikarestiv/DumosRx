@@ -1,4 +1,5 @@
 ### A-426 — the settings Categories list gave unmatched categories an arbitrary icon
+- **Issue:** #398
 - **Fixed:** 2026-11-20, client only.
 - **Was:** a category with no keyword match took an icon from a hash of its name, so a clinic's "Dentals" or "Laser treatments" showed a syringe or a droplet.
 - **Now:** the list uses `getCategoryListIcon()`: the keyword match when there is one, otherwise one neutral tag icon. `getCategoryIcon()` is unchanged, so product tiles keep their fallback.
@@ -6,6 +7,7 @@
 - **Compat:** UI only.
 
 ### A-427 — the product panel's "Last counted" always read "Never"
+- **Issue:** #399
 - **Fixed:** 2026-11-20, client only. Found while vetting the product details redesign.
 - **Was:** the redesigned Details tab hardcoded "Never" next to "Count now", dropping the `lastAuditedAt` the old stock card used.
 - **Now:** it shows `product.lastAuditedAt` as `dd/MM/yyyy HH:mm`, and "Never" only when the product has no reconciled audit.

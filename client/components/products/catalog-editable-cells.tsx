@@ -166,6 +166,7 @@ export function EditableCategoryCell({
         // pre-filling it would narrow the list to near-matches of the
         // current value instead of showing every category to pick from.
         setValue("");
+        skipNextBlur.current = false;
         setEditing(true);
       }}
       onKeyDown={(e) => {
@@ -173,6 +174,7 @@ export function EditableCategoryCell({
           e.preventDefault();
           e.stopPropagation();
           setValue("");
+          skipNextBlur.current = false;
           setEditing(true);
         }
       }}
@@ -270,6 +272,7 @@ export function EditableQuickNumberCell({
       onClick={(e) => {
         e.stopPropagation();
         setDraft(value);
+        skipNextBlur.current = false;
         setEditing(true);
       }}
       onKeyDown={(e) => {
@@ -277,6 +280,7 @@ export function EditableQuickNumberCell({
           e.preventDefault();
           e.stopPropagation();
           setDraft(value);
+          skipNextBlur.current = false;
           setEditing(true);
         }
       }}

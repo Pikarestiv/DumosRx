@@ -53,6 +53,18 @@ describe("catalog quick-edit commit semantics", () => {
     expect(screen.queryByRole("spinbutton")).toBeNull();
   });
 
+  it("still closes an untouched cell on click-away after an earlier edit was cancelled with the cross", () => {
+    const { input } = renderCell({ commitOnBlur: false });
+    fireEvent.change(input, { target: { value: "99" } });
+    fireEvent.click(screen.getByTitle("Cancel"));
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Edit stock quantity/i }));
+    fireEvent.blur(screen.getByRole("spinbutton"));
+
+    expect(screen.queryByRole("spinbutton")).toBeNull();
+  });
+
   it("lets Escape and the cross cancel an edited confirm-only cell", () => {
     const first = renderCell({ commitOnBlur: false });
     fireEvent.change(first.input, { target: { value: "99" } });

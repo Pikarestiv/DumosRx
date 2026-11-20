@@ -69,6 +69,16 @@ describe("catalog quick-edit commit semantics", () => {
     expect(second.onSave).not.toHaveBeenCalled();
   });
 
+  it("stops a tap on Save or Cancel from moving focus off the input first, which would run the blur path", () => {
+    const { input } = renderCell({ commitOnBlur: false });
+    fireEvent.change(input, { target: { value: "15" } });
+
+    for (const title of ["Save", "Cancel"]) {
+      expect(fireEvent.pointerDown(screen.getByTitle(title))).toBe(false);
+      expect(fireEvent.mouseDown(screen.getByTitle(title))).toBe(false);
+    }
+  });
+
   it("keeps Enter and Space inside the editing cell so the row behind it does not open", () => {
     const onRowKey = vi.fn();
     render(

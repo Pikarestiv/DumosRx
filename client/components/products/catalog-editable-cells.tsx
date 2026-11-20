@@ -3,6 +3,7 @@ import { Pencil, Check, X } from "lucide-react";
 import { Product } from "./types";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { SearchableInput } from "@/components/ui/searchable-input";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { useUppercaseDisplayClass, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 // Shared hover/touch affordance for a per-cell quick edit:
@@ -17,39 +18,62 @@ function CellEditPencil({ hasTouchCapability }: { hasTouchCapability: boolean })
   );
 }
 
-/** Explicit confirm/cancel affordance for mouse users, alongside
- * keyboard (Enter/Escape). `onMouseDown` preventDefault keeps focus on the
- * input through the click so it never blurs first — a real blur would run
- * the input's own onBlur/save path before this button's onClick got a
- * chance to run its own (possibly different, e.g. cancel) logic. */
-function CellEditActions({
+const KEEP_INPUT_FOCUSED = {
+  onMouseDown: (e: React.SyntheticEvent) => e.preventDefault(),
+  onPointerDown: (e: React.SyntheticEvent) => e.preventDefault(),
+};
+
+const ACTION_BUTTON = "flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-lg";
+
+/** An editing cell: the input where the value was, with its Save and Cancel
+ * buttons in a floating bar under it, so they get a real tap target without
+ * squeezing into the column or covering the neighbouring cell. The buttons
+ * swallow mousedown and pointerdown so the input keeps focus through the tap
+ * (a real blur would run the input's own save path before the button's). */
+function InlineEditFrame({
+  className = "",
+  title,
   onSave,
   onCancel,
+  children,
 }: {
+  className?: string;
+  title?: string;
   onSave: () => void;
   onCancel: () => void;
+  children: React.ReactNode;
 }) {
   return (
-    <>
-      <button
-        type="button"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onSave}
-        className="p-0.5 rounded text-emerald-600 hover:bg-emerald-500/10 shrink-0"
-        title="Save"
+    <Popover open>
+      <PopoverAnchor asChild>
+        <div
+          className={`flex items-center rounded-lg ${className}`}
+          title={title}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
+      </PopoverAnchor>
+      <PopoverContent
+        side="bottom"
+        align="end"
+        sideOffset={6}
+        className="flex w-auto gap-1 rounded-xl p-1"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
       >
-        <Check className="w-3.5 h-3.5" />
-      </button>
-      <button
-        type="button"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={onCancel}
-        className="p-0.5 rounded text-muted-foreground hover:bg-muted shrink-0"
-        title="Cancel"
-      >
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </>
+        <button type="button" {...KEEP_INPUT_FOCUSED} onClick={onSave} title="Save" className={`${ACTION_BUTTON} text-emerald-600 hover:bg-emerald-500/10`}>
+          <Check className="h-4 w-4 pointer-coarse:h-5 pointer-coarse:w-5" />
+        </button>
+        <button type="button" {...KEEP_INPUT_FOCUSED} onClick={onCancel} title="Cancel" className={`${ACTION_BUTTON} text-muted-foreground hover:bg-muted`}>
+          <X className="h-4 w-4 pointer-coarse:h-5 pointer-coarse:w-5" />
+        </button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -100,7 +124,7 @@ export function EditableCategoryCell({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <InlineEditFrame onSave={() => finish(true, value)} onCancel={() => finish(false, value)}>
         <SearchableInput
           options={categoryOptions}
           value={value}
@@ -125,11 +149,7 @@ export function EditableCategoryCell({
             commit(value);
           }}
         />
-        <CellEditActions
-          onSave={() => finish(true, value)}
-          onCancel={() => finish(false, value)}
-        />
-      </div>
+      </InlineEditFrame>
     );
   }
 
@@ -213,11 +233,11 @@ export function EditableQuickNumberCell({
 
   if (editing) {
     return (
-      <div
-        className={`flex items-center gap-1 rounded-lg ${unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}`}
+      <InlineEditFrame
+        className={unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}
         title={unsaved ? "Not saved yet: tap the tick to save or the cross to cancel" : undefined}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
+        onSave={() => finish(true, draft)}
+        onCancel={() => finish(false, draft)}
       >
         <EditableNumberCell
           value={draft}
@@ -237,11 +257,7 @@ export function EditableQuickNumberCell({
             finish(commitOnBlur, draft);
           }}
         />
-        <CellEditActions
-          onSave={() => finish(true, draft)}
-          onCancel={() => finish(false, draft)}
-        />
-      </div>
+      </InlineEditFrame>
     );
   }
 

@@ -48,6 +48,19 @@ describe("catalog quick-edit commit semantics (every inline cell)", () => {
     expect(screen.getByTitle(/not saved yet/i)).toBeTruthy();
   });
 
+  it("labels the action bar 'Unsaved' once the value has changed, and not before", () => {
+    const { input } = renderCell();
+    expect(screen.queryByText("Unsaved")).toBeNull();
+
+    fireEvent.change(input, { target: { value: "99" } });
+
+    expect(screen.getByText("Unsaved")).toBeTruthy();
+    expect(screen.getByTitle("Save")).toBeTruthy();
+
+    fireEvent.change(input, { target: { value: "10" } });
+    expect(screen.queryByText("Unsaved")).toBeNull();
+  });
+
   it("closes an untouched cell on click-away", () => {
     const { input } = renderCell();
 

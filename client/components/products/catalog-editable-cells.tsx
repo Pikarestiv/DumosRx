@@ -63,13 +63,18 @@ function InlineEditFrame({
         side="bottom"
         align="center"
         sideOffset={6}
-        className="flex w-auto gap-1 rounded-xl p-1"
+        className="flex w-auto items-center gap-1 rounded-xl p-1"
         onOpenAutoFocus={(e) => e.preventDefault()}
         onCloseAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
+        {unsaved && (
+          <span aria-hidden className="px-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            Unsaved
+          </span>
+        )}
         <button type="button" {...KEEP_INPUT_FOCUSED} onClick={onSave} title="Save" className={`${ACTION_BUTTON} text-emerald-600 hover:bg-emerald-500/10`}>
           <Check className="h-4 w-4 pointer-coarse:h-5 pointer-coarse:w-5" />
         </button>

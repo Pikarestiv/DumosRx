@@ -1041,6 +1041,7 @@ The controller keeps the HTTP actions (`push()`, `pull()`, `counts()`,
 | `PushPayloadNormalizer` | `normalizePushPayload()`, `STORE_ID_BACKFILL_TABLES`, `STORE_SYNC_FORBIDDEN_FIELDS` |
 | `SyncPayloadSanitizer` | `sanitizeUserSyncPayload()`, `sanitizePermissionGroupSyncPayload()`, the `USER_SYNC_*` lists |
 | `SyncWriteAuthorizer` | `authorizeChangeTarget()`, `authorizeInsertTarget()`, `resolveChangeStoreId()`, `withoutStoreReassignment()`, `claimIsEvidence()`, `isBatchOutsideScope()`, `namesForeignBatch()`, `guardedRowStoreId()` |
+| `StockBatchWriteGuard` | `refuses()`: refuses a `stock_batches` UPDATE that really changes `cost_price` (needs `edit_batch_details`, `edit_product_cost` or `manage_products`) or `batch_number` / `expiry_date` / `manufacture_date` (needs `edit_batch_details`); owners and admins unrestricted; answers `permission_denied` (A-421) |
 | `PushConflictResolver` | `resolveUpdateConflict()`, `isQuantityOnlyStockBatchUpdate()`, `findDuplicateInsertConflict()`, `findAuditLogByClientId()` |
 | `PushRowWriter` | `stampSyncedAt()`, `reviveConflictTarget()`, `reopenPullWindow()`, `applyNotNullColumnDefaults()` |
 | `StockBatchDeltaApplier` | `applyStockBatchDeltas()` |

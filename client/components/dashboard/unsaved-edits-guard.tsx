@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { discardAllUnsavedEdits, hasUnsavedEdits } from "@/lib/hooks/use-unsaved-edit";
+import { discardAllUnsavedEdits, hasUnsavedEdits, urlWhereEditsAreUnsaved } from "@/lib/hooks/use-unsaved-edit";
 
 function internalLinkTarget(event: MouseEvent): string | null {
   if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
@@ -24,9 +24,11 @@ function internalLinkTarget(event: MouseEvent): string | null {
   return url.pathname + url.search + url.hash;
 }
 
+type PendingExit = { kind: "link"; href: string } | { kind: "back" };
+
 export function UnsavedEditsGuard() {
   const router = useRouter();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingExit | null>(null);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -35,21 +37,32 @@ export function UnsavedEditsGuard() {
       if (!href) return;
       event.preventDefault();
       event.stopPropagation();
-      setPendingHref(href);
+      setPending({ kind: "link", href });
+    };
+    const onPopState = (event: PopStateEvent) => {
+      if (!hasUnsavedEdits()) return;
+      event.stopImmediatePropagation();
+      window.history.pushState(window.history.state, "", urlWhereEditsAreUnsaved());
+      setPending({ kind: "back" });
     };
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    window.addEventListener("popstate", onPopState, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("popstate", onPopState, true);
+    };
   }, []);
 
   const leave = () => {
-    const href = pendingHref;
-    setPendingHref(null);
+    const exit = pending;
+    setPending(null);
     discardAllUnsavedEdits();
-    if (href) router.push(href);
+    if (exit?.kind === "link") router.push(exit.href);
+    if (exit?.kind === "back") window.history.back();
   };
 
   return (
-    <AlertDialog open={pendingHref !== null} onOpenChange={(open) => !open && setPendingHref(null)}>
+    <AlertDialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>You have a change that isn&apos;t saved</AlertDialogTitle>

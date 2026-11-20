@@ -358,6 +358,24 @@ class SyncController extends Controller
                             continue;
                         }
 
+                        if (
+                            $model
+                            && $currentUser
+                            && ! $isSuperAdmin
+                            && $change['table_name'] === 'stock_batches'
+                            && app(\App\Services\Sync\StockBatchWriteGuard::class)->refuses($currentUser, $model, $payload)
+                        ) {
+                            DB::commit();
+                            $failed[] = [
+                                'id' => $change['id'] ?? null,
+                                'table_name' => $change['table_name'],
+                                'record_id' => $recordId,
+                                'reason' => 'permission_denied',
+                            ];
+
+                            continue;
+                        }
+
                         if ($model) {
                             $payload = $authorizer->withoutStoreReassignment($change['table_name'], $payload, $model, $isSuperAdmin ? null : $allowedStoreIds);
                         }

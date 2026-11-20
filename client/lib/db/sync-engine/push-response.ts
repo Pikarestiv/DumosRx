@@ -30,6 +30,13 @@ const REASONS_SETTLING_SOURCE_ROW = new Set(["permission_denied"]);
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-sync-engine-push-ts-L55
 const REASONS_NEEDING_REPULL = new Set(["version_conflict", "stale_timestamp", "email_in_use", "draft_locked"]);
 
+// A refused batch edit (A-421) leaves this device showing a cost, expiry or lot the server never accepted, and the row is dropped from the queue, so a pull has to put the server's value back.
+const TABLES_REPULLED_ON_PERMISSION_DENIED = new Set(["stock_batches"]);
+
+const needsRepull = (f: { reason: string; table_name: string }) =>
+  REASONS_NEEDING_REPULL.has(f.reason) ||
+  (f.reason === "permission_denied" && TABLES_REPULLED_ON_PERMISSION_DENIED.has(f.table_name));
+
 export async function settleFailedChanges(
   failed: NonNullable<PushResponse["failed"]>,
   changes: SyncChange[],
@@ -77,7 +84,7 @@ export async function settleFailedChanges(
       });
 
       if (
-        REASONS_NEEDING_REPULL.has(f.reason) &&
+        needsRepull(f) &&
         !TABLES_NEVER_PULLED.has(f.table_name) &&
         !rewoundTables.has(f.table_name)
       ) {

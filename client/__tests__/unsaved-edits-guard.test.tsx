@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
@@ -89,6 +89,71 @@ describe("leaving with an unsaved inline edit", () => {
     render(page(true));
 
     expect(fireEvent.click(screen.getByRole("link", { name: "Somewhere" }), { metaKey: true })).toBe(true);
+  });
+});
+
+describe("the browser Back button with an unsaved inline edit", () => {
+  const pressBack = () => act(() => void window.dispatchEvent(new PopStateEvent("popstate")));
+
+  beforeEach(() => push.mockClear());
+
+  it("is held back and asks first: the app's own handler never sees the navigation, and the page's address is put back", () => {
+    const appHandler = vi.fn();
+    window.addEventListener("popstate", appHandler);
+    const pushState = vi.spyOn(window.history, "pushState");
+    render(page(true));
+
+    pressBack();
+
+    expect(appHandler).not.toHaveBeenCalled();
+    expect(pushState).toHaveBeenCalledWith(window.history.state, "", window.location.href);
+    expect(screen.getByText("You have a change that isn't saved")).toBeTruthy();
+    window.removeEventListener("popstate", appHandler);
+    pushState.mockRestore();
+  });
+
+  it("goes back for real once the user chooses to lose the change", () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    render(page(true));
+
+    pressBack();
+    fireEvent.click(screen.getByRole("button", { name: "Leave without saving" }));
+
+    expect(back).toHaveBeenCalledOnce();
+    expect(hasUnsavedEdits()).toBe(false);
+    back.mockRestore();
+  });
+
+  it("stays on the page, with the edit, when the user chooses Stay", () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    render(page(true));
+
+    pressBack();
+    fireEvent.click(screen.getByRole("button", { name: "Stay" }));
+
+    expect(back).not.toHaveBeenCalled();
+    expect(hasUnsavedEdits()).toBe(true);
+    back.mockRestore();
+  });
+
+  it("lets Back through untouched when nothing is unsaved", () => {
+    const appHandler = vi.fn();
+    window.addEventListener("popstate", appHandler);
+    render(page(false));
+
+    pressBack();
+
+    expect(appHandler).toHaveBeenCalledOnce();
+    expect(screen.queryByText("You have a change that isn't saved")).toBeNull();
+    window.removeEventListener("popstate", appHandler);
+  });
+
+  it("stops warning on tab close after the change was discarded", () => {
+    render(page(true));
+    pressBack();
+    fireEvent.click(screen.getByRole("button", { name: "Leave without saving" }));
+
+    expect(beforeUnload()).toBe(false);
   });
 });
 

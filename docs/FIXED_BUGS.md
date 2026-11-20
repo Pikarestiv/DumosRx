@@ -6,6 +6,14 @@
 - **Coverage:** `client/__tests__/category-list-icon.test.ts`.
 - **Compat:** UI only.
 
+### A-421 — a `stock_batches` push was not checked against the pusher's batch-editing permissions
+- **Issue:** #401
+- **Fixed:** 2026-11-21, server and client, TDD. Found 2026-11-18, building the catalog cost breakdown.
+- **Was:** correcting a batch's cost, expiry, lot or manufacture date was gated only in the client; the sync push checked store ownership and nothing else, so a session without the rights (or a modified bundle) could rewrite those columns.
+- **Now:** `StockBatchWriteGuard` (`laravel-server/app/Services/Sync/StockBatchWriteGuard.php`, called from `SyncController::push()`'s UPDATE path) compares the payload with the stored row and refuses a real change: to `cost_price` unless the session holds `edit_batch_details`, `edit_product_cost` (stock-audit cost correction) or `manage_products` (product import), and to `batch_number`, `expiry_date` or `manufacture_date` unless it holds `edit_batch_details`. Store owners, admins and super admins are unrestricted. A refusal is `permission_denied`, already terminal on every shipped client, and the client now rewinds the `stock_batches` pull window on it so the server's values replace what the device was showing. INSERTs (receiving) and quantity-only or unchanged full-row UPDATEs pass untouched.
+- **Coverage:** `laravel-server/tests/Feature/StockBatchWritePermissionTest.php` (7 cases, three of which fail without the guard) and `client/__tests__/push-version-conflict-handling.test.ts`.
+- **Compat:** §11: no payload or column changes. A device on an older bundle that tries a refused write gets the existing terminal `permission_denied` and drops the row.
+
 ### A-427 — the product panel's "Last counted" always read "Never"
 - **Issue:** #399
 - **Fixed:** 2026-11-20, client only. Found while vetting the product details redesign.

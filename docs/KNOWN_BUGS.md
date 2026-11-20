@@ -39,13 +39,6 @@ suggested tackle order rather than a strict ranking.
 - **A store-less product with no stock, pushed from a multi-store session,** now stays `store_id = NULL` (A-248 part c chose not to guess), so no device pulls it until stock for it arrives in a later push or the repair command attributes it. The pushing device still has it locally. The same holds when its stock names a store outside the pushing session's scope, such as a store since soft-deleted (outside every scope, A-167) or a sibling store a staff session cannot write. A product with no stock and no evidence anywhere can only be attributed by a person; an admin "assign store" action would close it.
 - **The losing store's devices keep a moved product** for ever: A-291.
 
-#### A-421. `laravel-server/` — a `stock_batches` push is not checked against the pusher's cost permissions
-
-- **Found:** 2026-11-18, building the catalog cost breakdown popover.
-- **What's wrong:** correcting a batch (cost, expiry, lot, manufacture date) is gated in the client on `edit_batch_details` (and costs are shown only with `view_cost_fields`), but the server's sync push (`SyncWriteAuthorizer`, `app/Services/Sync/SyncWriteAuthorizer.php`) only checks that the row belongs to a store the session may write. A staff session without either permission that crafts a push (or runs a modified bundle) can rewrite any `stock_batches.cost_price` in its store, which then feeds stock value and the COGS of every later sale from that batch.
-- **Why it was left:** out of scope for the popover, which reuses the existing client gate. Every till legitimately pushes `stock_batches` UPDATEs (sales, receipts, counts), so the fix is column-level, not row-level.
-- **Fix:** in the push path, refuse an UPDATE whose payload changes `cost_price` from the stored value unless the session's user holds `edit_batch_details`, and the same for an UPDATE that changes `batch_number`, `expiry_date` or `manufacture_date` (INSERTs from receiving stay allowed). Return a stable terminal reason so the client drops the row and re-pulls, the way `email_in_use` does (A-397). Old bundles would retry it as a generic failure until updated, which is acceptable for a write they should not have made.
-
 ### Tier 2 — stock and money figures wrong
 
 #### A-377. `client/` — two tills counting the same store offline can both post a cycle-count correction for the same product

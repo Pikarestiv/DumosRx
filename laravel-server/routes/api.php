@@ -166,6 +166,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/send-summary', [\App\Http\Controllers\Api\StoreSummaryController::class, 'sendSummary'])->middleware('subscription:web_dashboard');
         });
         Route::get('/alerts', [NotificationController::class, 'index']);
+        Route::post('/alerts/read-all', [NotificationController::class, 'markAllAsRead']);
         Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
 
         // Purchase Orders

@@ -134,6 +134,12 @@ export class FleetBillingApiClient extends StorefrontApiClient {
     });
   }
 
+  async markAllNotificationsRead() {
+    return this.request<unknown>("/alerts/read-all", {
+      method: "POST",
+    });
+  }
+
   // Online Orders
   async getOnlineOrders() {
     return this.request<{ orders?: OnlineOrder[] }>("/app/online-orders");

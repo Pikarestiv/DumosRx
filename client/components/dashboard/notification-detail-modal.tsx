@@ -3,6 +3,10 @@
 import { AlertTriangle, CheckCircle2, Megaphone, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import {
+  formatNotificationTitle,
+  formatNotificationDescription,
+} from "./format-notification";
 
 export interface NotificationDetail {
   title: string;
@@ -51,14 +55,16 @@ export function NotificationDetailModal({ notification, onClose }: Props) {
           >
             {typeStyle.icon}
           </span>
-          <span className="pt-0.5">{notification?.title}</span>
+          <span className="pt-0.5">
+            {notification ? formatNotificationTitle(notification.title) : ""}
+          </span>
         </span>
       }
       description={notification?.time}
       className="sm:max-w-lg"
     >
       <p className="text-sm leading-relaxed text-foreground whitespace-pre-line break-words">
-        {notification?.description}
+        {notification ? formatNotificationDescription(notification.description, notification.title) : ""}
       </p>
     </ResponsiveModal>
   );

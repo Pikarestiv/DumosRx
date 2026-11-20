@@ -6158,6 +6158,16 @@ same tab session still gets its own fresh one-time retry.
   `ResponsiveModal`'s `mounted` gate exists to avoid). `NotificationBell`
   falls back to the detail modal only when a notification has no other action
   (no `link`, not an online order), so it never displaces existing navigation.
+- **Notification Bell Redesign (Humanized labels, clear unread demarcation):**
+  Notifications shown to store users must NEVER expose developer snake_case strings
+  (e.g. `TILL_RELINK_CODE_ISSUED`, `RECEIVE_PO`) or database action templates (e.g.
+  `Action: RECEIVE_PO on purchase_orders`). `formatNotificationTitle` and
+  `formatNotificationDescription` in `components/dashboard/format-notification.ts`
+  enforce human Title Case and friendly natural sentences. Each item renders with
+  demarcating dividers, distinct unread styling (soft tint, bolder title, and blue
+  indicator dot vs. muted read styling), soft-colored category avatar icons,
+  contextual badge pills (e.g. "Payables", "Enterprise", "Pro", "Security", "Inventory"),
+  and an unread count badge + "Mark all as read" button in the header.
 - **No raw `<table>` elements, ever.** Every data table in the app is
   div-based with ARIA roles standing in for real `<table>` semantics
   (`role="table"` / `"rowgroup"` / `"row"` / `"columnheader"` / `"cell"`),

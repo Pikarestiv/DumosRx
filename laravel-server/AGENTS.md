@@ -892,6 +892,16 @@ sends only items that changed since the last successful sync (`unsyncedItems`), 
 server still accepts the full list so older builds keep working.
 `baseline_quantity` is written only when the column exists (`hasBaselineColumn`) and only for items that carry one, so audits still start and sync in the window between the FTP deploy and the migration, and an older till re-sending without it cannot erase a recorded baseline.
 
+### Notification Alerts (/alerts and /alerts/read-all) (2026-11-20)
+
+- `NotificationController@index` returns human-readable titles (`getUserAlertTitle`) and
+  descriptions (`getUserAlertDescription`) for regular users' activity logs rather than
+  raw internal action constants (`TILL_RELINK_CODE_ISSUED` -> "Till Relink Code Issued",
+  `RECEIVE_PO` -> "Purchase Order Received", `Action: ... on ...` -> natural sentences),
+  ensuring non-dev users never see developer snake-case strings in the bell dropdown.
+- `NotificationController@markAllAsRead` (`POST /api/v1/alerts/read-all`) marks all unread
+  system notifications as read in a single call.
+
 ### Admin alerts and deleted-user suffixes (2026-11-16)
 
 `AdminAlertService::send()` still makes one SMTP call for all `dumos.admin_emails`, but a

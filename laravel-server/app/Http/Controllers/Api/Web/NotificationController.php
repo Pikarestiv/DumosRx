@@ -118,8 +118,8 @@ class NotificationController extends Controller
                     ->map(function ($log) {
                         return [
                             'id' => $log->id,
-                            'title' => $log->action,
-                            'description' => $log->description,
+                            'title' => $this->getUserAlertTitle($log->action),
+                            'description' => $this->getUserAlertDescription($log->action, $log->description),
                             'time' => $log->created_at->diffForHumans(),
                             'type' => $this->inferType($log->action),
                             'isRead' => true,
@@ -153,6 +153,69 @@ class NotificationController extends Controller
         return $map[$action] ?? $action;
     }
 
+    private function getUserAlertTitle(string $action): string
+    {
+        $map = [
+            'RECEIVE_PO' => 'Purchase Order Received',
+            'RECEIVE_PO_REVERSED' => 'PO Receipt Voided',
+            'PO_DRAFT_EDITED' => 'Purchase Order Updated',
+            'PO_CLOSED_SHORT' => 'Purchase Order Closed Short',
+            'PO_RECOVERED_COPY' => 'Purchase Order Recovered Copy',
+            'TILL_RELINK_CODE_ISSUED' => 'Till Relink Code Issued',
+            'TILL_RELINK_CODE_ISSUED_BY_ADMIN' => 'Till Relink Code Issued',
+            'SALE_RETURN' => 'Sale Return Processed',
+            'STOCK_ADJUSTMENT' => 'Stock Adjustment',
+            'STOCK_EXPIRED' => 'Stock Marked as Expired',
+            'STOCK_DAMAGED' => 'Stock Marked as Damaged',
+            'BATCH_COST_CORRECTED' => 'Batch Cost Corrected',
+            'RESELLER_COMMISSION_REDEEMED' => 'Commission Redeemed',
+            'FACTORY_RESET' => 'Store Reset',
+        ];
+
+        if (isset($map[$action])) {
+            return $map[$action];
+        }
+
+        return ucwords(strtolower(str_replace('_', ' ', $action)));
+    }
+
+    private function getUserAlertDescription(string $action, ?string $description): string
+    {
+        if (empty($description)) {
+            return '';
+        }
+
+        if (preg_match('/^Action:\s*([A-Za-z0-9_]+)\s+on\s+([a-z0-9_]+)$/i', trim($description), $matches)) {
+            $act = strtoupper($matches[1]);
+            $descriptions = [
+                'RECEIVE_PO' => 'Goods received and recorded into inventory.',
+                'RECEIVE_PO_REVERSED' => 'Received goods for purchase order were voided.',
+                'PO_DRAFT_EDITED' => 'Purchase order draft was updated.',
+                'PO_CLOSED_SHORT' => 'Purchase order was closed with partial items.',
+                'PO_RECOVERED_COPY' => 'Unsaved order edits preserved as a recovered copy.',
+                'SALE_RETURN' => 'Customer sale return was completed.',
+                'STOCK_ADJUSTMENT' => 'Inventory stock levels were adjusted.',
+                'STOCK_EXPIRED' => 'Inventory written off as expired.',
+                'STOCK_DAMAGED' => 'Inventory written off as damaged.',
+                'BATCH_COST_CORRECTED' => 'Batch cost price was updated.',
+            ];
+
+            if (isset($descriptions[$act])) {
+                return $descriptions[$act];
+            }
+
+            $readableAction = $this->getUserAlertTitle($act);
+            $readableTable = str_replace('_', ' ', $matches[2]);
+            return "{$readableAction} on {$readableTable}.";
+        }
+
+        if (strtolower(trim($description)) === 'till re-link code issued') {
+            return 'A one-time re-link code was generated for your till.';
+        }
+
+        return $description;
+    }
+
     private function inferType($action)
     {
         $action = strtolower($action);
@@ -170,6 +233,25 @@ class NotificationController extends Controller
         }
 
         return 'info';
+    }
+
+    #[OA\Post(
+        path: '/alerts/read-all',
+        summary: 'Mark all notifications as read for the caller',
+        tags: ['Notifications'],
+        security: [['sanctum' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'All marked', content: new OA\JsonContent(ref: '#/components/schemas/MessageOnly')),
+            new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+        ],
+    )]
+    public function markAllAsRead(Request $request)
+    {
+        Notification::where('user_id', $request->user()->id)
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+
+        return response()->json(['message' => 'All notifications marked as read']);
     }
 
     #[OA\Post(

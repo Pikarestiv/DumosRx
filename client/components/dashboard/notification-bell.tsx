@@ -10,8 +10,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
   Drawer,
@@ -34,18 +32,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { usePayablesDue } from "@/lib/hooks/use-payables-due";
 import { buildPayableAlerts } from "@/lib/hooks/payable-alerts";
 import type { Broadcast } from "@/lib/types/broadcast";
-import { cn } from "@/lib/utils";
-
-interface NotificationItem {
-  id: string;
-  title: string;
-  description: string;
-  time: string;
-  type: string;
-  isRead: boolean;
-  category: string;
-  link?: string | null;
-}
+import { NotificationItemRow } from "./notification-item-row";
+import type { NotificationItem } from "./format-notification";
 
 function loadReadBroadcastIds(storageKey: string | null): string[] {
   if (!storageKey) return [];
@@ -61,24 +49,10 @@ const NotificationsEmptyState = () => (
   <EmptyState icon={Bell} title="No notifications" />
 );
 
-const NotificationItemContent = ({ notif }: { notif: NotificationItem }) => (
-  <>
-    <div className="flex justify-between w-full text-sm">
-      <span className="font-semibold">{notif.title}</span>
-      <span className="text-xs opacity-80">{notif.time}</span>
-    </div>
-    <span className="text-sm opacity-90 line-clamp-2">
-      {notif.description}
-    </span>
-  </>
-);
-
 const NotificationTrigger = ({
   unreadCount,
   ...props
 }: { unreadCount: number } & ComponentProps<typeof Button>) => (
-  // Spreads {...props} so Radix's `asChild` trigger props (aria-haspopup,
-  // aria-expanded, keyboard handlers, ref) land on the real <button>.
   <Button
     variant="ghost"
     size="icon"
@@ -92,8 +66,8 @@ const NotificationTrigger = ({
   >
     <Bell className="h-5 w-5" />
     {unreadCount > 0 && (
-      <Badge 
-        variant="destructive" 
+      <Badge
+        variant="destructive"
         className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full"
       >
         {unreadCount}
@@ -107,8 +81,6 @@ export function NotificationBell() {
   const { storeProfile } = useStore();
   const router = useRouter();
   const queryClient = useQueryClient();
-  // Shared with BroadcastBanner (same query key/cache) so both fetch once
-  // and poll on one interval instead of duplicating the network call.
   const { data: broadcastsData } = useBroadcasts(storeProfile?.id);
   const payablesDue = usePayablesDue();
   const { data: cloudNotifications = [] } = useQuery({
@@ -134,16 +106,9 @@ export function NotificationBell() {
   }
   const readBroadcastIds = readBroadcasts.ids;
   const { onOpen } = useOnlineOrdersModal();
-  // Touch capability decides Drawer vs Dropdown, not viewport width. A wide
-  // touch device (like iPad landscape) still needs the Drawer. Radix's
-  // DropdownMenu has a known iOS WebKit bug where the dismissable-layer's
-  // outside-tap-to-close races the trigger's own click-to-toggle on iOS's
-  // delayed synthetic click, so the same tap that should close the menu can
-  // silently reopen it, needing a genuinely separate second tap to close.
   const isTouchDevice = useIsTouchDevice();
   const [open, setOpen] = useState(false);
-  const [detailNotification, setDetailNotification] =
-    useState<NotificationItem | null>(null);
+  const [detailNotification, setDetailNotification] = useState<NotificationItem | null>(null);
 
   const notifications = useMemo(() => {
     const finalBroadcasts = Array.isArray(broadcastsData) ? broadcastsData : [];
@@ -162,7 +127,7 @@ export function NotificationBell() {
       id: alert.id,
       title: alert.title,
       description: alert.description,
-      time: "Payables",
+      time: alert.priority === "critical" ? "Overdue" : "Due soon",
       type: alert.priority === "critical" ? "danger" : "warning",
       isRead: false,
       category: "payable",
@@ -174,8 +139,8 @@ export function NotificationBell() {
   const markAsRead = async (id: string) => {
     if (id.startsWith("payables-")) return;
     try {
-      if (id.startsWith('broadcast-')) {
-        setReadBroadcasts(prev => {
+      if (id.startsWith("broadcast-")) {
+        setReadBroadcasts((prev) => {
           if (prev.ids.includes(id)) return prev;
           const next = { ...prev, ids: [...prev.ids, id] };
           if (readBroadcastsStorageKey) {
@@ -199,12 +164,42 @@ export function NotificationBell() {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleMarkAllAsRead = async () => {
+    const unreadBroadcastIds = notifications
+      .filter((n) => !n.isRead && n.id.startsWith("broadcast-"))
+      .map((n) => n.id);
+    if (unreadBroadcastIds.length > 0) {
+      setReadBroadcasts((prev) => {
+        const next = { ...prev, ids: Array.from(new Set([...prev.ids, ...unreadBroadcastIds])) };
+        if (readBroadcastsStorageKey) {
+          try {
+            localStorage.setItem(readBroadcastsStorageKey, JSON.stringify(next.ids));
+          } catch (e) {
+            console.error("Failed to persist read broadcast ids", e);
+          }
+        }
+        return next;
+      });
+    }
+
+    try {
+      await apiClient.markAllNotificationsRead();
+    } catch (e) {
+      console.error(e);
+    }
+
+    queryClient.setQueryData<NotificationItem[]>(
+      queryKeys.notifications.all(storeProfile?.id).queryKey,
+      (prev) => (prev ?? []).map((n) => ({ ...n, isRead: true })),
+    );
+  };
 
   const handleNotificationClick = (notif: NotificationItem) => {
     void markAsRead(notif.id);
     setOpen(false);
-    if (notif.type === 'online_order' || notif.title.includes('Online Order')) {
+    if (notif.type === "online_order" || notif.title.includes("Online Order")) {
       onOpen();
     } else if (notif.link) {
       router.push(notif.link);
@@ -213,9 +208,6 @@ export function NotificationBell() {
     }
   };
 
-  // Rendered as a sibling of the bell surface, never inside the dropdown or
-  // drawer: the row click closes the bell first, so only one dismissable
-  // layer is ever mounted.
   const detailModal = (
     <NotificationDetailModal
       notification={detailNotification}
@@ -223,78 +215,96 @@ export function NotificationBell() {
     />
   );
 
+  const headerControls = (
+    <div className="flex items-center justify-between w-full px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex items-center gap-2">
+        <span className="font-serif font-bold text-base text-foreground">Notifications</span>
+        {unreadCount > 0 && (
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60">
+            {unreadCount} Unread
+          </span>
+        )}
+      </div>
+      {unreadCount > 0 && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleMarkAllAsRead();
+          }}
+          className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700/60 transition-colors"
+        >
+          Mark all as read
+        </button>
+      )}
+    </div>
+  );
+
   if (!isTouchDevice) {
     return (
       <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
-          <NotificationTrigger unreadCount={unreadCount} />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
-          <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 && (
-                                  <NotificationsEmptyState />
-                                )}
-                    {!(notifications.length === 0) && (
-                                  notifications.map((notif) => (
-                                    <DropdownMenuItem 
-                                      key={notif.id} 
-                                      className={cn(
-                                        "flex flex-col items-start gap-1 p-3 cursor-pointer",
-                                        notif.isRead ? "opacity-70" : "bg-primary/5 font-medium"
-                                      )}
-                                      onClick={() => handleNotificationClick(notif)}
-                                    >
-                                      <NotificationItemContent notif={notif} />
-                                    </DropdownMenuItem>
-                                  ))
-                                )}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {detailModal}
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <DropdownMenuTrigger asChild>
+            <NotificationTrigger unreadCount={unreadCount} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-[390px] sm:w-[420px] p-0 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden"
+          >
+            {headerControls}
+            <div className="max-h-[460px] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <NotificationsEmptyState />
+              ) : (
+                notifications.map((notif) => (
+                  <DropdownMenuItem
+                    key={notif.id}
+                    className="p-0 focus:bg-transparent cursor-pointer focus:outline-none rounded-none"
+                    onClick={() => handleNotificationClick(notif)}
+                  >
+                    <NotificationItemRow notif={notif} />
+                  </DropdownMenuItem>
+                ))
+              )}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {detailModal}
       </>
     );
   }
 
   return (
     <>
-    <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <NotificationTrigger unreadCount={unreadCount} />
-      </DrawerTrigger>
-      <DrawerContent className="max-h-[85vh] p-0 pb-6 rounded-t-xl" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <DrawerHeader className="px-6 pt-2 pb-2 text-left">
-          <DrawerTitle className="font-serif font-black text-2xl">Notifications</DrawerTitle>
-        </DrawerHeader>
-        <div className="flex-1 overflow-y-auto px-4 mt-2">
-          {notifications.length === 0 && (
-                              <NotificationsEmptyState />
-                            )}
-                  {!(notifications.length === 0) && (
-                              <div className="space-y-2">
-                                {notifications.map((notif) => (
-                                  <button
-                                    key={notif.id}
-                                    onClick={() => handleNotificationClick(notif)}
-                                    className={cn(
-                                      "w-full text-left flex flex-col items-start gap-1 p-4 rounded-xl transition-colors",
-                                      notif.isRead 
-                                        ? "bg-muted/50 text-muted-foreground hover:bg-muted" 
-                                        : "bg-primary/10 text-foreground hover:bg-primary/15"
-                                    )}
-                                  >
-                                    <NotificationItemContent notif={notif} />
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-        </div>
-      </DrawerContent>
-    </Drawer>
-    {detailModal}
+      <Drawer open={open} onOpenChange={setOpen}>
+        <DrawerTrigger asChild>
+          <NotificationTrigger unreadCount={unreadCount} />
+        </DrawerTrigger>
+        <DrawerContent
+          className="max-h-[85vh] p-0 pb-6 rounded-t-2xl bg-white dark:bg-slate-900"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DrawerHeader className="p-0 text-left">
+            <DrawerTitle className="sr-only">Notifications</DrawerTitle>
+            {headerControls}
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto px-3 mt-2">
+            {notifications.length === 0 ? (
+              <NotificationsEmptyState />
+            ) : (
+              notifications.map((notif) => (
+                <NotificationItemRow
+                  key={notif.id}
+                  notif={notif}
+                  isDrawer={true}
+                  onClick={() => handleNotificationClick(notif)}
+                />
+              ))
+            )}
+          </div>
+        </DrawerContent>
+      </Drawer>
+      {detailModal}
     </>
   );
 }

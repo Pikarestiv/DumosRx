@@ -200,6 +200,26 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     videoPlaceholderText: "Video Walkthrough: Reading the product details panel and acting from it",
   },
   {
+    id: "edit-batch-details",
+    title: "Fix a Batch's Expiry Date, Lot Number or Manufacture Date",
+    category: "Inventory",
+    badge: "New",
+    readTime: "2 min read",
+    videoDuration: "1:30",
+    summary:
+      "Typed the wrong expiry when you received stock, or never entered one? Correct a batch's expiry date, lot number or manufacture date right from the product, and expiry alerts and first-to-expire selling follow the corrected date.",
+    steps: [
+      "Open Inventory > Catalog and select the product, then open the Batches tab.",
+      "Tap the edit-details button on the batch you want to fix. To set or change the next expiry, you can also tap 'Add' or 'Edit' beside Next expiry on the Details tab.",
+      "Change the lot number, the expiry date or the manufacture date. Type a date as DD/MM/YYYY or pick it from the calendar; clear it to remove the date. The manufacture date cannot be after the expiry date.",
+      "Tap 'Save details'. Alerts such as Expiring soon and the order batches sell in (earliest expiry first) use the new date straight away, and your other tills pick it up on their next sync.",
+      "The change shows in the product's History tab and the Activity Log with the old value, the new value and who made it.",
+    ],
+    proTip:
+      "An expiry already in the past is allowed, so you can correct a batch that has expired. Quantity is not changed here: use Adjust stock for that, and the cost breakdown for a wrong cost. Only staff with 'Edit Batch Details' see the buttons; Admin, Manager and Specialist groups have it by default.",
+    videoPlaceholderText: "Video Walkthrough: Correcting a batch's expiry date and lot number",
+  },
+  {
     id: "product-images",
     title: "Product Images: Add a Photo to Every Product",
     category: "Inventory",

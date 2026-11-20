@@ -56,6 +56,7 @@ const STANDALONE_ACTIONS: Record<string, string> = {
   STOCK_EXPIRED: "Marked stock as expired",
   STOCK_DAMAGED: "Marked stock as damaged",
   BATCH_COST_CORRECTED: "Corrected batch cost price",
+  BATCH_DETAILS_CORRECTED: "Corrected batch details",
   TILL_RELINK_CODE_ISSUED: "Issued till re-link code",
 };
 

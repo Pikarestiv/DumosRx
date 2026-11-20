@@ -28,6 +28,8 @@ import { ProductHistory } from "./product-details/product-history";
 import { ProductImageSection } from "./product-details/product-image-section";
 import { ProductDetailTabNav } from "./product-detail-tab-nav";
 import { CostBreakdownDialog } from "./batch-cost/cost-breakdown-dialog";
+import { BatchDetailsDialog } from "./batch-details/batch-details-dialog";
+import type { StockBatch } from "@/lib/types/stock-batch";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface CatalogDetailPanelProps {
@@ -56,11 +58,13 @@ export function CatalogDetailPanel({
   const canDeleteProducts = useHasPermission("delete_products");
   const canViewCost = useHasPermission("view_cost_fields");
   const canEditCost = useHasPermission("edit_product_cost");
+  const canEditBatchDetails = useHasPermission("edit_batch_details");
   const { canSeeQuantities } = useStockVisibility();
 
   const [internalTab, setInternalTab] = useState("details");
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
   const [isCostBreakdownOpen, setIsCostBreakdownOpen] = useState(false);
+  const [detailsBatch, setDetailsBatch] = useState<StockBatch | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
@@ -222,6 +226,8 @@ export function CatalogDetailPanel({
               onOpenCostBreakdown={() => setIsCostBreakdownOpen(true)}
               onEditProduct={onEditProduct}
               canViewCost={canViewCost}
+              onEditBatchDetails={canEditBatchDetails ? setDetailsBatch : undefined}
+              onOpenBatches={() => handleTabChange("batches")}
             />
             <div className="pt-2">
               <ProductImageSection
@@ -245,6 +251,7 @@ export function CatalogDetailPanel({
               formatPrice={formatPrice}
               sellingPrice={product.sellingPrice}
               onChangeSellingPrice={() => onEditProduct(product)}
+              onEditBatchDetails={canEditBatchDetails ? setDetailsBatch : undefined}
               highlightBatchId={highlightBatchId}
             />
           </TabsContent>
@@ -266,6 +273,10 @@ export function CatalogDetailPanel({
         canSeeQuantities={canSeeQuantities}
         onChangeSellingPrice={() => onEditProduct(product)}
       />
+
+      {detailsBatch && (
+        <BatchDetailsDialog batch={detailsBatch} productName={product.name} onClose={() => setDetailsBatch(null)} />
+      )}
 
       <BarcodePrintDialog
         isOpen={isLabelDialogOpen}

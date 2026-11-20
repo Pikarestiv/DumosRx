@@ -46,4 +46,19 @@ describe("product audit description", () => {
     expect(hidden).not.toMatch(/800|700/);
     expect(describeAuditDetails("batch_cost_corrected", details, true)).toMatch(/800 → 700/);
   });
+
+  it("spells out what a batch details correction changed, with dates as DD/MM/YYYY", () => {
+    const details = JSON.stringify({
+      batch_number: "LOT-7",
+      changes: { expiry_date: { from: "2027-03-01", to: "2027-06-30" }, batch_number: { from: "LOT-7", to: "LOT-8" } },
+    });
+    expect(describeAuditDetails("BATCH_DETAILS_CORRECTED", details, false)).toBe(
+      "Batch #LOT-7: Expiry date 01/03/2027 → 30/06/2027; Lot number LOT-7 → LOT-8.",
+    );
+  });
+
+  it("says 'none' for an expiry that was added or cleared", () => {
+    const details = JSON.stringify({ batch_number: null, changes: { expiry_date: { from: null, to: "2027-06-30" } } });
+    expect(describeAuditDetails("BATCH_DETAILS_CORRECTED", details, true)).toBe("Batch #Default: Expiry date none → 30/06/2027.");
+  });
 });

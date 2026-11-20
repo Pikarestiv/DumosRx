@@ -169,6 +169,22 @@ describe("backfillDefaultGroupPermissions", () => {
     expect(await permissionsOf("pg-sales_staff")).toContain("view_stock_quantities");
   });
 
+  it("grants edit_batch_details to the admin, manager and specialist default groups of a v3-stamped store only", async () => {
+    seedPreExpansionStore();
+    db.run(`UPDATE stores SET permission_catalog_version = 3 WHERE id = 'store1'`);
+    seedCustomGroup(["process_sales"]);
+
+    await queries.backfillDefaultGroupPermissions();
+
+    for (const id of ["pg-admin", "pg-manager", "pg-specialist"]) {
+      expect(await permissionsOf(id)).toContain("edit_batch_details");
+    }
+    for (const id of ["pg-sales_staff", "pg-auditor", "pg-custom"]) {
+      expect(await permissionsOf(id)).not.toContain("edit_batch_details");
+    }
+    expect(await catalogVersion()).toBe(PERMISSION_CATALOG_VERSION);
+  });
+
   it("leaves a custom group created after the v3 stamp without the key", async () => {
     seedPreExpansionStore();
     db.run(`UPDATE stores SET permission_catalog_version = 3 WHERE id = 'store1'`);

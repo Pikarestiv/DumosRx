@@ -13,7 +13,7 @@ class PermissionGroupSeeder
 {
     /** Hand-maintained port of client/lib/constants/permissions.ts's
      * PERMISSION_CATALOG_VERSION. See PermissionCatalogParityTest. */
-    private const CATALOG_VERSION = 3;
+    private const CATALOG_VERSION = 4;
 
     private const DEFAULT_GROUP_PERMISSIONS = [
         'admin' => [
@@ -34,6 +34,7 @@ class PermissionGroupSeeder
             'manage_store_settings', 'manage_payment_accounts', 'manage_online_store', 'manage_billing',
             'backup_restore_data', 'manage_device_settings', 'install_app_updates', 'factory_reset',
             'view_stock_quantities',
+            'edit_batch_details',
         ],
         'manager' => [
             'process_sales', 'apply_discounts', 'void_refund_sales', 'override_price',
@@ -53,6 +54,7 @@ class PermissionGroupSeeder
             'manage_store_settings', 'manage_payment_accounts', 'manage_online_store', 'backup_restore_data',
             'manage_device_settings', 'install_app_updates',
             'view_stock_quantities',
+            'edit_batch_details',
         ],
         'specialist' => [
             'process_sales',
@@ -68,6 +70,7 @@ class PermissionGroupSeeder
             'record_expenses',
             'manage_device_settings',
             'view_stock_quantities',
+            'edit_batch_details',
         ],
         'sales_staff' => [
             'process_sales', 'override_price',
@@ -133,6 +136,13 @@ class PermissionGroupSeeder
             'specialist' => ['view_stock_quantities'],
             'sales_staff' => ['view_stock_quantities'],
             'auditor' => ['view_stock_quantities'],
+        ],
+        4 => [
+            'admin' => ['edit_batch_details'],
+            'manager' => ['edit_batch_details'],
+            'specialist' => ['edit_batch_details'],
+            'sales_staff' => [],
+            'auditor' => [],
         ],
     ];
 

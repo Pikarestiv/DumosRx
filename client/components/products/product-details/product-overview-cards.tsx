@@ -16,6 +16,8 @@ interface ProductOverviewCardsProps {
   onOpenCostBreakdown: () => void;
   onEditProduct: (product: Product) => void;
   canViewCost?: boolean;
+  onEditBatchDetails?: (batch: StockBatch) => void;
+  onOpenBatches?: () => void;
 }
 
 const CARD_FLUSH =
@@ -30,6 +32,8 @@ export function ProductOverviewCards({
   onOpenCostBreakdown,
   onEditProduct,
   canViewCost = true,
+  onEditBatchDetails,
+  onOpenBatches,
 }: ProductOverviewCardsProps) {
   const router = useRouter();
 
@@ -143,13 +147,19 @@ export function ProductOverviewCards({
           <span className="font-medium text-foreground">
             {nextExpiry ? formatDateToDDMMYYYY(nextExpiry) : "Not set"}
           </span>
-          <button
-            type="button"
-            onClick={() => onEditProduct(product)}
-            className="text-primary font-semibold hover:underline"
-          >
-            {nextExpiry ? "Edit" : "Add"}
-          </button>
+          {onEditBatchDetails && (
+            <button
+              type="button"
+              onClick={() => {
+                const target = earliestExpiryBatch ?? (activeBatches.length === 1 ? activeBatches[0] : null);
+                if (target) onEditBatchDetails(target);
+                else onOpenBatches?.();
+              }}
+              className="text-primary font-semibold hover:underline"
+            >
+              {nextExpiry ? "Edit" : "Add"}
+            </button>
+          )}
         </ValueRow>
         <ValueRow label="Last counted">
           <span className="font-medium text-foreground">

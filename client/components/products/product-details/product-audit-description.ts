@@ -1,4 +1,5 @@
 import { batchCostReasonLabel } from "@/lib/constants/batch-cost-reasons";
+import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 export function normalizeAction(action: string) {
   return (action || "").toLowerCase();
@@ -49,6 +50,24 @@ const LABELS: Record<string, string> = {
   is_controlled: "Controlled substance",
 };
 
+const BATCH_DETAIL_LABELS: Record<string, string> = {
+  batch_number: "Lot number",
+  expiry_date: "Expiry date",
+  manufacture_date: "Manufacture date",
+};
+
+const DATE_BATCH_DETAILS = new Set(["expiry_date", "manufacture_date"]);
+
+function describeBatchDetailChanges(parsed: Record<string, unknown>): string {
+  const changes = (parsed.changes ?? {}) as Record<string, { from?: string | null; to?: string | null }>;
+  const show = (field: string, value?: string | null) =>
+    !value ? "none" : DATE_BATCH_DETAILS.has(field) ? formatDateToDDMMYYYY(value) : value;
+  const lines = Object.entries(changes).map(
+    ([field, change]) => `${BATCH_DETAIL_LABELS[field] ?? field} ${show(field, change.from)} → ${show(field, change.to)}`,
+  );
+  return `Batch #${parsed.batch_number || "Default"}: ${lines.join("; ") || "details updated"}.`;
+}
+
 const isEmpty = (value: unknown) => value === null || value === undefined || value === "";
 
 function formatValue(key: string, value: unknown): string {
@@ -76,6 +95,8 @@ export function describeAuditDetails(action: string, details: string | null, can
     const formatCost = (value: unknown) => (typeof value === "number" ? value.toLocaleString() : "-");
     return `Batch #${parsed.batch_number || "Default"}: cost price ${formatCost(parsed.previous_cost_price)} → ${formatCost(parsed.cost_price)}.${reasonText}`;
   }
+
+  if (a === "batch_details_corrected") return describeBatchDetailChanges(parsed);
 
   const isCreate = a === "insert";
   const entries = Object.entries(parsed).filter(

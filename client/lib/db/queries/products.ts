@@ -168,7 +168,7 @@ export async function getProductHistory(productId: string, viewerId?: string) {
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
-     WHERE (al.record_id = ? OR (al.action = '${AUDIT_ACTIONS.BATCH_COST_CORRECTED}' AND al.table_name = 'stock_batches'
+     WHERE (al.record_id = ? OR (al.action IN ('${AUDIT_ACTIONS.BATCH_COST_CORRECTED}', '${AUDIT_ACTIONS.BATCH_DETAILS_CORRECTED}') AND al.table_name = 'stock_batches'
        AND al.record_id IN (SELECT id FROM stock_batches WHERE product_id = ?)))${viewerId ? " AND al.user_id = ?" : ""}
      ORDER BY al.created_at DESC`,
     viewerId ? [productId, productId, viewerId] : [productId, productId]

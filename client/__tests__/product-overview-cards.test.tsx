@@ -90,6 +90,52 @@ describe("product details cards", () => {
   });
 });
 
+describe("product details cards: Next expiry", () => {
+  const withExpiry = [
+    { ...batches[0], expiry_date: "2027-06-30" },
+    { ...batches[1], expiry_date: "2027-01-31" },
+    batches[2],
+  ] as StockBatch[];
+
+  it("edits the details of the batch that expires first", () => {
+    const onEditBatchDetails = vi.fn();
+    renderCards({ batches: withExpiry, onEditBatchDetails });
+
+    expect(screen.getByText("31/01/2027")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    expect(onEditBatchDetails).toHaveBeenCalledWith(expect.objectContaining({ id: "b2" }));
+  });
+
+  it("goes to the Batches tab to add an expiry when several batches have none", () => {
+    const onEditBatchDetails = vi.fn();
+    const onOpenBatches = vi.fn();
+    renderCards({ onEditBatchDetails, onOpenBatches });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(onOpenBatches).toHaveBeenCalledOnce();
+    expect(onEditBatchDetails).not.toHaveBeenCalled();
+  });
+
+  it("opens the only batch straight away when adding an expiry", () => {
+    const onEditBatchDetails = vi.fn();
+    renderCards({ batches: [batches[0]], onEditBatchDetails });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(onEditBatchDetails).toHaveBeenCalledWith(expect.objectContaining({ id: "b1" }));
+  });
+
+  it("offers no Add or Edit to a user who may not edit batch details", () => {
+    renderCards({ batches: withExpiry });
+
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
+    expect(screen.getByText("31/01/2027")).toBeTruthy();
+  });
+});
+
 describe("product detail tab bar", () => {
   it("shows the batch count and keeps the active tab's label readable as the selected tab", () => {
     render(

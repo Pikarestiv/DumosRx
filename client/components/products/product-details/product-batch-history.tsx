@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Boxes, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Boxes, ChevronDown, ChevronUp, Pencil, SquarePen } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
 import { CostBreakdownDialog } from "../batch-cost/cost-breakdown-dialog";
 import type { StockBatch } from "@/lib/types/stock-batch";
@@ -20,6 +20,7 @@ interface ProductBatchHistoryProps {
   formatPrice?: (amount: number) => string;
   sellingPrice?: number | null;
   onChangeSellingPrice?: () => void;
+  onEditBatchDetails?: (batch: StockBatch) => void;
   highlightBatchId?: string | null;
 }
 
@@ -44,6 +45,7 @@ export function ProductBatchHistory({
   formatPrice,
   sellingPrice,
   onChangeSellingPrice,
+  onEditBatchDetails,
   highlightBatchId,
 }: ProductBatchHistoryProps) {
   const [costEditBatch, setCostEditBatch] = useState<StockBatch | null>(null);
@@ -139,6 +141,22 @@ export function ProductBatchHistory({
                 Batch #{batch.batch_number || "Default"}
               </span>
               <div className="flex items-center gap-2">
+                {onEditBatchDetails && (
+                  <HintTooltip text="Edit expiry, lot and manufacture date">
+                    <button
+                      type="button"
+                      aria-label={`Edit details for batch ${batch.batch_number || "Default"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditBatchDetails(batch);
+                      }}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    >
+                      <SquarePen className="w-3.5 h-3.5" />
+                    </button>
+                  </HintTooltip>
+                )}
                 {canEditCost && canViewCost && (
                   <HintTooltip text="Edit cost price">
                     <button

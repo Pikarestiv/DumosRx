@@ -65,3 +65,27 @@ describe("batches tab cost editing of a sold-out batch", () => {
     expect((screen.getByLabelText(/new cost price/i) as HTMLInputElement).value).toBe("650");
   });
 });
+
+describe("batches tab batch details editing", () => {
+  const renderWith = (onEditBatchDetails?: (batch: StockBatch) => void) =>
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
+        <ProductBatchHistory batches={batches} loadingBatches={false} storeType="pharmacy" canSeeQuantities canViewCost onEditBatchDetails={onEditBatchDetails} />
+      </QueryClientProvider>,
+    );
+
+  it("hands the batch to the editor when its details button is tapped", () => {
+    const onEditBatchDetails = vi.fn();
+    renderWith(onEditBatchDetails);
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit details for batch LOT-2" }));
+
+    expect(onEditBatchDetails).toHaveBeenCalledWith(expect.objectContaining({ id: "b2" }));
+  });
+
+  it("offers no details button to a user who may not edit batch details", () => {
+    renderWith();
+
+    expect(screen.queryByRole("button", { name: /Edit details for batch/ })).toBeNull();
+  });
+});

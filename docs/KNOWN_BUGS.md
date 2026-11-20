@@ -475,6 +475,15 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** a blocked caller gets HTML (a 200 "Unauthorized Access" page, or a certificate error before any response) where the API returns JSON. The client treats it as a generic failure, so sync silently stops and the user cannot tell it is their network.
 - **Fix:** recognise a non-JSON or firewall response and show "This network is blocked by the server. Try another network, or contact support" once, with the retry kept running quietly. A certificate failure cannot be read by `fetch`, so that case can only be inferred from every request failing at once.
 
+#### A-428. `laravel-server/`, `client/` — every audit row a device pushes comes back on the next pull as a second, empty Activity Log row
+
+- **Issue:** #400
+- **Found:** 2026-11-20, in the browser smoke test of batch details editing: each change showed two rows, "Batch Details Corrected batch #340BE364" (table `stock_batches`, full details) and "Corrected batch details" (table N/A, "No further details recorded").
+- **Location:** `PushPayloadNormalizer` (`app/Services/Sync/PushPayloadNormalizer.php`, the `audit_logs` branch) and `PullRowMapper::mapPullRowForClient()` (`app/Services/Sync/PullRowMapper.php`); `SyncController` maps both `audit_logs` and `activity_logs` onto `ActivityLog`.
+- **What's wrong:** on push, the server stores one `activity_logs` row per client row, unsetting the client's `id`, `table_name`, `record_id` and `details` and keeping them inside `properties` (`client_id`, `table_name`, `record_id`, `details`). On pull, `mapPullRowForClient()` returns `$item->toArray()` unchanged, so the device receives the server shape: the server's integer id, no `table_name`, no `details`. The local `audit_logs` table has the device's own row under its client id, so the pulled copy is inserted as a second row. Every action goes through this path (cost and details corrections, stock adjustments, sign-ins, deletes); the batch edit is only where it was noticed. Confirmed by reading both mappers and a read-only query of the local server's `activity_logs` (one row per change, `properties.client_id` set); the doubled rows were seen in the browser, not counted across the whole log.
+- **Why it matters:** the Activity Log and its total count overstate activity, a device's own actions show up a second time with no detail.
+- **Fix, if wanted:** in `mapPullRowForClient()`, for `audit_logs` rows that carry `properties.client_id`, return the client shape: `id` = `client_id`, and `table_name`, `record_id`, `details` from `properties`, so the pull upserts onto the device's own row instead of adding one. Rows with no `client_id` (server-originated, e.g. `QuantityReconciliationService`) stay as they are. Old devices only upsert more, so §11 holds. Devices already holding the empty duplicates need a one-off cleanup (rows whose id is not a client UUID and whose `table_name` is null), written as a client migration with a test, not hand-edited SQL.
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-393. `client/` — a product price edit is logged with the new price only

@@ -66,6 +66,8 @@ const ACTION_VERBS: Record<string, string> = {
   DELETE: "Removed",
   HARD_DELETE: "Permanently deleted",
   STOCK_ADJUSTMENT: "Adjusted",
+  BATCH_COST_CORRECTED: "Corrected",
+  BATCH_DETAILS_CORRECTED: "Corrected",
 };
 
 export function describeActionVerb(action: string): string {

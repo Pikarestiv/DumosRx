@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import { useCorrectBatchCostMutation } from "@/lib/hooks/use-correct-batch-cost-mutation";
 import { BATCH_COST_REASONS, type BatchCostReason } from "@/lib/constants/batch-cost-reasons";
 import {
@@ -52,6 +53,7 @@ export function CostBreakdownDialog({
   const [reason, setReason] = useState<BatchCostReason>("typo_at_receiving");
   const [showSoldOut, setShowSoldOut] = useState(false);
   const correctCost = useCorrectBatchCostMutation();
+  const displayName = useDisplayName();
 
   const activeBatches = batches.filter((b) => !isSoldOut(b));
   const soldOutBatches = batches.filter(isSoldOut);
@@ -109,7 +111,7 @@ export function CostBreakdownDialog({
                 Cost breakdown
               </DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {productName} · {activeBatches.length} {activeBatches.length === 1 ? "batch" : "batches"} in stock
+                {displayName(productName)} · {activeBatches.length} {activeBatches.length === 1 ? "batch" : "batches"} in stock
               </p>
             </div>
             <button
@@ -135,7 +137,7 @@ export function CostBreakdownDialog({
             {activeBatches.map((batch) => {
               const isLatest = latestBatch?.id === batch.id;
               const isCurrentEdit = editingBatchId === batch.id;
-              const vendorOrPo = batch.purchase_order_id ? `PO ${formatPONumber(batch.purchase_order_id)}` : batch.supplier_name || "Direct";
+              const vendorOrPo = batch.purchase_order_id ? formatPONumber(batch.purchase_order_id) : batch.supplier_name || "Direct";
               const expiryText = batch.expiry_date?.trim() ? `exp ${formatDateToDDMMYYYY(batch.expiry_date)}` : "no expiry";
 
               return (

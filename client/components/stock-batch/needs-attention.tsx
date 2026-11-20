@@ -90,7 +90,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       iconClass: "bg-destructive/10 text-destructive",
       actionText: "View batch",
       actionClass: "text-destructive bg-destructive/10 hover:bg-destructive/20",
-      onClick: () => router.push(`/inventory/catalog`),
+      onClick: () => router.push(`/inventory/catalog?productId=${batch.product_id}&batchId=${batch.id}&tab=batches`),
     });
   });
 

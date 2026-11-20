@@ -158,8 +158,9 @@ describe("useActionCenterAlerts", () => {
     const dueSoon = result.current.find((a) => a.id === "payables-due-soon");
     expect(overdue?.priority).toBe("critical");
     expect(overdue?.title).toBe("2 Supplier Payments Overdue");
+    expect(overdue?.actionRoute).toBe("/procurement?status=overdue");
     expect(dueSoon?.priority).toBe("warning");
-    expect(dueSoon?.actionRoute).toBe("/procurement");
+    expect(dueSoon?.actionRoute).toBe("/procurement?status=due-soon");
   });
 
   it("stays quiet about supplier payments when none are due", async () => {

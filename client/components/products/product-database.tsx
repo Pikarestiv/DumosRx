@@ -50,6 +50,8 @@ export function ProductDatabase() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [detailTab, setDetailTab] = useState("details");
+  const [highlightBatchId, setHighlightBatchId] = useState<string | null>(null);
 
   const setAddDialogOpen = useCallback((open: boolean) => {
     setShowAddDialog(open);
@@ -102,6 +104,10 @@ export function ProductDatabase() {
     setShowAddDialog,
     setStatusFilter,
     setSelectedProduct,
+    onSelectTabAndBatch: (tab, batchId) => {
+      setDetailTab(tab);
+      setHighlightBatchId(batchId ?? null);
+    },
   });
 
   const liveSelectedProduct = selectedProduct
@@ -292,7 +298,13 @@ export function ProductDatabase() {
           product={liveSelectedProduct}
           className="border-none rounded-none"
           onEditProduct={handleEditProduct}
-          onClose={() => setSelectedProduct(null)}
+          onClose={() => {
+            setSelectedProduct(null);
+            setHighlightBatchId(null);
+          }}
+          activeTab={detailTab}
+          onTabChange={setDetailTab}
+          highlightBatchId={highlightBatchId}
         />
       </ResponsiveDetailPanel>
 

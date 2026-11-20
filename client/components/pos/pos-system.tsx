@@ -13,6 +13,7 @@ import { POSMobileSearch } from "./pos-mobile-search";
 import { POSDialogs } from "./pos-dialogs";
 import { POSCartPanels } from "./pos-cart-panels";
 import { SpotSourceDialog } from "./spot-source-dialog";
+import { BarcodeDisambiguationDialog } from "./barcode-disambiguation-dialog";
 import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useBarcodeWedge } from "@/lib/hooks/use-barcode-wedge";
@@ -97,6 +98,9 @@ export function POSSystem() {
     spotSourceProduct,
     setSpotSourceProduct,
     handleSpotSourceConfirm,
+    disambiguationProducts,
+    setDisambiguationProducts,
+    disambiguationBarcode,
   } = usePOSSystem();
 
   useBarcodeWedge({
@@ -328,6 +332,14 @@ export function POSSystem() {
         product={spotSourceProduct}
         currencyCode={storeProfile?.currency}
         onConfirm={handleSpotSourceConfirm}
+      />
+      <BarcodeDisambiguationDialog
+        open={disambiguationProducts !== null}
+        onOpenChange={(open) => !open && setDisambiguationProducts(null)}
+        barcode={disambiguationBarcode}
+        products={disambiguationProducts ?? []}
+        onSelectProduct={(product) => handleAddToCart(product)}
+        currencyCode={storeProfile?.currency}
       />
     </div>
   );

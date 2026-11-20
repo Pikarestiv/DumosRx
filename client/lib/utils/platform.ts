@@ -1,9 +1,10 @@
-/** True once the app is running as an installed PWA (Android/desktop
- * `display-mode: standalone`) or iOS's equivalent `navigator.standalone`. */
 export function isStandalonePwa(): boolean {
   if (typeof window === "undefined") return false;
-  return (
+  const isMatchMediaStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone === true
-  );
+    window.matchMedia("(display-mode: minimal-ui)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches;
+  const isIosStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+  const isTwa = typeof document !== "undefined" && document.referrer.startsWith("android-app://");
+  return isMatchMediaStandalone || isIosStandalone || isTwa;
 }

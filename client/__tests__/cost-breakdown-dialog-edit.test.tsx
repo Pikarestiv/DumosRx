@@ -90,6 +90,22 @@ describe("cost breakdown dialog, editing one batch", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("records the reason picked from the dropdown on the audit log", async () => {
+    window.HTMLElement.prototype.hasPointerCapture ??= () => false;
+    window.HTMLElement.prototype.releasePointerCapture ??= () => {};
+    window.HTMLElement.prototype.scrollIntoView ??= () => {};
+    renderDialog();
+
+    fireEvent.change(costInput(), { target: { value: "120" } });
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Reason" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("option", { name: "Supplier invoice corrected" }));
+    fireEvent.click(save());
+
+    await waitFor(() => expect(storedCost()).toBe(120));
+    const [details] = db.exec(`SELECT details FROM audit_logs WHERE record_id = 'batch-1'`)[0].values[0];
+    expect(JSON.parse(String(details))).toMatchObject({ reason: "supplier_invoice_corrected", previous_cost_price: 1200 });
+  });
+
   it.each([
     ["a negative number", "-5"],
     ["an empty field", ""],

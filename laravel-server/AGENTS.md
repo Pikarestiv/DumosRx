@@ -4975,6 +4975,23 @@ Prefer `getAttribute()` over a magic property on a bare `Model`, and
 `->toBase()->get()` for `selectRaw` aggregates. Do not add `@phpstan-ignore`.
 `composer analyse` runs in `.github/workflows/checks.yml`, which gates the deploys.
 
+## When every request fails: the host firewall blocked the caller's IP (2026-11-20)
+
+**Symptom.** One person (or one shop) reports that *everything* stopped at once, sync included, usually right after a release. Chrome shows `net::ERR_CERT_COMMON_NAME_INVALID` with a certificate "from `*.web-hosting.com`" for `dumosrx.com`, `app.dumosrx.com` and `api.dumosrx.com`. It is not an expired certificate and not the deploy.
+
+**Cause.** The shared host's firewall (`server301.web-hosting.com`) was blocking that caller's public IP. A blocked caller is answered with the host's own certificate and an HTML "Unauthorized Access" page (with an Unblock ReCAPTCHA) that names the blocked IP, never with our API. On 2026-11-20 the blocked address was `197.210.227.112`, the public IP of a new MTN 5G router. MTN shares public IPs between customers, so it can hit anyone behind the same address. Switching the same laptop to a phone hotspot (a different IP) fixed it at once.
+
+**Why it was not the release.** Every deploy on `main` was green, and the backend deploy's own schema check read `/api/v1/health` from GitHub's network at the same moment. Why the firewall flagged the IP was never established; Namecheap holds the rule and the log.
+
+**Diagnose in this order, read-only.**
+1. Ask the caller to try another network (phone data). If that works, it is an IP block and the app is fine.
+2. `curl -sk https://api.dumosrx.com/api/v1/health` from the affected network. A block returns the firewall HTML and prints `Your blocked IP address is: <ip>`; a healthy API returns JSON. `-k` is for diagnosis only, send nothing.
+3. If the certificate is genuinely expired, the browser says so; check cPanel SSL/TLS Status and run AutoSSL.
+
+**Fix.** The person unblocks the IP themselves with the ReCAPTCHA on that page (it cannot be automated). To stop it recurring, ask Namecheap which rule fired, and whether they can whitelist known shop IPs or relax it for the carrier's range.
+
+**Do not** change DNS or move the domain to Cloudflare in the middle of an incident: the host would then see Cloudflare's addresses and can block those instead. See the Cloudflare entry in `docs/FEATURE_ROADMAP_SPEC.md` and A-424 in `docs/KNOWN_BUGS.md` (the client shows nothing useful when this happens).
+
 ## Running artisan on the production box (Namecheap shared hosting)
 
 The default `php` on that server is **7.4.33**; this app requires >= 8.2, so a

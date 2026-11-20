@@ -207,6 +207,13 @@ suggested tackle order rather than a strict ranking.
 - **Why it was left:** how services should appear is a product call: one "Services" category row, one slice per `services.category`, services ranked among products in top sellers, or a separate services table. Each changes what an owner reads, so it was not guessed.
 - **Proposed fix:** once decided, `UNION ALL` the matching `sale_services` aggregate (`service_name`, `SUM(total_price)`, `SUM(quantity)`, live rows only, same date/store/`joined.clause` filters) into each query, with a test that the category split sums to net product + service revenue on a mixed sale.
 
+#### A-425. `client/` — deleting a purchase order that has receipt history may leave its stock batches and movements behind (unverified)
+
+- **Found:** 2026-11-20, browser-testing the one-screen order flow on a test account.
+- **Location:** "Delete order" in the order panel's menu (`po-order-menu.tsx`) stays offered on a draft whose receipt was voided, and on other orders that have receipts.
+- **What's wrong:** not confirmed. The order is removed, but whether the receipt's `stock_batches` row and its `stock_movements` (the receipt and, after a void, the reversal) are left pointing at a deleted order was not checked. If they are, stock history shows a purchase with no order behind it.
+- **Fix:** read what `deletePurchaseOrder` removes, then either refuse to delete an order that has any receipt (the safest rule) or delete the order together with its batches and movements, with a test either way.
+
 ### Tier 3 — sync reliability, observability, latent hazards
 
 #### A-392. both — rows the cloud hard-deleted before A-281 stay on devices, so some "device holds more than the cloud" deltas never clear
@@ -461,6 +468,13 @@ suggested tackle order rather than a strict ranking.
 - **Why not guarded on the client:** this till cannot see another till's unpushed sale, so no cheap local check closes it; blocking while this till's own sale pushes are unsynced would not help either, because its own sales are already in the local quantity.
 - **Fix:** refuse a `purchase_order_reversal` movement on the server when the batch's derived quantity is below the reversal, with a terminal reason the client shows ("some of this delivery has been sold on another till"), and add a `SyncPushPurchaseOrderReceiptVoidTest` case.
 
+#### A-424. `client/` — when the host firewall blocks a user's IP the app just fails, with no message that says so
+
+- **Found:** 2026-11-20, an MTN router IP was blocked (see `laravel-server/AGENTS.md`, "When every request fails").
+- **Location:** `client/lib/api/client.ts` and the sync engine's response handling.
+- **What's wrong:** a blocked caller gets HTML (a 200 "Unauthorized Access" page, or a certificate error before any response) where the API returns JSON. The client treats it as a generic failure, so sync silently stops and the user cannot tell it is their network.
+- **Fix:** recognise a non-JSON or firewall response and show "This network is blocked by the server. Try another network, or contact support" once, with the retry kept running quietly. A certificate failure cannot be read by `fetch`, so that case can only be inferred from every request failing at once.
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-393. `client/` — a product price edit is logged with the new price only
@@ -596,6 +610,13 @@ suggested tackle order rather than a strict ranking.
 
 ---
 
+#### A-426. `client/` — the settings Categories list still gives unmatched categories an arbitrary icon
+
+- **Found:** 2026-11-19, while fixing the services icons.
+- **Location:** `getCategoryIcon()` in `client/lib/constants/category-icons.tsx`, used by `components/settings/store/categories-card.tsx`.
+- **What's wrong:** a category with no keyword match gets an icon from a hash of its name, so unrelated categories (a clinic's "Dentals", "Laser treatments") show a syringe or a droplet. POS service cards no longer do this (`getServiceIcon()`); the categories list was left as it was.
+- **Fix:** give unmatched categories one neutral icon, or reuse `getServiceIcon()` for stores whose items are services.
+
 ## Accepted tradeoffs (no fix planned)
 
 #### PG-14. `web/` — two more nav items are role-gated over permission-gated endpoints (same class as the Operations bug fixed in Phase 1)
@@ -666,6 +687,8 @@ These describe the current state of known architectural tradeoffs and performanc
 - **Owner storefront styling can show an unlocked form on a plan the server refuses (2026-11-14):** the till's `canCustomizeTheme` falls back to `!isFree` when the plan config lacks `custom_branding`, while the server's `subscription:custom_branding` falls back to `false` and `config/plans.php` enables it for Enterprise only. A Pro owner on a store a super admin has allowed would see the form and get a 403 on save (the toast shows the server's upgrade message). Only reachable for stores with `owner_style_enabled` on. Align the fallback with the server when owner styling is first switched on for a real store.
 - **Opening hours cannot express overnight or 24-hour shops (2026-11-14):** each day needs open before close within the same day.
 - **Storefront mobile Lighthouse performance sits at 86, short of the 90 target (2026-11-14):** measured on a local static build of the demo store served with gzip, mobile preset, three runs per page: home and shop both 86 with LCP 4.1 s (the hero heading and the first product title), accessibility 100 and 98. Fonts are preloaded for the active preset only, CSS is inlined (`experimental.inlineCss`), nothing is flagged render-blocking, TBT is 10-20 ms and CLS 0.004, so the remaining time is the simulated slow-4G cost of the page's JS and the root layout's unused Inter/Montserrat preloads. Individual runs of earlier builds scored 97-99, so the number is noisy and a local run is not production. Re-measure against the deployed site before spending more time; levers if it is still short: stop preloading Inter and Montserrat on `/store/*`, and trim the roughly 25 KiB of unused JS in the shared chunk.
+
+- **Not yet checked in a browser (2026-11-19/20):** the one-screen order flow was smoke-tested on one till only. Still unchecked: two-till takeover, an offline till's edits becoming a "Recovered copy" when the server refuses them, the phone layout, a receive-only role, Close short, and the Playwright e2e spec. Also unexplained: the Next dev overlay showed "2 issues" while testing, with nothing in the console.
 
 ### Offline / sync
 

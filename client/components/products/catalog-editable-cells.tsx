@@ -57,7 +57,7 @@ function InlineEditFrame({
       </PopoverAnchor>
       <PopoverContent
         side="bottom"
-        align="end"
+        align="center"
         sideOffset={6}
         className="flex w-auto gap-1 rounded-xl p-1"
         onOpenAutoFocus={(e) => e.preventDefault()}

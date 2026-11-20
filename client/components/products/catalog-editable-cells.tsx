@@ -100,7 +100,7 @@ export function EditableCategoryCell({
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <SearchableInput
           options={categoryOptions}
           value={value}
@@ -190,8 +190,9 @@ export function EditableQuickNumberCell({
   ariaLabel?: string;
   /** Pass false for a cell whose save has consequences beyond the cell
    * itself (the stock-quantity cell posts a real inventory adjustment and a
-   * permanent movement-ledger row): blur then discards the edit, and only
-   * Enter or the checkmark commits. */
+   * permanent movement-ledger row): blur never commits. An untouched cell
+   * closes on blur; an edited one stays open, marked unsaved, until Enter or
+   * the checkmark commits it or Escape or the X cancels it. */
   commitOnBlur?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -208,9 +209,16 @@ export function EditableQuickNumberCell({
     if (shouldSave && draftValue !== value) onSave(draftValue);
   };
 
+  const unsaved = !commitOnBlur && draft !== value;
+
   if (editing) {
     return (
-      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`flex items-center gap-1 rounded-lg ${unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}`}
+        title={unsaved ? "Not saved yet: tap the tick to save or the cross to cancel" : undefined}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <EditableNumberCell
           value={draft}
           onCommit={setDraft}
@@ -225,6 +233,7 @@ export function EditableQuickNumberCell({
               skipNextBlur.current = false;
               return;
             }
+            if (unsaved) return;
             finish(commitOnBlur, draft);
           }}
         />

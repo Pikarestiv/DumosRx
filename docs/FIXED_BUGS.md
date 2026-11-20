@@ -1,9 +1,86 @@
+### A-423 — editing the store owner's own account demanded a Group the owner cannot have, and the staff cards disagreed
+- **Fixed:** 2026-11-19, client only, TDD. Reported while editing the owner's account.
+- **Was:** the staff form required a Group for every account, and the owner belongs to no group, so the picker had nothing to choose; picking any listed group would have sent that group's role with the save and demoted the owner. Separately, "Total Staff" excluded the store owner (a plan seat limit) while "Active Now" counted the owner, so the cards could read 2 and 3, and "Active Now" meant "not deactivated", not signed in.
+- **Now:** the owner's form shows "Store Owner: full access" instead of a picker, `validateStaffForm()` does not require a group for `store_owner`, and `buildStaffUpdatePayload()` never sends a role or group for the owner. The cards read "Total Staff" (with "Excludes the store owner") and "Active accounts", both without the owner.
+- **Coverage:** `client/__tests__/staff-owner-account-and-stats.test.tsx`.
+- **Compat:** UI only; no stored value or sync payload changes for any existing account.
+
+### A-422 — a second staff account without an email failed with "Username already exists"
+- **Fixed:** 2026-11-19, client and server, TDD. Reported from the Agidi branch: every username tried gave the same error.
+- **Was:** the staff form sends a blank email as `""`, and `users.email` is `UNIQUE`, so the second account with no email failed with `UNIQUE constraint failed: users.email`. The form mapped every unique-constraint failure to "Username already exists", which sent the user hunting for a username clash that did not exist. The server's own unique index on `users.email` had the same problem for a push from an older till.
+- **Now:** a blank email is stored as `NULL` on create and edit (`normalizeStaffEmail()`, `lib/utils/staff-save-errors.ts`), `PushPayloadNormalizer` does the same for pushes, and the form reports the column that clashed (`staffSaveErrorMessage()`).
+- **Coverage:** `client/__tests__/staff-blank-email.test.tsx` (real in-memory database), `laravel-server/tests/Feature/SyncPushStaffBlankEmailTest.php`.
+- **Compat:** nothing is rewritten in bulk. An existing `''` email row stays valid (at most one can exist per device) and becomes `NULL` the next time that account is edited. The server normalisation can go once every active device sends `NULL`.
+
 ### A-420 — a batch whose expiry was stored as '' sold before every dated batch
 - **Fixed:** 2026-11-18, client only, TDD. Found while moving sale COGS onto the FEFO batch cost.
 - **Was:** the FEFO deduction order in `getBatchesForProduct()`, `getAllActiveBatchesForProduct()` (`lib/db/queries/inventory-batches.ts`) and the stock-transfer source query (`stock-transfers.ts`) was `ORDER BY (expiry_date IS NULL), expiry_date, created_at`. An empty-string expiry is not `NULL` and sorts before any date, so a batch saved with `''` (an old import or form path) was sold and transferred first, while the Batches tab's "sell first" badge treated it as no expiry and put it last. Harmless while every sale was costed at the average; once a sale books the consumed batch's own cost it moved profit.
 - **Now:** one `FEFO_ORDER_SQL` (`inventory-batches.ts`) sorts on `NULLIF(expiry_date, '')`, so `''` and `NULL` both mean "no expiry" and go after dated batches; the transfer query imports it.
 - **Coverage:** `client/__tests__/sale-cogs-fefo-batch-cost.test.ts` ("takes an undated batch after a dated one even when its expiry was stored as ''").
 - **Compat:** ordering only; no stored value changes. Older tills keep the old order until updated, which only matters for a product that has a `''` batch.
+
+### A-407 — a till's offline purchase-order edits were thrown away when another till had changed the order first
+- **Fixed:** 2026-11-19, client only, TDD. The owner's scenario: till B takes over a draft and keeps editing offline while till A keeps editing online; B comes back.
+- **Was:** the server refused B's header (`version_conflict`) and lines (`draft_locked`), the client dropped the queue rows as terminal, recorded only the field names in `_sync_conflicts`, and the re-pull put A's version over B's rows. Unless B's order screen was still open (and B clicked "Keep mine as a new draft"), nothing B typed survived.
+- **Now:** the refused edits are kept automatically as a "Recovered copy of PO-XXXX" draft (new ids, same vendor, notes, lines, quantities, costs, lot and expiry; unpaid) with a toast and a notice on the order list, under a deterministic id so retries do not duplicate it (`lib/db/procurement-recovered-copy.ts`).
+- **Coverage:** `client/__tests__/push-order-recovered-copy.test.ts`, `recovered-copies-notice.test.tsx`.
+- **Compat:** the copy is an ordinary `pending` order, so older tills and the server see a normal new draft.
+
+### A-408 — a receive-only role could not count a draft's uncounted lines
+- **Fixed:** 2026-11-19, client only, TDD. Found in review before the one-screen order flow merged.
+- **Was:** "Receive stock" on a draft opened a confirmation sheet that received the saved quantities only, so a role with `receive_purchase_orders` but not `manage_purchase_orders` had uncounted lines dropped and could not type lot, expiry or cost.
+- **Now:** for that role "Receive stock" opens `ReceivePOPanel`, where uncounted lines take the delivered count.
+- **Coverage:** `client/__tests__/purchase-order-details-permissions.test.tsx`, `receive-item-card-price-fields.test.tsx`.
+- **Compat:** client only.
+
+### A-405 — taking over a draft, or editing after another till let go of it, wrote this screen's stale copy over the other till's work
+- **Fixed:** 2026-11-19, client only, TDD. Found in review before the one-screen order flow merged.
+- **Was:** the order screen seeded its draft once and every save reconciled that whole snapshot into the DB. Take over saved immediately, so lines the other till changed or added after this screen opened were reverted or soft-deleted; the same happened on the first keystroke after the other till released the lock, and after a conflict banner.
+- **Now:** `saveDraftOrder()` takes the fingerprint of the order as the screen last saw it and returns `stale` without writing when the stored order moved or an unresolved conflict exists; the screen shows the conflict banner read-only. Take over reloads first, and the screen reloads when the lock passes to or from another till. Leaving by any route flushes and frees the lock; Back after a failed save asks first; an idle-but-open screen keeps its lock alive by a 3-minute heartbeat.
+- **Coverage:** `client/__tests__/po-order-rebase.test.tsx`, `po-order-leave.test.tsx`, `po-order-screen.test.tsx`, `use-lock-heartbeat.test.ts`, `procurement-draft-lock.test.ts`.
+- **Compat:** client only; the stamp is local and never synced.
+
+### A-404 — a draft purchase order with no line items stayed in the list
+- **Fixed:** 2026-11-19, client only, TDD. Reported by the owner ("PO-1D8B85E1, Draft, LINE ITEMS 0, Total 0").
+- **Was:** removing the last item from an autosaved draft soft-deleted its lines but kept the order row, so an empty Draft with a ₦0 total sat in the list.
+- **Now:** leaving the screen with no items schedules the draft's delete behind the 6 s undo toast, and start-up removes this user's pending drafts with no live line, no notes and nothing paid that were last touched over 10 minutes ago (`lib/db/procurement-empty-drafts.ts`). Nothing with an item, notes or a payment is ever removed.
+- **Coverage:** `client/__tests__/procurement-empty-drafts.test.ts`, `po-order-leave.test.tsx`.
+- **Compat:** a soft delete, synced like any other; older tills drop the row on pull.
+
+### A-402 — an app update reloaded the page and threw away an unsaved purchase order
+- **Fixed:** 2026-11-19, client only, TDD.
+- **Was:** `components/pwa-registrar.tsx` reloaded the moment a new service worker took control, and the order screens kept every line in React state only.
+- **Now:** the order screen autosaves (first item creates the draft; edits save after a 700 ms pause, at once for added or removed rows, and on `pagehide`/`visibilitychange`), and the registrar awaits every registered flush (`lib/utils/reload-guard.ts`, at most 2 s) before reloading. A committed sql.js write is already persisted to IndexedDB when its transaction resolves, so a flushed save survives the reload.
+- **Coverage:** `client/__tests__/reload-guard.test.ts`, `po-order-editor-autosave.test.tsx` (pagehide flush).
+- **Compat:** client only. A save that takes longer than 2 s still loses its last keystrokes; the reload is never blocked for longer.
+
+### A-398 — saving a purchase-order draft rewrote the product's selling price store-wide
+- **Fixed:** 2026-11-18, client only, TDD. Found reviewing the procurement autosave proposal.
+- **Was:** `createPurchaseOrder()` and `updatePurchaseOrder()` called `applyChangedSellingPrices()`, so an Immediate draft changed `products.selling_price` the moment it was saved, before any stock arrived; both receive paths did the same.
+- **Now:** no purchase-order path writes a selling price. Lines show the catalog price read-only with a pencil to the product form and a margin cue (`POSellPriceCell`, `getMarginCue()`); the review-price popover and the receive panel's price input are removed. `purchase_order_items.selling_price` is still written and read for older tills.
+- **Coverage:** `client/__tests__/procurement-orders.test.ts`, `procurement-receiving.test.ts`, `procurement-immediate.test.ts`, `po-line-item-math.test.ts`, `po-immediate-submit-confirm.test.tsx`, `receive-item-card-price-fields.test.tsx`.
+- **Compat:** an older till still applies a line price it sees changed, as before; this build never writes one for it to see.
+
+### A-399 — draft purchase orders counted as money owed to the supplier
+- **Fixed:** 2026-11-18, client only, TDD.
+- **Was:** `getSuppliers()` and `getSupplierOutstandingBalance()` (`client/lib/db/suppliers.ts`) summed every unpaid order including `pending` drafts, so a draft inflated vendor debt, order count and value, and blocked deleting the supplier.
+- **Now:** orders in `pending` (or legacy `draft`) are left out of all three. Drafts still block deleting a product they list, on purpose (receiving one later would add stock to a deleted product).
+- **Coverage:** `client/__tests__/procurement.test.ts`, `supplier-delete.test.ts`.
+- **Compat:** read-side only; older tills keep their old totals until updated.
+
+### A-400 — a purchase-order row saved at quantity 0 could not be received, and a non-numeric quantity booked NaN
+- **Fixed:** 2026-11-18, client only, TDD.
+- **Was:** the receive inputs and `receivePurchaseOrder()` capped every line at `bulk_quantity - received`, which is 0 for a row saved uncounted, so its goods could never be entered; the edit screen also refused to save a draft with such rows. A quantity that did not parse reached the stock movement as `NaN`.
+- **Now:** an uncounted line takes the entered count as both ordered and received, gets its subtotal, and the order is re-totalled, with `bulk_quantity` and `units_per_bulk` sent together. A line left at 0 does not hold the order open. A bad quantity receives nothing. The edit screen accepts 0-quantity rows on a draft.
+- **Coverage:** `client/__tests__/procurement-receiving.test.ts` ("uncounted lines"), `po-line-item-math.test.ts` (`receivableLimit`), `receive-item-card-price-fields.test.tsx`.
+- **Compat:** an older till still caps an uncounted line at 0, as before. The server already accepts a changed `bulk_quantity` on a line.
+
+### A-401 — "Receive & Save" on a new order needed only manage_purchase_orders
+- **Fixed:** 2026-11-18, client only, TDD.
+- **Was:** the create screen's receive path booked stock with only the create permission; `receive_purchase_orders` was checked only on the order panel.
+- **Now:** "Receive stock" is shown only with `receive_purchase_orders`, on the create screen and on drafts.
+- **Coverage:** `client/__tests__/po-immediate-submit-confirm.test.tsx`, `purchase-order-details-permissions.test.tsx`.
+- **Compat:** UI gate only; the sync server never enforced either key on push.
 
 ### A-397 — a staff email edit that collided with another account's email was retried for ever and its raw SQL was returned
 - **Fixed:** 2026-11-18, server and client, TDD. Found in production: a till edited a staff member's email to the owner's own `super_admin` address; the push failed `users_email_unique` on every retry and the response `reason` carried the MySQL error with the host, database and statement.

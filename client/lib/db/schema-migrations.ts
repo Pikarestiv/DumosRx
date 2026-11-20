@@ -350,6 +350,10 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "due_date TEXT",
       "store_id TEXT",
       "type TEXT DEFAULT 'standard'",
+      "editing_device_id TEXT",
+      "editing_device_label TEXT",
+      "editing_user_id TEXT",
+      "editing_at TEXT",
     ],
   },
   {
@@ -732,6 +736,10 @@ async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promis
           received_at TEXT,
           updated_at TEXT,
           store_id TEXT,
+          editing_device_id TEXT,
+          editing_device_label TEXT,
+          editing_user_id TEXT,
+          editing_at TEXT,
           _version INTEGER DEFAULT 1,
           _synced INTEGER DEFAULT 0,
           _synced_at TEXT,
@@ -739,8 +747,8 @@ async function relaxPurchaseOrdersSupplierIdNullable(adapter: DbAdapter): Promis
         )
       `);
       await adapter.run(`
-        INSERT INTO purchase_orders_nullable_supplier (id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted)
-        SELECT id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, _version, _synced, _synced_at, _deleted FROM purchase_orders
+        INSERT INTO purchase_orders_nullable_supplier (id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, editing_device_id, editing_device_label, editing_user_id, editing_at, _version, _synced, _synced_at, _deleted)
+        SELECT id, order_number, supplier_id, ordered_by, order_date, status, type, payment_status, amount_paid, due_date, total_amount, notes, created_at, received_at, updated_at, store_id, editing_device_id, editing_device_label, editing_user_id, editing_at, _version, _synced, _synced_at, _deleted FROM purchase_orders
       `);
       await adapter.run("DROP TABLE purchase_orders");
       await adapter.run("ALTER TABLE purchase_orders_nullable_supplier RENAME TO purchase_orders");

@@ -34,7 +34,7 @@ export function PurchaseOrderStatusFilter({
           value="sent"
           className="border border-border/50 data-[state=inactive]:bg-card data-[state=inactive]:border-border data-[state=inactive]:hover:text-primary data-[state=inactive]:hover:border-primary/50 data-[state=inactive]:hover:bg-primary/10"
         >
-          Sent
+          Ordered
         </TabsTrigger>
         <TabsTrigger
           value="partially_received"

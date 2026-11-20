@@ -6,13 +6,26 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toastTiming } from "@/lib/utils/toast-timing";
 import { StaffEmailTakenError } from "@/lib/utils/staff-email-check";
+import { staffSaveErrorMessage } from "@/lib/utils/staff-save-errors";
 import { useMutateUser } from "@/lib/hooks/queries/use-users";
 import { useStore } from "@/lib/context/store-context";
 import type { StaffUpdatePayload, StaffListItem } from "@/lib/types/user";
-import { StaffFormFields, type StaffFormData } from "./staff-form-fields";
+import { StaffFormFields, STORE_OWNER_ROLE, type StaffFormData } from "./staff-form-fields";
 
 // Resolves the store_id to actually persist for a staff row from the controlled <select>'s value (empty string when unsele…
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-settings-staff-staff-form-dialog-tsx-L12
+export function buildStaffUpdatePayload(formData: StaffFormData): StaffUpdatePayload {
+  return {
+    first_name: formData.first_name.trim(),
+    last_name: formData.last_name.trim(),
+    username: formData.username,
+    email: formData.email,
+    ...(formData.role === STORE_OWNER_ROLE
+      ? {}
+      : { role: formData.role, permission_group_id: formData.permission_group_id }),
+  };
+}
+
 export function resolveStaffStoreId(
   formStoreId: string,
   activeStoreId: string | null,
@@ -29,7 +42,7 @@ export function validateStaffForm(
   if (!formData.first_name || !formData.last_name || !formData.username) {
     return "Please fill in all required fields";
   }
-  if (!formData.permission_group_id) {
+  if (formData.role !== STORE_OWNER_ROLE && !formData.permission_group_id) {
     return "Please select a Group for this staff member";
   }
   if (!isEditing && (!formData.pin || formData.pin.length < 4)) {
@@ -117,16 +130,7 @@ export function StaffFormDialog({
     if (isSubmitting) return;
     try {
       if (isEditing) {
-        const updateData: StaffUpdatePayload = {
-          first_name: formData.first_name.trim(),
-          last_name: formData.last_name.trim(),
-          username: formData.username,
-          email: formData.email,
-          role: formData.role,
-          // Sent alongside role so the two never disagree about which staff member they describe - see staff-form-fields.tsx's Group…
-          // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-staff-staff-form-dialog-tsx-L134
-          permission_group_id: formData.permission_group_id,
-        };
+        const updateData = buildStaffUpdatePayload(formData);
         // Only touch store_id when the selector was actually shown to the user (multi-store accounts).
         // Rationale: docs/CLIENT_COMMENTS.md#line-components-settings-staff-staff-form-dialog-tsx-L139
         if (availableStores && availableStores.length > 1) {
@@ -166,11 +170,11 @@ export function StaffFormDialog({
       onSuccess();
     } catch (error) {
       console.error("Failed to save user:", error);
-      const message = error instanceof Error ? error.message : "";
+      const clash = staffSaveErrorMessage(error);
       if (error instanceof StaffEmailTakenError) {
         toast.error(error.message);
-      } else if (message.includes("UNIQUE")) {
-        toast.error("Username already exists");
+      } else if (clash) {
+        toast.error(clash);
       } else {
         toast.error(
           isEditing

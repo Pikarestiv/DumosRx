@@ -70,18 +70,56 @@ class NotificationControllerTest extends TestCase
         }
     }
 
-    public function test_meaningful_activity_still_appears(): void
+    public function test_meaningful_activity_still_appears_in_human_readable_title(): void
     {
         ActivityLog::create([
             'user_id' => $this->user->id,
             'action' => 'SALE_RETURN',
             'description' => 'Processed a sale return',
         ]);
+        ActivityLog::create([
+            'user_id' => $this->user->id,
+            'action' => 'TILL_RELINK_CODE_ISSUED',
+            'description' => 'Till re-link code issued',
+        ]);
+        ActivityLog::create([
+            'user_id' => $this->user->id,
+            'action' => 'RECEIVE_PO',
+            'description' => 'Action: RECEIVE_PO on purchase_orders',
+        ]);
 
         $response = $this->actingAs($this->user)->getJson('/api/v1/alerts');
 
         $response->assertOk();
-        $actions = collect($response->json())->pluck('title');
-        $this->assertTrue($actions->contains('SALE_RETURN'));
+        $titles = collect($response->json())->pluck('title');
+        $this->assertTrue($titles->contains('Sale Return Processed'));
+        $this->assertTrue($titles->contains('Till Relink Code Issued'));
+        $this->assertTrue($titles->contains('Purchase Order Received'));
+
+        $descriptions = collect($response->json())->pluck('description');
+        $this->assertTrue($descriptions->contains('Goods received and recorded into inventory.'));
+    }
+
+    public function test_mark_all_as_read_updates_all_user_notifications(): void
+    {
+        \App\Models\Notification::create([
+            'user_id' => $this->user->id,
+            'title' => 'Trial 1',
+            'message' => 'First message',
+            'is_read' => false,
+        ]);
+        \App\Models\Notification::create([
+            'user_id' => $this->user->id,
+            'title' => 'Trial 2',
+            'message' => 'Second message',
+            'is_read' => false,
+        ]);
+
+        $this->assertSame(2, \App\Models\Notification::where('user_id', $this->user->id)->where('is_read', false)->count());
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/alerts/read-all');
+        $response->assertOk();
+
+        $this->assertSame(0, \App\Models\Notification::where('user_id', $this->user->id)->where('is_read', false)->count());
     }
 }

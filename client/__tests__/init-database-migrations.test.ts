@@ -75,6 +75,9 @@ describe("initDatabase() web migration path", () => {
       "SELECT store_id, _version FROM products WHERE id = 'prod-1'",
     );
     expect(productStoreId[0].values).toEqual([["store-1", 1]]);
+
+    const lockColumns = db.exec("SELECT name FROM pragma_table_info('purchase_orders') WHERE name LIKE 'editing_%' ORDER BY name");
+    expect(lockColumns[0].values.flat()).toEqual(["editing_at", "editing_device_id", "editing_device_label", "editing_user_id"]);
   });
 
   it("adds stores.loyalty_program_enabled to a pre-existing store, defaulting it to 1 (ON)", async () => {

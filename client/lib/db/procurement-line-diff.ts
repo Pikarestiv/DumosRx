@@ -22,8 +22,12 @@ interface LivePOLineItem {
 export async function reconcilePurchaseOrderLines(
   poId: string,
   lines: DraftPOLineItem[],
-  now: string
-): Promise<void> {
+  now: string,
+  options?: { skipAudit?: boolean },
+): Promise<LineReconcileResult> {
+  const writeOptions = options?.skipAudit ? { skipAudit: true } : undefined;
+  const idMap = new Map<string, string>();
+  let writes = 0;
   const existingItems = await query<LivePOLineItem>(
     `SELECT id, po_id, product_id, bulk_quantity, units_per_bulk, unit_cost, subtotal, selling_price, cost_price_override, lot_number, expiry_date
      FROM purchase_order_items
@@ -47,14 +51,20 @@ export async function reconcilePurchaseOrderLines(
     unmatchedLines.push(line);
   }
 
-  const inserts: DraftPOLineItem[] = [];
+  const inserts: { line: DraftPOLineItem; id: string }[] = [];
   for (const line of unmatchedLines) {
+    if (line.id) {
+      const id = (await idIsTaken(line.id)) ? generateId() : line.id;
+      if (id !== line.id) idMap.set(line.id, id);
+      inserts.push({ line, id });
+      continue;
+    }
     const idx = remainingExisting.findIndex((e) => e.product_id === line.product_id);
     if (idx !== -1) {
       matchedPairs.push({ line, existing: remainingExisting[idx] });
       remainingExisting.splice(idx, 1);
     } else {
-      inserts.push(line);
+      inserts.push({ line, id: generateId() });
     }
   }
 
@@ -76,6 +86,7 @@ export async function reconcilePurchaseOrderLines(
       (existing.expiry_date ?? null) !== desiredExpiryDate;
 
     if (hasChanged) {
+      writes += 1;
       await update("purchase_order_items", existing.id, {
         bulk_quantity: line.bulk_quantity,
         units_per_bulk: line.units_per_bulk,
@@ -85,13 +96,14 @@ export async function reconcilePurchaseOrderLines(
         cost_price_override: desiredCostOverride,
         lot_number: desiredLotNumber,
         expiry_date: desiredExpiryDate,
-      });
+      }, writeOptions);
     }
   }
 
-  for (const line of inserts) {
+  for (const { line, id } of inserts) {
+    writes += 1;
     await insert("purchase_order_items", {
-      id: generateId(),
+      id,
       po_id: poId,
       product_id: line.product_id,
       bulk_quantity: line.bulk_quantity,
@@ -104,10 +116,23 @@ export async function reconcilePurchaseOrderLines(
       lot_number: line.lot_number || null,
       expiry_date: line.expiry_date || null,
       created_at: now,
-    });
+    }, writeOptions);
   }
 
   for (const removed of remainingExisting) {
-    await softDelete("purchase_order_items", removed.id);
+    writes += 1;
+    await softDelete("purchase_order_items", removed.id, writeOptions);
   }
+
+  return { idMap, writes };
+}
+
+export interface LineReconcileResult {
+  idMap: Map<string, string>;
+  writes: number;
+}
+
+async function idIsTaken(id: string): Promise<boolean> {
+  const rows = await query<{ id: string }>("SELECT id FROM purchase_order_items WHERE id = ?", [id]);
+  return rows.length > 0;
 }

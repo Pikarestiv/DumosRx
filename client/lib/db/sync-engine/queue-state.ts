@@ -16,6 +16,7 @@ const KNOWN_REASONS = [
   "permission_denied",
   "unsupported_operation",
   "quantity_received_exceeds_ordered",
+  "draft_locked",
   "version_conflict",
   "stale_timestamp",
   "email_in_use",

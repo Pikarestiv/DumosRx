@@ -23,6 +23,7 @@ import { exchangeReportsOnly } from "./push-reports-only";
 import { announceTerminalConflicts, type PushConflict } from "./push-conflict-toasts";
 import { filterPushableChanges, mapBatchPayloads, type PushRejection } from "./push-request";
 import { applyDuplicateNameIdMap, applyPurgedIds, applyServerVersions, settleFailedChanges } from "./push-response";
+import { recoverRejectedOrderEdits, announceRecoveredCopies } from "./recover-order-edits";
 import { PushResponse } from "./types";
 import type { SyncChange } from "@/lib/types/sync";
 import { resolveSyncRun, type SyncRun } from "./sync-run";
@@ -174,6 +175,7 @@ export async function pushChanges(
         // retry_count > 0 means this conflict is most likely the item's own
         // already-applied first attempt — logged, not toasted.
         const silencedConflicts: { table_name: string; record_id: string }[] = [];
+        let recoveredCopies: Awaited<ReturnType<typeof recoverRejectedOrderEdits>> = [];
 
         // One transaction per batch: each bookkeeping call outside one
         // triggers its own full-database sql.js export.
@@ -188,6 +190,7 @@ export async function pushChanges(
           await resolveConflictsForRecords(succeededRecords);
           pushedCount += succeededIds.length;
 
+          recoveredCopies = await recoverRejectedOrderEdits(response.failed ?? [], changes);
           await settleFailedChanges(
             response.failed ?? [],
             changes,
@@ -217,6 +220,7 @@ export async function pushChanges(
         }
 
         announceTerminalConflicts(versionConflicts, silencedConflicts);
+        announceRecoveredCopies(recoveredCopies);
       } else {
         // Whole-batch rejection (request completed, server refused it):
         // keyed off `batch`, not `changes`, same as the catch block.

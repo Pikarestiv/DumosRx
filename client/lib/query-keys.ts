@@ -92,6 +92,8 @@ export const queryKeys = {
         "purchase_orders",
         "purchase_order_items",
       ]),
+    receipts: (id: string) =>
+      resource(["purchase_order_receipts", id] as const, ["stock_movements", "stock_batches", "purchase_order_items"]),
     detailItems: (id: string | null) =>
       resource(["purchase_order_detail_items", id] as const, ["purchase_order_items"]),
     droppedReceiptSignal: (id: string | null) =>
@@ -110,6 +112,7 @@ export const queryKeys = {
     suppliersForPO: () => resource(["procurementSuppliersForPO"] as const, ["suppliers"]),
     productsForPO: () =>
       resource(["procurementProductsForPO"] as const, ["products", "stock_batches"]),
+    recoveredCopies: () => resource(["procurementRecoveredCopies"] as const, ["purchase_orders"]),
   },
   customers: {
     all: () => resource(["customers"] as const, ["customers"]),

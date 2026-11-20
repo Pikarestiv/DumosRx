@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DatePickerInput } from "@/components/ui/date-picker-input";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
-import { POReviewPricePopover } from "./po-review-price-popover";
+import { POSellPriceCell } from "./po-sell-price-cell";
+import { POWasMarker } from "./po-was-marker";
+import type { RevertableField } from "./order-screen/po-draft-state";
 import { clampMoneyInput, getImmediateUnitCost, getLineTotal } from "./po-line-item-math";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import type { POProduct } from "@/lib/db/queries/procurement";
@@ -30,7 +32,6 @@ export interface POLineItemDraft {
   lot_number?: string;
   expiry_date?: string;
   selling_price?: number | string;
-  reprice?: boolean;
 }
 
 // A line paired with its index in the order's real item array.
@@ -41,7 +42,6 @@ export interface POItemRow {
 }
 
 interface POItemLedgerTableProps {
-  poType: "standard" | "immediate";
   rows: POItemRow[];
   products: POProduct[];
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
@@ -49,10 +49,11 @@ interface POItemLedgerTableProps {
   onEditProduct?: (productId: string) => void;
   onFocusSearch?: () => void;
   isFiltered?: boolean;
+  baseline?: Map<string, POLineItemDraft>;
+  onRevertField?: (lineId: string, field: RevertableField) => void;
 }
 
-const STANDARD_GRID_COLS = "grid-cols-[minmax(220px,1fr)_110px_130px_130px_36px]";
-const IMMEDIATE_GRID_COLS = "grid-cols-[minmax(220px,1fr)_90px_100px_110px_120px_130px_130px_120px_130px_36px]";
+const GRID_COLS = "grid-cols-[minmax(220px,1fr)_90px_100px_110px_120px_130px_130px_120px_130px_36px]";
 
 /** Keyed by product id once per render instead of a products.find() per row:
  * that scan was O(rows x catalog) on every keystroke in any row's input. */
@@ -66,27 +67,30 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   item,
   index,
   product,
-  poType,
   gridCols,
   onUpdateItem,
   onRemoveItem,
   onEditProduct,
+  baseline,
+  onRevertField,
 }: {
   item: POLineItemDraft;
   index: number;
   product: POProduct | undefined;
-  poType: "standard" | "immediate";
   gridCols: string;
   onUpdateItem: (index: number, patch: Partial<POLineItemDraft>) => void;
   onRemoveItem: (index: number) => void;
   onEditProduct?: (productId: string) => void;
+  baseline?: Map<string, POLineItemDraft>;
+  onRevertField?: (lineId: string, field: RevertableField) => void;
 }) {
   const formatCurrency = useFormatCurrency();
+  const was = (field: RevertableField) => <POWasMarker item={item} field={field} baseline={baseline} onRevert={onRevertField} />;
   const hasTouchCapability = useHasTouchCapability();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
   const effectiveUnitCost = getImmediateUnitCost(item);
-  const total = getLineTotal(item, poType);
+  const total = getLineTotal(item);
 
   return (
     <div role="row" className={`group grid ${gridCols} items-center`}>
@@ -108,98 +112,80 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
         <div className="text-[11px] text-muted-foreground/70">{item.bulk_unit}(s)</div>
       </div>
 
-      {poType === "immediate" && (
-        <div role="cell" className="px-3 py-2 text-right text-muted-foreground">
-          {stock}
-        </div>
-      )}
+      <div role="cell" className="px-3 py-2 text-right text-muted-foreground">
+        {stock}
+      </div>
 
-      <div role="cell" className="px-3 py-2 flex justify-end">
+      <div role="cell" className="px-3 py-2 flex flex-col items-end">
         <EditableNumberCell
           value={item.bulk_quantity}
           onCommit={(val) => onUpdateItem(index, { bulk_quantity: val })}
           parse={(raw) => parseInt(raw, 10)}
           min={0}
           widthClassName="w-16"
-          ariaLabel={`${poType === "immediate" ? "Received" : "Quantity"} for ${item.product_name}`}
+          ariaLabel={`Received for ${item.product_name}`}
         />
+        {was("bulk_quantity")}
       </div>
 
-      {poType === "immediate" && (
-        <div role="cell" className="px-3 py-2 text-right text-muted-foreground">
-          {formatCurrency(currentCost)}
-        </div>
-      )}
-
-      <div role="cell" className="px-3 py-2 flex justify-end">
-        {poType === "immediate" ? (
-          <Input
-            type="number"
-            min={0}
-            step="any"
-            className="w-24 text-right"
-            aria-label={`New Cost for ${item.product_name}`}
-            placeholder={formatCurrency(currentCost)}
-            value={item.cost_price_override ?? ""}
-            onChange={(e) =>
-              onUpdateItem(index, {
-                cost_price_override: clampMoneyInput(e.target.value),
-              })
-            }
-          />
-        ) : (
-          <EditableNumberCell
-            value={item.unit_cost}
-            onCommit={(val) => onUpdateItem(index, { unit_cost: val, subtotal: item.bulk_quantity * val })}
-            parse={parseFloat}
-            min={0}
-            step="any"
-            widthClassName="w-24"
-            ariaLabel={`Unit Cost for ${item.product_name}`}
-          />
-        )}
+      <div role="cell" className="px-3 py-2 text-right text-muted-foreground">
+        {formatCurrency(currentCost)}
       </div>
 
-      {poType === "immediate" && (
-        <>
-          <div role="cell" className="px-3 py-2">
-            <DatePickerInput
-              value={item.expiry_date}
-              onChange={(val) => onUpdateItem(index, { expiry_date: val })}
-              ariaLabel={`Expiry date for ${item.product_name}`}
-              placeholder="Select"
-              disablePast
-              fromYear={new Date().getFullYear()}
-              toYear={new Date().getFullYear() + 15}
-            />
-          </div>
-          <div role="cell" className="px-3 py-2">
-            <Input
-              className="min-w-24"
-              aria-label={`Lot or batch number for ${item.product_name}`}
-              placeholder="e.g. BATCH-123"
-              value={item.lot_number || ""}
-              onChange={(e) => onUpdateItem(index, { lot_number: e.target.value })}
-            />
-          </div>
-        </>
-      )}
+      <div role="cell" className="px-3 py-2 flex flex-col items-end">
+        <Input
+          type="number"
+          min={0}
+          step="any"
+          className="w-24 text-right"
+          aria-label={`New Cost for ${item.product_name}`}
+          placeholder={formatCurrency(currentCost)}
+          value={item.cost_price_override ?? ""}
+          onChange={(e) =>
+            onUpdateItem(index, {
+              cost_price_override: clampMoneyInput(e.target.value),
+            })
+          }
+        />
+        {was("cost_price_override")}
+      </div>
+
+      <div role="cell" className="px-3 py-2">
+        <DatePickerInput
+          value={item.expiry_date}
+          onChange={(val) => onUpdateItem(index, { expiry_date: val })}
+          ariaLabel={`Expiry date for ${item.product_name}`}
+          placeholder="Select"
+          disablePast
+          fromYear={new Date().getFullYear()}
+          toYear={new Date().getFullYear() + 15}
+        />
+        {was("expiry_date")}
+      </div>
+      <div role="cell" className="px-3 py-2">
+        <Input
+          className="min-w-24"
+          aria-label={`Lot or batch number for ${item.product_name}`}
+          placeholder="e.g. BATCH-123"
+          value={item.lot_number || ""}
+          onChange={(e) => onUpdateItem(index, { lot_number: e.target.value })}
+        />
+        {was("lot_number")}
+      </div>
 
       <div role="cell" className="px-3 py-2 text-right font-semibold text-foreground">
         {formatCurrency(total)}
       </div>
 
-      {poType === "immediate" && (
-        <div role="cell" className="px-3 py-2 flex justify-end">
-          <POReviewPricePopover
-            costPrice={effectiveUnitCost}
-            sellingPrice={item.selling_price ?? (product?.selling_price || "")}
-            currentSellingPrice={product?.selling_price ?? null}
-            productName={item.product_name}
-            onSellingPriceChange={(val) => onUpdateItem(index, { selling_price: val })}
-          />
-        </div>
-      )}
+      <div role="cell" className="px-3 py-2 flex justify-end">
+        <POSellPriceCell
+          productName={item.product_name}
+          sellingPrice={product?.selling_price}
+          unitCost={effectiveUnitCost}
+          previousCost={product?.cost_price}
+          onEditProduct={onEditProduct ? () => onEditProduct(item.product_id) : undefined}
+        />
+      </div>
 
       <div role="cell" className="px-3 py-2 flex justify-end">
         <Button
@@ -217,14 +203,11 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   );
 });
 
-/** Bulk item-entry table shared by Standard and Immediate Purchase orders.
- * Column set depends on poType: Standard only needs qty/cost (nothing is
- * received yet), Immediate needs the full receiving surface (current cost,
- * new cost, batch, expiry, sell-price review) so order + receipt can happen
- * in one pass. Built on the same div/ARIA-table conventions as
+/** Bulk item-entry table for every purchase order: quantity, cost, lot,
+ * expiry and the read-only selling price, so an order can be built and
+ * received in one pass. Built on the same div/ARIA-table conventions as
  * receive-ledger-table.tsx. */
 export function POItemLedgerTable({
-  poType,
   rows,
   products,
   onUpdateItem,
@@ -232,8 +215,10 @@ export function POItemLedgerTable({
   onEditProduct,
   onFocusSearch,
   isFiltered,
+  baseline,
+  onRevertField,
 }: POItemLedgerTableProps) {
-  const gridCols = poType === "immediate" ? IMMEDIATE_GRID_COLS : STANDARD_GRID_COLS;
+  const gridCols = GRID_COLS;
   const productMap = useProductMap(products);
 
   return (
@@ -242,54 +227,36 @@ export function POItemLedgerTable({
         <div role="rowgroup">
           <div role="row" className={`grid ${gridCols} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}>
             <div role="columnheader" className="text-left px-3 py-2 sticky left-0 bg-muted/40">Item</div>
-            {poType === "immediate" && (
-              <div
-                role="columnheader"
-                className="text-right px-3 py-2"
-                title="Quantity currently on hand, before this order is received"
-              >
-                Stock
-              </div>
-            )}
-            <div role="columnheader" className="text-right px-3 py-2">
-              {poType === "immediate" ? "Received" : "Qty"}
-            </div>
-            {poType === "immediate" && (
-              <HintTooltip text={CURRENT_COST_HINT}>
-                <div role="columnheader" tabIndex={0} className="text-right px-3 py-2">
-                  Current Cost
-                </div>
-              </HintTooltip>
-            )}
             <div
               role="columnheader"
               className="text-right px-3 py-2"
-              title={
-                poType === "immediate"
-                  ? "The cost you're actually paying this time - leave blank to keep using the product's current cost"
-                  : undefined
-              }
+              title="Quantity currently on hand, before this order is received"
             >
-              {poType === "immediate" ? "New Cost" : "Unit Cost"}
+              Stock
             </div>
-            {poType === "immediate" && (
-              <>
-                <div role="columnheader" className="text-left px-3 py-2">Expiry</div>
-                <div role="columnheader" className="text-left px-3 py-2">Lot/Batch</div>
-              </>
-            )}
-            <div role="columnheader" className="text-right px-3 py-2">
-              {poType === "immediate" ? "Total" : "Subtotal"}
-            </div>
-            {poType === "immediate" && (
-              <div
-                role="columnheader"
-                className="text-right px-3 py-2"
-                title="Updates the product's selling price store-wide once this order is received - leave blank to keep the current price"
-              >
-                Sell Price
+            <div role="columnheader" className="text-right px-3 py-2">Received</div>
+            <HintTooltip text={CURRENT_COST_HINT}>
+              <div role="columnheader" tabIndex={0} className="text-right px-3 py-2">
+                Current Cost
               </div>
-            )}
+            </HintTooltip>
+            <div
+              role="columnheader"
+              className="text-right px-3 py-2"
+              title="The cost you're actually paying this time - leave blank to keep using the product's current cost"
+            >
+              New Cost
+            </div>
+            <div role="columnheader" className="text-left px-3 py-2">Expiry</div>
+            <div role="columnheader" className="text-left px-3 py-2">Lot/Batch</div>
+            <div role="columnheader" className="text-right px-3 py-2">Total</div>
+            <div
+              role="columnheader"
+              className="text-right px-3 py-2"
+              title="The product's current selling price. Change it from the product, not the order."
+            >
+              Sell Price
+            </div>
             <div role="columnheader" />
           </div>
         </div>
@@ -301,11 +268,12 @@ export function POItemLedgerTable({
               item={item}
               index={index}
               product={productMap.get(item.product_id)}
-              poType={poType}
               gridCols={gridCols}
               onUpdateItem={onUpdateItem}
               onRemoveItem={onRemoveItem}
               onEditProduct={onEditProduct}
+              baseline={baseline}
+              onRevertField={onRevertField}
             />
           ))}
           {rows.length === 0 && (

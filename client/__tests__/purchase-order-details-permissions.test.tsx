@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 // Procurement used to be one coarse RequireRole gate (isAdmin || canManageStockBatch) covering creating, editing, sending,…
 // Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-purchase-order-details-permissions-test-tsx-L4
 
 const hasPermission = vi.fn((_key: string) => true);
+const closeShortPreview = vi.fn(() => Promise.resolve<{ receivedTotal: number; amountPaid: number; overpaidBy: number } | null>(null));
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => hasPermission(key),
@@ -15,9 +16,20 @@ vi.mock("@/lib/context/store-context", () => ({
 }));
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "",
+  useDisplayName: () => (s: string) => s,
   capitalizeWords: (s: string) => s,
 }));
+vi.mock("@/lib/db/procurement-close", () => ({
+  getCloseShortPreview: () => closeShortPreview(),
+  closePurchaseOrderShort: vi.fn(),
+}));
+vi.mock("@/lib/hooks/use-dropped-receipt-signal", () => ({
+  useDroppedReceiptSignal: () => ({ signal: null, dismiss: vi.fn() }),
+}));
+vi.mock("@/components/procurement/owed-settlement-notice", () => ({ OwedSettlementNotice: () => null }));
+vi.mock("@/lib/db/procurement-void-receipt", () => ({ getPurchaseOrderReceipts: () => Promise.resolve([]), voidPurchaseOrderReceipt: vi.fn() }));
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PurchaseOrderDetails } from "@/components/procurement/purchase-order-details";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 
@@ -38,19 +50,44 @@ function po(overrides: Partial<PurchaseOrder> = {}): PurchaseOrder {
   } as PurchaseOrder;
 }
 
+const onReceiveGoods = vi.fn();
+const onReceiveDraft = vi.fn((_id: string, _items: unknown[]) => Promise.resolve(true));
+
 function renderDetails(order: PurchaseOrder) {
   render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
     <PurchaseOrderDetails
       selectedPO={order}
       isLoadingDetails={false}
       getStatusBadge={() => null}
       onSendPO={vi.fn()}
       onDeletePO={vi.fn()}
-      onReceiveGoods={vi.fn()}
+      onReceiveGoods={onReceiveGoods}
+      onReceiveDraft={onReceiveDraft}
       onClose={vi.fn()}
-    />,
+    />
+    </QueryClientProvider>,
   );
 }
+
+const draftLine = {
+  id: "line1",
+  po_id: "po1",
+  product_id: "p1",
+  product_name: "Panadol",
+  bulk_unit: "Carton",
+  base_unit: "Tablet",
+  bulk_quantity: 2,
+  quantity_received: 0,
+  units_per_bulk: 10,
+  product_units_per_bulk: 10,
+  unit_cost: 100,
+  subtotal: 200,
+  lot_number: "L1",
+  expiry_date: "2028-01-01",
+  cost_price_override: 12,
+  current_selling_price: 20,
+};
 
 function openMenu() {
   fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), {
@@ -93,10 +130,10 @@ describe("Purchase order details permissions", () => {
     expect(screen.queryByRole("menuitem", { name: /Delete order/ })).toBeNull();
   });
 
-  it("hides Mark as Sent without manage_purchase_orders", () => {
+  it("hides Send to vendor without manage_purchase_orders", () => {
     deny("manage_purchase_orders");
     renderDetails(po({ status: "pending" }));
-    expect(screen.queryByText("Mark as Sent")).toBeNull();
+    expect(screen.queryByText("Send to vendor")).toBeNull();
   });
 
   it("hides Receive Items without receive_purchase_orders, keeping the write actions", () => {
@@ -110,21 +147,94 @@ describe("Purchase order details permissions", () => {
   it("still shows the order itself and Download PDF without either key", () => {
     deny("manage_purchase_orders", "receive_purchase_orders");
     renderDetails(po());
-    expect(screen.queryByText("Download PDF")).not.toBeNull();
     expect(screen.queryAllByText(/Emzor/).length).toBeGreaterThan(0);
+    openMenu();
+    expect(screen.queryByRole("menuitem", { name: "Download PDF" })).not.toBeNull();
   });
 
-  it("keeps a draft to two buttons: Edit and Mark as Sent", () => {
+  it("offers a named vendor's draft Edit, Send to vendor and Receive stock", () => {
     renderDetails(po({ status: "pending" }));
     const names = screen.getAllByRole("button").map((b) => b.textContent?.trim()).filter(Boolean);
-    expect(names).toEqual(expect.arrayContaining(["Edit", "Mark as Sent"]));
-    expect(screen.queryByText("Download PDF")).toBeNull();
+    expect(names).toEqual(expect.arrayContaining(["Edit", "Send to vendor", "Receive stock"]));
   });
 
-  it("offers Receive Goods on a draft immediate purchase", () => {
-    renderDetails(po({ status: "pending", type: "immediate" }));
-    expect(screen.queryByText("Receive Goods")).not.toBeNull();
-    expect(screen.queryByText("Mark as Sent")).toBeNull();
+  it.each(["pending", "sent", "partially_received", "received", "closed"])(
+    "keeps Download PDF in the menu, not the footer, for a %s order",
+    (status) => {
+      renderDetails(po({ status }));
+      expect(screen.queryByRole("button", { name: /Download PDF/ })).toBeNull();
+      openMenu();
+      expect(screen.queryByRole("menuitem", { name: "Download PDF" })).not.toBeNull();
+    },
+  );
+
+  it("offers a walk-in draft Receive stock and no Send to vendor, whatever its stored type", () => {
+    renderDetails(po({ status: "pending", supplier_id: null, type: "standard" }));
+    expect(screen.queryByText("Receive stock")).not.toBeNull();
+    expect(screen.queryByText("Send to vendor")).toBeNull();
+  });
+
+  it("hides Receive stock on a draft without receive_purchase_orders", () => {
+    deny("receive_purchase_orders");
+    renderDetails(po({ status: "pending", supplier_id: null }));
+    expect(screen.queryByText("Receive stock")).toBeNull();
+  });
+
+  it("confirms a draft receipt and receives the saved lines with their lot, expiry and cost", () => {
+    onReceiveDraft.mockClear();
+    renderDetails(po({ status: "pending", supplier_id: null, items: [draftLine, { ...draftLine, id: "line2", product_name: "Amoxil", bulk_quantity: 0 }] as PurchaseOrder["items"] }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Receive stock" }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Amoxil has no quantity and will be left off this receipt");
+    expect(onReceiveDraft).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Receive Purchase" }));
+    expect(onReceiveDraft).toHaveBeenCalledWith("po1", [
+      expect.objectContaining({ po_item_id: "line1", quantity: 2, lot_number: "L1", expiry_date: "2028-01-01", cost_price: 12 }),
+      expect.objectContaining({ po_item_id: "line2", quantity: 0 }),
+    ]);
+  });
+
+  it("sends a receive-only role to the receiving panel for a draft, where uncounted lines can be counted", () => {
+    deny("manage_purchase_orders");
+    onReceiveGoods.mockClear();
+    renderDetails(po({ status: "pending", supplier_id: null, items: [{ ...draftLine, bulk_quantity: 0 }] as PurchaseOrder["items"] }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Receive stock" }));
+
+    expect(onReceiveGoods).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("offers Close short on a partially received order to managers only, behind a confirmation", () => {
+    renderDetails(po({ status: "partially_received" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close short" }));
+    expect(screen.getByRole("alertdialog").textContent).toContain("vendor will not deliver the rest");
+
+    cleanup();
+    deny("manage_purchase_orders");
+    renderDetails(po({ status: "partially_received" }));
+    expect(screen.queryByRole("button", { name: "Close short" })).toBeNull();
+  });
+
+  it("warns how much was overpaid when closing a paid order short", async () => {
+    closeShortPreview.mockResolvedValueOnce({ receivedTotal: 3000, amountPaid: 5000, overpaidBy: 2000 });
+    renderDetails(po({ status: "partially_received" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close short" }));
+    expect(await screen.findByText(/Overpaid by/)).toBeTruthy();
+  });
+
+  it("shows a closed-short order as locked with no receive action", () => {
+    renderDetails(po({ status: "closed" }));
+    expect(screen.queryByText("Closed short. The rest of this order will not be delivered.")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /^Receive/ })).toBeNull();
+  });
+
+  it("labels a sent order Ordered in its timeline", () => {
+    renderDetails(po({ status: "sent" }));
+    expect(screen.queryByText("Ordered")).not.toBeNull();
+    expect(screen.queryByText("Sent")).toBeNull();
   });
 
   it("offers Receive Remaining on a partially received order and no deleting", () => {
@@ -134,9 +244,8 @@ describe("Purchase order details permissions", () => {
     expect(screen.queryByRole("menuitem", { name: /Delete order/ })).toBeNull();
   });
 
-  it("locks a received order to Download PDF with a notice", () => {
+  it("locks a received order with a notice and no receive action", () => {
     renderDetails(po({ status: "received" }));
-    expect(screen.queryByText("Download PDF")).not.toBeNull();
     expect(screen.queryByText("All items received. This order is now locked.")).not.toBeNull();
     expect(screen.queryByRole("button", { name: /^Receive/ })).toBeNull();
   });

@@ -276,7 +276,7 @@ export function CheckoutForm({ storeSlug, paymentInstructions, deliveryAvailable
                 onMethodChange={handleMethodChange}
               />
             </CardContent>
-            <CardFooter className="flex-col items-stretch gap-2">
+            <CardFooter className="flex-col items-stretch gap-2 pt-6">
               <Button
                 type="submit"
                 className="w-full"

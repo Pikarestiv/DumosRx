@@ -10,11 +10,14 @@ vi.mock("idb-keyval", () => ({
 describe("procurement.ts order writes", () => {
   let db: Database;
   let createPurchaseOrder: typeof import("@/lib/db/procurement").createPurchaseOrder;
-  let updatePurchaseOrder: typeof import("@/lib/db/procurement").updatePurchaseOrder;
+  let saveDraftOrder: typeof import("@/lib/db/procurement-draft").saveDraftOrder;
+  const updatePurchaseOrder = (poId: string, supplierId: string | null, notes: string, items: Parameters<typeof saveDraftOrder>[0]["items"]) =>
+    saveDraftOrder({ id: poId, supplierId, notes, items, paymentStatus: "unpaid", amountPaid: 0, dueDate: null });
   let deletePurchaseOrder: typeof import("@/lib/db/procurement").deletePurchaseOrder;
 
   beforeAll(async () => {
-    ({ createPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder } = await import("@/lib/db/procurement"));
+    ({ createPurchaseOrder, deletePurchaseOrder } = await import("@/lib/db/procurement"));
+    ({ saveDraftOrder } = await import("@/lib/db/procurement-draft"));
     db = await createProcurementTestDb();
   });
 
@@ -24,63 +27,30 @@ describe("procurement.ts order writes", () => {
 
   describe("selling price on save", () => {
     const line = (selling_price?: number) => [{ product_id: "prodSp", product_name: "Zyrtec", bulk_unit: "Carton", bulk_quantity: 1, units_per_bulk: 10, unit_cost: 500, subtotal: 500, selling_price }];
-    const createImmediate = (items: ReturnType<typeof line>) => createPurchaseOrder(null, "", items, "unpaid", 0, null, "immediate");
-    const price = () => db.exec(`SELECT selling_price FROM products WHERE id = 'prodSp'`)[0].values[0][0];
+    const price = () => db.exec(`SELECT selling_price, _synced FROM products WHERE id = 'prodSp'`)[0].values[0];
 
-    it("updates the catalog price when a PO is created or edited, but not when the line has none", async () => {
+    it("never writes the catalog price when an order is created or edited, whatever the line carries", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price, _synced) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 10, 1)`);
+
+      const poId = await createPurchaseOrder(null, "", line(25));
+      await updatePurchaseOrder(poId, null, "", line(30));
+      await updatePurchaseOrder(poId, null, "", line(0));
+
+      expect(price()).toEqual([10, 1]);
+    });
+
+    it("keeps a line's stored selling price for older tills that still read it", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 10)`);
 
-      const poId = await createImmediate(line());
-      expect(price()).toBe(10);
+      const poId = await createPurchaseOrder(null, "", line(25));
 
-      await createImmediate(line(25));
-      expect(price()).toBe(25);
-
-      await updatePurchaseOrder(poId, null, "", line(30));
-      expect(price()).toBe(30);
-    });
-
-    it("never writes a line the edit form marked as not repriced, even when its price differs from the catalog", async () => {
-      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
-      const poId = await createImmediate(line(20));
-
-      await updatePurchaseOrder(poId, null, "", [{ ...line(15)[0], reprice: false }]);
-      expect(price()).toBe(20);
-
-      await updatePurchaseOrder(poId, null, "", [{ ...line(15)[0], reprice: true }]);
-      expect(price()).toBe(15);
-    });
-
-    it("leaves the catalog alone when the line price already equals it, and writes a deliberate different one", async () => {
-      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
-      db.run(`UPDATE products SET _synced = 1 WHERE id = 'prodSp'`);
-      const synced = () => db.exec(`SELECT _synced FROM products WHERE id = 'prodSp'`)[0].values[0][0];
-
-      const poId = await createImmediate(line(20));
-      expect(synced()).toBe(1);
-
-      await updatePurchaseOrder(poId, null, "edited note", line(20));
-      expect(price()).toBe(20);
-      expect(synced()).toBe(1);
-
-      await updatePurchaseOrder(poId, null, "", line(15));
-      expect(price()).toBe(15);
-    });
-  
-    it("ignores and does not store Immediate-only fields on a Standard PO, which has no price, cost, lot or expiry inputs", async () => {
-      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk, selling_price) VALUES ('prodSp', 'Zyrtec', 'Tablet', 'Carton', 10, 20)`);
-      const hidden = { ...line(99)[0], cost_price_override: 5, lot_number: "L1", expiry_date: "2027-01-01" };
-
-      const poId = await createPurchaseOrder(null, "", [hidden], "unpaid", 0, null, "standard");
-
-      expect(price()).toBe(20);
-      const row = db.exec(`SELECT selling_price, cost_price_override, lot_number, expiry_date FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0];
-      expect(row).toEqual([null, null, null, null]);
+      const stored = db.exec(`SELECT selling_price FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0][0];
+      expect(stored).toBe(25);
     });
   });
 
   describe("createPurchaseOrder", () => {
-    it("defaults type to 'standard' when none is passed", async () => {
+    it("writes every new order as type 'immediate', so an older till's edit never strips its lot, expiry or cost", async () => {
       db.run(`INSERT INTO suppliers (id, name) VALUES ('sup1', 'Emzor')`);
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
 
@@ -90,25 +60,37 @@ describe("procurement.ts order writes", () => {
         [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 }],
       );
 
-      const rows = db.exec(`SELECT type FROM purchase_orders WHERE id = '${poId}'`);
-      expect(rows[0].values[0][0]).toBe("standard");
+      const rows = db.exec(`SELECT type, status FROM purchase_orders WHERE id = '${poId}'`);
+      expect(rows[0].values[0]).toEqual(["immediate", "pending"]);
     });
 
-    it("preserves an explicit 'immediate' type, so a drafted Immediate Purchase keeps its identity", async () => {
+    it("can create an order already sent to its vendor in one write, still typed 'immediate'", async () => {
+      db.run(`INSERT INTO suppliers (id, name) VALUES ('sup1', 'Emzor')`);
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
 
       const poId = await createPurchaseOrder(
-        null,
+        "sup1",
         "",
         [{ product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000 }],
         "unpaid",
         0,
         null,
-        "immediate",
+        "sent",
       );
 
-      const rows = db.exec(`SELECT type FROM purchase_orders WHERE id = '${poId}'`);
-      expect(rows[0].values[0][0]).toBe("immediate");
+      const rows = db.exec(`SELECT type, status FROM purchase_orders WHERE id = '${poId}'`);
+      expect(rows[0].values[0]).toEqual(["immediate", "sent"]);
+    });
+
+    it("stores lot, expiry and cost override on every new line instead of dropping them", async () => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+
+      const poId = await createPurchaseOrder(null, "", [
+        { product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", bulk_quantity: 2, units_per_bulk: 100, unit_cost: 500, subtotal: 1000, cost_price_override: 4, lot_number: "L1", expiry_date: "2027-01-01" },
+      ]);
+
+      const row = db.exec(`SELECT cost_price_override, lot_number, expiry_date FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0];
+      expect(row).toEqual([4, "L1", "2027-01-01"]);
     });
 
     it("bills a drafted Immediate Purchase for its per-base-unit override, which the screen already showed", async () => {
@@ -134,7 +116,6 @@ describe("procurement.ts order writes", () => {
         "partial",
         1000,
         null,
-        "immediate",
       );
 
       const po = db.exec(`SELECT total_amount FROM purchase_orders WHERE id = '${poId}'`);
@@ -198,7 +179,7 @@ describe("procurement.ts order writes", () => {
     });
   });
 
-  describe("updatePurchaseOrder", () => {
+  describe("saving an existing order", () => {
     it("derives total_amount and each item's subtotal from bulk_quantity * unit_cost, ignoring a stale subtotal field", async () => {
       db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
       const poId = await createPurchaseOrder(
@@ -282,6 +263,55 @@ describe("procurement.ts order writes", () => {
       expect(liveItems[0]).toEqual([line1Id, "prod1", 5]);
       expect(liveItems[1][1]).toBe("prod3");
       expect(liveItems[1][2]).toBe(3);
+    });
+  });
+
+  describe("saving an existing order for older tills", () => {
+    const panadol = { product_id: "prod1", product_name: "Panadol", bulk_unit: "Carton", units_per_bulk: 100, unit_cost: 500 };
+
+    beforeEach(() => {
+      db.run(`INSERT INTO products (id, name, base_unit, bulk_unit, units_per_bulk) VALUES ('prod1', 'Panadol', 'Tablet', 'Carton', 100)`);
+    });
+
+    it("keeps lot, expiry and cost on a legacy 'standard' order and retypes it 'immediate' so older tills stop stripping them", async () => {
+      const poId = await createPurchaseOrder(null, "", [{ ...panadol, bulk_quantity: 1, subtotal: 500 }]);
+      db.run(`UPDATE purchase_orders SET type = 'standard' WHERE id = '${poId}'`);
+      const lineId = db.exec(`SELECT id FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0][0] as string;
+
+      await updatePurchaseOrder(poId, null, "", [
+        { ...panadol, id: lineId, bulk_quantity: 1, subtotal: 500, cost_price_override: 6, lot_number: "L9", expiry_date: "2028-02-02" },
+      ]);
+
+      expect(db.exec(`SELECT type FROM purchase_orders WHERE id = '${poId}'`)[0].values[0][0]).toBe("immediate");
+      const row = db.exec(`SELECT cost_price_override, lot_number, expiry_date FROM purchase_order_items WHERE id = '${lineId}'`)[0].values[0];
+      expect(row).toEqual([6, "L9", "2028-02-02"]);
+    });
+
+    it("keeps two lines of the same product on their own rows instead of swapping their values", async () => {
+      const poId = await createPurchaseOrder(null, "", [
+        { ...panadol, bulk_quantity: 1, subtotal: 500, lot_number: "A" },
+        { ...panadol, bulk_quantity: 2, subtotal: 1000, lot_number: "B" },
+      ]);
+      const before = db.exec(`SELECT id, lot_number, bulk_quantity FROM purchase_order_items WHERE po_id = '${poId}' ORDER BY lot_number`)[0].values;
+
+      await updatePurchaseOrder(poId, null, "", [
+        { ...panadol, id: before[1][0] as string, bulk_quantity: 2, subtotal: 1000, lot_number: "B" },
+        { ...panadol, id: before[0][0] as string, bulk_quantity: 1, subtotal: 500, lot_number: "A" },
+      ]);
+
+      const after = db.exec(`SELECT id, lot_number, bulk_quantity FROM purchase_order_items WHERE po_id = '${poId}' AND _deleted = 0 ORDER BY lot_number`)[0].values;
+      expect(after).toEqual(before);
+    });
+
+    it("sends bulk_quantity and units_per_bulk together whenever a line's quantity changes", async () => {
+      const poId = await createPurchaseOrder(null, "", [{ ...panadol, bulk_quantity: 1, subtotal: 500 }]);
+      const lineId = db.exec(`SELECT id FROM purchase_order_items WHERE po_id = '${poId}'`)[0].values[0][0] as string;
+      db.run(`DELETE FROM _sync_queue`);
+
+      await updatePurchaseOrder(poId, null, "", [{ ...panadol, id: lineId, bulk_quantity: 3, subtotal: 1500 }]);
+
+      const payload = JSON.parse(db.exec(`SELECT payload FROM _sync_queue WHERE record_id = '${lineId}'`)[0].values[0][0] as string);
+      expect(payload).toMatchObject({ bulk_quantity: 3, units_per_bulk: 100 });
     });
   });
 

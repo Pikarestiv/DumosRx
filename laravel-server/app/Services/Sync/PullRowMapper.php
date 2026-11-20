@@ -2,13 +2,22 @@
 
 namespace App\Services\Sync;
 
+use App\Services\Admin\Concerns\ResolvesDeviceLabels;
+
 /** Design notes: docs/SYNC_SERVER_RATIONALE.md#pullrowmapper */
 class PullRowMapper
 {
+    use ResolvesDeviceLabels;
+
     public function mapPullRowForClient($item, string $table): array
     {
         $array = $item->toArray();
         $array['_deleted'] = (\method_exists($item, 'trashed') && $item->trashed()) ? 1 : 0;
+
+        if ($table === 'purchase_orders' && ! empty($array['editing_device_id'])) {
+            $array['editing_device_label'] = $this->deviceLabel($array['store_id'] ?? null, $array['editing_device_id'])
+                ?? ($array['editing_device_label'] ?? null);
+        }
 
         if ($table === 'stores') {
             $plan = 'free';

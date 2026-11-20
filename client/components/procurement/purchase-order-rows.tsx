@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { useFormatCurrency } from "@/lib/hooks/use-format-currency";
 import { type PurchaseOrder } from "@/lib/db/procurement";
+import { DraftAgeBadge } from "./draft-age-badge";
 import { getPayableDueState } from "@/lib/utils/payables";
 import { getLocalTodayDate } from "@/lib/utils";
 import { formatPONumber } from "@/lib/utils/po-number";
@@ -48,7 +49,13 @@ export function getStatusBadge(status: string) {
     case "sent":
       return (
         <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 hover:bg-blue-500/20">
-          <ArrowRight className="w-3 h-3 mr-1" /> Sent
+          <ArrowRight className="w-3 h-3 mr-1" /> Ordered
+        </Badge>
+      );
+    case "closed":
+      return (
+        <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
+          Closed short
         </Badge>
       );
     case "pending":
@@ -135,6 +142,7 @@ export function PurchaseOrderMobileRow({
         </span>
         {getStatusBadge(order.status)}
         <PayableDueBadge order={order} />
+        <DraftAgeBadge order={order} />
       </div>
     </div>
   );
@@ -173,6 +181,7 @@ export function PurchaseOrderRow({
         <div className="flex flex-wrap items-center gap-1">
           {getStatusBadge(order.status)}
           <PayableDueBadge order={order} />
+          <DraftAgeBadge order={order} />
         </div>
       </TableCell>
     </TableRow>

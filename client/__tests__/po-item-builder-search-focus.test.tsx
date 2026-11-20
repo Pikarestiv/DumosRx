@@ -54,7 +54,6 @@ describe("POItemBuilder search entry point", () => {
   it("focuses the search input on mount", () => {
     render(
       <POItemBuilder
-        poType="immediate"
         products={[product]}
         items={[]}
         onItemsChange={vi.fn()}
@@ -69,7 +68,6 @@ describe("POItemBuilder search entry point", () => {
   it("the empty item list offers a button that (re-)focuses the search input", () => {
     render(
       <POItemBuilder
-        poType="immediate"
         products={[product]}
         items={[]}
         onItemsChange={vi.fn()}
@@ -90,7 +88,6 @@ describe("POItemBuilder search entry point", () => {
   it("does not steal focus on mount when the order already has items (e.g. resuming an existing draft on the edit page)", () => {
     render(
       <POItemBuilder
-        poType="immediate"
         products={[product]}
         items={[
           {

@@ -42,12 +42,21 @@ describe("PO status steps", () => {
   it("labels the last step Partially received when some items are in", () => {
     render(<PoStatusTimeline po={order({})} />);
     expect(screen.getByText("Partially received")).toBeTruthy();
-    expect(screen.getByText("Sent")).toBeTruthy();
+    expect(screen.getByText("Ordered")).toBeTruthy();
   });
 
-  it("skips the Sent step for an immediate purchase", () => {
+  it("skips the Ordered step for a purchase received without being sent", () => {
     render(<PoStatusTimeline po={order({ type: "immediate", status: "received" })} />);
-    expect(screen.queryByText("Sent")).toBeNull();
+    expect(screen.queryByText("Ordered")).toBeNull();
     expect(screen.getByText("Received")).toBeTruthy();
+  });
+
+  it("shows the cost each unit came to when the line was received at a cost entered at receiving", () => {
+    const received = order({
+      status: "received",
+      items: [{ product_name: "Liquid wash", bulk_quantity: 2, quantity_received: 2, unit_cost: 0, subtotal: 200 }] as PurchaseOrder["items"],
+    });
+    render(<PoLineItems po={received} />);
+    expect(screen.getByText(/2 × .*100/)).toBeTruthy();
   });
 });

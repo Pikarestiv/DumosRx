@@ -929,6 +929,13 @@ fails the form before anything is saved (only when the email actually changed); 
 with the server unreachable or slower than 4 seconds, the save proceeds and the server's `email_in_use` push refusal is the backstop, handled
 as a terminal reason in `push-response.ts` (queue row dropped, `users` window
 re-pulled, one toast in `announceTerminalConflicts`).
+A staff email is optional and a blank one is stored as `NULL`, never `''`
+(`normalizeStaffEmail()` in `lib/utils/staff-save-errors.ts`, applied by
+`createUser()` and `updateUser()`): `users.email` is `UNIQUE`, and SQLite lets any
+number of `NULL`s coexist but only one `''`. A unique-constraint failure on the
+staff form is reported by the column that clashed (`staffSaveErrorMessage()`),
+not always as "Username already exists". An older row saved with `''` is left
+alone and clears itself the next time that account is edited.
 Daily Close syncs on open too, but never blocks: `useSyncOnOpen()`
 (`lib/hooks/use-sync-on-open.ts`) reuses `pullBeforeCount`, and
 `DailyCloseSyncNote` shows "Syncing…" then, if offline or it failed, that the
@@ -3283,7 +3290,7 @@ components/
                           - responsive-tab-label.tsx   short label <md, full label >=md
                           - responsive-detail-panel.tsx   sheet-on-mobile / inline-panel-on-desktop
   products/               Product Catalog page + product detail panel (product-details/ subfolder)
-  procurement/            Purchase orders (Standard + Immediate types), receiving
+  procurement/            Purchase orders (one flow; vendor picks send or receive), receiving
                            (ledger-style dense table). Create/edit flow is a
                            two-phase "details step → item entry" screen; see
                            Domain model essentials below.
@@ -3580,20 +3587,24 @@ e2e/                       Playwright end-to-end specs
   inventory read is already scoped to the active store by
   `getActiveStoreId()`, so a branch filter here would be a constant.
 
-- **Purchase Orders: Standard vs Immediate** (`lib/db/procurement.ts`,
-  `components/procurement/`). `purchase_orders.type` (`'standard' |
-  'immediate'`) is separate from `status` (`PURCHASE_ORDER_STATUSES` in
-  `lib/db/procurement.ts`: `'pending' | 'sent' | 'partially_received' |
-  'received'`) and is
-  set once at creation, never changed: a **Standard** PO is created
-  `pending` via `createPurchaseOrder()` and received later through the
-  existing `ReceivePOPanel`; an **Immediate Purchase** is created *and*
-  received in one atomic transaction via `createAndReceivePurchaseOrder()`
-  (status `received` from the moment it's inserted, stock batches created
-  in the same call). Both share one item-entry UI
-  (`POItemBuilder`/`POItemLedgerTable`/`POItemCardList`,
-  `POLineItemDraft` type), which renders a different column set per
-  `poType` rather than being two separate tables.
+- **Purchase orders: one flow, vendor decides the next step** (`lib/db/procurement.ts`,
+  `components/procurement/`). Statuses are `PURCHASE_ORDER_STATUSES`
+  (`'pending' | 'sent' | 'partially_received' | 'received' | 'closed'`),
+  shown as Draft, Ordered, Partially received, Received and Closed short.
+  There is no up-front order type since 2026-11-18: `purchase_orders.type`
+  is still written, as `'immediate'` on every save, only so older tills
+  keep an order's cost, lot and expiry (see "Procurement price handling"
+  below). Every order the screen builds is written by `saveDraftOrder()`
+  (`lib/db/procurement-draft.ts`) as a `pending` draft; Send to vendor then
+  sets `sent` (`updatePurchaseOrderStatus()`), and Receive stock runs
+  `receivePurchaseOrder()` on the saved draft. `createPurchaseOrder()` is
+  now used only by the demo loader (`lib/demo/loader.ts`) and tests, and
+  `createAndReceivePurchaseOrder()` only by four test files (logged in
+  `docs/KNOWN_BUGS.md`). A draft is received from the order panel's
+  confirmation sheet (or `ReceivePOPanel` for a receive-only role); a sent
+  order through `ReceivePOPanel`. All of them share one item-entry UI
+  (`POItemBuilder`/`POItemLedgerTable`/`POItemCardList`), which has only
+  the receiving column set; the Standard branch is gone.
   `purchase_orders.supplier_id` is **nullable** — a self/walk-in purchase
   (no real vendor) is represented as `NULL`, the same convention
   `sales.customer_id` uses for "Walk-in Customer"; the UI sentinel
@@ -3604,24 +3615,214 @@ e2e/                       Playwright end-to-end specs
   comment in `lib/db/core.ts` (search `purchase_orders_nullable_supplier`)
   for why (per-store local DBs, sync, and the Vendors list all would have
   to special-case a fake row).
-  The create/edit page is a **two-phase flow**: `PODetailsFields` (vendor,
-  type, notes, payment, due date) is filled first, then item entry
-  (`POItemBuilder`) becomes the dominant full-screen content; once
-  confirmed, details collapse into `PODetailsSummaryBar` with an
-  icon-only edit button that reopens `PODetailsDialog`. Don't put the
-  details form and the item table on screen at the same time again — that
-  was the exact complaint (Moniebook-inspired) this flow replaced.
+  The create and edit screens open straight on the item ledger. Vendor,
+  payment, due date and notes sit behind `PODetailsSummaryBar`'s edit
+  button in `PODetailsDialog`; don't put the details form and the item
+  table on screen at the same time (the Moniebook-inspired complaint the
+  old details step replaced). A new order's payment status follows the
+  vendor until touched: walk-in opens Fully Paid, a named vendor Unpaid.
+  The due date is hidden and saved as NULL once the order is Fully Paid
+  (`dueDateToSave()`). A draft (`pending`) can be saved, created or
+  edited, with rows still at quantity 0; sending or receiving a new order
+  needs every quantity. The edit screen stays at `/procurement/edit?id=`:
+  the client is a static export, so a `/procurement/[id]` route would need
+  every order id at build time.
   `purchase_order_items` also persists `selling_price`,
   `cost_price_override`, `lot_number`, `expiry_date` (added 2026-09-23) so
-  an Immediate Purchase saved as a draft and resumed later keeps what was
-  typed — coerce these via `coerceOptionalNumber()` (`lib/db/procurement.ts`),
+  a draft resumed later keeps what was typed — coerce these via
+  `coerceOptionalNumber()` (`lib/db/procurement-selling-price.ts`),
   which explicitly treats `null` (what a reloaded row's unset override
   reads back as) the same as `undefined`/`""`: `Number(null) === 0` will
   silently turn "no override" into a real, permanent zero if you bypass
-  it. The **edit page reads the PO's real `type`** (not hardcoded
-  `"standard"`) to decide which columns to show — it used to assume only
-  Standard POs are ever resumed via "Edit Order," which was wrong (any
-  `pending`/`sent` PO gets that button, including an Immediate draft).
+  it. Draft orders are left out of vendor debt, order count and value, and
+  the supplier-deletion balance check (`lib/db/suppliers.ts`); they still
+  block deleting a product they list (`queries/products.ts`), because
+  receiving the draft later would add stock to a deleted product.
+
+- **Order screen autosave (2026-11-19)** (`components/procurement/order-screen/`).
+  `/procurement/new` and `/procurement/edit?id=` render the same
+  `PoOrderScreen`. The order id is generated in memory when the screen
+  opens; nothing is written until the first item is added, then
+  `saveDraftOrder()` (`lib/db/procurement-draft.ts`) creates the row under
+  that id and the address is swapped to `/procurement/edit?id=` with
+  `window.history.replaceState` so the mounted screen keeps its state.
+  Next 16 syncs `usePathname()` with that swap, so `DashboardLayout` treats
+  both addresses as the full-screen order route (`isOrderScreenRoute()`,
+  `lib/utils/order-screen-route.ts`): below `lg` the bottom nav is hidden on
+  both, and never appears over the screen after the first item is saved.
+  - **When it writes:** a row added or removed, a vendor, payment status or
+    due date picked, a revert or an undo save at once; typing (quantity,
+    cost, lot, notes, amount paid) saves 700 ms after it pauses
+    (`lib/utils/autosave-scheduler.ts`, serialised, never two saves at
+    once). `pagehide`, `visibilitychange` to hidden, Back and every action
+    button flush first. Lines carry their own id from the moment they are
+    added (`addOrMergeLineItem`), and `reconcilePurchaseOrderLines()` inserts
+    a new line under that id, so a save touches only the rows that changed;
+    a line whose id another till already used gets a new id, reported back
+    through `lineIdMap`. `bulk_quantity` and `units_per_bulk` still travel
+    together.
+  - **Audit volume:** autosave writes pass `skipAudit` to `insert()`/
+    `update()`/`softDelete()`. The draft's first insert logs the normal
+    `INSERT`, and every later save logs `PO_DRAFT_EDITED`, which is in
+    `DEDUPABLE_AUDIT_ACTIONS`: it coalesces into one row (with
+    `occurrence_count`) until that row syncs. Never put a stock, receipt or
+    batch write behind `skipAudit`.
+  - **Status and failures:** the header reads "Saved on this device" while
+    the order or a line is still queued and "Saved · synced" once none is
+    (`getOrderSyncState()`, polled every 4 s), with "Save now". A failed
+    local save keeps the draft on screen with a banner (Retry / Save now).
+    An unresolved `_sync_conflicts` row on the order or a line shows "your
+    edit wasn't saved because another device changed it first" with Reload
+    their version or Keep mine as a new draft (a copy under new ids), and
+    makes the screen read-only until one is picked. An order received,
+    closed or deleted on another till stops saving (`not_editable` /
+    `deleted`).
+  - **Never a stale snapshot over newer rows (2026-11-19):** the screen
+    keeps a fingerprint of the order as it last saw it in the local DB
+    (`draftFingerprintOf()`/`storedDraftFingerprint()` in
+    `lib/db/procurement-draft-fingerprint.ts`: vendor, notes, amount paid,
+    due date and every live line's id, product, quantity, units, cost,
+    override, lot and expiry, normalised so a server read-back of this
+    till's own save, `6.0` for `6` or `"100.00"` for `100`, matches).
+    `saveDraftOrder()` takes it as `base` and returns `stale` without
+    writing when the stored order no longer matches, or when the order or a
+    line has an unresolved `_sync_conflicts` row (so typing between a
+    terminal conflict and its re-pull cannot requeue the losing values).
+    `stale` shows the conflict banner and makes the screen read-only. It
+    deliberately ignores `_version`/`updated_at`: push acks and pulls move
+    those for this till's own writes. Take over reloads from the DB before
+    it writes, and the screen reloads whenever the lock passes to or from
+    another till while nothing is pending (`useReloadOnLockHandover`).
+    Tests: `__tests__/po-order-rebase.test.tsx`.
+  - **Undo and revert:** Ctrl+Z (outside an input, textarea or editable
+    element, so native undo in a field is untouched) and the header's undo
+    button step back through this session's edits (typing bursts grouped
+    within a second, 50 steps). Each changed quantity, cost, lot or expiry
+    shows "was X · revert" against the order as it was opened. Nothing is
+    kept across sessions.
+  - **Back and delete:** Back saves and leaves, with no discard prompt,
+    unless the last save failed: then an AlertDialog offers Stay or Leave
+    anyway (`po-leave-unsaved-dialog.tsx`). Leaving any other way (browser
+    or Android back, a nav link) runs the same `leave()` from the unmount
+    cleanup: flush the pending save from refs, release this till's lock, and
+    schedule the delete of a draft left with no items. Delete draft is in
+    the header menu and only happens when its 6 s undo toast closes
+    (`schedule-draft-delete.ts`), so no undelete has to sync; while that
+    toast is up the draft will not open (`isDraftDeletePending()`).
+  - **No empty drafts:** a draft row is created only with its first item,
+    and a draft whose last item was removed is deleted on leaving, behind
+    the same undo toast. At start-up `removeEmptyDraftsOf()`
+    (`lib/db/procurement-empty-drafts.ts`) deletes this user's `pending`
+    drafts with no live line, no notes and nothing paid that have not been
+    touched for 10 minutes; anything with an item, notes or a payment, and
+    other users' drafts, are never touched (`purchase_orders` has no device
+    column, so "this user's" stands in for "this device's").
+    Create Order offers "Continue order from X (N items, 2h ago)?" for this
+    user's latest draft with items from the last 24 hours. The order list
+    shows each draft's age and nudges after 30 days; nothing deletes a
+    draft automatically.
+  - **Draft lock (2026-11-19):** every save stamps `editing_device_id`,
+    `editing_device_label`, `editing_user_id` and `editing_at` on the order
+    (`saveDraftOrder()`'s `lock`). A lock another till stamped less than 10
+    minutes ago (`lockHeldByAnother()`, `LOCK_FRESH_MS`) makes the save
+    return `locked` and the screen read-only with "Being edited on {label}"
+    and Take over, which saves with `takeOver` and writes the lock *before*
+    the lines so it is queued first (the queue is ordered by `created_at`,
+    which a merged UPDATE keeps). Leaving clears the lock (`releaseDraftLock()`,
+    only if it is still this till's). While the screen is open and someone
+    touched it in the last 3 minutes, `useLockHeartbeat` restamps
+    `editing_at` every 3 minutes (`refreshDraftLock()`: header-only, no
+    audit row, only while the lock is still this till's), so an idle holder
+    loses the lock 10 minutes after the last activity rather than the last
+    save. The server clamps a pushed `editing_at` that runs ahead of its
+    clock. The server fences other tills' line
+    edits too (laravel-server/AGENTS.md, "Purchase-order draft lock"); its
+    refusal `draft_locked` is terminal here (`push-response.ts`). The
+    columns are in `schema.ts`, `SYNC_COLUMN_MIGRATIONS` and the
+    `purchase_orders_nullable_supplier` rebuild, which runs after the column
+    migrations and would otherwise drop them.
+  - **Recovered copies (2026-11-19):** when a push refuses this till's
+    purchase-order edits as `version_conflict`, `stale_timestamp` or
+    `draft_locked`, `pushChanges()` calls `recoverRejectedOrderEdits()`
+    (`lib/db/sync-engine/recover-order-edits.ts`) in the same batch
+    transaction, before `settleFailedChanges()` drops the queue rows and
+    long before the re-pull overwrites the local rows. For each `pending`/
+    `sent` order with a live line it copies the local header and lines, as
+    they stand, into a new `pending` draft ("Recovered copy of PO-XXXX: …"
+    in its notes, unpaid, nothing received) under
+    `deterministicId("po_recovered_copy", orderId, fingerprint)`, so the
+    same rejected content never makes a second copy, and an already
+    deleted copy is not resurrected. A refused header change that carried
+    only lock or bookkeeping keys (a heartbeat, a release) recovers
+    nothing. A toast names the copy, and `RecoveredCopiesNotice` on the
+    order list points at pending recovered drafts until each is received,
+    deleted or has its notes changed. Limits: it copies what the local
+    rows hold when the refusal arrives, so an edit already overwritten by
+    an earlier pull is not recoverable; lines this till deleted are simply
+    absent from the copy; the money paid is never copied. The work runs
+    under a SAVEPOINT and any failure is logged and skipped, never failing
+    the sync batch. Tests: `__tests__/push-order-recovered-copy.test.ts`,
+    `recovered-copies-notice.test.tsx`.
+  - **App updates:** `pwa-registrar.tsx` awaits every flush registered
+    through `lib/utils/reload-guard.ts` (at most 2 s) before reloading (A-402).
+  - **Actions:** Download PDF lives in the "..." menu only, for every
+    status (`PoOrderMenu` on the order panel, the header's "More order
+    actions" on the order screen, which also shows it read-only); the order
+    panel's footer has no PDF button. Send to vendor
+    marks the order sent and hands its PDF to `navigator.share` where the
+    device can share files, otherwise downloads it (`lib/utils/share-file.ts`).
+    Receive stock flushes the draft and runs `receivePurchaseOrder()` from
+    the confirmation sheet, on new orders as well as resumed ones.
+
+- **Payment is the amount paid (2026-11-19)** (`components/procurement/po-payment.ts`).
+  `purchase_orders.amount_paid` is the stored truth; the order screen has an
+  Amount Paid field and a Paid in full toggle (which tracks the total while
+  on), and the status is derived: nothing paid is `unpaid`, less than the
+  total `partial`, the total or more `paid` (`derivePaymentStatus()`).
+  `payment_status` is still written, from that derivation, on every save,
+  because `suppliers.ts`, the payables queries and every older till filter
+  on it. A stored `paid` with a lower `amount_paid` (older builds could
+  leave it at 0) reads as paid up to the total (`effectiveAmountPaid()`).
+  A reopened order whose amount paid covers its total (and whose total is
+  above 0) opens with Paid in full on, so editing it keeps it paid; one
+  part-paid opens with its stored amount. Counting an uncounted line at
+  receipt re-derives in `refreshOrderTotal()`, so a paid order whose total
+  grows there becomes `partial`.
+  The due date shows and saves only while a balance remains. Retire
+  writing `payment_status` once every active device reports this build.
+- **Closed short (2026-11-19)** (`lib/db/procurement-close.ts`). A
+  `partially_received` order the vendor will not complete can be closed
+  (`manage_purchase_orders`, AlertDialog): status `closed`, `total_amount`
+  re-priced to what actually arrived, payment re-derived, one
+  `PO_CLOSED_SHORT` audit row. Line quantities are kept as ordered. When
+  what was paid is above what arrived the order stays `paid` and the
+  confirmation says "Overpaid by X" (`getCloseShortPreview()`); there is no
+  vendor credit ledger, so the difference is settled outside the app.
+  `receivePurchaseOrder()` now refuses any non-receivable status
+  (`not_receivable`). Older tills show the raw status in the badge
+  fallback, treat it as not receivable, and leave it out of the
+  open-order product check; the server stores the status as given
+  (`SyncPushPurchaseOrderClosedTest`).
+
+- **Void receipt (2026-11-19)** (`lib/db/procurement-void-receipt.ts`,
+  `components/procurement/po-receipts-section.tsx`). Each receipt is one
+  `purchase` movement on one batch (`reference_type = 'purchase_order'`).
+  Voiding it writes one `adjustment` movement of minus those units on that
+  same batch, `reference_type = 'purchase_order_reversal'`, under the
+  deterministic id `receiptReversalId(batchId)`, so two tills voiding the
+  same receipt collapse onto one row (`SyncPushPurchaseOrderReceiptVoidTest`).
+  The line's `quantity_received` drops by the receipt (sent with
+  `bulk_quantity` and `units_per_bulk`), the line is found by recomputing
+  `receiptBatchId(lineId, n)` (falling back to the product for older
+  random-id receipts), and the order goes back to `partially_received`, or
+  to `sent` (named vendor) / `pending` (walk-in) when nothing is left.
+  Refused when the batch now holds less than the receipt (sold or
+  adjusted), when it settled backorders (a void would have to unwind
+  re-costed sales), or when already voided. Needs `receive_purchase_orders`
+  and `adjust_stock_counts`; an AlertDialog says what changes; one
+  `RECEIVE_PO_REVERSED` audit row. Money paid is not touched.
+  The "sold" check reads this till's batch quantity, which cannot see
+  another till's unpulled sale (A-406, open).
 
 - **Partial PO receipts** (added 2026-09-26, `lib/db/procurement-receiving.ts`).
   Receiving used to be all-or-nothing: any submitted quantity flipped the
@@ -3634,19 +3835,22 @@ e2e/                       Playwright end-to-end specs
   its ordered quantity; otherwise the PO becomes `partially_received` and
   stays receivable against its outstanding balance. Rules worth knowing
   before touching this:
-  - `outstandingBulkQuantity()`/`clampReceivedQuantity()`
+  - `outstandingBulkQuantity()`/`receivableLimit()`/`clampReceivedQuantity()`
     (`components/procurement/po-line-item-math.ts`) are the single source of
-    truth for "what's still expected" and for clamping the qty input. Both
+    truth for "what's still expected" and for clamping the qty input; an
+    uncounted line (ordered at 0) is the one uncapped case. Both
     receiving surfaces (`ReceiveLedgerTable` on tablet+, `ReceiveItemCard` on
     phones) prefill and clamp to the **outstanding** balance, not the ordered
     quantity — a row written by an older build reads back null and is treated
     as fully outstanding.
   - A submit with every line at 0 against a PO with nothing received yet is a
     deliberate no-op (status untouched), not a partial receipt.
-  - "Edit Order" is still gated to `pending`/`sent` only, and that matters:
-    `updatePurchaseOrder()` soft-deletes and re-inserts every line, which
-    would discard `quantity_received`. Don't widen that gate to
-    `partially_received` without reworking that function first.
+  - "Edit Order" is gated to `pending`/`sent` only. `saveDraftOrder()`
+    (which replaced `updatePurchaseOrder()` on 2026-11-19) diffs lines in place (`reconcilePurchaseOrderLines()` in
+    `lib/db/procurement-line-diff.ts`, A-390) and never writes
+    `quantity_received`, so it no longer discards receipts. Before widening
+    the gate to `partially_received`, decide what editing a received line's
+    quantity or cost should mean; that is a product question, not a code one.
   - **Sync**: the client sends `quantity_received` in bulk units, but the
     server stores it in base units, because `SyncController::push()` scales
     `quantity_received` by `units_per_bulk` exactly as it already does for
@@ -3720,6 +3924,15 @@ unticked this" from "the key moved". Retire a key by deleting it (an
 unrecognised key in a stored array grants nothing and is harmless) and add
 the replacement as a new key. `PermissionCatalogEntry.category` exists only
 to group rows for the Roles & Permissions matrix UI.
+
+**The store owner has no permission group.** The staff form's Group is required
+for every other role, but for an account whose role is `store_owner`
+(`STORE_OWNER_ROLE`) it is replaced by a "full access" note,
+`validateStaffForm()` skips the check, and `buildStaffUpdatePayload()` never
+sends a `role` or `permission_group_id`, because choosing a group sets the
+account's role to that group's `based_on_role` and would demote the owner.
+The staff cards count seats without the owner: "Total Staff" and "Active
+accounts" both exclude `store_owner`.
 
 **A permission group carries the id of the user it was loaded for.**
 `getUserPermissionGroup()` returns `{ userId, id, permissions }` and
@@ -5945,6 +6158,16 @@ same tab session still gets its own fresh one-time retry.
   `ResponsiveModal`'s `mounted` gate exists to avoid). `NotificationBell`
   falls back to the detail modal only when a notification has no other action
   (no `link`, not an online order), so it never displaces existing navigation.
+- **Notification Bell Redesign (Humanized labels, clear unread demarcation):**
+  Notifications shown to store users must NEVER expose developer snake_case strings
+  (e.g. `TILL_RELINK_CODE_ISSUED`, `RECEIVE_PO`) or database action templates (e.g.
+  `Action: RECEIVE_PO on purchase_orders`). `formatNotificationTitle` and
+  `formatNotificationDescription` in `components/dashboard/format-notification.ts`
+  enforce human Title Case and friendly natural sentences. Each item renders with
+  demarcating dividers, distinct unread styling (soft tint, bolder title, and blue
+  indicator dot vs. muted read styling), soft-colored category avatar icons,
+  contextual badge pills (e.g. "Payables", "Enterprise", "Pro", "Security", "Inventory"),
+  and an unread count badge + "Mark all as read" button in the header.
 - **No raw `<table>` elements, ever.** Every data table in the app is
   div-based with ARIA roles standing in for real `<table>` semantics
   (`role="table"` / `"rowgroup"` / `"row"` / `"columnheader"` / `"cell"`),
@@ -7537,11 +7760,13 @@ what's already covered above:
   with fallback to average cost plus `stock_quantity` and `reorder_level`. This
   aligns procurement with industry-standard replacement cost, avoiding ₦0
   defaults on out-of-stock items and fractional kobo averages.
-- **Zero-price warning before receiving:** `POImmediateConfirmDialog` (`po-immediate-confirm-dialog.tsx`) and `ReceivePOPanel` (`receive-po-panel.tsx`) inspect line items before receipt and warn prominently if any product is being received with ₦0 cost price (`getZeroCostLineItems`) or ₦0 selling price (`getZeroSellingPriceLineItems`). Prevents accidental zero-cost receipts that distort inventory valuation and margins, giving the user an explicit "Go Back & Edit Prices" choice or an amber/destructive "Receive with ₦0 Price" / "Proceed Anyway" override.
-- `components/procurement/po-review-price-popover.tsx`: per-row sell-price
-  + live margin % popover on Immediate Purchase rows, so cost and sell
-  price can be set in one pass instead of a separate Product Catalog trip.
-- Retired/deleted: `po-add-item-form.tsx`, `po-line-items-list.tsx`,
+- **Zero-price warning before receiving:** `POImmediateConfirmDialog` (`po-immediate-confirm-dialog.tsx`) and `ReceivePOPanel` (`receive-po-panel.tsx`) inspect line items before receipt and warn prominently if any product is being received with ₦0 cost price (`getZeroCostLineItems`) or ₦0 selling price (`getZeroSellingPriceLineItems`, read from the product's catalog price). Prevents accidental zero-cost receipts that distort inventory valuation and margins, giving the user an explicit "Go Back & Edit Prices" choice or an amber/destructive "Receive with ₦0 Price" / "Proceed Anyway" override.
+- `components/procurement/po-sell-price-cell.tsx`: the product's selling
+  price, read-only, with a pencil to the product form and a margin cue.
+  It replaced `po-review-price-popover.tsx` (removed 2026-11-18), which let
+  an order rewrite the catalog price.
+- Retired/deleted: `po-review-price-popover.tsx`, `notify-selling-price-updates.ts`,
+  `po-add-item-form.tsx`, `po-line-items-list.tsx`,
   `po-order-form-fields.tsx`, `po-summary-pane.tsx` — all superseded by the
   components named in the Domain model bullet above. If you find a stale
   reference to any of these, it's dead documentation, not a hint they still
@@ -7696,29 +7921,33 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Procurement price handling: selling price hits the catalog on save, cost stays per batch
+## Procurement price handling: no order path writes a selling price, cost stays per batch
 
-**Writing a price**
-- `createPurchaseOrder`, `updatePurchaseOrder`, `createAndReceivePurchaseOrder` and `receivePurchaseOrder` all write a line's `selling_price` to `products` through `applyChangedSellingPrices` (`lib/db/procurement-selling-price.ts`). Cost never goes to the catalog; it lives on `stock_batches`, so Avg/Last cost move only when goods are received.
-- A price is written only when it differs from the product's live catalog price, so re-saving an untouched line never bumps or re-syncs the product.
-- `receivePurchaseOrder` applies a typed price before its zero-quantity skip, so a line received at 0 still takes its new price. It returns `"already_received"` or `"not_found"` for those orders, and the hook reports them instead of toasting a price update.
+**Selling price is read-only on an order (2026-11-18)**
+- No purchase-order path writes `products.selling_price`: not `createPurchaseOrder`, `updatePurchaseOrder`, `createAndReceivePurchaseOrder` or `receivePurchaseOrder`. `applyChangedSellingPrices`, `markRepricedLines`, `countSellingPriceOverrides`, the review-price popover and the receive panel's "New Selling Price" input are gone. A draft used to rewrite the catalog price the moment it was saved, which an autosave would have turned into repricing live products mid-typing.
+- Every line shows the product's live price read-only (`POSellPriceCell`), with a pencil that opens the full product form (`POEditProductDialog`, gated by `manage_products`). That form invalidates `procurement.productsForPO`, which is what `useProcurementData` reads, so the line's price refreshes after the edit.
+- `getMarginCue()` (`po-line-item-math.ts`) is a non-blocking cue on the line and a count in the confirmation sheet: the line's per-base-unit cost at or above the selling price ("At or below cost"), or above the product's previous cost ("Thinner margin"). A ₦0 price or cost is left to the existing zero-price warnings, which now read the catalog price only, never a line's stored one.
+- Cost never goes to the catalog; it lives on `stock_batches`, so Avg/Last cost move only when goods are received.
 
-**Never write a price the user did not touch**
-- The edit page seeds an Immediate PO's line prices from the live catalog (`current_selling_price`) and records the seeded values per PO line id. On save, `markRepricedLines` sets `reprice` only on lines whose price differs from the seed, and `applyChangedSellingPrices` skips `reprice: false` lines.
-- The seed comes from a cached query that a catalog edit or sync pull does not invalidate, so an untouched price must never be written.
-- Draft save and edit toast "Selling price updated for N items" (`notifySellingPriceUpdates`), counting only changed lines.
+**What is still stored, for older tills (§11)**
+- `purchase_order_items.selling_price` keeps being written and read: a new line stores whatever it carries (nothing, from this build) and an edited line keeps its stored value, because the edit page no longer replaces it with the live price. Older tills still apply a line price they see changed; nothing on this build acts on it. Retire the column once every active device reports this build or later.
 
-**Standard vs Immediate**
-- A Standard PO has no price, cost, lot or expiry inputs; those are entered when receiving. The order type is chosen on the details step before any item exists and is locked afterwards, so a Standard line cannot normally carry them; `createPurchaseOrder`/`updatePurchaseOrder` still strip them (`clearImmediateOnlyFields`) for any non-immediate PO, so a hidden value can neither reach the catalog nor change the stored total.
+**Order type is written for older tills, not chosen (2026-11-18)**
+- There is no type step any more. Every new order, and every order this build saves, is written `type = 'immediate'` (`ORDER_TYPE_WRITTEN_FOR_OLD_TILLS` in `lib/db/procurement.ts`), including orders sent to a vendor. The type now means nothing to this build; it exists because an older till's edit page strips cost, lot, expiry and price from any order not typed `immediate`, and its receive panel only pre-fills those fields for `immediate` orders. Writing `standard` on send, as first proposed, would have reopened that strip for every sent order. Retire with the column above.
+- `createPurchaseOrder()` takes a `status` of `pending` or `sent` instead of a type, so "Send to vendor" on a new order is one write.
+- What the user picks instead is the vendor. A walk-in order (`supplier_id` NULL) leads with "Receive stock" and has no "Send to vendor"; a named vendor leads with "Send to vendor" with "Receive stock" beside it, because buying from a named wholesaler at the counter is a real case. The same rule drives the order panel footer for drafts (`po-details-footer.tsx`), whatever the stored type. Sent orders are labelled **Ordered**; the stored status is still `sent`.
+- Receiving needs `receive_purchase_orders` everywhere, including a new order's "Receive stock", which used to need only `manage_purchase_orders`.
+
+**Receiving a draft**
+- A draft is received from its order panel: "Receive stock" opens `POImmediateConfirmDialog` through `PODraftReceiveDialog` and then runs `receivePurchaseOrder()` with the saved lines' quantity, lot, expiry and cost override, so it gets the deterministic receipt ids. Lines still at 0 are listed as left off the receipt. That sheet is for roles that can also edit the order (`manage_purchase_orders`). A receive-only role (`receive_purchase_orders` alone) cannot fix a draft's quantities, so its "Receive stock" opens `ReceivePOPanel` instead, as an Immediate draft's "Receive Goods" did before 2026-11-18: quantities (uncounted lines uncapped), lot, expiry and cost are typed there.
+- A line ordered at 0 with nothing received is **uncounted**. `receivableLimit()` leaves its quantity input uncapped, and `receivePurchaseOrder()` records the entered count as both `bulk_quantity` and `quantity_received`, sets its `subtotal`, and re-totals the order from its lines. It still sends `bulk_quantity` and `units_per_bulk` together. A line left at 0 does not hold the order open. A non-numeric or negative quantity now receives nothing; it used to book `NaN`.
 
 **Receive panel prefill**
-- `ReceivePOPanel` seeds from the saved line only for Immediate POs: `cost_price` (the order's `cost_price_override`, per base unit) on every receipt, and `lot_number` / `expiry_date` on the first receipt only, since those belong to one delivery. Without the cost seed, a follow-up batch falls back to the line's order-time `unit_cost`, not the catalog average.
-- It never seeds `selling_price`: the catalog already has it, and re-sending a stale PO price would overwrite a later catalog edit.
+- `ReceivePOPanel` seeds from the saved line only for orders typed `immediate` (all new ones): `cost_price` (the order's `cost_price_override`, per base unit) on every receipt, and `lot_number` / `expiry_date` on the first receipt only, since those belong to one delivery. Without the cost seed, a follow-up batch falls back to the line's order-time `unit_cost`, not the catalog average.
 - Any new per-line field the PO form saves must be added to `buildInitialReceivedItems` too.
 
-**Backward compatibility (§11)**
-- A price typed on a draft saved before this release was never applied to the catalog and still is not: a Standard draft's price is never flagged as changed, and an Immediate draft's stored price is replaced by the live one when opened for edit. Re-applying a months-old price could overwrite a newer one, so a user who wants it applied re-types it.
-- Editing a Standard PO erases any stored cost, lot or expiry it carries (only reachable by switching type with values typed, before this release). Nothing in production relied on them. This note can go once no pre-release draft is open.
+**Compatibility test**
+- `__tests__/procurement-old-till-compat.test.ts` replays the shipped edit save and receive-panel seeding in plain SQL (never this build's code) against orders this build wrote, including an older standard draft it re-typed, and checks that quantity, lot, expiry, cost and `payment_status` survive. `procurement-open-legacy-orders.test.tsx` opens every legacy shape (uncounted Immediate draft, cleared standard draft, sent, paid with no stored amount, paid with a due date, partially received, legacy `draft` status, NULL lock columns) and asserts that opening writes nothing. `pull-new-order-into-old-till.test.ts` pulls a closed order carrying the lock columns into a schema without them. The schema rebuild that keeps the lock columns is pinned in `init-database-migrations.test.ts`. Extend these when the order shape changes.
 
 ## Batch cost correction (`lib/db/queries/batch-cost-correction.ts`)
 

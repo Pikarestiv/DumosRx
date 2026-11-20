@@ -8,9 +8,6 @@ import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 
 interface PODetailsSummaryBarProps {
   vendorName: string;
-  // Omitted entirely on the edit page, where every PO is Standard and a type badge would be redundant with the page's own "E…
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-summary-bar-tsx-L11
-  poTypeLabel?: string;
   // Payment terms stay visible here once the details form collapses - otherwise payment status, due date and amount paid are…
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-summary-bar-tsx-L15
   paymentStatus?: string;
@@ -37,7 +34,6 @@ function SummaryChip({ children }: { children: ReactNode }) {
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-procurement-po-details-summary-bar-tsx-L38
 export function PODetailsSummaryBar({
   vendorName,
-  poTypeLabel,
   paymentStatus,
   dueDate,
   amountPaid,
@@ -57,16 +53,11 @@ export function PODetailsSummaryBar({
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
             Vendor
           </span>
-          {poTypeLabel && (
-            <span className="shrink-0 inline-flex items-center rounded-full bg-primary/10 text-primary px-2.5 py-0.5 text-[10.5px] font-semibold">
-              {poTypeLabel}
-            </span>
-          )}
         </div>
         <div className="text-[14px] font-semibold text-foreground break-words">
           {vendorName}
         </div>
-        {(paymentLabel || dueDate || showAmountPaid) && (
+        {(paymentLabel || (dueDate && paymentStatus !== "paid") || showAmountPaid) && (
           <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
             {paymentLabel && <SummaryChip>{paymentLabel}</SummaryChip>}
             {showAmountPaid && (
@@ -74,7 +65,7 @@ export function PODetailsSummaryBar({
                 Paid {formatCurrency(Number(amountPaid))}
               </SummaryChip>
             )}
-            {dueDate && (
+            {dueDate && paymentStatus !== "paid" && (
               <SummaryChip>Due {formatDateToDDMMYYYY(dueDate)}</SummaryChip>
             )}
           </div>

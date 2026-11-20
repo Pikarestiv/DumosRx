@@ -116,7 +116,7 @@ describe("createAndReceivePurchaseOrder", () => {
     expect(rows[0].values[0][0]).toBe(5);
   });
 
-  it("updates the product's selling_price when provided", async () => {
+  it("leaves the product's selling_price alone even when the line carries one", async () => {
     await createAndReceivePurchaseOrder(
       "sup1",
       "",
@@ -124,7 +124,7 @@ describe("createAndReceivePurchaseOrder", () => {
     );
 
     const rows = db.exec(`SELECT selling_price FROM products WHERE id = 'prod1'`);
-    expect(rows[0].values[0][0]).toBe(75);
+    expect(rows[0].values[0][0]).toBe(50);
   });
 
   it("accepts a null supplierId for a self/walk-in purchase with no real vendor", async () => {

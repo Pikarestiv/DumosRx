@@ -2944,44 +2944,6 @@ Two changes close it, and this file covers both halves:
    onto the first server-side rather than doubling it. The server half is
    covered by `laravel-server/tests/Feature/SyncPushPurchaseOrderReceiptTest.php`.
 
-## block-__tests__-po-review-price-prefill-test-tsx-L13
-
-`client/__tests__/po-review-price-prefill.test.tsx:13`
-
-The "Review price" popover previously always showed a blank Sell Price
-input (placeholder "0.00") regardless of the product's actual current
-selling price, forcing the user to look it up elsewhere before deciding
-whether to change it. It should be prefilled with the product's current
-selling price so the user can see - and edit from - what's already on
-file, without that prefill silently becoming a "change" if left untouched
-(an untouched field must not override the product's price on submit).
-
-## line-__tests__-po-review-price-prefill-test-tsx-L45
-
-`client/__tests__/po-review-price-prefill.test.tsx:39`
-
-Radix Popover portals its content directly onto document.body,
-separate from the test's own container - clear anything left behind
-so a later test's querySelectorAll('input[type="number"]') can't
-accidentally pick up a stray node from a previous test.
-
-## block-__tests__-po-review-price-prefill-test-tsx-L70
-
-`client/__tests__/po-review-price-prefill.test.tsx:62`
-
-The trigger reads "Review price" until the line is repriced, and shows
-the new price itself afterwards - match on its accessible name, which
-stays stable either way.
-
-## block-__tests__-po-review-price-state-test-tsx-L6
-
-`client/__tests__/po-review-price-state.test.tsx:6`
-
-The trigger always read a neutral "Review price", so once the popover
-closed there was no way to tell which lines had actually been repriced.
-And a sell price at or below cost rendered its margin in the same muted
-grey as a healthy one, with nothing saying it was a loss.
-
 ## line-__tests__-pos-calculations-test-ts-L225
 
 `client/__tests__/pos-calculations.test.ts:225`
@@ -7037,20 +6999,6 @@ retrigger the route-transition animation on every navigation), which force
 every navigation. That's what was silently resetting the audit overlay's
 open state right after "Start Audit" set it.
 
-## line-app-(dashboard)-procurement-edit-page-tsx-L50
-
-`client/app/(dashboard)/procurement/edit/page.tsx:50`
-
-Was hardcoded "standard" everywhere below, which hid every
-Immediate-Purchase-only field (lot/expiry/New Cost/Review Price) when
-resuming an Immediate draft via "Edit Order" (any PO with status
-pending/sent gets that button - see purchase-order-details.tsx - not
-just Standard ones). The values still round-tripped correctly once
-coerceOptionalNumber's null handling was fixed, just weren't visible
-or re-editable. The type itself is never changed here (the toggle
-stays locked/hidden either way), just read for display; set in the
-seeding effect below once poQuery.data loads.
-
 ## line-app-(dashboard)-procurement-edit-page-tsx-L89
 
 `client/app/(dashboard)/procurement/edit/page.tsx:67` (comment and back-link removed from code)
@@ -7058,34 +7006,6 @@ seeding effect below once poQuery.data loads.
 Only seed the form once per PO id — a background refetch (e.g. a sync
 pull invalidating purchase_orders) must not overwrite in-progress
 unsaved edits with the freshly refetched data.
-
-## line-app-(dashboard)-procurement-new-page-tsx-L52
-
-`client/app/(dashboard)/procurement/new/page.tsx:49`
-
-An immediate purchase is money already handed over at the counter, so it
-opens on Fully Paid; a standard PO is raised before paying, so it opens
-on Unpaid. Switching type re-applies that default only while the field
-is still untouched - a deliberate "Partial" must not be silently
-rewritten by toggling the type above it.
-
-## line-app-(dashboard)-procurement-new-page-tsx-L66
-
-`client/app/(dashboard)/procurement/new/page.tsx:60`
-
-Order details (type/vendor/notes/payment/due-date) are confirmed first;
-item entry only becomes the dominant content of the screen afterward.
-Details stay editable via PODetailsDialog once confirmed.
-
-## block-app-(dashboard)-procurement-new-use-po-submit-ts-L109
-
-`client/app/(dashboard)/procurement/new/use-po-submit.ts:109`
-
-Lets an Immediate Purchase be parked as an ordinary draft (same call
-Standard POs use) instead of receiving stock right away, so entry in
-progress survives a restart. Item-level fields that only exist for the
-immediate flow (lot/expiry/price overrides) are persisted along with
-everything else, so resuming the draft shows exactly what was typed.
 
 ## line-app-(dashboard)-reports-page-tsx-L18
 
@@ -8967,23 +8887,6 @@ The order's running total, so the Amount Paid field can name the cap
 getValidatedAmountPaid applies to it at save time. Zero/absent in the
 create flow, where these details are confirmed before any item exists.
 
-## block-components-procurement-po-details-fields-tsx-L55
-
-`client/components/procurement/po-details-fields.tsx:54`
-
-Editing an existing PO is only ever done for Standard POs (Immediate
-ones are created already "received" and never enter an editable
-state), so the edit page hides the toggle entirely rather than showing
-a control whose "Immediate" option would silently do nothing.
-
-## block-components-procurement-po-details-summary-bar-tsx-L11
-
-`client/components/procurement/po-details-summary-bar.tsx:11`
-
-Omitted entirely on the edit page, where every PO is Standard and a
-type badge would be redundant with the page's own "Edit Purchase
-Order" title.
-
 ## block-components-procurement-po-details-summary-bar-tsx-L15
 
 `client/components/procurement/po-details-summary-bar.tsx:15`
@@ -9006,12 +8909,13 @@ it.
 
 `client/components/procurement/po-immediate-confirm-dialog.tsx:31`
 
-Last stop before createAndReceivePurchaseOrder, which adds stock AND
-rewrites products.selling_price store-wide in the same action with no undo
-path. Spells out what is about to change - item count, money, and how many
-lines carry a real selling-price change - because the button that opens
-this used to read "Save" and the only explanation anywhere was a hover
-tooltip no touch user could reach.
+Last stop before stock is added (createAndReceivePurchaseOrder from a new
+order, receivePurchaseOrder from a draft), with no undo path. Spells out what
+is about to change - item count and money - and, since receiving no longer
+writes selling prices, which lines will sell at or below cost or at a thinner
+margin than before, plus any uncounted lines left off the receipt. The button
+that opens this used to read "Save" and the only explanation anywhere was a
+hover tooltip no touch user could reach.
 
 ## block-components-procurement-po-item-builder-tsx-L26
 
@@ -9171,23 +9075,6 @@ confirmation that counts lines ("1 item worth 40,000") reads as a
 quantity to whoever just typed a quantity of 2 - see
 po-immediate-confirm-dialog.tsx.
 
-## block-components-procurement-po-line-item-math-ts-L207
-
-`client/components/procurement/po-line-item-math.ts:154`
-
-How many lines carry a real Sell Price override that actually differs
-from the product's current price - blank/null/undefined all mean "not
-overridden" (a PO reloaded via getPurchaseOrderById() hands back SQL
-NULL, not undefined, for an unset override - see coerceOptionalNumber in
-lib/db/procurement.ts), and retyping the same number the field was
-prefilled with is not a real change either. Only meaningful for a submit
-that writes products.selling_price synchronously in the same action -
-createAndReceivePurchaseOrder does, and so does receivePurchaseOrder;
-createPurchaseOrder (a Standard order, or an Immediate order saved as a
-draft) never touches the live product row at all, so a caller must not
-report a price change from that path even though the same field was
-filled in - nothing has actually changed yet.
-
 ## block-components-procurement-po-line-item-math-ts-L232
 
 `client/components/procurement/po-line-item-math.ts:167`
@@ -9226,25 +9113,6 @@ is the dominant content from the start.
 Items are edited inline via POItemBuilder in the page body (card mode
 on mobile); the header already owns the Save action, so expanding this
 drawer is purely a read-only review of what's about to be purchased.
-
-## block-components-procurement-po-review-price-popover-tsx-L19
-
-`client/components/procurement/po-review-price-popover.tsx:19`
-
-The product's live selling price, so the trigger can tell a real
-repricing apart from the prefill of the price that is already on file.
-Without it a prefilled row is indistinguishable from an edited one.
-
-## block-components-procurement-po-review-price-popover-tsx-L29
-
-`client/components/procurement/po-review-price-popover.tsx:29`
-
-Per-row "review sell price" action for the Immediate Purchase item
-table/card list: lets cost and sell price be set in the same pass
-instead of a separate trip to the Product Catalog. Only ever writes to
-the draft item's local selling_price field — the actual products.selling_price
-write happens where createAndReceivePurchaseOrder is called, same as
-receivePurchaseOrder's existing selling_price handling.
 
 ## line-components-procurement-procurement-management-tsx-L13
 
@@ -11362,22 +11230,6 @@ here elevate their own isolated per-test copy of the local DB via the
 shared `loginAsPaidTier` helper (fixtures.ts) instead of touching the
 shared fixture — see findings-log finding #9 (Expenses), whose exact
 overlay-mount race root cause also applied here.
-
-## line-e2e-procurement-spec-ts-L29
-
-`client/e2e/procurement.spec.ts:22`
-
-Only the viewport's own create view is mounted now (the pages render
-one or the other rather than hiding one with CSS), but keep the
-visible-instance match so this holds either way.
-
-## line-e2e-procurement-spec-ts-L34
-
-`client/e2e/procurement.spec.ts:26`
-
-4b. Continue to the item-entry step (components/procurement/po-item-builder.tsx,
-introduced in commit 113a368c, replaced the old "Add Items to Order"
-section/separate-Add-button flow this test used to assert on).
 
 ## line-e2e-procurement-spec-ts-L43
 

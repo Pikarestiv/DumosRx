@@ -62,7 +62,7 @@ export function CatalogDetailPanel({
   const [internalTab, setInternalTab] = useState("details");
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
   const [batchDialog, setBatchDialog] = useState<{ open: boolean; batchId: string | null }>({ open: false, batchId: null });
-  const openBatchEditor = (batch: StockBatch) => setBatchDialog({ open: true, batchId: batch.id });
+  const openBatchEditor = (batch?: StockBatch) => setBatchDialog({ open: true, batchId: batch?.id ?? null });
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
@@ -225,7 +225,6 @@ export function CatalogDetailPanel({
               onEditProduct={onEditProduct}
               canViewCost={canViewCost}
               onEditBatch={canEditBatch ? openBatchEditor : undefined}
-              onOpenBatches={() => handleTabChange("batches")}
             />
             <div className="pt-2">
               <ProductImageSection

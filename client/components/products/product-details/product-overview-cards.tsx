@@ -16,8 +16,7 @@ interface ProductOverviewCardsProps {
   onOpenCostBreakdown: () => void;
   onEditProduct: (product: Product) => void;
   canViewCost?: boolean;
-  onEditBatch?: (batch: StockBatch) => void;
-  onOpenBatches?: () => void;
+  onEditBatch?: (batch?: StockBatch) => void;
 }
 
 const CARD_FLUSH =
@@ -33,7 +32,6 @@ export function ProductOverviewCards({
   onEditProduct,
   canViewCost = true,
   onEditBatch,
-  onOpenBatches,
 }: ProductOverviewCardsProps) {
   const router = useRouter();
 
@@ -150,11 +148,7 @@ export function ProductOverviewCards({
           {onEditBatch && (
             <button
               type="button"
-              onClick={() => {
-                const target = earliestExpiryBatch ?? (activeBatches.length === 1 ? activeBatches[0] : null);
-                if (target) onEditBatch(target);
-                else onOpenBatches?.();
-              }}
+              onClick={() => onEditBatch(earliestExpiryBatch ?? (activeBatches.length === 1 ? activeBatches[0] : undefined))}
               className="text-primary font-semibold hover:underline"
             >
               {nextExpiry ? "Edit" : "Add"}

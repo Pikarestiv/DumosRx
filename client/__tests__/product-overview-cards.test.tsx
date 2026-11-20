@@ -119,15 +119,14 @@ describe("product details cards: Next expiry", () => {
     expect(onEditBatch).toHaveBeenCalledWith(expect.objectContaining({ id: "b2" }));
   });
 
-  it("goes to the Batches tab to add an expiry when several batches have none", () => {
+  it("opens the batch list to pick one when several batches have no expiry", () => {
     const onEditBatch = vi.fn();
-    const onOpenBatches = vi.fn();
-    renderCards({ onEditBatch, onOpenBatches });
+    renderCards({ onEditBatch });
 
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    expect(onOpenBatches).toHaveBeenCalledOnce();
-    expect(onEditBatch).not.toHaveBeenCalled();
+    expect(onEditBatch).toHaveBeenCalledOnce();
+    expect(onEditBatch).toHaveBeenCalledWith(undefined);
   });
 
   it("opens the only batch straight away when adding an expiry", () => {

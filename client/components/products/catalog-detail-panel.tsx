@@ -241,7 +241,7 @@ export function CatalogDetailPanel({
               canSeeQuantities={canSeeQuantities}
               canViewCost={canViewCost}
               canEditCost={canEditCost}
-              currencyCode={storeProfile?.currency}
+              productName={product.name}
               formatPrice={formatPrice}
               sellingPrice={product.sellingPrice}
               onChangeSellingPrice={() => onEditProduct(product)}
@@ -261,9 +261,10 @@ export function CatalogDetailPanel({
         productName={product.name}
         batches={batches}
         sellingPrice={product.sellingPrice}
-        currencyCode={storeProfile?.currency}
         formatPrice={formatPrice}
         canEditCost={canEditCost}
+        canSeeQuantities={canSeeQuantities}
+        onChangeSellingPrice={() => onEditProduct(product)}
       />
 
       <BarcodePrintDialog

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Boxes, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
-import { BatchCostEditDialog } from "./batch-cost-edit-dialog";
+import { CostBreakdownDialog } from "../batch-cost/cost-breakdown-dialog";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateSafe, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -16,7 +16,7 @@ interface ProductBatchHistoryProps {
   canSeeQuantities: boolean;
   canViewCost: boolean;
   canEditCost?: boolean;
-  currencyCode?: string;
+  productName?: string;
   formatPrice?: (amount: number) => string;
   sellingPrice?: number | null;
   onChangeSellingPrice?: () => void;
@@ -40,7 +40,7 @@ export function ProductBatchHistory({
   canSeeQuantities,
   canViewCost,
   canEditCost = false,
-  currencyCode,
+  productName = "",
   formatPrice,
   sellingPrice,
   onChangeSellingPrice,
@@ -226,16 +226,18 @@ export function ProductBatchHistory({
         );
       })}
       {costEditBatch && (
-        <BatchCostEditDialog
-          batch={costEditBatch}
-          batches={batches}
-          sellingPrice={sellingPrice}
-          onChangeSellingPrice={onChangeSellingPrice}
+        <CostBreakdownDialog
+          key={costEditBatch.id}
           open
           onOpenChange={(open) => !open && setCostEditBatch(null)}
-          currencyCode={currencyCode}
+          productName={productName}
+          batches={batches}
+          sellingPrice={sellingPrice}
+          formatPrice={formatCost}
+          canEditCost={canEditCost}
           canSeeQuantities={canSeeQuantities}
-          formatPrice={(amount) => formatCost(amount)}
+          initialEditBatchId={costEditBatch.id}
+          onChangeSellingPrice={onChangeSellingPrice}
         />
       )}
     </div>

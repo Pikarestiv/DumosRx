@@ -9,6 +9,8 @@ vi.mock("idb-keyval", () => ({
   set: vi.fn(() => Promise.resolve(undefined)),
 }));
 
+vi.mock("@/lib/context/store-context", () => ({ useStore: () => ({ storeProfile: { uppercase_display_enabled: 0 } }) }));
+
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 
@@ -23,13 +25,13 @@ const batch: StockBatch = {
   is_active: 1,
 };
 
-describe("BatchCostEditDialog", () => {
+describe("cost breakdown dialog, editing one batch", () => {
   let db: Database;
-  let BatchCostEditDialog: typeof import("@/components/products/product-details/batch-cost-edit-dialog").BatchCostEditDialog;
+  let CostBreakdownDialog: typeof import("@/components/products/batch-cost/cost-breakdown-dialog").CostBreakdownDialog;
 
   beforeAll(async () => {
     const core = await import("@/lib/db/core");
-    ({ BatchCostEditDialog } = await import("@/components/products/product-details/batch-cost-edit-dialog"));
+    ({ CostBreakdownDialog } = await import("@/components/products/batch-cost/cost-breakdown-dialog"));
     const { SCHEMA_SQL } = await import("@/lib/db/schema");
     const SQL = await initSqlJs({ locateFile: () => require.resolve("sql.js/dist/sql-wasm.wasm") });
     db = new SQL.Database();
@@ -56,13 +58,13 @@ describe("BatchCostEditDialog", () => {
     const client = new QueryClient({ defaultOptions: { mutations: { retry: false }, queries: { retry: false, gcTime: 0 } } });
     render(
       <QueryClientProvider client={client}>
-        <BatchCostEditDialog
-          batch={batch}
+        <CostBreakdownDialog
           open
           onOpenChange={onOpenChange}
-          currencyCode="NGN"
-          canSeeQuantities
-          formatPrice={(n) => `₦${n.toLocaleString()}`}
+          productName="Amoxil 500mg"
+          batches={[batch]}
+          initialEditBatchId={batch.id}
+          formatPrice={(n: number) => `₦${n.toLocaleString()}`}
         />
       </QueryClientProvider>,
     );
@@ -70,14 +72,14 @@ describe("BatchCostEditDialog", () => {
   }
 
   const costInput = () => screen.getByLabelText(/new cost price/i);
-  const save = () => screen.getByRole("button", { name: /save cost/i });
+  const save = () => screen.getByRole("button", { name: /save correction/i });
 
   it("saves the corrected cost in one step and previews it first", async () => {
     const onOpenChange = renderDialog();
 
     fireEvent.change(costInput(), { target: { value: "120" } });
 
-    expect(screen.getByLabelText(/what changes/i).textContent).toMatch(/This batch₦1,200 → ₦120/);
+    expect(screen.getByLabelText(/what changes/i).textContent).toMatch(/Stock value₦24,000 → ₦2,400/);
     expect(screen.getByText(/keep the cost they were sold at/i)).toBeTruthy();
     expect(storedCost()).toBe(1200);
 

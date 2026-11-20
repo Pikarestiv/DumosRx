@@ -11,6 +11,7 @@ vi.mock("idb-keyval", () => ({
 vi.mock("@/lib/hooks/use-uppercase-display", () => ({
   useUppercaseDisplayClass: () => "capitalize",
   useUppercaseDisplay: () => false,
+  useDisplayName: () => (s: string) => s,
   capitalizeWords: (s: string) => s,
 }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
@@ -70,11 +71,11 @@ describe("catalog cost breakdown popover", () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  function open(canEditCost: boolean, onChangeSellingPrice = vi.fn()) {
+  function open(canEditCost: boolean, onChangeSellingPrice = vi.fn(), canSeeQuantities = true) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
-        <CatalogCostCell product={product} canEditCost={canEditCost} canSeeQuantities formatCurrency={naira} onChangeSellingPrice={onChangeSellingPrice} />
+        <CatalogCostCell product={product} canEditCost={canEditCost} canSeeQuantities={canSeeQuantities} formatCurrency={naira} onChangeSellingPrice={onChangeSellingPrice} />
       </QueryClientProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: /show cost breakdown/i }));
@@ -87,12 +88,12 @@ describe("catalog cost breakdown popover", () => {
     open(false);
 
     const bulk = await rowFor("LOT-A");
-    expect(bulk.textContent).toMatch(/Received 01\/03\/2026 \d{2}:30 · From PO-AB12CD34/);
-    expect(bulk.textContent).toContain("13 left");
+    expect(bulk.textContent).toMatch(/Received 01\/03\/2026 \d{2}:30.*From PO-AB12CD34/);
+    expect(bulk.textContent).toContain("13");
     expect(bulk.textContent).not.toContain("Sells first");
     expect((await rowFor("LOT-B")).textContent).toContain("Sells first");
-    expect(document.body.textContent).toContain("Average ₦670 = (13 × ₦650 + 2 × ₦800) / 15 units");
-    expect(document.body.textContent).toMatch(/Last received: ₦800 \(01\/05\/2026 \d{2}:00\)/);
+    expect(document.body.textContent).toContain("How ₦670 is worked out(13 × ₦650 + 2 × ₦800) ÷ 15 units");
+    expect(document.body.textContent).toMatch(/latest batch received: ₦800 \(01\/05\/2026 \d{2}:00\)/);
   });
 
   it("is a read-only breakdown without edit_product_cost", async () => {
@@ -125,10 +126,9 @@ describe("catalog cost breakdown popover", () => {
     expect(document.body.textContent).toMatch(/far from this product's other batches \(about ₦750\)/);
     fireEvent.change(screen.getByLabelText(/new cost price/i), { target: { value: "600" } });
     expect(screen.getByLabelText(/what changes/i).textContent).toMatch(
-      /This batch₦650 → ₦600Average cost₦670 → ₦626.67Stock value₦10,050 → ₦9,400Profit per unit at ₦800₦150 → ₦200/,
+      /Avg cost₦670 → ₦626.67Stock value₦10,050 → ₦9,400Margin at ₦800.*Profit per unit at ₦800₦150 → ₦200/,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Typo at receiving" }));
-    fireEvent.click(screen.getByRole("button", { name: /save cost/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save correction/i }));
 
     await waitFor(() => expect(db.exec(`SELECT cost_price FROM stock_batches WHERE id = 'bulk'`)[0].values[0][0]).toBe(600));
     const [details] = db.exec(`SELECT details FROM audit_logs WHERE record_id = 'bulk'`)[0].values[0];
@@ -136,6 +136,22 @@ describe("catalog cost breakdown popover", () => {
     expect(db.exec(`SELECT unit_cost FROM stock_movements WHERE id = 'mv-1'`)[0].values[0][0]).toBe(650);
     expect(db.exec(`SELECT unit_cost FROM purchase_order_items WHERE id = 'poi-1'`)[0].values[0][0]).toBe(650);
     expect(await rowFor("LOT-A")).toBeTruthy();
+  });
+
+  it("shows no units, average working or stock value to a user who cannot see quantities", async () => {
+    open(true, vi.fn(), false);
+
+    const bulk = await rowFor("LOT-A");
+    expect(screen.queryByText("Units left")).toBeNull();
+    expect(bulk.textContent).not.toMatch(/\b13\b/);
+    expect(document.body.textContent).not.toContain("is worked out");
+
+    fireEvent.click(within(bulk).getByRole("button", { name: /edit cost of lot/i }));
+    fireEvent.change(screen.getByLabelText(/new cost price/i), { target: { value: "600" } });
+    const changes = screen.getByLabelText(/what changes/i).textContent ?? "";
+    expect(changes).toContain("Profit per unit at ₦800");
+    expect(changes).not.toMatch(/Stock value|Avg cost|Margin/);
+    expect(document.body.textContent).toContain("Batch LOT-B (at ₦800) will sell before this one.");
   });
 
   it("hands off to the product edit flow from the margin line", async () => {

@@ -28,14 +28,15 @@ const renderDialog = (batches: StockBatch[]) =>
 describe("cost breakdown dialog", () => {
   it("names a purchase-order batch by its PO number once, not 'PO PO-…'", () => {
     renderDialog([batch({ id: "b1", purchase_order_id: "85d9c79d-0000-4000-8000-000000000001" })]);
-    expect(screen.getByText(/PO-85D9C79D · no expiry/)).toBeTruthy();
+    expect(screen.getByText(/From PO-85D9C79D · Lot Default · no expiry/)).toBeTruthy();
     expect(document.body.textContent).not.toContain("PO PO-");
+    expect(document.body.textContent).not.toContain("From PO PO-");
   });
 
-  it("falls back to the supplier, then 'Direct', for a batch with no purchase order", () => {
+  it("falls back to the supplier, then to no source at all, for a batch with no purchase order", () => {
     renderDialog([batch({ id: "b1", supplier_name: "Emzor" }), batch({ id: "b2", created_at: "2026-11-07T10:00:00Z" })]);
-    expect(screen.getByText(/Emzor · no expiry/)).toBeTruthy();
-    expect(screen.getByText(/Direct · no expiry/)).toBeTruthy();
+    expect(screen.getByText(/From Emzor · Lot Default · no expiry/)).toBeTruthy();
+    expect(screen.getByText(/^Lot Default · no expiry/)).toBeTruthy();
   });
 
   it("shows the product name in the store's display casing", () => {

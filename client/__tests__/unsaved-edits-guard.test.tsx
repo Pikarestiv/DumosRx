@@ -13,7 +13,7 @@ function Editing({ unsaved }: { unsaved: boolean }) {
   return null;
 }
 
-const page = (unsaved: boolean, links = <a href="/inventory">Inventory</a>) => (
+const page = (unsaved: boolean, links = <a href="/somewhere">Somewhere</a>) => (
   <>
     <Editing unsaved={unsaved} />
     <UnsavedEditsGuard />
@@ -45,7 +45,7 @@ describe("leaving with an unsaved inline edit", () => {
   it("stops an in-app link and asks first; Stay keeps the page and the edit", () => {
     render(page(true));
 
-    fireEvent.click(screen.getByRole("link", { name: "Inventory" }));
+    fireEvent.click(screen.getByRole("link", { name: "Somewhere" }));
 
     expect(screen.getByText("You have a change that isn't saved")).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
@@ -67,7 +67,7 @@ describe("leaving with an unsaved inline edit", () => {
   it("lets every link through when nothing is unsaved", () => {
     render(page(false));
 
-    const notPrevented = fireEvent.click(screen.getByRole("link", { name: "Inventory" }));
+    const notPrevented = fireEvent.click(screen.getByRole("link", { name: "Somewhere" }));
 
     expect(notPrevented).toBe(true);
     expect(screen.queryByText("You have a change that isn't saved")).toBeNull();
@@ -75,7 +75,7 @@ describe("leaving with an unsaved inline edit", () => {
 
   it.each([
     ["an external link", <a key="x" href="https://example.com/">Out</a>],
-    ["a link that opens a new tab", <a key="x" href="/inventory" target="_blank">Out</a>],
+    ["a link that opens a new tab", <a key="x" href="/somewhere" target="_blank">Out</a>],
   ])("does not interfere with %s", (_label, link) => {
     render(page(true, link));
 
@@ -88,7 +88,7 @@ describe("leaving with an unsaved inline edit", () => {
   it("lets a modifier-click through, since it opens a new tab", () => {
     render(page(true));
 
-    expect(fireEvent.click(screen.getByRole("link", { name: "Inventory" }), { metaKey: true })).toBe(true);
+    expect(fireEvent.click(screen.getByRole("link", { name: "Somewhere" }), { metaKey: true })).toBe(true);
   });
 });
 

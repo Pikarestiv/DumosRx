@@ -146,6 +146,12 @@ class PermissionGroupSeeder
         ],
     ];
 
+    /** Port of the client's CARRY_OVER_ADDITIONS: per catalog version, keys a
+     * group gains because it already holds another key (default or custom). */
+    private const CARRY_OVER_ADDITIONS = [
+        4 => ['edit_product_cost' => ['edit_batch_details']],
+    ];
+
     /** Port of the client's ALL_GROUP_PERMISSION_ADDITIONS: carve-out keys
      * every group, default or custom, gains at that version. */
     private const ALL_GROUP_PERMISSION_ADDITIONS = [
@@ -260,7 +266,7 @@ class PermissionGroupSeeder
     }
 
     /** Mirror of the client's pendingCatalogAdditions(). */
-    public static function pendingCatalogAdditions(string $role, int $fromVersion, bool $isDefault = true): array
+    public static function pendingCatalogAdditions(string $role, int $fromVersion, bool $isDefault = true, array $held = []): array
     {
         $pending = [];
         foreach (self::DEFAULT_GROUP_PERMISSION_ADDITIONS as $version => $byRole) {
@@ -274,6 +280,16 @@ class PermissionGroupSeeder
         foreach (self::ALL_GROUP_PERMISSION_ADDITIONS as $version => $keys) {
             if ($version > $fromVersion) {
                 $pending += array_fill_keys($keys, true);
+            }
+        }
+        foreach (self::CARRY_OVER_ADDITIONS as $version => $byHeldKey) {
+            if ($version <= $fromVersion) {
+                continue;
+            }
+            foreach ($byHeldKey as $heldKey => $keys) {
+                if (in_array($heldKey, $held, true)) {
+                    $pending += array_fill_keys($keys, true);
+                }
             }
         }
 
@@ -291,12 +307,12 @@ class PermissionGroupSeeder
 
         $groups = PermissionGroup::where('store_id', $store->id)->get();
         foreach ($groups as $group) {
-            $owed = self::pendingCatalogAdditions((string) $group->based_on_role, $stamped, (bool) $group->is_default);
+            $granted = is_array($group->permissions) ? $group->permissions : [];
+            $owed = self::pendingCatalogAdditions((string) $group->based_on_role, $stamped, (bool) $group->is_default, $granted);
             if (empty($owed)) {
                 continue;
             }
 
-            $granted = is_array($group->permissions) ? $group->permissions : [];
             $missing = array_values(array_diff($owed, $granted));
             if (empty($missing)) {
                 continue;

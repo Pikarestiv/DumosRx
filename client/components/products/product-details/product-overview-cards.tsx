@@ -16,7 +16,7 @@ interface ProductOverviewCardsProps {
   onOpenCostBreakdown: () => void;
   onEditProduct: (product: Product) => void;
   canViewCost?: boolean;
-  onEditBatchDetails?: (batch: StockBatch) => void;
+  onEditBatch?: (batch: StockBatch) => void;
   onOpenBatches?: () => void;
 }
 
@@ -32,7 +32,7 @@ export function ProductOverviewCards({
   onOpenCostBreakdown,
   onEditProduct,
   canViewCost = true,
-  onEditBatchDetails,
+  onEditBatch,
   onOpenBatches,
 }: ProductOverviewCardsProps) {
   const router = useRouter();
@@ -117,7 +117,7 @@ export function ProductOverviewCards({
               onClick={() => onEditProduct(product)}
               className="text-xs text-primary font-semibold hover:underline"
             >
-              Change price
+              Change selling price
             </button>
           }
           footer={`Markup on avg cost: ${markupAtAvg}%`}
@@ -147,12 +147,12 @@ export function ProductOverviewCards({
           <span className="font-medium text-foreground">
             {nextExpiry ? formatDateToDDMMYYYY(nextExpiry) : "Not set"}
           </span>
-          {onEditBatchDetails && (
+          {onEditBatch && (
             <button
               type="button"
               onClick={() => {
                 const target = earliestExpiryBatch ?? (activeBatches.length === 1 ? activeBatches[0] : null);
-                if (target) onEditBatchDetails(target);
+                if (target) onEditBatch(target);
                 else onOpenBatches?.();
               }}
               className="text-primary font-semibold hover:underline"

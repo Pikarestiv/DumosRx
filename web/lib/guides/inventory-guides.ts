@@ -150,12 +150,12 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Fix the cost price of a batch you have already received, so stock value and future profit use the right figure, while past sales keep the cost they were sold at.",
     steps: [
       "Open Inventory > Catalog, select the product, and open its Batches tab.",
-      "Tap the pencil icon beside the batch whose cost is wrong.",
+      "Tap the pencil beside the batch whose cost is wrong.",
       "Enter the correct cost per unit. The box below shows what changes as you type: this batch, the average cost, the stock value and the profit per unit at your selling price.",
-      "Optionally pick a reason (Typo at receiving, Supplier invoice corrected, Other), then tap 'Save cost'. The correction syncs to your other tills and is recorded, with its reason, in the Activity Log and the product's History tab.",
+      "Optionally pick a reason (Typo at receiving, Supplier invoice corrected, Other), then tap 'Save changes'. The correction syncs to your other tills and is recorded, with its reason, in the Activity Log and the product's History tab.",
     ],
     proTip:
-      "Only staff with both 'View Cost & Margin Fields' and 'Edit Product Cost Price' see the pencil. You can also correct a cost straight from the catalog list: see the 'See and Fix What a Product Costs' guide.",
+      "Only staff with 'Edit Batch Details' see the pencil, and they need 'View Cost & Margin Fields' to see and change costs. The same pencil also fixes the batch's expiry date, lot number and manufacture date. You can reach it straight from the catalog list too: see the 'See and Fix What a Product Costs' guide.",
     videoPlaceholderText: "Video Walkthrough: Correcting a batch cost price from the product's Batches tab",
   },
   {
@@ -172,11 +172,11 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Read the batches: received date and time, 'From PO-...' when it came in on a purchase order, lot, expiry and units left. The batch marked 'Sells first' is the one the next sale takes stock from (earliest expiry first).",
       "The line at the bottom explains the average, for example 'Average 670 = (13 x 650 + 2 x 800) / 15 units', and shows the last cost you received the product at.",
       "Sold-out batches are hidden; tap 'Show sold-out batches' to see them. They can still be corrected, because the last cost you paid comes from them.",
-      "To correct a cost, tap the pencil beside the batch, type the right cost, pick a reason and check 'After this correction', then tap 'Save correction'. Read any warning first: a cost of 0, a cost far from your other batches (an extra zero), or an older batch that will sell before this one.",
-      "Profit looks wrong at your selling price? Close the breakdown and tap 'Change price' on the product's Details tab.",
+      "To correct a batch, tap the pencil beside it. One form holds the cost, lot number, expiry date and manufacture date: change what is wrong (a cost change shows 'After this correction' and asks for a reason), then tap 'Save changes'. Read any warning first: a cost of 0, a cost far from your other batches (an extra zero), or an older batch that will sell before this one.",
+      "Profit looks wrong at your selling price? Close the breakdown and tap 'Change selling price' on the product's Details tab.",
     ],
     proTip:
-      "Correcting a cost never changes sales you have already made: their profit stays as it was recorded. It also leaves the purchase order and what you paid the supplier untouched. Staff without 'Edit Product Cost Price' see the breakdown but cannot change it, and staff without 'View Cost & Margin Fields' do not see costs at all.",
+      "Correcting a cost never changes sales you have already made: their profit stays as it was recorded. It also leaves the purchase order and what you paid the supplier untouched. Staff without 'Edit Batch Details' see the breakdown but cannot change it, and staff without 'View Cost & Margin Fields' do not see costs at all (they can still fix a batch's expiry, lot and manufacture date).",
     videoPlaceholderText: "Video Walkthrough: Reading a product's cost breakdown and correcting a batch cost from the catalog",
   },
   {
@@ -191,33 +191,13 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     steps: [
       "Open Inventory > Catalog and select a product. The top row has Edit, Adjust stock and Add to order. 'Add to order' opens a new purchase order with this product already on its first line.",
       "The four cards show In stock (with your reorder level), Selling price, Avg cost and Margin. Tap 'From N batches' under Avg cost to see exactly how that average is worked out.",
-      "Under Pricing, compare your profit and margin on the average cost of stock on the shelf with what restocking costs now (the last cost you received). Tap 'Change price' to edit the selling price.",
+      "Under Pricing, compare your profit and margin on the average cost of stock on the shelf with what restocking costs now (the last cost you received). Tap 'Change selling price' to edit the selling price.",
       "Under Stock & expiry, see the next expiry date and when the product was last counted. Tap 'Add' or 'Count now' to fix whichever is missing.",
       "Switch to Batches for every batch on hand, or Movements for the history: who changed what, with the date and time.",
     ],
     proTip:
       "Margin here is worked out on the average cost, while 'Last cost' shows what restocking costs today. If the last cost margin is much lower, it is time to raise the price. Staff without permission to view cost fields do not see the cost, margin or pricing figures.",
     videoPlaceholderText: "Video Walkthrough: Reading the product details panel and acting from it",
-  },
-  {
-    id: "edit-batch-details",
-    title: "Fix a Batch's Expiry Date, Lot Number or Manufacture Date",
-    category: "Inventory",
-    badge: "New",
-    readTime: "2 min read",
-    videoDuration: "1:30",
-    summary:
-      "Typed the wrong expiry when you received stock, or never entered one? Correct a batch's expiry date, lot number or manufacture date right from the product, and expiry alerts and first-to-expire selling follow the corrected date.",
-    steps: [
-      "Open Inventory > Catalog and select the product, then open the Batches tab.",
-      "Tap the edit-details button on the batch you want to fix. To set or change the next expiry, you can also tap 'Add' or 'Edit' beside Next expiry on the Details tab.",
-      "Change the lot number, the expiry date or the manufacture date. Type a date as DD/MM/YYYY or pick it from the calendar; clear it to remove the date. The manufacture date cannot be after the expiry date.",
-      "Tap 'Save details'. Alerts such as Expiring soon and the order batches sell in (earliest expiry first) use the new date straight away, and your other tills pick it up on their next sync.",
-      "The change shows in the product's History tab and the Activity Log with the old value, the new value and who made it.",
-    ],
-    proTip:
-      "An expiry already in the past is allowed, so you can correct a batch that has expired. Quantity is not changed here: use Adjust stock for that, and the cost breakdown for a wrong cost. Only staff with 'Edit Batch Details' see the buttons; Admin, Manager and Specialist groups have it by default.",
-    videoPlaceholderText: "Video Walkthrough: Correcting a batch's expiry date and lot number",
   },
   {
     id: "product-images",

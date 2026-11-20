@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { isValidBatchCostPrice } from "@/lib/db/queries/batch-cost-correction";
+import { detailsFormOf, validateBatchDetails, type BatchDetailsForm } from "@/lib/db/queries/batch-details-correction";
 import { useCorrectBatchCostMutation } from "@/lib/hooks/use-correct-batch-cost-mutation";
+import { useCorrectBatchDetailsMutation } from "@/lib/hooks/use-correct-batch-details-mutation";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
 import type { BatchCostReason } from "@/lib/constants/batch-cost-reasons";
 import { fefoSellOrder, isSoldOut, lastReceivedBatch, previewBatchCostChange } from "@/lib/utils/batch-cost-breakdown";
@@ -22,13 +24,15 @@ export interface CostBreakdownDialogProps {
   batches: StockBatch[];
   sellingPrice?: number | null;
   formatPrice: (amount: number) => string;
-  canEditCost?: boolean;
+  canEdit?: boolean;
+  canViewCost?: boolean;
   canSeeQuantities?: boolean;
   initialEditBatchId?: string | null;
   onChangeSellingPrice?: () => void;
 }
 
 const DIVIDER = "border-slate-200 dark:border-slate-800";
+const EMPTY_FORM: BatchDetailsForm = { batch_number: "", expiry_date: "", manufacture_date: "" };
 
 export function CostBreakdownDialog({
   open,
@@ -37,16 +41,20 @@ export function CostBreakdownDialog({
   batches,
   sellingPrice,
   formatPrice,
-  canEditCost = true,
+  canEdit = true,
+  canViewCost = true,
   canSeeQuantities = true,
   initialEditBatchId = null,
   onChangeSellingPrice,
 }: CostBreakdownDialogProps) {
-  const [editingBatchId, setEditingBatchId] = useState<string | null>(initialEditBatchId);
-  const [costInput, setCostInput] = useState(() => String(batches.find((b) => b.id === initialEditBatchId)?.cost_price ?? ""));
+  const initialBatch = batches.find((b) => b.id === initialEditBatchId);
+  const [editingBatchId, setEditingBatchId] = useState<string | null>(initialBatch?.id ?? null);
+  const [costInput, setCostInput] = useState(String(initialBatch?.cost_price ?? ""));
+  const [form, setForm] = useState<BatchDetailsForm>(initialBatch ? detailsFormOf(initialBatch) : EMPTY_FORM);
   const [reason, setReason] = useState<BatchCostReason>("typo_at_receiving");
-  const [showSoldOut, setShowSoldOut] = useState(() => batches.some((b) => b.id === initialEditBatchId && isSoldOut(b)));
+  const [showSoldOut, setShowSoldOut] = useState(Boolean(initialBatch && isSoldOut(initialBatch)));
   const correctCost = useCorrectBatchCostMutation();
+  const correctDetails = useCorrectBatchDetailsMutation();
   const displayName = useDisplayName();
 
   const activeBatches = batches.filter((b) => !isSoldOut(b));
@@ -55,18 +63,25 @@ export function CostBreakdownDialog({
   const sellsFirstId = fefoSellOrder(batches)[0]?.id;
 
   const editingBatch = editingBatchId ? batches.find((b) => b.id === editingBatchId) : undefined;
+  const original = editingBatch ? detailsFormOf(editingBatch) : EMPTY_FORM;
   const newCost = costInput.trim() === "" ? Number.NaN : Number(costInput);
-  const isValid = isValidBatchCostPrice(newCost);
-  const isChanged = Boolean(editingBatch) && isValid && roundMoney(newCost) !== (editingBatch?.cost_price ?? 0);
-  const preview = isChanged && editingBatch ? previewBatchCostChange(batches, editingBatch.id, newCost, sellingPrice) : null;
+  const isCostValid = !canViewCost || isValidBatchCostPrice(newCost);
+  const isCostChanged = canViewCost && Boolean(editingBatch) && isCostValid && roundMoney(newCost) !== (editingBatch?.cost_price ?? 0);
+  const isDetailsChanged = (Object.keys(form) as (keyof BatchDetailsForm)[]).some((key) => form[key].trim() !== original[key]);
+  const detailsError = editingBatch ? validateBatchDetails(form, original) : null;
+  const canSave = (isCostChanged || isDetailsChanged) && isCostValid && !detailsError;
+  const isSaving = correctCost.isPending || correctDetails.isPending;
+  const preview = isCostChanged && editingBatch ? previewBatchCostChange(batches, editingBatch.id, newCost, sellingPrice) : null;
 
   const startEdit = (batch: StockBatch) => {
     setEditingBatchId(batch.id);
     setCostInput(String(batch.cost_price ?? ""));
+    setForm(detailsFormOf(batch));
   };
   const cancelEdit = () => {
     setEditingBatchId(null);
     setCostInput("");
+    setForm(EMPTY_FORM);
   };
   const close = () => {
     cancelEdit();
@@ -75,20 +90,29 @@ export function CostBreakdownDialog({
   };
 
   const save = async () => {
-    if (!editingBatch || !isChanged) return;
+    if (!editingBatch || !canSave) return;
+    let detailsSaved = false;
     try {
-      await correctCost.mutateAsync({ batchId: editingBatch.id, costPrice: roundMoney(newCost), reason });
-      toast.success(`Cost price updated for batch ${batchLabel(editingBatch)}`);
+      if (isDetailsChanged) {
+        await correctDetails.mutateAsync({ batchId: editingBatch.id, details: form });
+        detailsSaved = true;
+      }
+      if (isCostChanged) await correctCost.mutateAsync({ batchId: editingBatch.id, costPrice: roundMoney(newCost), reason });
+      toast.success(`Batch ${batchLabel(editingBatch)} updated`);
       if (initialEditBatchId) close();
       else cancelEdit();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update the cost price");
+      const message = error instanceof Error ? error.message : "Could not update the batch";
+      toast.error(detailsSaved ? `The batch details were saved, but the cost price was not: ${message}` : message);
     }
   };
 
   const rowFor = (batch: StockBatch) => {
     const editing: RowEditing | null = batch.id === editingBatchId
-      ? { costInput, onCostInput: setCostInput, reason, onReason: setReason, newCost, isValid, isChanged }
+      ? {
+          costInput, onCostInput: setCostInput, newCost, isCostValid, isCostChanged, reason, onReason: setReason,
+          details: form, onDetails: (patch) => setForm({ ...form, ...patch }), detailsError, isDetailsChanged,
+        }
       : null;
     return (
       <CostBatchRow
@@ -97,7 +121,8 @@ export function CostBreakdownDialog({
         batches={batches}
         isLatest={latestBatch?.id === batch.id}
         sellsFirst={batch.id === sellsFirstId}
-        canEdit={canEditCost}
+        canEdit={canEdit}
+        canViewCost={canViewCost}
         canSeeQuantities={canSeeQuantities}
         formatPrice={formatPrice}
         sellingPrice={sellingPrice}
@@ -116,10 +141,12 @@ export function CostBreakdownDialog({
         <DialogHeader className={`px-5 py-4 border-b ${DIVIDER}`}>
           <div className="flex items-start justify-between">
             <div>
-              <DialogTitle className="text-xl font-bold tracking-tight text-foreground">Cost breakdown</DialogTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
+                {canViewCost ? "Cost breakdown" : "Batch details"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                 {displayName(productName)} · {activeBatches.length} {activeBatches.length === 1 ? "batch" : "batches"} in stock
-              </p>
+              </DialogDescription>
             </div>
             <button
               type="button"
@@ -137,13 +164,13 @@ export function CostBreakdownDialog({
             <p className="py-8 text-center text-xs text-muted-foreground">No batches received yet.</p>
           ) : (
             <>
-              <div className={`${gridFor(canSeeQuantities)} px-5 py-2.5 text-xs font-medium text-muted-foreground border-b ${DIVIDER}`}>
+              <div className={`${gridFor(canSeeQuantities, canViewCost)} px-5 py-2.5 text-xs font-medium text-muted-foreground border-b ${DIVIDER}`}>
                 <span>Batch</span>
                 {canSeeQuantities && <span className="text-right">Units left</span>}
-                <span className="text-right">Cost</span>
+                {canViewCost && <span className="text-right">Cost</span>}
                 <span />
               </div>
-              <ul className={`divide-y divide-slate-200 dark:divide-slate-800`}>{activeBatches.map(rowFor)}</ul>
+              <ul className="divide-y divide-slate-200 dark:divide-slate-800">{activeBatches.map(rowFor)}</ul>
               {soldOutBatches.length > 0 && (
                 <div className={`border-t ${DIVIDER}`}>
                   <button
@@ -159,7 +186,7 @@ export function CostBreakdownDialog({
                   {showSoldOut && <ul className={`divide-y divide-slate-200 dark:divide-slate-800 border-t ${DIVIDER}`}>{soldOutBatches.map(rowFor)}</ul>}
                 </div>
               )}
-              <CostWorkedOut batches={batches} canSeeQuantities={canSeeQuantities} formatPrice={formatPrice} />
+              {canViewCost && <CostWorkedOut batches={batches} canSeeQuantities={canSeeQuantities} formatPrice={formatPrice} />}
               {preview && (
                 <CostCorrectionPreview
                   preview={preview}
@@ -182,11 +209,11 @@ export function CostBreakdownDialog({
           </Button>
           {editingBatchId && (
             <Button
-              disabled={!isChanged || correctCost.isPending}
+              disabled={!canSave || isSaving}
               onClick={() => void save()}
               className="flex-[2] h-11 rounded-xl bg-primary text-primary-foreground font-semibold"
             >
-              {correctCost.isPending ? "Saving…" : "Save correction"}
+              {isSaving ? "Saving…" : "Save changes"}
             </Button>
           )}
         </div>

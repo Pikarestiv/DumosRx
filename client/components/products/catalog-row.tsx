@@ -43,7 +43,7 @@ export interface CatalogRowProps {
   categoryOptions: string[];
   canEdit: boolean;
   showCostColumn: boolean;
-  canEditCost?: boolean;
+  canEditBatch?: boolean;
   canEditSellingPrice: boolean;
   canAdjustStockQuantity: boolean;
   showStockQuantity: boolean;
@@ -70,7 +70,7 @@ function CatalogRowInner({
   categoryOptions,
   canEdit,
   showCostColumn,
-  canEditCost = false,
+  canEditBatch = false,
   canEditSellingPrice,
   canAdjustStockQuantity,
   showStockQuantity,
@@ -199,7 +199,7 @@ function CatalogRowInner({
           {showCostColumn && (
             <CatalogCostCell
               product={product}
-              canEditCost={canEditCost}
+              canEditBatch={canEditBatch}
               canSeeQuantities={showStockQuantity}
               formatCurrency={formatCurrency}
               onChangeSellingPrice={onEditProduct}

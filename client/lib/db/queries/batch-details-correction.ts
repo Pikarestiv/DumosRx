@@ -1,5 +1,6 @@
 import { query, update } from "@/lib/db/local-database";
 import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
+import type { StockBatch } from "@/lib/types/stock-batch";
 
 export const MAX_BATCH_NUMBER_LENGTH = 50;
 
@@ -12,6 +13,18 @@ export interface BatchDetailsInput {
 type BatchDetailField = keyof BatchDetailsInput;
 
 const FIELDS: BatchDetailField[] = ["batch_number", "expiry_date", "manufacture_date"];
+
+export interface BatchDetailsForm {
+  batch_number: string;
+  expiry_date: string;
+  manufacture_date: string;
+}
+
+export const detailsFormOf = (batch: Pick<StockBatch, "batch_number" | "expiry_date" | "manufacture_date">): BatchDetailsForm => ({
+  batch_number: batch.batch_number ?? "",
+  expiry_date: batch.expiry_date?.slice(0, 10) ?? "",
+  manufacture_date: batch.manufacture_date?.slice(0, 10) ?? "",
+});
 
 export function isValidIsoDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;

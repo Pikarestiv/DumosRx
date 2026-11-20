@@ -71,11 +71,11 @@ describe("catalog cost breakdown popover", () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  function open(canEditCost: boolean, onChangeSellingPrice = vi.fn(), canSeeQuantities = true) {
+  function open(canEditBatch: boolean, onChangeSellingPrice = vi.fn(), canSeeQuantities = true) {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
-        <CatalogCostCell product={product} canEditCost={canEditCost} canSeeQuantities={canSeeQuantities} formatCurrency={naira} onChangeSellingPrice={onChangeSellingPrice} />
+        <CatalogCostCell product={product} canEditBatch={canEditBatch} canSeeQuantities={canSeeQuantities} formatCurrency={naira} onChangeSellingPrice={onChangeSellingPrice} />
       </QueryClientProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: /show cost breakdown/i }));
@@ -96,11 +96,11 @@ describe("catalog cost breakdown popover", () => {
     expect(document.body.textContent).toMatch(/latest batch received: ₦800 \(01\/05\/2026 \d{2}:00\)/);
   });
 
-  it("is a read-only breakdown without edit_product_cost", async () => {
+  it("is a read-only breakdown without edit_batch_details", async () => {
     open(false);
 
     await rowFor("LOT-A");
-    expect(screen.queryByRole("button", { name: /edit cost of lot/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /edit batch/i })).toBeNull();
   });
 
   it("hides sold-out batches behind a toggle and keeps them editable", async () => {
@@ -112,13 +112,13 @@ describe("catalog cost breakdown popover", () => {
 
     const gone = await rowFor("LOT-C");
     expect(gone.textContent).toContain("Sold out");
-    expect(within(gone).getByRole("button", { name: /edit cost of lot LOT-C/i })).toBeTruthy();
+    expect(within(gone).getByRole("button", { name: /edit batch LOT-C/i })).toBeTruthy();
   });
 
   it("warns about the batch that sells first, previews the change and saves it with its reason in one step", async () => {
     open(true);
 
-    fireEvent.click(within(await rowFor("LOT-A")).getByRole("button", { name: /edit cost of lot/i }));
+    fireEvent.click(within(await rowFor("LOT-A")).getByRole("button", { name: /edit batch/i }));
     expect(document.body.textContent).toContain("Batch LOT-B (2 units at ₦800) will sell before this one.");
     expect(document.body.textContent).toContain("at or above the selling price");
 
@@ -128,7 +128,7 @@ describe("catalog cost breakdown popover", () => {
     expect(screen.getByLabelText(/what changes/i).textContent).toMatch(
       /Avg cost₦670 → ₦626.67Stock value₦10,050 → ₦9,400Margin at ₦800.*Profit per unit at ₦800₦150 → ₦200/,
     );
-    fireEvent.click(screen.getByRole("button", { name: /save correction/i }));
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => expect(db.exec(`SELECT cost_price FROM stock_batches WHERE id = 'bulk'`)[0].values[0][0]).toBe(600));
     const [details] = db.exec(`SELECT details FROM audit_logs WHERE record_id = 'bulk'`)[0].values[0];
@@ -146,7 +146,7 @@ describe("catalog cost breakdown popover", () => {
     expect(bulk.textContent).not.toMatch(/\b13\b/);
     expect(document.body.textContent).not.toContain("is worked out");
 
-    fireEvent.click(within(bulk).getByRole("button", { name: /edit cost of lot/i }));
+    fireEvent.click(within(bulk).getByRole("button", { name: /edit batch/i }));
     fireEvent.change(screen.getByLabelText(/new cost price/i), { target: { value: "600" } });
     const changes = screen.getByLabelText(/what changes/i).textContent ?? "";
     expect(changes).toContain("Profit per unit at ₦800");
@@ -157,7 +157,7 @@ describe("catalog cost breakdown popover", () => {
   it("hands off to the product edit flow from the margin line", async () => {
     const onChangeSellingPrice = open(true);
 
-    fireEvent.click(within(await rowFor("LOT-A")).getByRole("button", { name: /edit cost of lot/i }));
+    fireEvent.click(within(await rowFor("LOT-A")).getByRole("button", { name: /edit batch/i }));
     fireEvent.change(screen.getByLabelText(/new cost price/i), { target: { value: "600" } });
     fireEvent.click(screen.getByRole("button", { name: /change selling price/i }));
 
@@ -171,7 +171,7 @@ describe("catalog cost breakdown popover", () => {
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
         <CatalogRow
           product={product} isSelected={false} isDesktop capsClass="capitalize" categoryOptions={["Antibiotics"]}
-          canEdit showCostColumn canEditCost canEditSellingPrice canAdjustStockQuantity showStockQuantity
+          canEdit showCostColumn canEditBatch canEditSellingPrice canAdjustStockQuantity showStockQuantity
           hasTouchCapability={false} canPrintLabels canDeleteProducts formatCurrency={naira}
           onSelect={onSelect} onSaveCategory={noop} onSaveSellingPrice={noop} onSaveStockQuantity={noop}
           onSaveReorderLevel={noop} onPrintLabel={noop} onDeleteProduct={noop} onEditProduct={noop}
@@ -180,7 +180,7 @@ describe("catalog cost breakdown popover", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /show cost breakdown/i }));
-    fireEvent.click(within(await rowFor("LOT-A")).getByRole("button", { name: /edit cost of lot/i }));
+    fireEvent.click(within(await rowFor("LOT-A")).getByRole("button", { name: /edit batch/i }));
     fireEvent.keyDown(screen.getByLabelText(/new cost price/i), { key: "Enter" });
 
     expect(onSelect).not.toHaveBeenCalled();

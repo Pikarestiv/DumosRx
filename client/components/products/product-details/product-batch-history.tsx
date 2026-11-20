@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Boxes, ChevronDown, ChevronUp, Pencil, SquarePen } from "lucide-react";
+import { Boxes, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
-import { CostBreakdownDialog } from "../batch-cost/cost-breakdown-dialog";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateSafe, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -15,12 +14,8 @@ interface ProductBatchHistoryProps {
   storeType: string;
   canSeeQuantities: boolean;
   canViewCost: boolean;
-  canEditCost?: boolean;
-  productName?: string;
   formatPrice?: (amount: number) => string;
-  sellingPrice?: number | null;
-  onChangeSellingPrice?: () => void;
-  onEditBatchDetails?: (batch: StockBatch) => void;
+  onEditBatch?: (batch: StockBatch) => void;
   highlightBatchId?: string | null;
 }
 
@@ -40,15 +35,10 @@ export function ProductBatchHistory({
   storeType,
   canSeeQuantities,
   canViewCost,
-  canEditCost = false,
-  productName = "",
   formatPrice,
-  sellingPrice,
-  onChangeSellingPrice,
-  onEditBatchDetails,
+  onEditBatch,
   highlightBatchId,
 }: ProductBatchHistoryProps) {
-  const [costEditBatch, setCostEditBatch] = useState<StockBatch | null>(null);
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(
     highlightBatchId || (batches.length === 1 ? batches[0]?.id : null),
   );
@@ -141,30 +131,14 @@ export function ProductBatchHistory({
                 Batch #{batch.batch_number || "Default"}
               </span>
               <div className="flex items-center gap-2">
-                {onEditBatchDetails && (
-                  <HintTooltip text="Edit expiry, lot and manufacture date">
+                {onEditBatch && (
+                  <HintTooltip text="Edit batch">
                     <button
                       type="button"
-                      aria-label={`Edit details for batch ${batch.batch_number || "Default"}`}
+                      aria-label={`Edit batch ${batch.batch_number || "Default"}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onEditBatchDetails(batch);
-                      }}
-                      onKeyDown={(e) => e.stopPropagation()}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    >
-                      <SquarePen className="w-3.5 h-3.5" />
-                    </button>
-                  </HintTooltip>
-                )}
-                {canEditCost && canViewCost && (
-                  <HintTooltip text="Edit cost price">
-                    <button
-                      type="button"
-                      aria-label={`Edit cost price for batch ${batch.batch_number || "Default"}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCostEditBatch(batch);
+                        onEditBatch(batch);
                       }}
                       onKeyDown={(e) => e.stopPropagation()}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
@@ -243,21 +217,6 @@ export function ProductBatchHistory({
           </div>
         );
       })}
-      {costEditBatch && (
-        <CostBreakdownDialog
-          key={costEditBatch.id}
-          open
-          onOpenChange={(open) => !open && setCostEditBatch(null)}
-          productName={productName}
-          batches={batches}
-          sellingPrice={sellingPrice}
-          formatPrice={formatCost}
-          canEditCost={canEditCost}
-          canSeeQuantities={canSeeQuantities}
-          initialEditBatchId={costEditBatch.id}
-          onChangeSellingPrice={onChangeSellingPrice}
-        />
-      )}
     </div>
   );
 }

@@ -90,6 +90,18 @@ describe("product details cards", () => {
   });
 });
 
+describe("product details cards: Pricing", () => {
+  it("labels the Pricing action as the selling price, and opens the product edit form from it", () => {
+    const onEditProduct = vi.fn();
+    renderCards({ onEditProduct });
+
+    fireEvent.click(screen.getByRole("button", { name: "Change selling price" }));
+
+    expect(onEditProduct).toHaveBeenCalledWith(product);
+    expect(screen.queryByRole("button", { name: "Change price" })).toBeNull();
+  });
+});
+
 describe("product details cards: Next expiry", () => {
   const withExpiry = [
     { ...batches[0], expiry_date: "2027-06-30" },
@@ -98,33 +110,33 @@ describe("product details cards: Next expiry", () => {
   ] as StockBatch[];
 
   it("edits the details of the batch that expires first", () => {
-    const onEditBatchDetails = vi.fn();
-    renderCards({ batches: withExpiry, onEditBatchDetails });
+    const onEditBatch = vi.fn();
+    renderCards({ batches: withExpiry, onEditBatch });
 
     expect(screen.getByText("31/01/2027")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
 
-    expect(onEditBatchDetails).toHaveBeenCalledWith(expect.objectContaining({ id: "b2" }));
+    expect(onEditBatch).toHaveBeenCalledWith(expect.objectContaining({ id: "b2" }));
   });
 
   it("goes to the Batches tab to add an expiry when several batches have none", () => {
-    const onEditBatchDetails = vi.fn();
+    const onEditBatch = vi.fn();
     const onOpenBatches = vi.fn();
-    renderCards({ onEditBatchDetails, onOpenBatches });
+    renderCards({ onEditBatch, onOpenBatches });
 
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
     expect(onOpenBatches).toHaveBeenCalledOnce();
-    expect(onEditBatchDetails).not.toHaveBeenCalled();
+    expect(onEditBatch).not.toHaveBeenCalled();
   });
 
   it("opens the only batch straight away when adding an expiry", () => {
-    const onEditBatchDetails = vi.fn();
-    renderCards({ batches: [batches[0]], onEditBatchDetails });
+    const onEditBatch = vi.fn();
+    renderCards({ batches: [batches[0]], onEditBatch });
 
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
 
-    expect(onEditBatchDetails).toHaveBeenCalledWith(expect.objectContaining({ id: "b1" }));
+    expect(onEditBatch).toHaveBeenCalledWith(expect.objectContaining({ id: "b1" }));
   });
 
   it("offers no Add or Edit to a user who may not edit batch details", () => {

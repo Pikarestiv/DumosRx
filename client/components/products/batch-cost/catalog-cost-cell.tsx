@@ -10,7 +10,7 @@ import type { Product } from "../types";
 
 export interface CatalogCostCellProps {
   product: Product;
-  canEditCost: boolean;
+  canEditBatch: boolean;
   canSeeQuantities: boolean;
   formatCurrency: (amount: number) => string;
   onChangeSellingPrice: (product: Product) => void;
@@ -18,7 +18,7 @@ export interface CatalogCostCellProps {
 
 const keepInside = (e: SyntheticEvent) => e.stopPropagation();
 
-function CostBreakdownLoader({ product, canEditCost, canSeeQuantities, formatCurrency, onChangeSellingPrice, onClose }: CatalogCostCellProps & { onClose: () => void }) {
+function CostBreakdownLoader({ product, canEditBatch, canSeeQuantities, formatCurrency, onChangeSellingPrice, onClose }: CatalogCostCellProps & { onClose: () => void }) {
   const { data: batches } = useQuery({
     ...queryKeys.products.batches(product.id),
     queryFn: () => getStockBatchesForProductDetails(product.id),
@@ -33,7 +33,7 @@ function CostBreakdownLoader({ product, canEditCost, canSeeQuantities, formatCur
         batches={batches}
         sellingPrice={product.sellingPrice}
         formatPrice={formatCurrency}
-        canEditCost={canEditCost}
+        canEdit={canEditBatch}
         canSeeQuantities={canSeeQuantities}
         onChangeSellingPrice={() => onChangeSellingPrice(product)}
       />

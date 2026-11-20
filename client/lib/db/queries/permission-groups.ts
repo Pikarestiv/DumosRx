@@ -2,6 +2,7 @@ import { query, transaction, getActiveStoreId } from "@/lib/db/core";
 import { insert, update } from "@/lib/db/base-helpers";
 import {
   ALL_GROUP_PERMISSION_ADDITIONS,
+  CARRY_OVER_ADDITIONS,
   DEFAULT_GROUP_PERMISSIONS,
   DEFAULT_GROUP_PERMISSION_ADDITIONS,
   PERMISSION_CATALOG_VERSION,
@@ -91,7 +92,7 @@ export async function ensurePermissionGroupsSeeded(): Promise<void> {
 
 // The keys a default group for `role` is owed by every catalog version newer than `fromVersion`, in catalog order.
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-queries-permission-groups-ts-L100
-export function pendingCatalogAdditions(role: string, fromVersion: number, isDefault = true): string[] {
+export function pendingCatalogAdditions(role: string, fromVersion: number, isDefault = true, held: string[] = []): string[] {
   const pending: string[] = [];
   for (const [version, byRole] of Object.entries(DEFAULT_GROUP_PERMISSION_ADDITIONS)) {
     if (Number(version) <= fromVersion || !isDefault) continue;
@@ -99,6 +100,12 @@ export function pendingCatalogAdditions(role: string, fromVersion: number, isDef
   }
   for (const [version, keys] of Object.entries(ALL_GROUP_PERMISSION_ADDITIONS)) {
     if (Number(version) > fromVersion) pending.push(...keys);
+  }
+  for (const [version, byHeldKey] of Object.entries(CARRY_OVER_ADDITIONS)) {
+    if (Number(version) <= fromVersion) continue;
+    for (const [heldKey, keys] of Object.entries(byHeldKey)) {
+      if (held.includes(heldKey)) pending.push(...keys);
+    }
   }
   return Array.from(new Set(pending));
 }
@@ -126,9 +133,6 @@ export async function backfillDefaultGroupPermissions(): Promise<void> {
     );
 
     for (const group of groups) {
-      const owed = pendingCatalogAdditions(group.based_on_role, stamped, Number(group.is_default) === 1);
-      if (owed.length === 0) continue;
-
       let granted: string[];
       try {
         granted = JSON.parse(group.permissions);
@@ -136,6 +140,9 @@ export async function backfillDefaultGroupPermissions(): Promise<void> {
         continue;
       }
       if (!Array.isArray(granted)) continue;
+
+      const owed = pendingCatalogAdditions(group.based_on_role, stamped, Number(group.is_default) === 1, granted);
+      if (owed.length === 0) continue;
 
       const missing = owed.filter((key) => !granted.includes(key));
       if (missing.length === 0) continue;

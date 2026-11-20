@@ -185,6 +185,21 @@ describe("backfillDefaultGroupPermissions", () => {
     expect(await catalogVersion()).toBe(PERMISSION_CATALOG_VERSION);
   });
 
+  it("keeps a custom group's batch cost editing by granting it edit_batch_details when it already held edit_product_cost", async () => {
+    seedPreExpansionStore();
+    db.run(`UPDATE stores SET permission_catalog_version = 3 WHERE id = 'store1'`);
+    seedCustomGroup(["process_sales", "edit_product_cost"]);
+    db.run(
+      `INSERT INTO permission_groups (id, store_id, name, based_on_role, is_default, permissions, _version)
+       VALUES ('pg-other', 'store1', 'Cashiers', 'sales_staff', 0, '["process_sales"]', 1)`,
+    );
+
+    await queries.backfillDefaultGroupPermissions();
+
+    expect(await permissionsOf("pg-custom")).toEqual(["process_sales", "edit_product_cost", "edit_batch_details"]);
+    expect(await permissionsOf("pg-other")).toEqual(["process_sales"]);
+  });
+
   it("leaves a custom group created after the v3 stamp without the key", async () => {
     seedPreExpansionStore();
     db.run(`UPDATE stores SET permission_catalog_version = 3 WHERE id = 'store1'`);

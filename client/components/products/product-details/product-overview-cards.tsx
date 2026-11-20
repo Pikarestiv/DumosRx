@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { averageCostTerms, lastReceivedBatch } from "@/lib/utils/batch-cost-breakdown";
@@ -17,8 +18,9 @@ interface ProductOverviewCardsProps {
   canViewCost?: boolean;
 }
 
-const CARD =
-  "bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4";
+const CARD_FLUSH =
+  "bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden";
+const CARD = `${CARD_FLUSH} p-4`;
 
 export function ProductOverviewCards({
   product,
@@ -55,7 +57,6 @@ export function ProductOverviewCards({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 2x2 KPI Grid */}
       <div className="grid grid-cols-2 gap-3">
         <div className={CARD}>
           <div className="text-xs text-muted-foreground font-medium">In stock</div>
@@ -103,11 +104,10 @@ export function ProductOverviewCards({
         </div>
       </div>
 
-      {/* Pricing Card */}
       {canViewCost && (
-        <div className={CARD}>
-          <div className="flex items-center justify-between pb-2 border-b border-border/50">
-            <h4 className="font-bold text-sm text-foreground">Pricing</h4>
+        <Section
+          title="Pricing"
+          action={
             <button
               type="button"
               onClick={() => onEditProduct(product)}
@@ -115,131 +115,139 @@ export function ProductOverviewCards({
             >
               Change price
             </button>
+          }
+          footer={`Markup on avg cost: ${markupAtAvg}%`}
+        >
+          <div className={`${PRICING_GRID} px-4 py-2.5 text-[11px] font-medium text-muted-foreground`}>
+            <span>Based on</span>
+            <span className="text-right">Profit/unit</span>
+            <span className="text-right">Margin</span>
           </div>
-
-          <div className="mt-3 space-y-2.5 text-xs">
-            <div className="grid grid-cols-[1.5fr_1fr_1fr] text-[11px] font-semibold text-muted-foreground uppercase">
-              <span>Based on</span>
-              <span className="text-right">Profit/unit</span>
-              <span className="text-right">Margin</span>
-            </div>
-
-            <div className="grid grid-cols-[1.5fr_1fr_1fr] items-center pt-1 border-t border-border/30">
-              <div>
-                <div className="font-semibold text-foreground">
-                  Avg cost {formatPrice(avgCost)}
-                </div>
-                <div className="text-[11px] text-muted-foreground">Stock on the shelf</div>
-              </div>
-              <div className="text-right font-medium text-foreground">
-                {formatPrice(profitAtAvg)}
-              </div>
-              <div className="text-right font-bold text-foreground">
-                {marginAtAvg}%
-              </div>
-            </div>
-
-            <div className="grid grid-cols-[1.5fr_1fr_1fr] items-center pt-2 border-t border-border/30">
-              <div>
-                <div className="font-semibold text-foreground">
-                  Last cost {formatPrice(lastCost)}
-                </div>
-                <div className="text-[11px] text-muted-foreground">What restocking costs</div>
-              </div>
-              <div className="text-right font-medium text-foreground">
-                {formatPrice(profitAtLast)}
-              </div>
-              <div className="text-right font-bold text-foreground">
-                {marginAtLast}%
-              </div>
-            </div>
-
-            <div className="pt-2 text-[11px] text-muted-foreground">
-              Markup on avg cost: {markupAtAvg}%
-            </div>
-          </div>
-        </div>
+          <PricingRow
+            label={`Avg cost ${formatPrice(avgCost)}`}
+            hint="Stock on the shelf"
+            profit={formatPrice(profitAtAvg)}
+            margin={marginAtAvg}
+          />
+          <PricingRow
+            label={`Last cost ${formatPrice(lastCost)}`}
+            hint="What restocking costs"
+            profit={formatPrice(profitAtLast)}
+            margin={marginAtLast}
+          />
+        </Section>
       )}
 
-      {/* Stock & Expiry Card */}
-      <div className={CARD}>
-        <h4 className="font-bold text-sm text-foreground mb-3">Stock & expiry</h4>
-        <div className="space-y-3 text-xs divide-y divide-border/40">
-          <div className="flex items-center justify-between pt-1 first:pt-0">
-            <span className="text-muted-foreground">Next expiry</span>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-foreground">
-                {nextExpiry ? formatDateToDDMMYYYY(nextExpiry) : "Not set"}
-              </span>
-              <button
-                type="button"
-                onClick={() => onEditProduct(product)}
-                className="text-primary font-semibold hover:underline"
-              >
-                {nextExpiry ? "Edit" : "Add"}
-              </button>
-            </div>
-          </div>
+      <Section title="Stock & expiry">
+        <ValueRow label="Next expiry">
+          <span className="font-medium text-foreground">
+            {nextExpiry ? formatDateToDDMMYYYY(nextExpiry) : "Not set"}
+          </span>
+          <button
+            type="button"
+            onClick={() => onEditProduct(product)}
+            className="text-primary font-semibold hover:underline"
+          >
+            {nextExpiry ? "Edit" : "Add"}
+          </button>
+        </ValueRow>
+        <ValueRow label="Last counted">
+          <span className="font-medium text-foreground">Never</span>
+          <button
+            type="button"
+            onClick={() => router.push(`/inventory/batches?action=adjust&productId=${product.id}`)}
+            className="text-primary font-semibold hover:underline"
+          >
+            Count now
+          </button>
+        </ValueRow>
+      </Section>
 
-          <div className="flex items-center justify-between pt-3">
-            <span className="text-muted-foreground">Last counted</span>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-foreground">Never</span>
-              <button
-                type="button"
-                onClick={() => router.push(`/inventory/batches?action=adjust&productId=${product.id}`)}
-                className="text-primary font-semibold hover:underline"
-              >
-                Count now
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Product Details Card */}
-      <div className={CARD}>
-        <h4 className="font-bold text-sm text-foreground mb-3">Product details</h4>
-        <div className="space-y-3 text-xs divide-y divide-border/40">
-          <div className="flex items-center justify-between pt-1 first:pt-0">
-            <span className="text-muted-foreground">Category</span>
-            <span className="font-medium text-foreground">
-              {product.category || "General"}
+      <Section title="Product details">
+        <ValueRow label="Category">
+          <span className="font-medium text-foreground">{product.category || "General"}</span>
+        </ValueRow>
+        <ValueRow label="Barcode">
+          <span className="font-mono font-medium text-foreground">{product.barcode || "Not set"}</span>
+        </ValueRow>
+        <button
+          type="button"
+          onClick={() => onEditProduct(product)}
+          className="flex w-full items-start gap-2 px-4 py-3 text-left text-primary hover:bg-muted/30"
+        >
+          <Plus className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div>
+            <span className="font-semibold text-xs">
+              {product.genericName || product.dosageForm ? "Edit details" : "Add details"}
             </span>
+            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+              Generic name, strength, dosage form, NAFDAC no., manufacturer
+            </p>
           </div>
+        </button>
+      </Section>
 
-          <div className="flex items-center justify-between pt-3">
-            <span className="text-muted-foreground">Barcode</span>
-            <span className="font-mono font-medium text-foreground">
-              {product.barcode || "Not set"}
-            </span>
-          </div>
-
-          <div className="pt-3">
-            <button
-              type="button"
-              onClick={() => onEditProduct(product)}
-              className="flex items-start gap-2 text-left text-primary hover:underline group"
-            >
-              <Plus className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <div>
-                <span className="font-semibold text-xs">
-                  {product.genericName || product.dosageForm ? "Edit details" : "Add details"}
-                </span>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                  Generic name, strength, dosage form, NAFDAC no., manufacturer
-                </p>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer attribution */}
       <div className="text-[11px] text-muted-foreground/75 px-1 pb-2">
         Created by {creator?.name || "System"} ·{" "}
         {formatDateSafe(creator?.created_at ?? "", "dd/MM/yyyy, HH:mm", "Unknown date")}
       </div>
+    </div>
+  );
+}
+
+const PRICING_GRID = "grid grid-cols-[1.5fr_1fr_1fr] items-center";
+
+function Section({
+  title,
+  action,
+  footer,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  footer?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center justify-between px-1">
+        <h4 className="font-bold text-sm text-foreground">{title}</h4>
+        {action}
+      </div>
+      <div className={`${CARD_FLUSH} divide-y divide-slate-200 dark:divide-slate-800`}>{children}</div>
+      {footer && <p className="px-1 text-[11px] text-muted-foreground">{footer}</p>}
+    </section>
+  );
+}
+
+function ValueRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+function PricingRow({
+  label,
+  hint,
+  profit,
+  margin,
+}: {
+  label: string;
+  hint: string;
+  profit: string;
+  margin: string;
+}) {
+  return (
+    <div className={`${PRICING_GRID} px-4 py-3 text-xs`}>
+      <div>
+        <div className="font-semibold text-foreground">{label}</div>
+        <div className="text-[11px] text-muted-foreground">{hint}</div>
+      </div>
+      <div className="text-right font-semibold text-foreground">{profit}</div>
+      <div className="text-right font-semibold text-foreground">{margin}%</div>
     </div>
   );
 }

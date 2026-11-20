@@ -18,6 +18,8 @@ function CellEditPencil({ hasTouchCapability }: { hasTouchCapability: boolean })
   );
 }
 
+const UNSAVED_TITLE = "Not saved yet: tap the tick to save or the cross to cancel";
+
 const KEEP_INPUT_FOCUSED = {
   onMouseDown: (e: React.SyntheticEvent) => e.preventDefault(),
   onPointerDown: (e: React.SyntheticEvent) => e.preventDefault(),
@@ -122,9 +124,16 @@ export function EditableCategoryCell({
     if (shouldSave) commit(category);
   };
 
+  const unsaved = value.trim() !== "" && value.trim() !== (product.category || "").trim();
+
   if (editing) {
     return (
-      <InlineEditFrame onSave={() => finish(true, value)} onCancel={() => finish(false, value)}>
+      <InlineEditFrame
+        className={unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}
+        title={unsaved ? UNSAVED_TITLE : undefined}
+        onSave={() => finish(true, value)}
+        onCancel={() => finish(false, value)}
+      >
         <SearchableInput
           options={categoryOptions}
           value={value}
@@ -145,8 +154,7 @@ export function EditableCategoryCell({
               skipNextBlur.current = false;
               return;
             }
-            setEditing(false);
-            commit(value);
+            if (!unsaved) finish(false, value);
           }}
         />
       </InlineEditFrame>
@@ -198,7 +206,6 @@ export function EditableQuickNumberCell({
   hasTouchCapability,
   onSave,
   ariaLabel,
-  commitOnBlur = true,
 }: {
   displayValue: string;
   displayClassName?: string;
@@ -210,12 +217,6 @@ export function EditableQuickNumberCell({
   hasTouchCapability: boolean;
   onSave: (value: number) => void;
   ariaLabel?: string;
-  /** Pass false for a cell whose save has consequences beyond the cell
-   * itself (the stock-quantity cell posts a real inventory adjustment and a
-   * permanent movement-ledger row): blur never commits. An untouched cell
-   * closes on blur; an edited one stays open, marked unsaved, until Enter or
-   * the checkmark commits it or Escape or the X cancels it. */
-  commitOnBlur?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -231,13 +232,13 @@ export function EditableQuickNumberCell({
     if (shouldSave && draftValue !== value) onSave(draftValue);
   };
 
-  const unsaved = !commitOnBlur && draft !== value;
+  const unsaved = draft !== value;
 
   if (editing) {
     return (
       <InlineEditFrame
         className={unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}
-        title={unsaved ? "Not saved yet: tap the tick to save or the cross to cancel" : undefined}
+        title={unsaved ? UNSAVED_TITLE : undefined}
         onSave={() => finish(true, draft)}
         onCancel={() => finish(false, draft)}
       >
@@ -249,14 +250,13 @@ export function EditableQuickNumberCell({
           widthClassName={widthClassName}
           autoFocus
           onCancel={() => finish(false, draft)}
-          onSubmit={commitOnBlur ? undefined : () => finish(true, draft)}
+          onSubmit={() => finish(true, draft)}
           onBlur={() => {
             if (skipNextBlur.current) {
               skipNextBlur.current = false;
               return;
             }
-            if (unsaved) return;
-            finish(commitOnBlur, draft);
+            if (!unsaved) finish(false, draft);
           }}
         />
       </InlineEditFrame>

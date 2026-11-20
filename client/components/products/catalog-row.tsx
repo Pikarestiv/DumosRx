@@ -226,7 +226,6 @@ function CatalogRowInner({
                 canEdit={canEdit && canAdjustStockQuantity}
                 hasTouchCapability={hasTouchCapability}
                 ariaLabel={`Edit stock quantity for ${product.name} (${product.stockQuantity})`}
-                commitOnBlur={false}
                 onSave={(val) => onSaveStockQuantity(product, val)}
               />
             ) : (

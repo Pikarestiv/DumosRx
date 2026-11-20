@@ -1,5 +1,6 @@
 import {
   Package,
+  Tag,
   Pill,
   ShieldPlus,
   Citrus,
@@ -289,4 +290,8 @@ export function getCategoryIcon(categoryName?: string | null): LucideIcon {
     matchCategoryIcon(categoryName) ??
     FALLBACK_ICONS[hashString(categoryName.toLowerCase()) % FALLBACK_ICONS.length]
   );
+}
+
+export function getCategoryListIcon(categoryName?: string | null): LucideIcon {
+  return matchCategoryIcon(categoryName) ?? Tag;
 }

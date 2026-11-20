@@ -4,6 +4,7 @@ import { Product } from "./types";
 import { EditableNumberCell } from "@/components/ui/editable-number-cell";
 import { SearchableInput } from "@/components/ui/searchable-input";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
+import { useUnsavedEdit } from "@/lib/hooks/use-unsaved-edit";
 import { useUppercaseDisplayClass, capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 
 // Shared hover/touch affordance for a per-cell quick edit:
@@ -33,14 +34,12 @@ const ACTION_BUTTON = "flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 item
  * swallow mousedown and pointerdown so the input keeps focus through the tap
  * (a real blur would run the input's own save path before the button's). */
 function InlineEditFrame({
-  className = "",
-  title,
+  unsaved = false,
   onSave,
   onCancel,
   children,
 }: {
-  className?: string;
-  title?: string;
+  unsaved?: boolean;
   onSave: () => void;
   onCancel: () => void;
   children: React.ReactNode;
@@ -49,12 +48,15 @@ function InlineEditFrame({
     <Popover open>
       <PopoverAnchor asChild>
         <div
-          className={`flex items-center rounded-lg ${className}`}
-          title={title}
+          className={`flex items-center rounded-lg ${unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}`}
+          title={unsaved ? UNSAVED_TITLE : undefined}
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
           {children}
+          <span role="status" aria-live="polite" className="sr-only">
+            {unsaved ? UNSAVED_TITLE : ""}
+          </span>
         </div>
       </PopoverAnchor>
       <PopoverContent
@@ -101,6 +103,9 @@ export function EditableCategoryCell({
   // second time.
   const skipNextBlur = useRef(false);
 
+  const unsaved = value.trim() !== "" && value.trim() !== (product.category || "").trim();
+  useUnsavedEdit(editing && unsaved);
+
   if (!canEdit) {
     return (
       <div className="flex items-center">
@@ -124,13 +129,10 @@ export function EditableCategoryCell({
     if (shouldSave) commit(category);
   };
 
-  const unsaved = value.trim() !== "" && value.trim() !== (product.category || "").trim();
-
   if (editing) {
     return (
       <InlineEditFrame
-        className={unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}
-        title={unsaved ? UNSAVED_TITLE : undefined}
+        unsaved={unsaved}
         onSave={() => finish(true, value)}
         onCancel={() => finish(false, value)}
       >
@@ -222,6 +224,9 @@ export function EditableQuickNumberCell({
   const [draft, setDraft] = useState(value);
   const skipNextBlur = useRef(false);
 
+  const unsaved = draft !== value;
+  useUnsavedEdit(editing && unsaved);
+
   if (!canEdit) {
     return <div className={displayClassName}>{displayValue}</div>;
   }
@@ -232,13 +237,10 @@ export function EditableQuickNumberCell({
     if (shouldSave && draftValue !== value) onSave(draftValue);
   };
 
-  const unsaved = draft !== value;
-
   if (editing) {
     return (
       <InlineEditFrame
-        className={unsaved ? "ring-2 ring-amber-400/70 ring-offset-1" : ""}
-        title={unsaved ? UNSAVED_TITLE : undefined}
+        unsaved={unsaved}
         onSave={() => finish(true, draft)}
         onCancel={() => finish(false, draft)}
       >

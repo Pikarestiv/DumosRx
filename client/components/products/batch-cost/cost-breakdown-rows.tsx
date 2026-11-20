@@ -48,6 +48,11 @@ function Warning({ children }: { children: ReactNode }) {
   );
 }
 
+const unitsLabel = (quantity: number) => `${quantity} ${quantity === 1 ? "unit" : "units"}`;
+
+const lotIsPoNumber = (batch: StockBatch) =>
+  Boolean(batch.purchase_order_id) && batchLabel(batch) === formatPONumber(batch.purchase_order_id as string).replace(/^PO-/, "");
+
 function sourceOf(batch: StockBatch): string | null {
   if (batch.purchase_order_id) return `From ${formatPONumber(batch.purchase_order_id)}`;
   return batch.supplier_name ? `From ${batch.supplier_name}` : null;
@@ -87,7 +92,7 @@ function EditFields({ batch, batches, sellingPrice, canSeeQuantities, formatPric
       )}
       {batchesSellingBefore(batches, batch.id).map((earlier) => (
         <Warning key={earlier.id}>
-          Batch {batchLabel(earlier)} ({canSeeQuantities ? `${earlier.quantity} units at ` : "at "}
+          Batch {batchLabel(earlier)} ({canSeeQuantities ? `${unitsLabel(earlier.quantity)} at ` : "at "}
           {formatPrice(earlier.cost_price ?? 0)}) will sell before this one.
           {sellingPrice != null && sellingPrice > 0 && (earlier.cost_price ?? 0) >= sellingPrice &&
             " It costs at or above the selling price, so those sales make no profit."}
@@ -101,7 +106,7 @@ export function CostBatchRow(props: CostBatchRowProps) {
   const { batch, isLatest, sellsFirst, canEdit, canSeeQuantities, formatPrice, editing, onEdit } = props;
   const details = [
     sourceOf(batch),
-    `Lot ${batchLabel(batch)}`,
+    lotIsPoNumber(batch) ? null : `Lot ${batchLabel(batch)}`,
     batch.expiry_date?.trim() ? `exp ${formatDateToDDMMYYYY(batch.expiry_date)}` : "no expiry",
   ].filter(Boolean);
 

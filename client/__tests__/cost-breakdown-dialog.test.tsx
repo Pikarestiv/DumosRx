@@ -43,4 +43,30 @@ describe("cost breakdown dialog", () => {
     renderDialog([batch({ id: "b1" })]);
     expect(screen.getByText(/Visita Soap Big · 1 batch in stock/)).toBeTruthy();
   });
+
+  it("does not repeat the PO number as a lot when the lot is just the PO's id", () => {
+    renderDialog([batch({ id: "b1", purchase_order_id: "85d9c79d-0000-4000-8000-000000000001", batch_number: "85D9C79D" })]);
+    expect(screen.getByText("From PO-85D9C79D · no expiry")).toBeTruthy();
+  });
+
+  it("still shows a real lot number beside the PO number", () => {
+    renderDialog([batch({ id: "b1", purchase_order_id: "85d9c79d-0000-4000-8000-000000000001", batch_number: "LOT-9" })]);
+    expect(screen.getByText("From PO-85D9C79D · Lot LOT-9 · no expiry")).toBeTruthy();
+  });
+
+  it("says '1 unit', not '1 units', when the batch that sells first holds one unit", () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}>
+        <CostBreakdownDialog
+          open
+          onOpenChange={vi.fn()}
+          productName="Soap"
+          batches={[batch({ id: "early", batch_number: "A", quantity: 1, cost_price: 650 }), batch({ id: "late", batch_number: "B", created_at: "2026-11-07T10:00:00Z" })]}
+          initialEditBatchId="late"
+          formatPrice={(n) => `₦${n}`}
+        />
+      </QueryClientProvider>,
+    );
+    expect(document.body.textContent).toContain("Batch A (1 unit at ₦650) will sell before this one.");
+  });
 });

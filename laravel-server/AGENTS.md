@@ -4981,14 +4981,14 @@ Prefer `getAttribute()` over a magic property on a bare `Model`, and
 
 **Cause.** The shared host's firewall (`server301.web-hosting.com`) was blocking that caller's public IP. A blocked caller is answered with the host's own certificate and an HTML "Unauthorized Access" page (with an Unblock ReCAPTCHA) that names the blocked IP, never with our API. On 2026-11-20 the blocked address was `197.210.227.112`, the public IP of a new MTN 5G router. MTN shares public IPs between customers, so it can hit anyone behind the same address. Switching the same laptop to a phone hotspot (a different IP) fixed it at once.
 
-**Why it was not the release.** Every deploy on `main` was green, and the backend deploy's own schema check read `/api/v1/health` from GitHub's network at the same moment. Why the firewall flagged the IP was never established; Namecheap holds the rule and the log.
+**Why it was not the release.** Every deploy on `main` was green, and the backend deploy's own schema check read `/api/v1/health` from GitHub's network at the same moment. Namecheap support said the IP was blocked for many failed login attempts in a short period against services connected to the hosting account (not the Namecheap account itself); which service (cPanel, FTP, SSH, a mail client, or the app) was not identified. The block lifts by itself after a while or with the ReCAPTCHA, and the shared-hosting firewall cannot be disabled. The client does not loop on failed logins: `refreshTokenSilently()` is single-flight, tries twice, and clears the token on a definitive 401, so look first at a person's FTP/cPanel/mail clients on that network.
 
 **Diagnose in this order, read-only.**
 1. Ask the caller to try another network (phone data). If that works, it is an IP block and the app is fine.
 2. `curl -sk https://api.dumosrx.com/api/v1/health` from the affected network. A block returns the firewall HTML and prints `Your blocked IP address is: <ip>`; a healthy API returns JSON. `-k` is for diagnosis only, send nothing.
 3. If the certificate is genuinely expired, the browser says so; check cPanel SSL/TLS Status and run AutoSSL.
 
-**Fix.** The person unblocks the IP themselves with the ReCAPTCHA on that page (it cannot be automated). To stop it recurring, ask Namecheap which rule fired, and whether they can whitelist known shop IPs or relax it for the carrier's range.
+**Fix.** The person unblocks the IP themselves with the ReCAPTCHA on that page (it cannot be automated). To stop it recurring, find which service logged the failed logins (Namecheap can see it), fix the stale password or client, and ask Namecheap to whitelist a fixed office or shop IP (they have to do it; it is not a setting on the account).
 
 **Do not** change DNS or move the domain to Cloudflare in the middle of an incident: the host would then see Cloudflare's addresses and can block those instead. See the Cloudflare entry in `docs/FEATURE_ROADMAP_SPEC.md` and A-424 in `docs/KNOWN_BUGS.md` (the client shows nothing useful when this happens).
 

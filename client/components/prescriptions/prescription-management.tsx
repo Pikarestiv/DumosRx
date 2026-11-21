@@ -92,7 +92,7 @@ export function PrescriptionManagement() {
 
       {/* Full Screen Overlay for New Prescription: top/bottom padding clears the status bar / Tauri title bar and home indicator */}
       {showNewPrescription && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col fixed-visual-viewport">
+        <div className="fixed inset-0 z-[60] bg-background flex flex-col fixed-visual-viewport">
           <div
             className="flex items-center gap-3 px-4 pb-4 border-b border-border bg-card shrink-0"
             style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
@@ -110,10 +110,10 @@ export function PrescriptionManagement() {
             </h2>
           </div>
           <div
-            className="flex-1 overflow-y-auto p-4"
+            className="flex-1 min-h-0 overflow-y-auto p-4"
             style={{
               paddingBottom:
-                "calc(var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 1rem)",
+                "calc(var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 3rem)",
             }}
           >
             <div className="max-w-4xl mx-auto">

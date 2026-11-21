@@ -20,21 +20,23 @@ export function PullToRefreshIndicator({
   return (
     <div
       aria-hidden
-      className="absolute top-0 left-0 right-0 flex items-start justify-center overflow-hidden pointer-events-none z-10"
+      className="absolute top-0 left-0 right-0 flex items-start justify-center overflow-hidden pointer-events-none z-30"
       style={{ height: isRefreshing ? threshold : pullDistance }}
     >
       <div className="pt-3">
-        <RefreshCw
-          className={cn(
-            "w-5 h-5 text-primary drop-shadow-sm",
-            isRefreshing && "animate-spin",
-          )}
-          style={
-            !isRefreshing
-              ? { transform: `rotate(${progress * 360}deg)`, opacity: progress }
-              : undefined
-          }
-        />
+        <div className="bg-card/95 border border-border rounded-full p-2 shadow-md">
+          <RefreshCw
+            className={cn(
+              "w-4 h-4 text-primary",
+              isRefreshing && "animate-spin",
+            )}
+            style={
+              !isRefreshing
+                ? { transform: `rotate(${progress * 360}deg)`, opacity: progress }
+                : undefined
+            }
+          />
+        </div>
       </div>
     </div>
   );

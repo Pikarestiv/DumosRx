@@ -203,7 +203,13 @@ export function StockAdjustmentsLedger() {
           : "p-4 pb-3 border-b border-border space-y-3"
       }
     >
-      <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5 shadow-xs">
+      <div
+        className={
+          isMobile
+            ? "flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5 shadow-xs"
+            : "flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5"
+        }
+      >
         <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
         <input
           type="text"
@@ -217,7 +223,11 @@ export function StockAdjustmentsLedger() {
         <Select value={reasonFilter} onValueChange={setReasonFilter}>
           <SelectTrigger
             aria-label="Filter by reason"
-            className="w-[170px] h-9 text-[13px] bg-card border-border shadow-xs"
+            className={
+              isMobile
+                ? "w-[170px] h-9 text-[13px] bg-card border-border shadow-xs"
+                : "w-[170px] h-9 text-[13px] bg-muted/30 border-border"
+            }
           >
             <SelectValue placeholder="All reasons" />
           </SelectTrigger>
@@ -235,7 +245,11 @@ export function StockAdjustmentsLedger() {
         <DateRangePicker
           value={dateRange}
           onChange={setDateRange}
-          className="bg-card border-border shadow-xs"
+          className={
+            isMobile
+              ? "bg-card border-border shadow-xs"
+              : "bg-muted/30 border-border"
+          }
         />
       </div>
       {!hasFullHistory && !dateRange.from && (

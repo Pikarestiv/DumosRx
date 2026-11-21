@@ -144,7 +144,7 @@ export function DirectoryTab({
           className={`px-3.5 py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap shrink-0 transition-colors ${
             filter === c.key
               ? "bg-primary text-primary-foreground shadow-xs"
-              : "bg-card border border-border text-muted-foreground shadow-xs hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+              : "bg-card border border-border text-muted-foreground shadow-xs hover:bg-primary/10 hover:text-primary hover:border-primary/30 lg:bg-transparent lg:shadow-none"
           }`}
         >
           {c.label}

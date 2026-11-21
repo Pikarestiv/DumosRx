@@ -23,6 +23,7 @@ interface ActivityLogFiltersProps {
   userFilter: string;
   onUserFilterChange: (value: string) => void;
   users: { user_id: string; user_name: string | null }[];
+  isMobile?: boolean;
 }
 
 export function ActivityLogFilters({
@@ -39,24 +40,36 @@ export function ActivityLogFilters({
   userFilter,
   onUserFilterChange,
   users,
+  isMobile,
 }: ActivityLogFiltersProps) {
   return (
-    <div className="p-4 border-b border-border space-y-3 shrink-0">
+    <div
+      className={
+        isMobile
+          ? "space-y-3 shrink-0"
+          : "p-4 border-b border-border space-y-3 shrink-0"
+      }
+    >
       <SearchInput
         value={search}
         onChange={onSearchChange}
         placeholder="Search by action, table, or staff member"
         aria-label="Search activity log"
-        inputClassName="bg-muted border-transparent"
+        inputClassName="bg-card border-border shadow-xs lg:bg-muted lg:border-transparent lg:shadow-none"
       />
 
       <div className="flex flex-wrap gap-2">
-        <DateRangePicker value={dateRange} onChange={onDateRangeChange} />
+        <DateRangePicker
+          value={dateRange}
+          onChange={onDateRangeChange}
+          className="bg-card border-border shadow-xs lg:bg-transparent lg:border-border lg:shadow-none"
+        />
 
         <FilterPill
           label="Action"
           value={actionFilter}
           onValueChange={onActionFilterChange}
+          className="bg-card border-border shadow-xs lg:bg-transparent lg:border-border lg:shadow-none"
           options={[
             { value: "all", label: "All Actions" },
             ...actions.map((a) => ({
@@ -71,6 +84,7 @@ export function ActivityLogFilters({
             label="Role"
             value={roleFilter}
             onValueChange={onRoleFilterChange}
+            className="bg-card border-border shadow-xs lg:bg-transparent lg:border-border lg:shadow-none"
             options={[
               { value: "all", label: "All Roles" },
               ...STAFF_ROLES.map((r) => ({
@@ -86,6 +100,7 @@ export function ActivityLogFilters({
             label="Staff"
             value={userFilter}
             onValueChange={onUserFilterChange}
+            className="bg-card border-border shadow-xs lg:bg-transparent lg:border-border lg:shadow-none"
             options={[
               { value: "all", label: "Everyone" },
               ...users.map((u) => ({

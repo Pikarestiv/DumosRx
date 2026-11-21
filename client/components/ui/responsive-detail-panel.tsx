@@ -50,11 +50,21 @@ export function ResponsiveDetailPanel({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className={cn("max-h-[85vh] flex flex-col", className)}>
+      <DrawerContent
+        className={cn(
+          "max-h-[88dvh] flex flex-col overflow-hidden bg-card border-border p-0",
+          className,
+        )}
+        style={{
+          paddingBottom: 0,
+        }}
+      >
         <VisuallyHidden asChild>
           <DrawerTitle>{title ?? "Details"}</DrawerTitle>
         </VisuallyHidden>
-        {children}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {children}
+        </div>
       </DrawerContent>
     </Drawer>
   );

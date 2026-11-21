@@ -1,6 +1,7 @@
 "use client";
 
-import { Search, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { SearchInput } from "@/components/ui/search-input";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
@@ -31,16 +32,13 @@ export function StockMovementsMobileFilters({
 }: StockMovementsFiltersProps) {
   return (
     <div className="space-y-3 mb-4">
-      <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5">
-        <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-        <input
-          type="text"
-          placeholder="Search by product, reference, or user"
-          className="border-0 outline-none text-[13px] w-full bg-transparent"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+      <SearchInput
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by product, reference, or user"
+        aria-label="Search stock movements"
+        inputClassName="bg-card border-border shadow-xs"
+      />
       <div className="flex items-center gap-2">
         <StockMovementTypeFilter
           typeFilter={typeFilter}
@@ -78,14 +76,12 @@ export function StockMovementsDesktopFilters({
 }: StockMovementsFiltersProps) {
   return (
     <div className="p-4 pb-3 border-b border-border">
-      <div className="flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5 mb-3">
-        <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-        <input
-          type="text"
-          placeholder="Search by product, reference, or user"
-          className="border-0 outline-none text-[13px] w-full bg-transparent"
+      <div className="mb-3">
+        <SearchInput
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={setSearchTerm}
+          placeholder="Search by product, reference, or user"
+          aria-label="Search stock movements"
         />
       </div>
       <div className="flex items-center justify-between gap-2">

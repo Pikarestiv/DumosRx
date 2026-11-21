@@ -34,7 +34,7 @@ const SEARCH_FETCH_CAP = 2000;
 export function ActivityLogPage() {
   const { user } = useAuth();
   const canViewAll = useHasPermission("view_activity_log");
-  const isDesktop = useMediaQuery("(min-width: 640px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -119,6 +119,54 @@ export function ActivityLogPage() {
   const total = isSearching ? fuzzyResults.length : pagedData?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
+  const filtersNode = (isMobile?: boolean) => (
+    <ActivityLogFilters
+      search={search}
+      onSearchChange={(v) => {
+        setSearch(v);
+        setPage(1);
+      }}
+      dateRange={dateRange}
+      onDateRangeChange={(v) => {
+        setDateRange(v);
+        setPage(1);
+      }}
+      actionFilter={actionFilter}
+      onActionFilterChange={(v) => {
+        setActionFilter(v);
+        setPage(1);
+      }}
+      actions={actions}
+      canViewAll={canViewAll}
+      roleFilter={roleFilter}
+      onRoleFilterChange={(v) => {
+        setRoleFilter(v);
+        setPage(1);
+      }}
+      userFilter={userFilter}
+      onUserFilterChange={(v) => {
+        setUserFilter(v);
+        setPage(1);
+      }}
+      users={users}
+      isMobile={isMobile}
+    />
+  );
+
+  const paginationNode = (
+    <TablePagination
+      page={page}
+      totalPages={totalPages}
+      totalItems={total}
+      pageSize={pageSize}
+      onPageChange={setPage}
+      onPageSizeChange={(size) => {
+        setPageSize(size);
+        setPage(1);
+      }}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-4 h-full">
       <div className="flex items-center gap-3">
@@ -134,40 +182,9 @@ export function ActivityLogPage() {
         </div>
       </div>
 
-      <Card className="no-hover-scale border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 py-0">
-        <ActivityLogFilters
-          search={search}
-          onSearchChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          dateRange={dateRange}
-          onDateRangeChange={(v) => {
-            setDateRange(v);
-            setPage(1);
-          }}
-          actionFilter={actionFilter}
-          onActionFilterChange={(v) => {
-            setActionFilter(v);
-            setPage(1);
-          }}
-          actions={actions}
-          canViewAll={canViewAll}
-          roleFilter={roleFilter}
-          onRoleFilterChange={(v) => {
-            setRoleFilter(v);
-            setPage(1);
-          }}
-          userFilter={userFilter}
-          onUserFilterChange={(v) => {
-            setUserFilter(v);
-            setPage(1);
-          }}
-          users={users}
-        />
-
-        {/* Desktop: div-based table (ARIA roles stand in for real <table> semantics), horizontally scrollable if content ever deman… — docs/CLIENT_COMMENTS.md#block-components-activity-log-activity-log-page-tsx-L171 */}
-        {isDesktop && (
+      {isDesktop ? (
+        <Card className="no-hover-scale border rounded-2xl overflow-hidden flex-1 min-h-0 flex flex-col gap-0 py-0">
+          {filtersNode(false)}
           <ActivityLogDesktopTable
             rows={rows}
             isLoading={isLoading}
@@ -179,10 +196,11 @@ export function ActivityLogPage() {
               setRelatedEntries(related.filter((r) => r.id !== row.id));
             }}
           />
-        )}
-
-        {/* Mobile: rows become stacked, tappable cards instead of a cramped table, matching the pattern used by the product catalog… — docs/CLIENT_COMMENTS.md#block-components-activity-log-activity-log-page-tsx-L188 */}
-        {!isDesktop && (
+          {paginationNode}
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-3 flex-1 min-h-0">
+          {filtersNode(true)}
           <ActivityLogMobileList
             rows={rows}
             isLoading={isLoading}
@@ -191,20 +209,9 @@ export function ActivityLogPage() {
               setRelatedEntries(related.filter((r) => r.id !== row.id));
             }}
           />
-        )}
-
-        <TablePagination
-          page={page}
-          totalPages={totalPages}
-          totalItems={total}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setPage(1);
-          }}
-        />
-      </Card>
+          <div className="pt-2">{paginationNode}</div>
+        </div>
+      )}
 
       <ResponsiveDetailPanel
         open={!!selectedEntry}

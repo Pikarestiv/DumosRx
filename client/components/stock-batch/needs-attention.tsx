@@ -90,7 +90,10 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       iconClass: "bg-destructive/10 text-destructive",
       actionText: "View batch",
       actionClass: "text-destructive bg-destructive/10 hover:bg-destructive/20",
-      onClick: () => router.push(`/inventory/catalog?productId=${batch.product_id}&batchId=${batch.id}&tab=batches`),
+      onClick: () =>
+        router.push(
+          `/inventory/catalog?productId=${batch.product_id}&batchId=${batch.id}&tab=batches`,
+        ),
     });
   });
 
@@ -146,7 +149,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
   );
 
   return (
-    <div className="flex flex-col lg:h-full">
+    <div className="flex flex-col lg:h-full lg:min-h-0">
       {/* Mobile: header sits above the card */}
       <div className="lg:hidden mb-3">{header}</div>
 

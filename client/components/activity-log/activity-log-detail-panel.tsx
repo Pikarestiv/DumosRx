@@ -87,8 +87,8 @@ export function ActivityLogDetailPanel({
     : [];
 
   return (
-    <div className="flex flex-col h-full bg-card">
-      <div className="flex items-center gap-3 p-5 border-b border-border">
+    <div className="flex flex-col flex-1 min-h-0 bg-card overflow-hidden">
+      <div className="flex items-center gap-3 p-5 border-b border-border shrink-0">
         <div className="min-w-0 flex-1">
           <h3 className="text-[17px] font-bold text-foreground truncate">
             {describeActivity(entry)}
@@ -102,13 +102,14 @@ export function ActivityLogDetailPanel({
         </div>
         <button
           onClick={onClose}
+          aria-label="Close activity details"
           className="w-8 h-8 shrink-0 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted/80 transition-colors"
         >
           <X className="w-4 h-4 text-muted-foreground" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+      <div className="flex-1 overflow-y-auto p-5 space-y-5 pb-[calc(2.5rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] sm:pb-5">
         <div>
           <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2">
             Performed By

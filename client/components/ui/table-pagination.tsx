@@ -42,7 +42,7 @@ export function TablePagination({
           value={String(pageSize)}
           onValueChange={(v) => onPageSizeChange(Number(v))}
         >
-          <SelectTrigger className="w-[72px] h-8 text-[12px]">
+          <SelectTrigger className="w-[72px] h-8 text-[12px] bg-card border-border shadow-xs lg:bg-transparent lg:border-input lg:shadow-none">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -68,6 +68,7 @@ export function TablePagination({
           <Button
             variant="outline"
             size="sm"
+            className="bg-card border-border shadow-xs lg:bg-background lg:border-input lg:shadow-none"
             disabled={page <= 1}
             onClick={() => onPageChange(Math.max(1, page - 1))}
           >
@@ -76,6 +77,7 @@ export function TablePagination({
           <Button
             variant="outline"
             size="sm"
+            className="bg-card border-border shadow-xs lg:bg-background lg:border-input lg:shadow-none"
             disabled={page >= totalPages}
             onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           >

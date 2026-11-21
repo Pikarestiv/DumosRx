@@ -13,6 +13,7 @@ const TABLE_LAYOUT_COMPONENTS = [
   "components/expenses/expense-list.tsx",
   "components/customers/activity-tab.tsx",
   "components/procurement/purchase-order-table.tsx",
+  "components/activity-log/activity-log-page.tsx",
 ];
 
 function read(relativePath: string): string {

@@ -181,6 +181,7 @@ export function CatalogList({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 72,
     overscan: 8,
+    paddingEnd: 32,
   });
   useArrowKeyScroll(scrollRef);
 
@@ -244,7 +245,7 @@ export function CatalogList({
       {/* Rows */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto stable-scrollbar pb-3 sm:py-0 mb-4"
+        className="flex-1 overflow-y-auto stable-scrollbar pb-8 sm:pb-0 mb-2 sm:mb-4"
       >
         {isLoading && filteredProducts.length === 0 && <CatalogListSkeleton />}
         {!isLoading && loadFailed && (

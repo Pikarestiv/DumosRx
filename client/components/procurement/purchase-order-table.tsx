@@ -119,7 +119,7 @@ export function PurchaseOrderTable({
             </div>
           )}
           {layoutResolved && !isDesktopList && (
-            <div className="flex flex-col gap-2 px-0 py-3">
+            <div className="flex flex-col gap-2 px-0 pt-3 pb-8 lg:py-3">
               {loading && (
                 <div className="h-32 flex flex-col items-center justify-center text-muted-foreground">
                   <Clock className="w-6 h-6 animate-spin mb-2 opacity-50" />

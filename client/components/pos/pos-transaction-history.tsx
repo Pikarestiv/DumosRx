@@ -220,7 +220,7 @@ export function POSTransactionHistory({
   const groupedSales = useMemo(() => groupSalesByRecency(filteredSales), [filteredSales]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-24 lg:pb-6">
       <TransactionMetrics metrics={todayMetrics} currencyCode={currencyCode} />
 
       {canReturn && saleTypeFilter === "Reseller" && (

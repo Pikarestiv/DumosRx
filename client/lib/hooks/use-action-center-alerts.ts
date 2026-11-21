@@ -250,7 +250,7 @@ export function useActionCenterAlerts(
           icon: Clock,
           priority: "warning",
           actionLabel: "Update Now",
-          actionRoute: "/inventory/overview", // Or a specific filtered view
+          actionRoute: "/inventory/catalog?status=missing_expiry",
         });
       }
 

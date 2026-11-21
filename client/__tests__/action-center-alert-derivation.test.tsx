@@ -317,6 +317,7 @@ describe("useActionCenterAlerts", () => {
     expect(byId["expiring-soon"].title).toBe("1 Item Expiring");
     expect(byId["low-stock"].title).toBe("2 Items Low Stock");
     expect(byId["missing-expiry"].title).toBe("1 Batch Missing Expiry");
+    expect(byId["missing-expiry"].actionRoute).toBe("/inventory/catalog?status=missing_expiry");
     expect(byId["oversold"].title).toBe("3 Items Oversold");
     expect(byId["oversold"].priority).toBe("critical");
     expect(byId["low-stock"].priority).toBe("warning");

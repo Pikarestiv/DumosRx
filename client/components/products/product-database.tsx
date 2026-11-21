@@ -142,6 +142,7 @@ export function ProductDatabase() {
 
   const statuses = CATALOG_STATUS_FILTERS;
   const duplicateIds = useMemo(() => findDuplicateProductIds(products), [products]);
+  const missingExpiryCount = useMemo(() => products.filter((p) => (p.missingExpiryBatches ?? 0) > 0).length, [products]);
 
   const { handleAddProduct, isSaving } = useAddProduct({
     refetch: () => void refetch(),
@@ -240,7 +241,7 @@ export function ProductDatabase() {
               onValueChange={setStatusFilter}
               options={statuses.map((s) => ({
                 value: s,
-                label: catalogStatusLabel(s, { owed: owedByProduct.size, duplicates: duplicateIds.size }),
+                label: catalogStatusLabel(s, { owed: owedByProduct.size, duplicates: duplicateIds.size, missingExpiry: missingExpiryCount }),
               }))}
               className="bg-card"
             />
@@ -261,6 +262,7 @@ export function ProductDatabase() {
             statuses={statuses}
             owedCount={owedByProduct.size}
             duplicateCount={duplicateIds.size}
+            missingExpiryCount={missingExpiryCount}
             onManageCategories={() => router.push("/settings/categories")}
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}

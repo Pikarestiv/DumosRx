@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchesCatalogStatus } from "@/components/products/catalog-status";
+import { catalogStatusLabel, matchesCatalogStatus } from "@/components/products/catalog-status";
 import type { Product } from "@/components/products/types";
 
 const product = (fields: Partial<Product>): Product =>
@@ -33,5 +33,15 @@ describe("matchesCatalogStatus", () => {
   it("includes expired products with a past expiry date", () => {
     expect(matchesCatalogStatus(product({ expiryDate: "2020-01-01" }), "expired", context())).toBe(true);
     expect(matchesCatalogStatus(product({ expiryDate: "2999-01-01" }), "expired", context())).toBe(false);
+  });
+
+  it("includes missing expiry only for a product with at least one stocked batch that has no expiry date", () => {
+    expect(matchesCatalogStatus(product({ missingExpiryBatches: 2 }), "missing_expiry", context())).toBe(true);
+    expect(matchesCatalogStatus(product({ missingExpiryBatches: 0 }), "missing_expiry", context())).toBe(false);
+    expect(matchesCatalogStatus(product({}), "missing_expiry", context())).toBe(false);
+  });
+
+  it("labels the missing expiry filter with how many products it will show", () => {
+    expect(catalogStatusLabel("missing_expiry", { owed: 0, duplicates: 0, missingExpiry: 7 })).toBe("Missing Expiry (7)");
   });
 });

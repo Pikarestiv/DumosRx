@@ -22,6 +22,7 @@ export async function getProductsWithDetails() {
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
        (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
        (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number,
+       (SELECT COUNT(*) FROM stock_batches WHERE product_id = m.id AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0 AND (expiry_date IS NULL OR expiry_date = '')) as missing_expiry_batches,
        (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at,
        ${lastBoughtPriceSql("m.id")} as last_bought_price
      FROM products m

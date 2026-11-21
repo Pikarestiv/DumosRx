@@ -8,65 +8,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { describeActivity } from "./describe-activity";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
+import { groupByCorrelation } from "./activity-log-grouping";
+
+export { ActivityLogMobileList, ActivityLogMobileCard } from "./activity-log-mobile-list";
 
 const GRID_COLS = "grid-cols-[minmax(240px,1fr)_180px_190px]";
-
-// Collapses consecutive rows sharing a correlation_id (e.g.
-// Rationale: docs/CLIENT_COMMENTS.md#block-components-activity-log-activity-log-rows-tsx-L14
-interface GroupedActivityRow {
-  primary: AuditLogRow;
-  group: AuditLogRow[];
-}
-
-const COLLAPSIBLE_AUTH_ACTIONS = new Set(["LOGIN", "LOGOUT", "LOGIN_FAILED", "PIN_CHANGED"]);
-
-function groupByCorrelation(rows: AuditLogRow[]): GroupedActivityRow[] {
-  const result: GroupedActivityRow[] = [];
-  let i = 0;
-  while (i < rows.length) {
-    const current = rows[i];
-    const correlationId = current.correlation_id;
-    if (correlationId) {
-      let j = i;
-      const group: AuditLogRow[] = [];
-      while (j < rows.length && rows[j].correlation_id === correlationId) {
-        group.push(rows[j]);
-        j++;
-      }
-      const primary = group.find((r) => r.table_name === "sales") || group[0];
-      result.push({ primary, group });
-      i = j;
-      continue;
-    }
-
-    const actionKey = (current.action || "").toUpperCase();
-    if (COLLAPSIBLE_AUTH_ACTIONS.has(actionKey)) {
-      let j = i;
-      const group: AuditLogRow[] = [];
-      while (
-        j < rows.length &&
-        !rows[j].correlation_id &&
-        (rows[j].action || "").toUpperCase() === actionKey &&
-        (rows[j].user_id === current.user_id || rows[j].user_name === current.user_name)
-      ) {
-        group.push(rows[j]);
-        j++;
-      }
-      const totalOccurrences = group.reduce((sum, r) => sum + (r.occurrence_count || 1), 0);
-      const primary: AuditLogRow = {
-        ...current,
-        occurrence_count: totalOccurrences > 1 ? totalOccurrences : current.occurrence_count,
-      };
-      result.push({ primary, group });
-      i = j;
-      continue;
-    }
-
-    result.push({ primary: current, group: [current] });
-    i++;
-  }
-  return result;
-}
 
 function ActivityLogEmptyRow({ message }: { message: string }) {
   return (
@@ -84,8 +30,6 @@ interface ActivityLogRowsProps {
   sortKey: ActivityLogSortKey;
   sortDirection: "asc" | "desc";
   onToggleSort: (key: ActivityLogSortKey) => void;
-  /** `related` is every row in the same correlation group (including
-   * `row` itself) - empty/single-item when the row has no correlation_id. */
   onSelect: (row: AuditLogRow, related: AuditLogRow[]) => void;
 }
 
@@ -193,72 +137,6 @@ export function ActivityLogDesktopTable({
             </div>
           ))}
       </div>
-    </div>
-  );
-}
-
-export function ActivityLogMobileList({
-  rows,
-  isLoading,
-  onSelect,
-}: Pick<ActivityLogRowsProps, "rows" | "isLoading" | "onSelect">) {
-  const groupedRows = useMemo(() => groupByCorrelation(rows), [rows]);
-  return (
-    <div className="flex-1 overflow-y-auto divide-y divide-border">
-      {isLoading && (
-        <div className="h-24 flex items-center justify-center text-muted-foreground">
-          Loading...
-        </div>
-      )}
-      {!isLoading && rows.length === 0 && (
-        <EmptyState icon={History} title="No activity found for this filter" className="py-8" />
-      )}
-      {!isLoading &&
-        groupedRows.map(({ primary: row, group }) => (
-          <div
-            key={row.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelect(row, group)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelect(row, group);
-              }
-            }}
-            className="p-4 space-y-1 active:bg-accent/30 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-          >
-            <div className="font-semibold text-foreground text-[13px] flex items-center gap-1.5">
-              {describeActivity(row)}
-              {group.length > 1 && (
-                <span className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
-                  +{group.length - 1} more
-                </span>
-              )}
-              {!!row.occurrence_count && row.occurrence_count > 1 && (
-                <span
-                  className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5"
-                  title={`Repeated ${row.occurrence_count} times`}
-                >
-                  ×{row.occurrence_count}
-                </span>
-              )}
-            </div>
-            {row.table_name && (
-              <div className="text-[11px] text-muted-foreground/70">
-                {row.table_name}
-              </div>
-            )}
-            <div className="flex items-center justify-between text-[12.5px] text-muted-foreground">
-              <span>{row.user_name?.trim() || "System"}</span>
-              <span>
-                {row.created_at
-                  ? format(new Date(row.created_at), "d MMM yyyy, h:mm a")
-                  : "N/A"}
-              </span>
-            </div>
-          </div>
-        ))}
     </div>
   );
 }

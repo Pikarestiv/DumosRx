@@ -23,6 +23,7 @@ interface ActivityLogFiltersProps {
   userFilter: string;
   onUserFilterChange: (value: string) => void;
   users: { user_id: string; user_name: string | null }[];
+  isMobile?: boolean;
 }
 
 export function ActivityLogFilters({
@@ -39,9 +40,16 @@ export function ActivityLogFilters({
   userFilter,
   onUserFilterChange,
   users,
+  isMobile,
 }: ActivityLogFiltersProps) {
   return (
-    <div className="p-4 border-b border-border space-y-3 shrink-0">
+    <div
+      className={
+        isMobile
+          ? "space-y-3 shrink-0"
+          : "p-4 border-b border-border space-y-3 shrink-0"
+      }
+    >
       <SearchInput
         value={search}
         onChange={onSearchChange}

@@ -9,10 +9,13 @@ interface AuditCloudBannerProps {
   session: CloudAuditSession | null;
   isReadOnly: boolean;
   conflictMessage: string | null;
+  draftResolution?: "pending_sync" | "abandoned" | null;
   isTakeoverOpen: boolean;
   onTakeoverOpenChange: (open: boolean) => void;
   onTakeoverConfirm: () => void;
   isTakingOver: boolean;
+  onDiscardAbandonedDraft?: () => void;
+  onRestartAbandonedDraft?: () => void;
 }
 
 export function AuditCloudPill({
@@ -62,23 +65,50 @@ export function AuditCloudInspectionBanner({
   session,
   isReadOnly,
   conflictMessage,
+  draftResolution,
   isTakeoverOpen,
   onTakeoverOpenChange,
   onTakeoverConfirm,
   isTakingOver,
+  onDiscardAbandonedDraft,
+  onRestartAbandonedDraft,
 }: AuditCloudBannerProps) {
   if (!session && !conflictMessage) return null;
 
   return (
     <div className="w-full mb-4 space-y-3">
       {conflictMessage && (
-        <div className="flex items-center gap-2.5 p-3.5 bg-rose-500/10 border border-rose-200 dark:border-rose-900 rounded-2xl text-[13px] text-rose-700 dark:text-rose-400">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{conflictMessage}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-rose-500/10 border border-rose-200 dark:border-rose-900 rounded-2xl text-[13px] text-rose-700 dark:text-rose-400">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{conflictMessage}</span>
+          </div>
+          {draftResolution === "abandoned" && (
+            <div className="flex items-center gap-2 shrink-0">
+              {onDiscardAbandonedDraft && (
+                <button
+                  type="button"
+                  onClick={onDiscardAbandonedDraft}
+                  className="px-3 py-1.5 rounded-xl border border-rose-300 dark:border-rose-800 text-[12px] font-medium hover:bg-rose-500/10 transition-colors"
+                >
+                  Discard Local Draft
+                </button>
+              )}
+              {onRestartAbandonedDraft && (
+                <button
+                  type="button"
+                  onClick={onRestartAbandonedDraft}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[12px] font-medium transition-colors"
+                >
+                  Start New Session
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {isReadOnly && session && (
+      {isReadOnly && session && session.status === "in_progress" && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-amber-500/10 border border-amber-200 dark:border-amber-900 rounded-2xl text-[13px] text-amber-800 dark:text-amber-300">
           <div className="flex items-start sm:items-center gap-2.5">
             <Lock className="w-4 h-4 shrink-0 mt-0.5 sm:mt-0 text-amber-600 dark:text-amber-400" />

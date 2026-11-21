@@ -584,6 +584,10 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
     table: "_sync_state",
     columns: ["server_cursor TEXT", "rewind_count INTEGER DEFAULT 0", "rewound_from TEXT"],
   },
+  {
+    table: "stock_audit_drafts",
+    columns: ["cloud_session_id TEXT"],
+  },
 ];
 
 async function runSyncColumnMigrations(

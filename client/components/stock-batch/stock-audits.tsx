@@ -249,10 +249,13 @@ export function StockAudits({ onClose }: { onClose: () => void }) {
                 session={cloud.session}
                 isReadOnly={cloud.isReadOnly}
                 conflictMessage={cloud.conflictMessage}
+                draftResolution={cloud.draftResolution}
                 isTakeoverOpen={cloud.isTakeoverOpen}
                 onTakeoverOpenChange={cloud.setIsTakeoverOpen}
                 onTakeoverConfirm={() => void cloud.takeover()}
                 isTakingOver={cloud.isTakingOver}
+                onDiscardAbandonedDraft={cloud.discardAbandonedDraft}
+                onRestartAbandonedDraft={() => void cloud.restartAbandonedAsNewSession()}
               />
               <AuditLedgerStep
                 items={ledger.visibleItems}

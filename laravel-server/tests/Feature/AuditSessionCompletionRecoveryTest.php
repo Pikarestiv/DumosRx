@@ -186,4 +186,33 @@ class AuditSessionCompletionRecoveryTest extends TestCase
 
         $this->api('TILL-02')->postJson('/api/v1/app/audit-sessions', ['items' => []])->assertStatus(409);
     }
+
+    public function test_active_endpoint_reports_known_session_status_for_completed_and_abandoned_sessions(): void
+    {
+        $completedId = $this->startCountedSession();
+        $this->complete($completedId, null)->assertOk();
+
+        $this->api('TILL-02')
+            ->getJson("/api/v1/app/audit-sessions/active?known_session_id={$completedId}")
+            ->assertOk()
+            ->assertJsonPath('session', null)
+            ->assertJsonPath('known_session_status', AuditSession::STATUS_COMPLETED);
+
+        $abandonedId = $this->startCountedSession();
+        $this->api('TILL-01')
+            ->postJson("/api/v1/app/audit-sessions/{$abandonedId}/abandon", ['reason' => 'Reset'])
+            ->assertOk();
+
+        $this->api('TILL-02')
+            ->getJson("/api/v1/app/audit-sessions/active?known_session_id={$abandonedId}")
+            ->assertOk()
+            ->assertJsonPath('session', null)
+            ->assertJsonPath('known_session_status', AuditSession::STATUS_ABANDONED);
+
+        $otherStoreId = (string) Str::uuid();
+        $this->api('TILL-02')
+            ->getJson("/api/v1/app/audit-sessions/active?known_session_id={$otherStoreId}")
+            ->assertOk()
+            ->assertJsonPath('known_session_status', null);
+    }
 }

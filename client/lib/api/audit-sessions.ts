@@ -136,11 +136,24 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return response.json() as Promise<T>;
 }
 
+export interface ActiveAuditSessionResponse {
+  success: boolean;
+  session: CloudAuditSession | null;
+  known_session_status?: CloudAuditSession["status"] | null;
+}
+
 export async function fetchActiveAuditSession(
-  includeItems = true
-): Promise<{ success: boolean; session: CloudAuditSession | null }> {
-  return request<{ success: boolean; session: CloudAuditSession | null }>(
-    `/app/audit-sessions/active?include_items=${includeItems ? 1 : 0}`
+  includeItems = true,
+  knownSessionId?: string | null
+): Promise<ActiveAuditSessionResponse> {
+  const params = new URLSearchParams({
+    include_items: includeItems ? "1" : "0",
+  });
+  if (knownSessionId) {
+    params.set("known_session_id", knownSessionId);
+  }
+  return request<ActiveAuditSessionResponse>(
+    `/app/audit-sessions/active?${params.toString()}`
   );
 }
 

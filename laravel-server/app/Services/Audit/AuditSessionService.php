@@ -144,6 +144,13 @@ class AuditSessionService
         return $session;
     }
 
+    public function getSessionStatus(string $storeId, string $sessionId): ?string
+    {
+        return AuditSession::where('store_id', $storeId)
+            ->where('id', $sessionId)
+            ->value('status');
+    }
+
     private function settlePendingSessions(string $storeId): void
     {
         $pending = AuditSession::where('store_id', $storeId)

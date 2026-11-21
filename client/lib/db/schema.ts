@@ -552,6 +552,7 @@ CREATE TABLE IF NOT EXISTS stock_audits (
 CREATE TABLE IF NOT EXISTS stock_audit_drafts (
   store_id TEXT PRIMARY KEY,
   user_id TEXT,
+  cloud_session_id TEXT,
   items_json TEXT NOT NULL,
   updated_at TEXT
 );

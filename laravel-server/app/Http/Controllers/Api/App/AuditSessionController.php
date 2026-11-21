@@ -62,9 +62,15 @@ class AuditSessionController extends Controller
         $includeItems = $request->boolean('include_items', true);
         $session = $this->auditSessions->getActiveSession($storeId, $includeItems);
 
+        $knownSessionId = $request->query('known_session_id');
+        $knownSessionStatus = is_string($knownSessionId) && $knownSessionId !== ''
+            ? $this->auditSessions->getSessionStatus($storeId, $knownSessionId)
+            : null;
+
         return response()->json([
             'success' => true,
             'session' => $session,
+            'known_session_status' => $knownSessionStatus,
         ]);
     }
 

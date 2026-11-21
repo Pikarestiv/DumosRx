@@ -16,6 +16,7 @@ import {
   hasAnyLocalStockAuditCount,
   saveLocalStockAuditDraft,
 } from "@/lib/db/queries/stock-audit-drafts";
+import { getLocalStockAuditDraftSessionId } from "@/lib/db/queries/stock-audit-draft-session";
 import { hasCountedAuditRow } from "@/components/stock-batch/audit-derivations";
 import {
   adoptUnscopedStockAuditDraft,
@@ -27,27 +28,30 @@ export { migrateStockAuditDraft } from "./stock-audit-draft-legacy";
 
 interface StockAuditDraftState {
   drafts: Record<string, AuditItem[]>;
+  cloudSessionIds: Record<string, string | null>;
   items: AuditItem[];
+  cloudSessionId: string | null;
   activeStoreId: string | null;
   loadedStoreId: string | null;
   setActiveStoreId: (storeId: string | null) => void;
   loadStoreDraft: (storeId: string) => Promise<void>;
   setItems: (updater: AuditItem[] | ((prev: AuditItem[]) => AuditItem[])) => void;
+  setCloudSessionId: (sessionId: string | null, targetStoreId?: string) => void;
   clearDraft: (targetStoreId?: string) => void;
   clearAllDrafts: () => void;
   hasActiveCount: (storeId?: string | null) => boolean;
 }
 
 const SAVE_DEBOUNCE_MS = 400;
-const pendingSaves = new Map<string, { timer: ReturnType<typeof setTimeout>; items: AuditItem[] }>();
+const pendingSaves = new Map<string, { timer: ReturnType<typeof setTimeout>; items: AuditItem[]; cloudSessionId: string | null }>();
 
-function scheduleSave(storeId: string, items: AuditItem[]) {
+function scheduleSave(storeId: string, items: AuditItem[], cloudSessionId: string | null = null) {
   cancelSave(storeId);
   const timer = setTimeout(() => {
     pendingSaves.delete(storeId);
-    void saveLocalStockAuditDraft(storeId, items);
+    void saveLocalStockAuditDraft(storeId, items, undefined, cloudSessionId);
   }, SAVE_DEBOUNCE_MS);
-  pendingSaves.set(storeId, { timer, items });
+  pendingSaves.set(storeId, { timer, items, cloudSessionId });
 }
 
 function cancelSave(storeId: string) {
@@ -62,10 +66,10 @@ function cancelAllSaves() {
 }
 
 export async function flushStockAuditDraftSaves(): Promise<void> {
-  const writes = [...pendingSaves].map(([storeId, { timer, items }]) => {
+  const writes = [...pendingSaves].map(([storeId, { timer, items, cloudSessionId }]) => {
     clearTimeout(timer);
     pendingSaves.delete(storeId);
-    return saveLocalStockAuditDraft(storeId, items);
+    return saveLocalStockAuditDraft(storeId, items, undefined, cloudSessionId);
   });
   await Promise.all(writes);
 }
@@ -84,7 +88,9 @@ function storeKeyFor(state: StockAuditDraftState, storeId?: string | null): stri
 
 export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get) => ({
   drafts: {},
+  cloudSessionIds: {},
   items: [],
+  cloudSessionId: null,
   activeStoreId: null,
   loadedStoreId: null,
 
@@ -98,15 +104,20 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
     const outgoing = state.activeStoreId;
     const unscopedItems = outgoing === null ? state.items : [];
     const drafts = outgoing ? { ...state.drafts, [outgoing]: state.items } : { ...state.drafts };
+    const cloudSessionIds = outgoing
+      ? { ...state.cloudSessionIds, [outgoing]: state.cloudSessionId }
+      : { ...state.cloudSessionIds };
     if (newStoreId && hasCountedAuditRow(unscopedItems) && !hasCountedAuditRow(drafts[newStoreId] ?? [])) {
       drafts[newStoreId] = unscopedItems;
-      scheduleSave(newStoreId, unscopedItems);
+      scheduleSave(newStoreId, unscopedItems, cloudSessionIds[newStoreId] ?? null);
     }
 
     set({
       activeStoreId: newStoreId,
       drafts,
+      cloudSessionIds,
       items: newStoreId ? (drafts[newStoreId] ?? []) : [],
+      cloudSessionId: newStoreId ? (cloudSessionIds[newStoreId] ?? null) : null,
       loadedStoreId: null,
     });
     if (outgoing) void flushStockAuditDraftSaves();
@@ -119,15 +130,19 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
     await importLegacyStockAuditDrafts(storeId);
     const stored =
       (await getLocalStockAuditDraft(storeId)) ?? (await adoptUnscopedStockAuditDraft(storeId));
+    const storedSessionId = await getLocalStockAuditDraftSessionId(storeId);
 
     set((state) => {
       const inMemory = state.drafts[storeId] ?? [];
       const restored = hasCountedAuditRow(inMemory) || !stored?.length ? inMemory : stored;
+      const restoredSessionId =
+        state.cloudSessionIds[storeId] ?? storedSessionId;
       if (restored === stored) cancelSave(storeId);
       const isActive = state.activeStoreId === storeId;
       return {
         drafts: { ...state.drafts, [storeId]: restored },
-        ...(isActive ? { items: restored, loadedStoreId: storeId } : {}),
+        cloudSessionIds: { ...state.cloudSessionIds, [storeId]: restoredSessionId },
+        ...(isActive ? { items: restored, cloudSessionId: restoredSessionId, loadedStoreId: storeId } : {}),
       };
     });
   },
@@ -137,8 +152,26 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
       const nextItems = typeof updater === "function" ? updater(state.items) : updater;
       const storeKey = storeKeyFor(state);
       if (!storeKey) return { items: nextItems };
-      scheduleSave(storeKey, nextItems);
+      const sessionId = state.cloudSessionIds[storeKey] ?? state.cloudSessionId ?? null;
+      scheduleSave(storeKey, nextItems, sessionId);
       return { items: nextItems, drafts: { ...state.drafts, [storeKey]: nextItems } };
+    });
+  },
+
+  setCloudSessionId: (sessionId, targetStoreId) => {
+    set((state) => {
+      const storeKey = storeKeyFor(state, targetStoreId);
+      if (!storeKey) return { cloudSessionId: sessionId };
+      const currentItems =
+        storeKey === state.activeStoreId ? state.items : (state.drafts[storeKey] ?? []);
+      if (currentItems.length > 0) {
+        scheduleSave(storeKey, currentItems, sessionId);
+      }
+      const updatesActive = !targetStoreId || state.activeStoreId === storeKey;
+      return {
+        cloudSessionIds: { ...state.cloudSessionIds, [storeKey]: sessionId },
+        ...(updatesActive ? { cloudSessionId: sessionId } : {}),
+      };
     });
   },
 
@@ -150,9 +183,18 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
     }
     set((state) => {
       const nextDrafts = { ...state.drafts };
-      if (storeKey) delete nextDrafts[storeKey];
+      const nextSessionIds = { ...state.cloudSessionIds };
+      if (storeKey) {
+        delete nextDrafts[storeKey];
+        delete nextSessionIds[storeKey];
+      }
       const clearsActive = !targetStoreId || state.activeStoreId === storeKey;
-      return { drafts: nextDrafts, items: clearsActive ? [] : state.items };
+      return {
+        drafts: nextDrafts,
+        cloudSessionIds: nextSessionIds,
+        items: clearsActive ? [] : state.items,
+        cloudSessionId: clearsActive ? null : state.cloudSessionId,
+      };
     });
   },
 
@@ -160,7 +202,7 @@ export const useStockAuditDraftStore = create<StockAuditDraftState>()((set, get)
     cancelAllSaves();
     void clearAllLocalStockAuditDrafts();
     discardLegacyStockAuditDraft();
-    set({ drafts: {}, items: [] });
+    set({ drafts: {}, cloudSessionIds: {}, items: [], cloudSessionId: null });
   },
 
   hasActiveCount: (storeId) => {

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   AuditSessionConflictError,
   CloudAuditSession,
-  CloudAuditSessionItem,
   fetchActiveAuditSession,
   heartbeatAuditSession,
   startAuditSession,
@@ -15,91 +14,23 @@ import { getDeviceId } from "@/lib/utils/device-id";
 import { getDeviceLabel } from "@/lib/utils/device-label";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import { useStockAuditDraftStore } from "./use-stock-audit-draft";
-import { isAuditItemCounted } from "@/components/stock-batch/audit-derivations";
+import { hasCountedAuditRow } from "@/components/stock-batch/audit-derivations";
 import {
   flushAuditSessionOps,
-  pendingAuditSessionIds,
   queueAuditSessionOp,
 } from "./cloud-audit-pending-ops";
+import {
+  isResumable,
+  mergeCloudItemsIntoLocal,
+  toCloudItem,
+  unsyncedItems,
+} from "./cloud-audit-session-helpers";
 import { toast } from "sonner";
+
+export { mergeCloudItemsIntoLocal, toCloudItem, unsyncedItems } from "./cloud-audit-session-helpers";
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const SYNC_DEBOUNCE_MS = 1_500;
-
-export function unsyncedItems(sent: ReadonlyMap<string, string>, items: CloudAuditSessionItem[]): CloudAuditSessionItem[] {
-  return items.filter((item) => sent.get(item.product_id) !== JSON.stringify(item));
-}
-
-export function toCloudItem(item: AuditItem): CloudAuditSessionItem {
-  return {
-    product_id: item.id,
-    system_quantity: item.systemQty,
-    baseline_quantity: item.baselineQty ?? null,
-    counted_quantity: item.countedQty ?? null,
-    cost_price: item.costPrice ?? null,
-    counted_cost_price: item.countedCostPrice ?? null,
-    selling_price: item.sellingPrice ?? null,
-    counted_selling_price: item.countedSellingPrice ?? null,
-    counted: Boolean(item.counted),
-    notes: item.reason ?? null,
-    counted_at: item.countedAt ?? null,
-  };
-}
-
-function remoteCountWins(local: AuditItem, remote: CloudAuditSessionItem): boolean {
-  if (!isAuditItemCounted(local)) return true;
-  if (!remote.counted_at) return false;
-  return !local.countedAt || Date.parse(remote.counted_at) > Date.parse(local.countedAt);
-}
-
-function isResumable(session: CloudAuditSession): boolean {
-  return (
-    session.status === "in_progress" &&
-    !session.submitted_stock_audit_id &&
-    !pendingAuditSessionIds().has(session.id)
-  );
-}
-
-export function mergeCloudItemsIntoLocal(
-  localItems: AuditItem[],
-  cloudItems?: CloudAuditSessionItem[]
-): AuditItem[] {
-  if (!cloudItems || cloudItems.length === 0) return localItems;
-  const cloudMap = new Map(cloudItems.map((ci) => [ci.product_id, ci]));
-
-  return localItems.map((local) => {
-    const remote = cloudMap.get(local.id);
-    if (!remote) return local;
-
-    if (
-      remote.counted &&
-      remote.counted_quantity !== null &&
-      remote.counted_quantity !== undefined &&
-      remoteCountWins(local, remote)
-    ) {
-      return {
-        ...local,
-        counted: true,
-        baselineQty:
-          remote.baseline_quantity !== null && remote.baseline_quantity !== undefined
-            ? Number(remote.baseline_quantity)
-            : local.baselineQty,
-        countedQty: Number(remote.counted_quantity),
-        countedAt: remote.counted_at ?? local.countedAt,
-        countedCostPrice:
-          remote.counted_cost_price !== null && remote.counted_cost_price !== undefined
-            ? Number(remote.counted_cost_price)
-            : local.countedCostPrice,
-        countedSellingPrice:
-          remote.counted_selling_price !== null && remote.counted_selling_price !== undefined
-            ? Number(remote.counted_selling_price)
-            : local.countedSellingPrice,
-        reason: remote.notes || local.reason,
-      };
-    }
-    return local;
-  });
-}
 
 export function useCloudAuditSession(storeId: string | null) {
   const currentTillId = getDeviceId();
@@ -112,6 +43,7 @@ export function useCloudAuditSession(storeId: string | null) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isTakeoverOpen, setIsTakeoverOpen] = useState(false);
   const [isTakingOver, setIsTakingOver] = useState(false);
+  const [draftResolution, setDraftResolution] = useState<"pending_sync" | "abandoned" | null>(null);
 
   const sessionRef = useRef<CloudAuditSession | null>(null);
 
@@ -124,6 +56,8 @@ export function useCloudAuditSession(storeId: string | null) {
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const setItems = useStockAuditDraftStore((state) => state.setItems);
+  const setCloudSessionId = useStockAuditDraftStore((state) => state.setCloudSessionId);
+  const clearDraft = useStockAuditDraftStore((state) => state.clearDraft);
 
   const handleConflict = useCallback((conflict: AuditSessionConflictError) => {
     if (conflict.session) {
@@ -144,26 +78,66 @@ export function useCloudAuditSession(storeId: string | null) {
 
     try {
       setIsLoading(true);
+      const knownSessionId = useStockAuditDraftStore.getState().cloudSessionId;
       await flushAuditSessionOps();
-      const res = await fetchActiveAuditSession(true);
-      if (res.session && !isResumable(res.session)) {
+      const res = await fetchActiveAuditSession(true, knownSessionId);
+      if (res.session && res.session.status === "completion_pending_sync") {
+        const affectsThisDraft =
+          res.session.active_till_id !== currentTillId || knownSessionId === res.session.id;
+        if (affectsThisDraft) {
+          setSession(res.session);
+          setIsReadOnly(true);
+          setDraftResolution("pending_sync");
+          setConflictMessage("Another till submitted this audit and is awaiting sync. Editing is locked until sync completes.");
+        } else {
+          setSession(null);
+          setIsReadOnly(false);
+        }
+      } else if (res.session && !isResumable(res.session)) {
         setSession(null);
         setIsReadOnly(false);
       } else if (res.session) {
+        if (knownSessionId && res.session.id !== knownSessionId && res.known_session_status === "completed") {
+          clearDraft();
+          toast.info("Previous cycle count was submitted on another till. Joined the active session.");
+        }
         setSession(res.session);
-        const heldByUs = res.session.active_till_id === currentTillId;
-        setIsReadOnly(!heldByUs);
+        setCloudSessionId(res.session.id);
+        setDraftResolution(null);
+        setIsReadOnly(res.session.active_till_id !== currentTillId);
         setLastSyncedAt(res.session.last_synced_at);
 
         if (res.session.items && res.session.items.length > 0) {
           setItems((prev) => mergeCloudItemsIntoLocal(prev, res.session?.items));
         }
-      } else if (localItems.length > 0 && navigator.onLine) {
-        const cloudItems = localItems.map(toCloudItem);
-        const created = await startAuditSession({ items: cloudItems });
-        setSession(created.session);
+      } else if (res.known_session_status === "completed") {
+        clearDraft();
+        setSession(null);
         setIsReadOnly(false);
-        setLastSyncedAt(created.session.last_synced_at);
+        setDraftResolution(null);
+        toast.info("This cycle count was already submitted on another till.");
+      } else if (res.known_session_status === "abandoned") {
+        if (hasCountedAuditRow(localItems)) {
+          setSession(null);
+          setIsReadOnly(true);
+          setDraftResolution("abandoned");
+          setConflictMessage("This audit session was reset on another till, but you have unsaved local counts.");
+        } else {
+          setCloudSessionId(null);
+          setSession(null);
+          setIsReadOnly(false);
+          setDraftResolution(null);
+        }
+      } else if (knownSessionId) {
+        setSession(null);
+      } else if (localItems.length > 0 && navigator.onLine) {
+        const created = await startAuditSession({ items: localItems.map(toCloudItem) });
+        if (created?.session) {
+          setSession(created.session);
+          setCloudSessionId(created.session.id);
+          setIsReadOnly(false);
+          setLastSyncedAt(created.session.last_synced_at);
+        }
       }
     } catch (err) {
       if (err instanceof AuditSessionConflictError) {
@@ -174,7 +148,7 @@ export function useCloudAuditSession(storeId: string | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [storeId, currentTillId, setItems, handleConflict]);
+  }, [storeId, currentTillId, setItems, setCloudSessionId, clearDraft, handleConflict]);
 
   const queueSync = useCallback((items: AuditItem[]) => {
     const cur = sessionRef.current;
@@ -261,6 +235,8 @@ export function useCloudAuditSession(storeId: string | null) {
       setIsTakingOver(true);
       const res = await takeoverAuditSession(cur.id, reason);
       setSession(res.session);
+      setCloudSessionId(res.session.id);
+      setDraftResolution(null);
       setIsReadOnly(false);
       setConflictMessage(null);
       setLastSyncedAt(res.session.last_synced_at);
@@ -323,11 +299,27 @@ export function useCloudAuditSession(storeId: string | null) {
     return () => window.removeEventListener("online", retry);
   }, [initSession, queueSync]);
 
+  const discardAbandonedDraft = useCallback(() => {
+    clearDraft();
+    setDraftResolution(null);
+    setIsReadOnly(false);
+    setConflictMessage(null);
+  }, [clearDraft]);
+
+  const restartAbandonedAsNewSession = useCallback(async () => {
+    setCloudSessionId(null);
+    setDraftResolution(null);
+    setIsReadOnly(false);
+    setConflictMessage(null);
+    await initSession(useStockAuditDraftStore.getState().items);
+  }, [setCloudSessionId, initSession]);
+
   return {
     session,
     isLoading,
     isReadOnly,
     conflictMessage,
+    draftResolution,
     lastSyncedAt,
     isTakeoverOpen,
     setIsTakeoverOpen,
@@ -339,5 +331,7 @@ export function useCloudAuditSession(storeId: string | null) {
     takeover,
     complete,
     abandon,
+    discardAbandonedDraft,
+    restartAbandonedAsNewSession,
   };
 }

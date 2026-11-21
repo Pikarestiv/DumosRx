@@ -61,8 +61,12 @@ export function CatalogDetailPanel({
 
   const [internalTab, setInternalTab] = useState("details");
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
-  const [batchDialog, setBatchDialog] = useState<{ open: boolean; batchId: string | null }>({ open: false, batchId: null });
-  const openBatchEditor = (batch?: StockBatch) => setBatchDialog({ open: true, batchId: batch?.id ?? null });
+  const [batchDialog, setBatchDialog] = useState<{
+    open: boolean;
+    batchId: string | null;
+  }>({ open: false, batchId: null });
+  const openBatchEditor = (batch?: StockBatch) =>
+    setBatchDialog({ open: true, batchId: batch?.id ?? null });
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
@@ -72,12 +76,10 @@ export function CatalogDetailPanel({
   const currentTab = activeTab ?? internalTab;
   const handleTabChange = onTabChange ?? setInternalTab;
 
-  const {
-    batches,
-    loadingBatches,
-    creator,
-    formatPrice,
-  } = useProductDetails(product, storeProfile);
+  const { batches, loadingBatches, creator, formatPrice } = useProductDetails(
+    product,
+    storeProfile,
+  );
 
   if (!product) {
     return (
@@ -94,7 +96,8 @@ export function CatalogDetailPanel({
           No product selected
         </h3>
         <p className="text-[13px] max-w-[260px]">
-          Select a product from the list to view its details, batches, and movements.
+          Select a product from the list to view its details, batches, and
+          movements.
         </p>
       </div>
     );
@@ -119,11 +122,15 @@ export function CatalogDetailPanel({
               <ArrowLeft className="w-4 h-4 text-foreground" />
             </button>
             <div className="min-w-0">
-              <h2 className={`text-lg font-bold text-foreground leading-snug truncate ${capsClass}`}>
+              <h2
+                className={`text-lg font-bold text-foreground leading-snug truncate ${capsClass}`}
+              >
                 {product.name}
               </h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className={`text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/10 rounded-md ${capsClass}`}>
+                <span
+                  className={`text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/10 rounded-md ${capsClass}`}
+                >
                   {product.category || "General"}
                 </span>
                 <span className="text-xs text-muted-foreground font-mono">
@@ -189,14 +196,20 @@ export function CatalogDetailPanel({
           </Button>
           <Button
             variant="outline"
-            onClick={() => router.push(`/inventory/batches?action=adjust&productId=${product.id}`)}
+            onClick={() =>
+              router.push(
+                `/inventory/batches?action=adjust&productId=${product.id}`,
+              )
+            }
             className="rounded-xl text-xs h-9 font-medium border-border"
           >
             Adjust stock
           </Button>
           <Button
             variant="outline"
-            onClick={() => router.push(`/procurement/new?productId=${product.id}`)}
+            onClick={() =>
+              router.push(`/procurement/new?productId=${product.id}`)
+            }
             className="rounded-xl text-xs h-9 font-medium border-border"
           >
             Add to order
@@ -214,14 +227,16 @@ export function CatalogDetailPanel({
           <ProductDetailTabNav batchCount={batches.length} />
         </div>
 
-        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pb-12 sm:pb-4">
+        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pb-0">
           <TabsContent value="details" className="mt-0 space-y-4">
             <ProductOverviewCards
               product={product}
               batches={batches}
               creator={creator}
               formatPrice={formatPrice}
-              onOpenCostBreakdown={() => setBatchDialog({ open: true, batchId: null })}
+              onOpenCostBreakdown={() =>
+                setBatchDialog({ open: true, batchId: null })
+              }
               onEditProduct={onEditProduct}
               canViewCost={canViewCost}
               onEditBatch={canEditBatch ? openBatchEditor : undefined}
@@ -259,7 +274,9 @@ export function CatalogDetailPanel({
         <CostBreakdownDialog
           key={batchDialog.batchId ?? "view"}
           open
-          onOpenChange={(open) => !open && setBatchDialog({ open: false, batchId: null })}
+          onOpenChange={(open) =>
+            !open && setBatchDialog({ open: false, batchId: null })
+          }
           productName={product.name}
           batches={batches}
           sellingPrice={product.sellingPrice}

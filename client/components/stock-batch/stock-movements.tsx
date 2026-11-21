@@ -37,7 +37,11 @@ import { useArrowKeyScroll } from "@/lib/hooks/use-arrow-key-scroll";
 
 function NoMovementsFound() {
   return (
-    <EmptyState icon={ArrowLeftRight} title="No movements found" className="py-8" />
+    <EmptyState
+      icon={ArrowLeftRight}
+      title="No movements found"
+      className="py-8"
+    />
   );
 }
 
@@ -57,7 +61,8 @@ export function StockMovements() {
   const { canManageMultiStore } = useFeatureGate();
   // Mirrors dashboard-header.tsx's hasMultiStoreAccess/actionRequiresIsAdmin gate on the Transfer Stock header action:
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-stock-movements-tsx-L78
-  const canTransferStock = isAdmin && canManageMultiStore && availableStores.length > 1;
+  const canTransferStock =
+    isAdmin && canManageMultiStore && availableStores.length > 1;
 
   // Triggered from the header's "Transfer Stock" button (see dashboard-header.tsx), which — like Add Product's ?action=add —…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-stock-batch-stock-movements-tsx-L88
@@ -97,7 +102,12 @@ export function StockMovements() {
 
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window
   useEffect(() => {
-    if (dateRange.from || hasFullHistory || (!searchTerm && typeFilter === "all")) return;
+    if (
+      dateRange.from ||
+      hasFullHistory ||
+      (!searchTerm && typeFilter === "all")
+    )
+      return;
     setHasFullHistory(true);
   }, [searchTerm, typeFilter, hasFullHistory, dateRange.from]);
 
@@ -125,15 +135,19 @@ export function StockMovements() {
 
   // Sorting only applies to the desktop table view; mobile's date-grouped
   // list below is derived from the unsorted, chronological filteredMovements.
-  const { sortKey, direction, toggleSort, sortedData: sortedMovements } =
-    useSortableData<StockMovement, MovementSortKey>(filteredMovements, {
-      date: (m) => m.date,
-      product: (m) => m.product.toLowerCase(),
-      type: (m) => m.type,
-      quantity: (m) => m.quantity,
-      reference: (m) => (m.reference || m.reason || "").toLowerCase(),
-      user: (m) => m.user.toLowerCase(),
-    });
+  const {
+    sortKey,
+    direction,
+    toggleSort,
+    sortedData: sortedMovements,
+  } = useSortableData<StockMovement, MovementSortKey>(filteredMovements, {
+    date: (m) => m.date,
+    product: (m) => m.product.toLowerCase(),
+    type: (m) => m.type,
+    quantity: (m) => m.quantity,
+    reference: (m) => (m.reference || m.reason || "").toLowerCase(),
+    user: (m) => m.user.toLowerCase(),
+  });
 
   const desktopScrollRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
@@ -186,61 +200,64 @@ export function StockMovements() {
       {!isDesktop && <StockMovementsMobileFilters {...filterProps} />}
 
       {isDesktop && (
-      <div className="flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
-        <StockMovementsDesktopFilters {...filterProps} />
-        <StockMovementsGridHeader
-          sortKey={sortKey}
-          direction={direction}
-          toggleSort={toggleSort}
-        />
+        <div className="flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
+          <StockMovementsDesktopFilters {...filterProps} />
+          <StockMovementsGridHeader
+            sortKey={sortKey}
+            direction={direction}
+            toggleSort={toggleSort}
+          />
 
-        <div ref={desktopScrollRef} className="flex-1 overflow-y-auto stable-scrollbar pb-6">
-          {sortedMovements.length === 0 && <NoMovementsFound />}
-          {sortedMovements.length > 0 && (
-            <div
-              className="relative w-full"
-              style={{ height: rowVirtualizer.getTotalSize() }}
-            >
-              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const movement = sortedMovements[virtualRow.index];
-                return (
-                  <div
-                    key={movement.id}
-                    className="absolute top-0 left-0 w-full"
-                    style={{
-                      height: virtualRow.size,
-                      transform: `translateY(${virtualRow.start}px)`,
-                    }}
-                  >
-                    <StockMovementDesktopRow
-                      movement={movement}
-                      onSelect={() => setSelectedMovement(movement)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div
+            ref={desktopScrollRef}
+            className="flex-1 overflow-y-auto stable-scrollbar pb-6"
+          >
+            {sortedMovements.length === 0 && <NoMovementsFound />}
+            {sortedMovements.length > 0 && (
+              <div
+                className="relative w-full"
+                style={{ height: rowVirtualizer.getTotalSize() }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const movement = sortedMovements[virtualRow.index];
+                  return (
+                    <div
+                      key={movement.id}
+                      className="absolute top-0 left-0 w-full"
+                      style={{
+                        height: virtualRow.size,
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <StockMovementDesktopRow
+                        movement={movement}
+                        onSelect={() => setSelectedMovement(movement)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <ScrollToTopButton scrollRef={desktopScrollRef} />
         </div>
-        <ScrollToTopButton scrollRef={desktopScrollRef} />
-      </div>
       )}
 
       {/* Mobile: grouped list, each group renders its own card. Conditionally rendered, not `md:hidden`. */}
       {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window */}
       {!isDesktop && (
-      <div className="pb-8">
-        {filteredMovements.length === 0 && <NoMovementsFound />}
-        {filteredMovements.length > 0 &&
-          Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (
-            <StockMovementMobileGroup
-              key={groupLabel}
-              groupLabel={groupLabel}
-              movements={groupItems}
-              onSelect={setSelectedMovement}
-            />
-          ))}
-      </div>
+        <div className="">
+          {filteredMovements.length === 0 && <NoMovementsFound />}
+          {filteredMovements.length > 0 &&
+            Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (
+              <StockMovementMobileGroup
+                key={groupLabel}
+                groupLabel={groupLabel}
+                movements={groupItems}
+                onSelect={setSelectedMovement}
+              />
+            ))}
+        </div>
       )}
 
       <StockMovementDetailModal

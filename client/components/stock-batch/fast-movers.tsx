@@ -65,7 +65,9 @@ export function FastMovers() {
                     {(idx + 1).toString().padStart(2, "0")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className={`text-[13px] font-semibold truncate ${capsClass}`}>
+                    <div
+                      className={`text-[13px] font-semibold truncate ${capsClass}`}
+                    >
                       {item.name}
                     </div>
                     <div className="text-[11.5px] text-muted-foreground">

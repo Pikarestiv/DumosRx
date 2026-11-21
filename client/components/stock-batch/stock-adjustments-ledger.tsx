@@ -16,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
+import {
+  DateRangePicker,
+  type DateRangeValue,
+} from "@/components/ui/date-range-picker";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useArrowKeyScroll } from "@/lib/hooks/use-arrow-key-scroll";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
@@ -54,7 +57,9 @@ function AdjustmentRow({ group }: { group: AdjustmentGroup }) {
       <div className="min-w-0">
         <div className="truncate">{group.reason || "—"}</div>
         {group.note && (
-          <div className="text-[11.5px] text-muted-foreground/70 truncate">{group.note}</div>
+          <div className="text-[11.5px] text-muted-foreground/70 truncate">
+            {group.note}
+          </div>
         )}
       </div>
       <div className="text-muted-foreground">
@@ -76,7 +81,9 @@ export function StockAdjustmentsLedger() {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [reasonFilter, setReasonFilter] = useState<string>(ALL_ADJUSTMENT_REASONS);
+  const [reasonFilter, setReasonFilter] = useState<string>(
+    ALL_ADJUSTMENT_REASONS,
+  );
   const [dateRange, setDateRange] = useState<DateRangeValue>({});
   const [hasFullHistory, setHasFullHistory] = useState(false);
   const [showAdjustFlow, setShowAdjustFlow] = useState(false);
@@ -90,7 +97,8 @@ export function StockAdjustmentsLedger() {
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.delete("action");
     router.replace(
-      window.location.pathname + (newParams.toString() ? `?${newParams.toString()}` : ""),
+      window.location.pathname +
+        (newParams.toString() ? `?${newParams.toString()}` : ""),
     );
   }, [searchParams, router, canAdjustStock]);
 
@@ -121,12 +129,19 @@ export function StockAdjustmentsLedger() {
   }, [searchTerm, reasonFilter, hasFullHistory, dateRange.from]);
 
   const groups = useMemo(
-    () => groupAdjustmentMovements((adjustmentsQuery.data ?? []) as StockMovementDbRow[]),
+    () =>
+      groupAdjustmentMovements(
+        (adjustmentsQuery.data ?? []) as StockMovementDbRow[],
+      ),
     [adjustmentsQuery.data],
   );
 
   const visibleGroups = useMemo(
-    () => filterAdjustmentGroups(groups, { search: searchTerm, reason: reasonFilter }),
+    () =>
+      filterAdjustmentGroups(groups, {
+        search: searchTerm,
+        reason: reasonFilter,
+      }),
     [groups, searchTerm, reasonFilter],
   );
 
@@ -147,7 +162,9 @@ export function StockAdjustmentsLedger() {
     return visibleGroups.reduce(
       (acc, group) => {
         const date = new Date(group.date);
-        let groupLabel = group.date ? format(date, "MMM d, yyyy").toUpperCase() : "UNDATED";
+        let groupLabel = group.date
+          ? format(date, "MMM d, yyyy").toUpperCase()
+          : "UNDATED";
 
         if (group.date) {
           if (isToday(date)) groupLabel = "TODAY";
@@ -200,7 +217,9 @@ export function StockAdjustmentsLedger() {
               <SelectValue placeholder="All reasons" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL_ADJUSTMENT_REASONS}>All reasons</SelectItem>
+              <SelectItem value={ALL_ADJUSTMENT_REASONS}>
+                All reasons
+              </SelectItem>
               {ADJUSTMENT_REASONS.map((reason) => (
                 <SelectItem key={reason.value} value={reason.value}>
                   {reason.label}
@@ -213,16 +232,11 @@ export function StockAdjustmentsLedger() {
             onChange={setDateRange}
             className="bg-muted/30 border-border"
           />
-          {canAdjustStock && (
-            <Button className="sm:hidden ml-auto" onClick={() => setShowAdjustFlow(true)}>
-              Adjust Stock
-            </Button>
-          )}
         </div>
         {!hasFullHistory && !dateRange.from && (
           <p className="text-[11.5px] text-muted-foreground/70">
-            Showing the last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or select a date range
-            to look further back.
+            Showing the last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or
+            select a date range to look further back.
           </p>
         )}
       </div>
@@ -237,12 +251,22 @@ export function StockAdjustmentsLedger() {
             <div>Net qty</div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto stable-scrollbar pb-6">
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto stable-scrollbar pb-6"
+          >
             {visibleGroups.length === 0 && (
-              <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
+              <EmptyState
+                icon={ClipboardList}
+                title="No adjustments found"
+                className="py-8"
+              />
             )}
             {visibleGroups.length > 0 && (
-              <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+              <div
+                className="relative w-full"
+                style={{ height: rowVirtualizer.getTotalSize() }}
+              >
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                   const group = visibleGroups[virtualRow.index];
                   return (
@@ -270,9 +294,13 @@ export function StockAdjustmentsLedger() {
           for a full unvirtualized render of the whole ledger and then threw
           it away. */}
       {!isDesktop && (
-        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pt-3 pb-8">
+        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pt-3 pb-0">
           {visibleGroups.length === 0 && (
-            <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
+            <EmptyState
+              icon={ClipboardList}
+              title="No adjustments found"
+              className="py-8"
+            />
           )}
           {visibleGroups.length > 0 &&
             Object.entries(groupedByDate).map(([groupLabel, groupItems]) => (

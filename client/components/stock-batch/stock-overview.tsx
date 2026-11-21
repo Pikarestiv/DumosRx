@@ -34,7 +34,7 @@ export function StockOverview() {
   // Stock list: read aggregated batch details
   const { data: stockDataRaw, isLoading: stockLoading } = useQuery({
     ...queryKeys.stockBatches.overview(),
-    queryFn: () => getStockOverviewData()
+    queryFn: () => getStockOverviewData(),
   });
   const stockData = stockDataRaw || [];
 
@@ -111,8 +111,8 @@ export function StockOverview() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+    <div className="flex flex-col lg:flex-1 lg:min-h-0 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:flex-1 lg:min-h-0">
         <NeedsAttention stockData={stockItems} />
         <FastMovers />
       </div>

@@ -139,7 +139,10 @@ export function DashboardOverview() {
         }
       : {
           title: "Inventory Value",
-          value: formatMetricCurrency(inventoryValue.value, storeProfile?.currency),
+          value: formatMetricCurrency(
+            inventoryValue.value,
+            storeProfile?.currency,
+          ),
           comparison: inventoryValue.caption ?? "Calculated stock value",
           icon: TrendingUp,
           colorScheme: "amber" as const,

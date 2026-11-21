@@ -94,7 +94,7 @@ const MAIN_LAYOUT_STYLES: Record<
     // Below lg: clears MobileBottomNav (h-16 = 4rem tall, plus its own safe-area inset, plus breathing room) on every route th…
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L87
     className:
-      "px-4 pt-4 sm:px-6 sm:pt-3 pb-[calc(8rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-[calc(1rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))]",
+      "px-4 pt-4 sm:px-6 sm:pt-0 pb-[calc(8rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-[calc(1rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))]",
   },
 };
 
@@ -108,7 +108,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
 function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const hydrated = useHydrated();
-  const [sidebarCollapsedChoice, setSidebarCollapsedChoice] = useState<boolean | null>(null);
+  const [sidebarCollapsedChoice, setSidebarCollapsedChoice] = useState<
+    boolean | null
+  >(null);
   const sidebarCollapsed =
     sidebarCollapsedChoice ?? (hydrated ? readStoredSidebarCollapsed() : true);
   const router = useRouter();
@@ -300,7 +302,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
         <div
           ref={scrollRef}
           className={cn(
-            "flex-1 relative overflow-x-clip flex flex-col",
+            "flex-1 min-h-0 relative overflow-x-clip flex flex-col",
             shouldAnimate && "overflow-y-auto",
           )}
         >
@@ -312,7 +314,10 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           <main
             id="main-content"
             tabIndex={-1}
-            className={cn("flex-1 min-h-0 flex flex-col outline-none", mainClassName)}
+            className={cn(
+              "flex-none flex flex-col outline-none lg:flex-1 lg:min-h-0",
+              mainClassName,
+            )}
             style={mainStyle}
           >
             <div

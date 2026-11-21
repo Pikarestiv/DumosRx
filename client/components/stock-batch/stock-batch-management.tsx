@@ -27,35 +27,43 @@ export function StockBatchManagement({
   const { storeProfile } = useStore();
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-6 relative">
+    <div className="flex flex-col gap-6 relative lg:flex-1 lg:min-h-0">
       <Tabs
         value={currentTab}
         onValueChange={handleTabChange}
-        className="flex flex-col flex-1 min-h-0 gap-6"
+        className="flex flex-col lg:flex-1 lg:min-h-0 gap-6"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <StockBatchTabNav canViewAdjustmentHistory={canViewAdjustmentHistory} />
+          <StockBatchTabNav
+            canViewAdjustmentHistory={canViewAdjustmentHistory}
+          />
 
           {/* Desktop: shown as the header's secondary action (see dashboard-page-routes.ts's inventory routes). — docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-batch-management-tsx-L38 */}
           {canPerformStockAudit && (
-            <Button
-              className="md:hidden"
-              onClick={() => setIsAuditing(true)}
-            >
+            <Button className="md:hidden" onClick={() => setIsAuditing(true)}>
               Start Audit
             </Button>
           )}
         </div>
 
-        <TabsContent value="catalog" className="flex flex-col flex-1 min-h-0 mt-0">
+        <TabsContent
+          value="catalog"
+          className="flex flex-col flex-1 min-h-0 mt-0"
+        >
           <ProductDatabase />
         </TabsContent>
 
-        <TabsContent value="services" className="flex flex-col flex-1 min-h-0 mt-0">
+        <TabsContent
+          value="services"
+          className="flex flex-col flex-1 min-h-0 mt-0"
+        >
           <ServicesDatabase />
         </TabsContent>
 
-        <TabsContent value="overview" className="flex flex-col flex-1 min-h-0 mt-0 gap-6">
+        <TabsContent
+          value="overview"
+          className="flex flex-col flex-none mt-0 gap-6 lg:flex-1 lg:min-h-0 lg:pb-4"
+        >
           <StockBatchMetrics
             stock_batchValue={stats.totalStockBatchValue}
             retailValue={stats.totalRetailValue}
@@ -63,19 +71,27 @@ export function StockBatchManagement({
             lowStockCount={stats.lowStockCount}
             expiringCount={stats.expiringSoonCount}
             activeCategories={stats.activeCategories}
-            formatCurrency={(amount) => formatMetricCurrency(amount, storeProfile?.currency)}
+            formatCurrency={(amount) =>
+              formatMetricCurrency(amount, storeProfile?.currency)
+            }
           />
           <StockOverview />
         </TabsContent>
 
         {canViewAdjustmentHistory && (
-          <TabsContent value="ledger" className="flex flex-col flex-1 min-h-0 mt-0">
+          <TabsContent
+            value="ledger"
+            className="flex flex-col flex-1 min-h-0 mt-0"
+          >
             <StockMovements />
           </TabsContent>
         )}
 
         {canViewAdjustmentHistory && (
-          <TabsContent value="adjustments" className="flex flex-col flex-1 min-h-0 mt-0">
+          <TabsContent
+            value="adjustments"
+            className="flex flex-col flex-1 min-h-0 mt-0"
+          >
             <StockAdjustmentsLedger />
           </TabsContent>
         )}

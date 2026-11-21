@@ -104,7 +104,7 @@ export function HelpPage() {
               Step-by-Step Feature Walkthroughs & Videos
             </h2>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Browse 21 concise guides with video walkthroughs covering POS Spot Sourcing,
+              Browse concise guides with video walkthroughs covering POS Spot Sourcing,
               selling without stock, inter-branch transfers, instant till relinking, cycle counts,
               and daily closing. Opens in an external browser tab so your active register session stays open.
             </p>

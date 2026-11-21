@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { Undo2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -63,12 +64,15 @@ export function RefundsListModal({
       className="sm:max-w-4xl max-h-[80vh] flex flex-col pt-6"
     >
       <div className="flex items-center gap-2 mb-4 px-1 pt-1">
-        <Input
-          placeholder="Search receipt or reason..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-8 w-full sm:w-[240px]"
-        />
+        <div className="relative w-full sm:w-[240px]">
+          <Input
+            placeholder="Search receipt or reason..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={`h-8 w-full ${search ? "pr-8" : ""}`}
+          />
+          {search && <SearchClearButton onClick={() => setSearch("")} />}
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto px-1">
         <Table>

@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -94,8 +95,9 @@ export function POSServiceList({
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search services (e.g. massage, styling)..."
-            className="pl-9 h-10 bg-muted/30 border-border/50 rounded-xl text-sm"
+            className={`pl-9 ${searchTerm ? "pr-8" : ""} h-10 bg-muted/30 border-border/50 rounded-xl text-sm`}
           />
+          {searchTerm && <SearchClearButton onClick={() => onSearchChange("")} />}
         </div>
       )}
 

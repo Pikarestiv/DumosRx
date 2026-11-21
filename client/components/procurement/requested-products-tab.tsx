@@ -8,6 +8,7 @@ import {
 } from "@/lib/hooks/use-requested-products";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import {
   Table,
   TableBody,
@@ -164,12 +165,13 @@ export function RequestedProductsTab() {
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
-              type="search"
+              type="text"
               placeholder="Search requested items..."
-              className="pl-9 h-9 text-[13px] rounded-[10px] bg-card md:bg-muted border-border"
+              className={`pl-9 ${searchQuery ? "pr-8" : ""} h-9 text-[13px] rounded-[10px] bg-card md:bg-muted border-border`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {searchQuery && <SearchClearButton onClick={() => setSearchQuery("")} />}
           </div>
           <RequestItemDialog
             open={showAddDialog}

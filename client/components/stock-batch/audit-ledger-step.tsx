@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -181,8 +182,9 @@ export function AuditLedgerStep({
             placeholder="Search by name or SKU"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-[13px]"
+            className={`pl-9 ${search ? "pr-8" : ""} h-9 text-[13px]`}
           />
+          {search && <SearchClearButton onClick={() => setSearch("")} />}
         </div>
       </div>
 

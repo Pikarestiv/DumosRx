@@ -1,6 +1,7 @@
 import React from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { DateRangePicker, type DateRangeValue } from "@/components/ui/date-range-picker";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { SALE_TYPE_OPTIONS } from "@/lib/utils/sale-type-filter";
@@ -56,10 +57,11 @@ export function TransactionFilters({
           id="transaction-search-input"
           aria-label="Search transactions by receipt, customer, or item"
           placeholder="Search receipt, customer, or item"
-          className="pl-9 h-12 rounded-xl bg-card border-border/50"
+          className={`pl-9 ${searchQuery ? "pr-8" : ""} h-12 rounded-xl bg-card border-border/50`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        {searchQuery && <SearchClearButton onClick={() => setSearchQuery("")} />}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

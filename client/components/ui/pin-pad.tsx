@@ -4,6 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Delete } from "lucide-react";
+import { triggerHapticFeedback } from "@/lib/utils/haptics";
 
 interface PinPadProps {
   value: string;
@@ -22,6 +23,7 @@ export function PinPad({
 }: PinPadProps) {
   const handlePress = (digit: string) => {
     if (value.length < maxLength) {
+      triggerHapticFeedback(10);
       const newValue = value + digit;
       onChange(newValue);
       if (newValue.length === maxLength && onSubmit) {
@@ -34,6 +36,7 @@ export function PinPad({
 
   const handleDelete = () => {
     if (value.length > 0) {
+      triggerHapticFeedback(12);
       onChange(value.slice(0, -1));
     }
   };

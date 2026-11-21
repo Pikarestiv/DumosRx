@@ -9,6 +9,7 @@ import { genericFuzzySearch } from "@/lib/utils/search";
 import { useCustomerTransactions } from "@/lib/hooks/use-customer-data";
 import { usePullToRefreshHandler } from "@/lib/context/pull-to-refresh-context";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { useAuth } from "@/lib/context/auth-context";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
@@ -95,8 +96,9 @@ export function ActivityTab({
           aria-label="Search customer activity"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+          className={`w-full bg-card border border-border md:bg-muted md:border-none rounded-[10px] pl-9 ${searchTerm ? "pr-8" : "pr-4"} py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none`}
         />
+        {searchTerm && <SearchClearButton onClick={() => setSearchTerm("")} />}
       </div>
       <DateRangePicker
         value={dateRange}

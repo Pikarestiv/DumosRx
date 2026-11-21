@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatCurrency } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { Receipt } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { genericFuzzySearch } from "@/lib/utils/search";
@@ -75,12 +76,15 @@ export function SalesListModal({
                 <SelectItem value="mixed">Mixed</SelectItem>
               </SelectContent>
             </Select>
-            <Input
-              placeholder="Search receipt or item..."
-              value={salesSearch}
-              onChange={(e) => setSalesSearch(e.target.value)}
-              className="h-8 w-full sm:w-[200px]"
-            />
+            <div className="relative w-full sm:w-[200px]">
+              <Input
+                placeholder="Search receipt or item..."
+                value={salesSearch}
+                onChange={(e) => setSalesSearch(e.target.value)}
+                className={`h-8 w-full ${salesSearch ? "pr-8" : ""}`}
+              />
+              {salesSearch && <SearchClearButton onClick={() => setSalesSearch("")} />}
+            </div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-1">

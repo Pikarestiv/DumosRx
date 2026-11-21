@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { AlertCircle, Search, Users } from "lucide-react";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Customer } from "@/lib/hooks/use-customer-data";
 import { Card } from "@/components/ui/card";
@@ -169,8 +170,9 @@ export function DirectoryTab({
         aria-label="Search customers"
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
-        className="w-full bg-card border border-border lg:bg-muted lg:border-none rounded-[10px] pl-9 pr-4 py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none"
+        className={`w-full bg-card border border-border lg:bg-muted lg:border-none rounded-[10px] pl-9 ${searchTerm ? "pr-8" : "pr-4"} py-2 text-[13px] focus:ring-1 focus:ring-primary outline-none`}
       />
+      {searchTerm && <SearchClearButton onClick={() => onSearchChange("")} />}
     </div>
   );
 

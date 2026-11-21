@@ -27,7 +27,6 @@ import {
   useLockShortcut,
   useSyncAutoLockDurationWithAccount,
 } from "@/lib/hooks/use-auto-lock";
-import { useSwipeNavigation } from "@/lib/hooks/use-swipe-navigation";
 import { useKeyboardViewport } from "@/lib/hooks/use-keyboard-viewport";
 import { useNumberInputWheelGuard } from "@/lib/hooks/use-number-input-wheel-guard";
 import { useSidebarPeekPreference } from "@/lib/hooks/use-sidebar-peek-preference";
@@ -65,16 +64,7 @@ function readStoredSidebarCollapsed(): boolean {
   }
 }
 
-const DIRECTION_ANIMATION: Record<string, string> = {
-  left: "slide-in-from-right-8",
-  right: "slide-in-from-left-8",
-};
-
 type MainLayoutKind = "pos" | "settings" | "createPO" | "default";
-
-// Order matches the bottom nav's visual left-to-right layout, so swiping
-// steps through tabs in the order they're actually shown on screen.
-const TABS = ["/dashboard", "/inventory", "/pos", "/customers"];
 
 // One entry per distinct <main> treatment, keyed by the same route partition used everywhere else in this file (isPosRoute…
 // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L66
@@ -137,10 +127,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   useKeyboardViewport();
   useNumberInputWheelGuard();
-  const { handleTouchStart, handleTouchEnd, direction } = useSwipeNavigation(
-    TABS,
-    { onSwipePastEnd: () => setMoreDrawerOpen(true) },
-  );
 
   const isPosRoute = pathname.startsWith("/pos");
   const posFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
@@ -209,12 +195,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       },
     });
 
-  // Single lookup: avoids indexing DIRECTION_ANIMATION twice (once to check, once to interpolate) and keeps the `direction =…
-  // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L237
-  const animationClass = shouldAnimate
-    ? DIRECTION_ANIMATION[direction ?? ""]
-    : undefined;
-
   return (
     // h-dvh, not min-h-screen:
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L245
@@ -276,8 +256,6 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           paddingTop:
             isPosRoute || isSettingsRoute ? "var(--tauri-top, 0px)" : undefined,
         }}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
       >
         <div
           className={cn(
@@ -322,11 +300,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           >
             <div
               key={pathname}
-              className={cn(
-                "flex-1 min-h-0 flex flex-col",
-                animationClass &&
-                  `animate-in ${animationClass} fade-in duration-200`,
-              )}
+              className="flex-1 min-h-0 flex flex-col"
             >
               {/* Unmounted, not just visually covered, while locked: the
                   lock overlay above is a fixed inset-0 layer, but leaving

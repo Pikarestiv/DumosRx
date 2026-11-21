@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Boxes, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { HintTooltip } from "@/components/ui/hint-tooltip";
-import { BatchCostEditDialog } from "./batch-cost-edit-dialog";
 import type { StockBatch } from "@/lib/types/stock-batch";
 import { formatCurrency } from "@/lib/utils";
 import { formatDateSafe, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
@@ -15,11 +14,9 @@ interface ProductBatchHistoryProps {
   storeType: string;
   canSeeQuantities: boolean;
   canViewCost: boolean;
-  canEditCost?: boolean;
-  currencyCode?: string;
   formatPrice?: (amount: number) => string;
-  sellingPrice?: number | null;
-  onChangeSellingPrice?: () => void;
+  onEditBatch?: (batch: StockBatch) => void;
+  highlightBatchId?: string | null;
 }
 
 function NoBatchRecordsFound({ storeType }: { storeType: string }) {
@@ -38,16 +35,23 @@ export function ProductBatchHistory({
   storeType,
   canSeeQuantities,
   canViewCost,
-  canEditCost = false,
-  currencyCode,
   formatPrice,
-  sellingPrice,
-  onChangeSellingPrice,
+  onEditBatch,
+  highlightBatchId,
 }: ProductBatchHistoryProps) {
-  const [costEditBatch, setCostEditBatch] = useState<StockBatch | null>(null);
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(
-    batches.length === 1 ? batches[0]?.id : null,
+    highlightBatchId || (batches.length === 1 ? batches[0]?.id : null),
   );
+
+  useEffect(() => {
+    if (highlightBatchId) {
+      setExpandedBatchId(highlightBatchId);
+      const el = document.getElementById(`batch-card-${highlightBatchId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }, [highlightBatchId]);
 
   if (loadingBatches) {
     return (
@@ -100,9 +104,12 @@ export function ProductBatchHistory({
             ? formatCost(batch.cost_price * batch.quantity)
             : null;
 
+        const isHighlighted = highlightBatchId === batch.id;
+
         return (
           <div
             key={batch.id}
+            id={`batch-card-${batch.id}`}
             role="button"
             tabIndex={0}
             aria-expanded={isExpanded}
@@ -113,21 +120,25 @@ export function ProductBatchHistory({
                 toggleExpand(batch.id);
               }
             }}
-            className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2 cursor-pointer hover:border-border/80 transition-colors"
+            className={`bg-card border rounded-xl p-4 flex flex-col gap-2 cursor-pointer transition-all ${
+              isHighlighted
+                ? "border-primary ring-2 ring-primary/30"
+                : "border-border hover:border-border/80"
+            }`}
           >
             <div className="flex justify-between items-start">
               <span className="font-semibold text-[14px]">
                 Batch #{batch.batch_number || "Default"}
               </span>
               <div className="flex items-center gap-2">
-                {canEditCost && canViewCost && (
-                  <HintTooltip text="Edit cost price">
+                {onEditBatch && (
+                  <HintTooltip text="Edit batch">
                     <button
                       type="button"
-                      aria-label={`Edit cost price for batch ${batch.batch_number || "Default"}`}
+                      aria-label={`Edit batch ${batch.batch_number || "Default"}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setCostEditBatch(batch);
+                        onEditBatch(batch);
                       }}
                       onKeyDown={(e) => e.stopPropagation()}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
@@ -206,19 +217,6 @@ export function ProductBatchHistory({
           </div>
         );
       })}
-      {costEditBatch && (
-        <BatchCostEditDialog
-          batch={costEditBatch}
-          batches={batches}
-          sellingPrice={sellingPrice}
-          onChangeSellingPrice={onChangeSellingPrice}
-          open
-          onOpenChange={(open) => !open && setCostEditBatch(null)}
-          currencyCode={currencyCode}
-          canSeeQuantities={canSeeQuantities}
-          formatPrice={(amount) => formatCost(amount)}
-        />
-      )}
     </div>
   );
 }

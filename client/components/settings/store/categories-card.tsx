@@ -19,7 +19,7 @@ import { useDeleteCategoryMutation } from "@/lib/hooks/use-category-mutations";
 import { queryKeys } from "@/lib/query-keys";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { pluralize } from "@/lib/utils";
-import { getCategoryIcon } from "@/lib/constants/category-icons";
+import { getCategoryListIcon } from "@/lib/constants/category-icons";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import { CategoryFormDialog } from "./category-form-dialog";
 
@@ -117,7 +117,7 @@ export function CategoriesCard() {
         {filteredCategories.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {filteredCategories.map((cat: CategoryRow) => {
-              const CategoryIcon = getCategoryIcon(cat.name);
+              const CategoryIcon = getCategoryListIcon(cat.name);
               return (
                 <div
                   key={cat.id}

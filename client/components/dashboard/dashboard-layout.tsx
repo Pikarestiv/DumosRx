@@ -12,6 +12,7 @@ import { OnlineOrdersModal } from "@/components/pos/online-orders-modal";
 import { GatedAssistantPanel } from "@/components/assistant/gated-assistant-panel";
 import { BroadcastBanner } from "./broadcast-banner";
 import { ImpersonationBanner } from "./impersonation-banner";
+import { UnsavedEditsGuard } from "./unsaved-edits-guard";
 import { DashboardHeader } from "./dashboard-header";
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
@@ -251,6 +252,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
       <FeedbackForm open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <OnlineOrdersModal />
       <GatedAssistantPanel />
+      <UnsavedEditsGuard />
 
       {/* Main content: shifts right to clear the sidebar */}
       <div

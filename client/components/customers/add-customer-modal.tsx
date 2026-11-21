@@ -68,7 +68,7 @@ export function AddCustomerModal({
         </DialogFooter>
       }
     >
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="flex-1 overflow-y-auto py-4 px-0">
         <form
           id="add-customer-form"
           onSubmit={(e) => void handleSubmit(e)}

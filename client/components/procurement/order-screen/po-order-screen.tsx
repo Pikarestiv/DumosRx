@@ -32,9 +32,10 @@ import { useReloadOnLockHandover } from "./use-reload-on-lock-handover";
 interface PoOrderScreenProps {
   initialId: string | null;
   defaultSupplierId?: string | null;
+  initialProductId?: string | null;
 }
 
-export function PoOrderScreen({ initialId, defaultSupplierId }: PoOrderScreenProps) {
+export function PoOrderScreen({ initialId, defaultSupplierId, initialProductId }: PoOrderScreenProps) {
   const router = useRouter();
   const editor = usePoOrderEditor({
     initialId,
@@ -48,7 +49,7 @@ export function PoOrderScreen({ initialId, defaultSupplierId }: PoOrderScreenPro
   const { matches: isDesktop, resolved } = useResolvedMediaQuery("(min-width: 1024px)");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [addProductSeed, setAddProductSeed] = useState<Partial<ProductViewModel> | null>(null);
-  const [newProductId, setNewProductId] = useState<string | null>(null);
+  const [newProductId, setNewProductId] = useState<string | null>(initialProductId ?? null);
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
   const createSupplier = useCreateSupplierMutation();
   const { handleCreateProduct, isCreatingProduct } = useCreatePoProduct({

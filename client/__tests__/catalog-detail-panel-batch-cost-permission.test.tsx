@@ -13,6 +13,7 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver;
 }
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }) }));
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => granted.has(key),
 }));
@@ -74,17 +75,17 @@ function openBatchesTab() {
       <CatalogDetailPanel product={product} onEditProduct={vi.fn()} />
     </QueryClientProvider>,
   );
-  fireEvent.mouseDown(screen.getByRole("tab", { name: "Batches" }));
+  fireEvent.mouseDown(screen.getByRole("tab", { name: /^Batches/ }));
 }
 
-const editButton = () => screen.queryByRole("button", { name: "Edit cost price for batch LOT-7" });
-const getEditButton = () => screen.getByRole("button", { name: "Edit cost price for batch LOT-7" });
+const editButton = () => screen.queryByRole("button", { name: "Edit batch LOT-7" });
+const getEditButton = () => screen.getByRole("button", { name: "Edit batch LOT-7" });
 
 describe("Catalog batches tab cost editing", () => {
   beforeEach(() => granted.clear());
 
   it("lets a user who may edit and view cost correct even an expired, empty batch", () => {
-    granted.add("edit_product_cost").add("view_cost_fields");
+    granted.add("edit_batch_details").add("view_cost_fields");
     openBatchesTab();
 
     fireEvent.click(getEditButton());
@@ -92,7 +93,7 @@ describe("Catalog batches tab cost editing", () => {
     expect(screen.getByLabelText(/new cost price/i)).toBeTruthy();
   });
 
-  it("offers no edit control without edit_product_cost", () => {
+  it("offers no edit control without edit_batch_details", () => {
     granted.add("view_cost_fields");
     openBatchesTab();
 
@@ -100,13 +101,18 @@ describe("Catalog batches tab cost editing", () => {
     expect(editButton()).toBeNull();
   });
 
-  it("hides the batch cost and the edit control from a user who may not view cost", () => {
-    granted.add("edit_product_cost");
+  it("hides every cost from a user who may not view cost, but still lets them fix the batch's details", () => {
+    granted.add("edit_batch_details");
     openBatchesTab();
 
     expect(screen.getByText("Batch #LOT-7")).toBeTruthy();
     expect(screen.queryByText(/₦1,200/)).toBeNull();
     expect(screen.queryByText("Cost Price")).toBeNull();
-    expect(editButton()).toBeNull();
+
+    fireEvent.click(getEditButton());
+
+    expect(screen.getByLabelText("Expiry date")).toBeTruthy();
+    expect(screen.queryByLabelText(/new cost price/i)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/₦1,200/);
   });
 });

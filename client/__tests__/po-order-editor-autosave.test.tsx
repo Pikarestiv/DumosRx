@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import type { Database } from "sql.js";
 import { clearProcurementTables, createProcurementTestDb } from "./helpers/procurement-test-db";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
+import { AUTOSAVE_DEBOUNCE_MS } from "@/components/procurement/order-screen/use-po-autosave";
 
 vi.mock("idb-keyval", () => ({
   get: vi.fn(() => Promise.resolve(undefined)),
@@ -71,7 +72,7 @@ describe("order screen autosave", () => {
     }
     expect(rows("SELECT bulk_quantity FROM purchase_order_items")[0][0]).toBe(0);
 
-    await act(() => vi.advanceTimersByTimeAsync(700));
+    await act(() => vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS));
     vi.useRealTimers();
     await waitFor(() => expect(rows("SELECT bulk_quantity FROM purchase_order_items")[0][0]).toBe(120));
     expect(rows("SELECT COUNT(*) FROM _sync_queue WHERE table_name = 'purchase_order_items'")[0][0]).toBe(1);

@@ -30,6 +30,7 @@ export interface ProductWithDetails extends Product {
   batch_number?: string;
   last_audited_at?: string | null;
   last_bought_price?: number | null;
+  missing_expiry_batches?: number;
 }
 
 // Row shape returned by getProductsWithStock()'s raw query:
@@ -110,4 +111,5 @@ export interface ProductViewModel {
   lastAuditedAt?: string | null;
   lastBoughtPrice?: number | null;
   imageKey?: string | null;
+  missingExpiryBatches?: number;
 }

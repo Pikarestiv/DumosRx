@@ -39,13 +39,6 @@ suggested tackle order rather than a strict ranking.
 - **A store-less product with no stock, pushed from a multi-store session,** now stays `store_id = NULL` (A-248 part c chose not to guess), so no device pulls it until stock for it arrives in a later push or the repair command attributes it. The pushing device still has it locally. The same holds when its stock names a store outside the pushing session's scope, such as a store since soft-deleted (outside every scope, A-167) or a sibling store a staff session cannot write. A product with no stock and no evidence anywhere can only be attributed by a person; an admin "assign store" action would close it.
 - **The losing store's devices keep a moved product** for ever: A-291.
 
-#### A-421. `laravel-server/` — a `stock_batches` push is not checked against the pusher's cost permissions
-
-- **Found:** 2026-11-18, building the catalog cost breakdown popover.
-- **What's wrong:** correcting a batch cost is gated in the client on `view_cost_fields` plus `edit_product_cost`, but the server's sync push (`SyncWriteAuthorizer`, `app/Services/Sync/SyncWriteAuthorizer.php`) only checks that the row belongs to a store the session may write. A staff session without either permission that crafts a push (or runs a modified bundle) can rewrite any `stock_batches.cost_price` in its store, which then feeds stock value and the COGS of every later sale from that batch.
-- **Why it was left:** out of scope for the popover, which reuses the existing client gate. Every till legitimately pushes `stock_batches` UPDATEs (sales, receipts, counts), so the fix is column-level, not row-level.
-- **Fix:** in the push path, refuse an UPDATE whose payload changes `cost_price` from the stored value unless the session's user holds `edit_product_cost` (INSERTs from receiving stay allowed). Return a stable terminal reason so the client drops the row and re-pulls, the way `email_in_use` does (A-397). Old bundles would retry it as a generic failure until updated, which is acceptable for a write they should not have made.
-
 ### Tier 2 — stock and money figures wrong
 
 #### A-377. `client/` — two tills counting the same store offline can both post a cycle-count correction for the same product
@@ -206,6 +199,13 @@ suggested tackle order rather than a strict ranking.
 - **What's wrong:** service revenue is in `sales.total_amount` but in no `sale_items` row, so on a store that sells services the category split and the top-seller lists stop summing to the revenue figure above them, with nothing to say where the difference went.
 - **Why it was left:** how services should appear is a product call: one "Services" category row, one slice per `services.category`, services ranked among products in top sellers, or a separate services table. Each changes what an owner reads, so it was not guessed.
 - **Proposed fix:** once decided, `UNION ALL` the matching `sale_services` aggregate (`service_name`, `SUM(total_price)`, `SUM(quantity)`, live rows only, same date/store/`joined.clause` filters) into each query, with a test that the category split sums to net product + service revenue on a mixed sale.
+
+#### A-425. `client/` — deleting a purchase order that has receipt history may leave its stock batches and movements behind (unverified)
+
+- **Found:** 2026-11-20, browser-testing the one-screen order flow on a test account.
+- **Location:** "Delete order" in the order panel's menu (`po-order-menu.tsx`) stays offered on a draft whose receipt was voided, and on other orders that have receipts.
+- **What's wrong:** not confirmed. The order is removed, but whether the receipt's `stock_batches` row and its `stock_movements` (the receipt and, after a void, the reversal) are left pointing at a deleted order was not checked. If they are, stock history shows a purchase with no order behind it.
+- **Fix:** read what `deletePurchaseOrder` removes, then either refuse to delete an order that has any receipt (the safest rule) or delete the order together with its batches and movements, with a test either way.
 
 ### Tier 3 — sync reliability, observability, latent hazards
 
@@ -461,6 +461,22 @@ suggested tackle order rather than a strict ranking.
 - **Why not guarded on the client:** this till cannot see another till's unpushed sale, so no cheap local check closes it; blocking while this till's own sale pushes are unsynced would not help either, because its own sales are already in the local quantity.
 - **Fix:** refuse a `purchase_order_reversal` movement on the server when the batch's derived quantity is below the reversal, with a terminal reason the client shows ("some of this delivery has been sold on another till"), and add a `SyncPushPurchaseOrderReceiptVoidTest` case.
 
+#### A-424. `client/` — when the host firewall blocks a user's IP the app just fails, with no message that says so
+
+- **Found:** 2026-11-20, an MTN router IP was blocked (see `laravel-server/AGENTS.md`, "When every request fails").
+- **Location:** `client/lib/api/client.ts` and the sync engine's response handling.
+- **What's wrong:** a blocked caller gets HTML (a 200 "Unauthorized Access" page, or a certificate error before any response) where the API returns JSON. The client treats it as a generic failure, so sync silently stops and the user cannot tell it is their network.
+- **Fix:** recognise a non-JSON or firewall response and show "This network is blocked by the server. Try another network, or contact support" once, with the retry kept running quietly. A certificate failure cannot be read by `fetch`, so that case can only be inferred from every request failing at once.
+
+#### A-428. `laravel-server/`, `client/` — every audit row a device pushes comes back on the next pull as a second, empty Activity Log row
+
+- **Issue:** #400
+- **Found:** 2026-11-20, in the browser smoke test of batch details editing: each change showed two rows, "Batch Details Corrected batch #340BE364" (table `stock_batches`, full details) and "Corrected batch details" (table N/A, "No further details recorded").
+- **Location:** `PushPayloadNormalizer` (`app/Services/Sync/PushPayloadNormalizer.php`, the `audit_logs` branch) and `PullRowMapper::mapPullRowForClient()` (`app/Services/Sync/PullRowMapper.php`); `SyncController` maps both `audit_logs` and `activity_logs` onto `ActivityLog`.
+- **What's wrong:** on push, the server stores one `activity_logs` row per client row, unsetting the client's `id`, `table_name`, `record_id` and `details` and keeping them inside `properties` (`client_id`, `table_name`, `record_id`, `details`). On pull, `mapPullRowForClient()` returns `$item->toArray()` unchanged, so the device receives the server shape: the server's integer id, no `table_name`, no `details`. The local `audit_logs` table has the device's own row under its client id, so the pulled copy is inserted as a second row. Every action goes through this path (cost and details corrections, stock adjustments, sign-ins, deletes); the batch edit is only where it was noticed. Confirmed by reading both mappers and a read-only query of the local server's `activity_logs` (one row per change, `properties.client_id` set); the doubled rows were seen in the browser, not counted across the whole log.
+- **Why it matters:** the Activity Log and its total count overstate activity, a device's own actions show up a second time with no detail.
+- **Fix, if wanted:** in `mapPullRowForClient()`, for `audit_logs` rows that carry `properties.client_id`, return the client shape: `id` = `client_id`, and `table_name`, `record_id`, `details` from `properties`, so the pull upserts onto the device's own row instead of adding one. Rows with no `client_id` (server-originated, e.g. `QuantityReconciliationService`) stay as they are. Old devices only upsert more, so §11 holds. Devices already holding the empty duplicates need a one-off cleanup (rows whose id is not a client UUID and whose `table_name` is null), written as a client migration with a test, not hand-edited SQL.
+
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
 #### A-393. `client/` — a product price edit is logged with the new price only
@@ -666,6 +682,8 @@ These describe the current state of known architectural tradeoffs and performanc
 - **Owner storefront styling can show an unlocked form on a plan the server refuses (2026-11-14):** the till's `canCustomizeTheme` falls back to `!isFree` when the plan config lacks `custom_branding`, while the server's `subscription:custom_branding` falls back to `false` and `config/plans.php` enables it for Enterprise only. A Pro owner on a store a super admin has allowed would see the form and get a 403 on save (the toast shows the server's upgrade message). Only reachable for stores with `owner_style_enabled` on. Align the fallback with the server when owner styling is first switched on for a real store.
 - **Opening hours cannot express overnight or 24-hour shops (2026-11-14):** each day needs open before close within the same day.
 - **Storefront mobile Lighthouse performance sits at 86, short of the 90 target (2026-11-14):** measured on a local static build of the demo store served with gzip, mobile preset, three runs per page: home and shop both 86 with LCP 4.1 s (the hero heading and the first product title), accessibility 100 and 98. Fonts are preloaded for the active preset only, CSS is inlined (`experimental.inlineCss`), nothing is flagged render-blocking, TBT is 10-20 ms and CLS 0.004, so the remaining time is the simulated slow-4G cost of the page's JS and the root layout's unused Inter/Montserrat preloads. Individual runs of earlier builds scored 97-99, so the number is noisy and a local run is not production. Re-measure against the deployed site before spending more time; levers if it is still short: stop preloading Inter and Montserrat on `/store/*`, and trim the roughly 25 KiB of unused JS in the shared chunk.
+
+- **Not yet checked in a browser (2026-11-19/20):** the one-screen order flow was smoke-tested on one till only. Still unchecked: two-till takeover, an offline till's edits becoming a "Recovered copy" when the server refuses them, the phone layout, a receive-only role, Close short, and the Playwright e2e spec. Also unexplained: the Next dev overlay showed "2 issues" while testing, with nothing in the console.
 
 ### Offline / sync
 

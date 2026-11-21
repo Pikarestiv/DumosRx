@@ -14,7 +14,7 @@ export function buildPayableAlerts(summary: PayablesDueSummary | undefined, curr
       icon: AlertTriangle,
       priority: "critical",
       actionLabel: "View Orders",
-      actionRoute: "/procurement",
+      actionRoute: "/procurement?status=overdue",
     });
   }
   if (summary.dueSoonCount > 0) {
@@ -25,7 +25,7 @@ export function buildPayableAlerts(summary: PayablesDueSummary | undefined, curr
       icon: CalendarClock,
       priority: "warning",
       actionLabel: "View Orders",
-      actionRoute: "/procurement",
+      actionRoute: "/procurement?status=due-soon",
     });
   }
   return alerts;

@@ -39,6 +39,8 @@ interface ResponsiveModalProps {
   /** False limits swipe-down to the grab handle, so a form being typed into
    * survives a stray swipe; Esc, outside tap and the X still close it. */
   swipeToDismiss?: boolean;
+  /** False prevents clicking or tapping outside the modal from closing it. */
+  dismissOnOutsideClick?: boolean;
 }
 
 export function ResponsiveModal({
@@ -51,6 +53,7 @@ export function ResponsiveModal({
   headerClassName,
   footer,
   swipeToDismiss = true,
+  dismissOnOutsideClick = true,
 }: ResponsiveModalProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
   // Renders nothing until hydrated so only one of Dialog/Drawer ever mounts.
@@ -62,7 +65,15 @@ export function ResponsiveModal({
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={`${className} p-6 px-5.5`}>
+        <DialogContent
+          className={`${className} p-6 px-5.5`}
+          onPointerDownOutside={
+            !dismissOnOutsideClick ? (e) => e.preventDefault() : undefined
+          }
+          onInteractOutside={
+            !dismissOnOutsideClick ? (e) => e.preventDefault() : undefined
+          }
+        >
           <DialogHeader className={headerClassName}>
             <DialogTitle>{title}</DialogTitle>
             {description && (
@@ -84,6 +95,7 @@ export function ResponsiveModal({
       onOpenChange={onOpenChange}
       handleOnly={!swipeToDismiss}
       repositionInputs={false}
+      dismissible={dismissOnOutsideClick}
     >
       <DrawerContent
         className={cn("max-h-[90vh] flex flex-col px-4", className)}
@@ -91,8 +103,15 @@ export function ResponsiveModal({
           bottom: "var(--kb-inset, 0px)",
           maxHeight: "calc(var(--vv-height, 100dvh) * 0.95)",
         }}
+        onPointerDownOutside={
+          !dismissOnOutsideClick ? (event) => event.preventDefault() : undefined
+        }
         onInteractOutside={
-          swipeToDismiss ? undefined : (event) => event.preventDefault()
+          !dismissOnOutsideClick
+            ? (event) => event.preventDefault()
+            : swipeToDismiss
+              ? undefined
+              : (event) => event.preventDefault()
         }
       >
         <DrawerHeader

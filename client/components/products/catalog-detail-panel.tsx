@@ -1,4 +1,7 @@
+"use client";
+
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -6,7 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Edit, Barcode, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Edit, Barcode, Trash2, ArrowLeft, MoreVertical } from "lucide-react";
 import { useStore } from "@/lib/context/store-context";
 import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
@@ -18,14 +22,13 @@ import {
   useProductDetails,
   Product,
 } from "./product-details/use-product-details";
-import { ProductBasicInfo } from "./product-details/product-basic-info";
-import { ProductSupplierInfo } from "./product-details/product-supplier-info";
-import { ProductPricingInfo } from "./product-details/product-pricing-info";
-import { ProductStockInfo } from "./product-details/product-stock-info";
+import { ProductOverviewCards } from "./product-details/product-overview-cards";
 import { ProductBatchHistory } from "./product-details/product-batch-history";
 import { ProductHistory } from "./product-details/product-history";
 import { ProductImageSection } from "./product-details/product-image-section";
 import { ProductDetailTabNav } from "./product-detail-tab-nav";
+import { CostBreakdownDialog } from "./batch-cost/cost-breakdown-dialog";
+import type { StockBatch } from "@/lib/types/stock-batch";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 
 interface CatalogDetailPanelProps {
@@ -33,6 +36,9 @@ interface CatalogDetailPanelProps {
   onEditProduct: (product: Product) => void;
   onClose?: () => void;
   className?: string;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+  highlightBatchId?: string | null;
 }
 
 export function CatalogDetailPanel({
@@ -40,61 +46,55 @@ export function CatalogDetailPanel({
   onEditProduct,
   onClose,
   className,
+  activeTab,
+  onTabChange,
+  highlightBatchId,
 }: CatalogDetailPanelProps) {
+  const router = useRouter();
   const { storeProfile } = useStore();
   const { canManageStockBatch } = useAuth();
   const canPrintLabels = useHasPermission("print_product_labels");
   const canDeleteProducts = useHasPermission("delete_products");
   const canViewCost = useHasPermission("view_cost_fields");
-  const canEditCost = useHasPermission("edit_product_cost");
+  const canEditBatch = useHasPermission("edit_batch_details");
   const { canSeeQuantities } = useStockVisibility();
+
+  const [internalTab, setInternalTab] = useState("details");
   const [isLabelDialogOpen, setIsLabelDialogOpen] = useState(false);
+  const [batchDialog, setBatchDialog] = useState<{ open: boolean; batchId: string | null }>({ open: false, batchId: null });
+  const openBatchEditor = (batch?: StockBatch) => setBatchDialog({ open: true, batchId: batch?.id ?? null });
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
     name: string;
   } | null>(null);
   const capsClass = useUppercaseDisplayClass();
+
+  const currentTab = activeTab ?? internalTab;
+  const handleTabChange = onTabChange ?? setInternalTab;
+
   const {
     batches,
     loadingBatches,
     creator,
     formatPrice,
-    formatDate,
-    expiryWarningDays,
-    profitMargin,
-    daysToExpiry,
   } = useProductDetails(product, storeProfile);
 
   if (!product) {
     return (
       <div
         className={cn(
-          "flex flex-col h-full min-h-0 bg-card border border-border rounded-2xl items-center justify-center text-muted-foreground p-6 text-center",
+          "flex flex-col h-full min-h-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl items-center justify-center text-muted-foreground p-6 text-center",
           className,
         )}
       >
         <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center mb-4">
-          <svg
-            className="w-8 h-8 text-muted-foreground/50"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-            />
-          </svg>
+          <Barcode className="w-8 h-8 text-muted-foreground/50" />
         </div>
         <h3 className="text-[15px] font-semibold text-foreground mb-1">
           No product selected
         </h3>
         <p className="text-[13px] max-w-[260px]">
-          Select a product from the list to view its details, batches, and
-          history.
+          Select a product from the list to view its details, batches, and movements.
         </p>
       </div>
     );
@@ -103,44 +103,33 @@ export function CatalogDetailPanel({
   return (
     <div
       className={cn(
-        "flex flex-col h-full min-h-0 bg-card border border-border rounded-2xl",
+        "flex flex-col h-full min-h-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden",
         className,
       )}
     >
-      <div className="p-4 shrink-0 flex flex-col gap-4 border-b border-border">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3">
+      {/* Top Header */}
+      <div className="p-4 pb-2 shrink-0 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2.5 min-w-0">
             <button
               onClick={onClose}
-              className="mt-1 w-8 h-8 shrink-0 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted/80 transition-colors"
+              aria-label="Back"
+              className="mt-0.5 w-8 h-8 shrink-0 rounded-full border border-border/60 bg-muted/40 flex items-center justify-center hover:bg-muted/80 transition-colors"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-muted-foreground"
-              >
-                <path d="m15 18-6-6 6-6" />
-              </svg>
+              <ArrowLeft className="w-4 h-4 text-foreground" />
             </button>
-            <div className="flex flex-col items-start justify-start">
-              <div className="flex flex-col">
-                <h2 className={`text-[17px] font-bold text-foreground leading-tight ${capsClass}`}>
-                  {product.name}
-                </h2>
-                <p className="text-[12px] text-muted-foreground mt-0.5 uppercase tracking-wide">
-                  SKU: {product.id.slice(0, 8).toUpperCase()}
-                </p>
+            <div className="min-w-0">
+              <h2 className={`text-lg font-bold text-foreground leading-snug truncate ${capsClass}`}>
+                {product.name}
+              </h2>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className={`text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/10 rounded-md ${capsClass}`}>
+                  {product.category || "General"}
+                </span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  Barcode {product.barcode || "Not set"}
+                </span>
               </div>
-
-              <span className={`text-[11px] font-semibold text-primary px-2 py-0.5 shrink-0 bg-primary/5 rounded-md mt-2 ${capsClass}`}>
-                {product.category || "Pharmacy"}
-              </span>
             </div>
           </div>
 
@@ -149,23 +138,9 @@ export function CatalogDetailPanel({
               <DropdownMenuTrigger asChild>
                 <button
                   aria-label="Product actions"
-                  className="w-8 h-8 rounded-2xl bg-muted/50 flex items-center justify-center hover:bg-muted/80 transition-colors"
+                  className="w-8 h-8 shrink-0 rounded-full border border-border/60 bg-muted/40 flex items-center justify-center hover:bg-muted/80 transition-colors"
                 >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-muted-foreground"
-                  >
-                    <circle cx="12" cy="12" r="1" />
-                    <circle cx="12" cy="5" r="1" />
-                    <circle cx="12" cy="19" r="1" />
-                  </svg>
+                  <MoreVertical className="w-4 h-4 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -203,35 +178,60 @@ export function CatalogDetailPanel({
             </DropdownMenu>
           )}
         </div>
+
+        {/* Action Buttons Row */}
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <Button
+            onClick={() => onEditProduct(product)}
+            className="bg-primary text-primary-foreground font-semibold rounded-xl text-xs h-9 hover:bg-primary/90"
+          >
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/inventory/batches?action=adjust&productId=${product.id}`)}
+            className="rounded-xl text-xs h-9 font-medium border-border"
+          >
+            Adjust stock
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/procurement/new?productId=${product.id}`)}
+            className="rounded-xl text-xs h-9 font-medium border-border"
+          >
+            Add to order
+          </Button>
+        </div>
       </div>
 
-      <Tabs defaultValue="details" className="flex flex-col flex-1 min-h-0">
-        <div className="shrink-0 bg-primary/5 border-b border-border px-4 py-3">
-          <ProductDetailTabNav />
+      {/* Tabs */}
+      <Tabs
+        value={currentTab}
+        onValueChange={handleTabChange}
+        className="flex flex-col flex-1 min-h-0"
+      >
+        <div className="shrink-0 px-4 pt-1">
+          <ProductDetailTabNav batchCount={batches.length} />
         </div>
 
         <div className="flex-1 overflow-y-auto stable-scrollbar p-4">
-          <TabsContent value="details" className="mt-0">
-            <div className="flex flex-col gap-4 pb-4">
+          <TabsContent value="details" className="mt-0 space-y-4">
+            <ProductOverviewCards
+              product={product}
+              batches={batches}
+              creator={creator}
+              formatPrice={formatPrice}
+              onOpenCostBreakdown={() => setBatchDialog({ open: true, batchId: null })}
+              onEditProduct={onEditProduct}
+              canViewCost={canViewCost}
+              onEditBatch={canEditBatch ? openBatchEditor : undefined}
+            />
+            <div className="pt-2">
               <ProductImageSection
                 productId={product.id}
                 productName={product.name}
                 imageKey={product.imageKey}
                 categoryName={product.category}
-              />
-              <ProductBasicInfo product={product} creator={creator} />
-              <ProductSupplierInfo product={product} />
-              <ProductPricingInfo
-                product={product}
-                formatPrice={formatPrice}
-                profitMargin={profitMargin}
-              />
-              <ProductStockInfo
-                product={product}
-                formatDate={formatDate}
-                daysToExpiry={daysToExpiry}
-                expiryWarningDays={expiryWarningDays}
-                canSeeQuantities={canSeeQuantities}
               />
             </div>
           </TabsContent>
@@ -243,19 +243,34 @@ export function CatalogDetailPanel({
               storeType={storeProfile?.store_type || "pharmacy"}
               canSeeQuantities={canSeeQuantities}
               canViewCost={canViewCost}
-              canEditCost={canEditCost}
-              currencyCode={storeProfile?.currency}
               formatPrice={formatPrice}
-              sellingPrice={product.sellingPrice}
-              onChangeSellingPrice={() => onEditProduct(product)}
+              onEditBatch={canEditBatch ? openBatchEditor : undefined}
+              highlightBatchId={highlightBatchId}
             />
           </TabsContent>
 
-          <TabsContent value="history" className="mt-4 pt-2">
+          <TabsContent value="history" className="mt-2">
             <ProductHistory productId={product.id} />
           </TabsContent>
         </div>
       </Tabs>
+
+      {batchDialog.open && (
+        <CostBreakdownDialog
+          key={batchDialog.batchId ?? "view"}
+          open
+          onOpenChange={(open) => !open && setBatchDialog({ open: false, batchId: null })}
+          productName={product.name}
+          batches={batches}
+          sellingPrice={product.sellingPrice}
+          formatPrice={formatPrice}
+          canEdit={canEditBatch}
+          canViewCost={canViewCost}
+          canSeeQuantities={canSeeQuantities}
+          initialEditBatchId={batchDialog.batchId}
+          onChangeSellingPrice={() => onEditProduct(product)}
+        />
+      )}
 
       <BarcodePrintDialog
         isOpen={isLabelDialogOpen}

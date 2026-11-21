@@ -8,6 +8,7 @@ export interface PoDraft {
   amountPaid: string;
   dueDate: string;
   paymentTouched: boolean;
+  ordered_by?: string | null;
 }
 
 export type SaveMode = "now" | "debounced";

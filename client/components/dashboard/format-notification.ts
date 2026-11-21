@@ -22,6 +22,7 @@ const ACTION_TITLE_MAP: Record<string, string> = {
   STOCK_EXPIRED: "Stock Marked as Expired",
   STOCK_DAMAGED: "Stock Marked as Damaged",
   BATCH_COST_CORRECTED: "Batch Cost Corrected",
+  BATCH_DETAILS_CORRECTED: "Batch Details Corrected",
   RESELLER_COMMISSION_REDEEMED: "Commission Redeemed",
   FACTORY_RESET: "Store Reset",
   LOGIN_FAILURE: "Multiple Failed Sign-ins",
@@ -64,6 +65,7 @@ export function formatNotificationDescription(description: string, title?: strin
     if (action === "STOCK_EXPIRED") return "Inventory written off as expired.";
     if (action === "STOCK_DAMAGED") return "Inventory written off as damaged.";
     if (action === "BATCH_COST_CORRECTED") return "Batch cost price was updated.";
+    if (action === "BATCH_DETAILS_CORRECTED") return "Batch expiry, lot or manufacture date was updated.";
 
     const formattedAction = formatNotificationTitle(action);
     const formattedTable = actionMatch[2].replace(/_/g, " ");

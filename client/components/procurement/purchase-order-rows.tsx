@@ -134,6 +134,7 @@ export function PurchaseOrderMobileRow({
         <div className="text-[11.5px] text-muted-foreground truncate">
           {formatPONumber(order.id)} &middot;{" "}
           {formatDateToDDMMYYYY(order.created_at)}
+          {order.ordered_by_name && ` · ${order.ordered_by_name}`}
         </div>
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -172,7 +173,12 @@ export function PurchaseOrderRow({
         </span>
       </TableCell>
       <TableCell className="text-muted-foreground text-[12px] font-medium py-2.5">
-        {formatDateToDDMMYYYY(order.created_at)}
+        <div>{formatDateToDDMMYYYY(order.created_at)}</div>
+        {order.ordered_by_name && (
+          <div className="text-[11px] text-muted-foreground/75 truncate">
+            {order.ordered_by_name}
+          </div>
+        )}
       </TableCell>
       <TableCell className="font-bold text-[13px] text-foreground py-2.5">
         {formatCurrency(order.total_amount)}

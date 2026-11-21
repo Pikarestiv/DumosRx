@@ -204,6 +204,30 @@ class PermissionCatalogBackfillTest extends TestCase
         $this->assertContains('view_stock_quantities', $this->groupFor($store, 'sales_staff')->permissions);
     }
 
+    public function test_a_custom_group_holding_edit_product_cost_keeps_its_batch_editing_as_edit_batch_details(): void
+    {
+        $store = $this->stampStore($this->seedPreExpansionStore(), 3);
+        $holder = $this->seedCustomGroup($store, ['process_sales', 'edit_product_cost']);
+        $other = $this->seedCustomGroup($store, ['process_sales']);
+
+        PermissionGroupSeeder::ensureSeeded($store);
+
+        $this->assertSame(['process_sales', 'edit_product_cost', 'edit_batch_details'], $holder->fresh()->permissions);
+        $this->assertSame(['process_sales'], $other->fresh()->permissions);
+        $this->assertGreaterThan(1, (int) $holder->fresh()->_version);
+        $this->assertSame(1, (int) $other->fresh()->_version);
+    }
+
+    public function test_the_carry_over_does_not_apply_to_a_store_already_stamped_at_v4(): void
+    {
+        $store = $this->stampStore($this->seedPreExpansionStore(), 4);
+        $custom = $this->seedCustomGroup($store, ['edit_product_cost']);
+
+        PermissionGroupSeeder::ensureSeeded($store);
+
+        $this->assertSame(['edit_product_cost'], $custom->fresh()->permissions);
+    }
+
     public function test_a_double_encoded_custom_group_keeps_its_keys_when_backfilled(): void
     {
         $store = $this->stampStore($this->seedPreExpansionStore(), 2);

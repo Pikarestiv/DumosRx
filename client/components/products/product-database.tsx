@@ -50,6 +50,8 @@ export function ProductDatabase() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [detailTab, setDetailTab] = useState("details");
+  const [highlightBatchId, setHighlightBatchId] = useState<string | null>(null);
 
   const setAddDialogOpen = useCallback((open: boolean) => {
     setShowAddDialog(open);
@@ -102,6 +104,10 @@ export function ProductDatabase() {
     setShowAddDialog,
     setStatusFilter,
     setSelectedProduct,
+    onSelectTabAndBatch: (tab, batchId) => {
+      setDetailTab(tab);
+      setHighlightBatchId(batchId ?? null);
+    },
   });
 
   const liveSelectedProduct = selectedProduct
@@ -136,6 +142,7 @@ export function ProductDatabase() {
 
   const statuses = CATALOG_STATUS_FILTERS;
   const duplicateIds = useMemo(() => findDuplicateProductIds(products), [products]);
+  const missingExpiryCount = useMemo(() => products.filter((p) => (p.missingExpiryBatches ?? 0) > 0).length, [products]);
 
   const { handleAddProduct, isSaving } = useAddProduct({
     refetch: () => void refetch(),
@@ -234,7 +241,7 @@ export function ProductDatabase() {
               onValueChange={setStatusFilter}
               options={statuses.map((s) => ({
                 value: s,
-                label: catalogStatusLabel(s, { owed: owedByProduct.size, duplicates: duplicateIds.size }),
+                label: catalogStatusLabel(s, { owed: owedByProduct.size, duplicates: duplicateIds.size, missingExpiry: missingExpiryCount }),
               }))}
               className="bg-card"
             />
@@ -255,6 +262,7 @@ export function ProductDatabase() {
             statuses={statuses}
             owedCount={owedByProduct.size}
             duplicateCount={duplicateIds.size}
+            missingExpiryCount={missingExpiryCount}
             onManageCategories={() => router.push("/settings/categories")}
             onProductsChanged={() => void refetch()}
             filteredProductIds={isFiltering ? filteredProducts.map((p) => p.id) : undefined}
@@ -292,7 +300,13 @@ export function ProductDatabase() {
           product={liveSelectedProduct}
           className="border-none rounded-none"
           onEditProduct={handleEditProduct}
-          onClose={() => setSelectedProduct(null)}
+          onClose={() => {
+            setSelectedProduct(null);
+            setHighlightBatchId(null);
+          }}
+          activeTab={detailTab}
+          onTabChange={setDetailTab}
+          highlightBatchId={highlightBatchId}
         />
       </ResponsiveDetailPanel>
 

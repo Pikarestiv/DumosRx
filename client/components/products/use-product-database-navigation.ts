@@ -10,6 +10,7 @@ interface Params {
   setShowAddDialog: (open: boolean) => void;
   setStatusFilter: (status: string) => void;
   setSelectedProduct: (product: Product | null) => void;
+  onSelectTabAndBatch?: (tab: string, batchId?: string) => void;
 }
 
 export function useProductDatabaseNavigation({
@@ -18,6 +19,7 @@ export function useProductDatabaseNavigation({
   setShowAddDialog,
   setStatusFilter,
   setSelectedProduct,
+  onSelectTabAndBatch,
 }: Params) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -42,6 +44,8 @@ export function useProductDatabaseNavigation({
   }, [searchParams, router]);
 
   const deepLinkProductId = searchParams.get("productId");
+  const deepLinkTab = searchParams.get("tab");
+  const deepLinkBatchId = searchParams.get("batchId");
   const [deepLinkSource, setDeepLinkSource] = useState<{
     searchParamsKey: string;
     rawProducts: unknown;
@@ -55,13 +59,20 @@ export function useProductDatabaseNavigation({
   ) {
     setDeepLinkSource({ searchParamsKey, rawProducts });
     const match = products.find((p) => p.id === deepLinkProductId);
-    if (match) setSelectedProduct(match);
+    if (match) {
+      setSelectedProduct(match);
+      if (deepLinkTab && onSelectTabAndBatch) {
+        onSelectTabAndBatch(deepLinkTab, deepLinkBatchId || undefined);
+      }
+    }
   }
 
   useEffect(() => {
     if (!searchParams.get("productId") || !rawProducts) return;
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.delete("productId");
+    newParams.delete("tab");
+    newParams.delete("batchId");
     const newUrl =
       window.location.pathname +
       (newParams.toString() ? `?${newParams.toString()}` : "");

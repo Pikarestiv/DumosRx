@@ -22,6 +22,7 @@ export async function getProductsWithDetails() {
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as cost_price,
        (SELECT expiry_date FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as expiry_date,
        (SELECT batch_number FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0 ORDER BY expiry_date ASC LIMIT 1) as batch_number,
+       (SELECT COUNT(*) FROM stock_batches WHERE product_id = m.id AND (_deleted = 0 OR _deleted IS NULL) AND quantity > 0 AND (expiry_date IS NULL OR expiry_date = '')) as missing_expiry_batches,
        (SELECT MAX(reconciled_at) FROM stock_audits WHERE product_id = m.id AND _deleted = 0 AND status = 'reconciled') as last_audited_at,
        ${lastBoughtPriceSql("m.id")} as last_bought_price
      FROM products m
@@ -168,7 +169,7 @@ export async function getProductHistory(productId: string, viewerId?: string) {
     `SELECT al.*, TRIM(u.first_name || ' ' || u.last_name) as user_name
      FROM audit_logs al
      LEFT JOIN users u ON u.id = al.user_id
-     WHERE (al.record_id = ? OR (al.action = '${AUDIT_ACTIONS.BATCH_COST_CORRECTED}' AND al.table_name = 'stock_batches'
+     WHERE (al.record_id = ? OR (al.action IN ('${AUDIT_ACTIONS.BATCH_COST_CORRECTED}', '${AUDIT_ACTIONS.BATCH_DETAILS_CORRECTED}') AND al.table_name = 'stock_batches'
        AND al.record_id IN (SELECT id FROM stock_batches WHERE product_id = ?)))${viewerId ? " AND al.user_id = ?" : ""}
      ORDER BY al.created_at DESC`,
     viewerId ? [productId, productId, viewerId] : [productId, productId]

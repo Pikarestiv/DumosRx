@@ -36,6 +36,7 @@ export const PERMISSION_CATALOG: PermissionCatalogEntry[] = [
   { key: "approve_stock_transfers", label: "Review Stock Transfers", category: "Inventory & Stock" },
   { key: "view_cost_fields", label: "View Cost & Margin Fields", category: "Inventory & Stock" },
   { key: "edit_product_cost", label: "Edit Product Cost Price", category: "Inventory & Stock" },
+  { key: "edit_batch_details", label: "Edit Batch Details (Cost, Expiry, Lot, Manufacture Date)", category: "Inventory & Stock" },
   { key: "edit_product_price", label: "Edit Product Selling Price", category: "Inventory & Stock" },
   { key: "delete_products", label: "Delete Products", category: "Inventory & Stock" },
   { key: "perform_stock_audit", label: "Perform Stock Audit (Physical Count)", category: "Inventory & Stock" },
@@ -109,6 +110,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_dashboard", "view_financial_reports",
     "manage_device_settings", "install_app_updates",
     "view_stock_quantities",
+    "edit_batch_details",
     // NOT: view_activity_log, manage_roles_permissions, manage_billing, factory_reset
     // (checkCanViewAllActivity/checkCanFactoryReset both exclude "manager" today)
   ],
@@ -126,6 +128,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
     "view_dashboard", "manage_device_settings",
     "view_customer_balances",
     "view_stock_quantities",
+    "edit_batch_details",
     // NOT: void_refund_sales/apply_discounts/override_price (checkIsAdmin-only today),
     // NOT: view_reports/export_reports/view_activity_log/manage_staff/manage_* settings
   ],
@@ -153,7 +156,7 @@ export const DEFAULT_GROUP_PERMISSIONS: Record<
 
 // What a version means and what bumping it requires: see client/AGENTS.md's
 // "Catalog versioning and the default-group backfill" section.
-export const PERMISSION_CATALOG_VERSION = 3;
+export const PERMISSION_CATALOG_VERSION = 4;
 
 export type DefaultGroupRole = keyof typeof DEFAULT_GROUP_PERMISSIONS;
 
@@ -203,6 +206,19 @@ export const DEFAULT_GROUP_PERMISSION_ADDITIONS: Record<number, Record<DefaultGr
     sales_staff: ["view_stock_quantities"],
     auditor: ["view_stock_quantities"],
   },
+  4: {
+    admin: ["edit_batch_details"],
+    manager: ["edit_batch_details"],
+    specialist: ["edit_batch_details"],
+    sales_staff: [],
+    auditor: [],
+  },
+};
+
+// Keys a group gains at that version because it already held another key, whatever its kind (default or custom):
+// holders of edit_product_cost kept the batch cost correction they had when it moved to edit_batch_details.
+export const CARRY_OVER_ADDITIONS: Record<number, Record<string, string[]>> = {
+  4: { edit_product_cost: ["edit_batch_details"] },
 };
 
 // Carve-out keys every group, default or custom, gains at that version: see
@@ -231,6 +247,7 @@ export const ENFORCED_PERMISSION_KEYS: ReadonlySet<string> = new Set([
   "approve_stock_transfers", // stock-movement-detail-modal.tsx (markStockTransferReviewed)
   "view_cost_fields", // catalog-list.tsx, catalog-row.tsx, product-pricing-info.tsx, catalog-detail-panel.tsx (batch costs); assistant inventory_status tool (adds stock value to the reply, never denies it)
   "edit_product_cost", // audit-ledger-step.tsx, catalog-detail-panel.tsx (batch cost correction)
+  "edit_batch_details", // catalog-detail-panel.tsx, catalog-list.tsx (the batch editor: cost, expiry, lot and manufacture date)
   "edit_product_price", // catalog-row.tsx, audit-ledger-step.tsx
   "perform_stock_audit", // dashboard-header.tsx, stock-batch-management.tsx, use-stock-batch-management.ts; assistant "Start a stock audit" help topic
   "view_stock_adjustment_history", // stock-batch-tab-nav.tsx, stock-batch-management.tsx, use-stock-batch-management.ts (Movements + Adjustments tabs)

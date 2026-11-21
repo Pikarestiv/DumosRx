@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { format } from "date-fns";
 import {
   Activity,
   PackagePlus,
@@ -16,7 +15,8 @@ import { useAuth } from "@/lib/context/auth-context";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { resolveMovementDisplayType } from "@/components/stock-batch/stock-movement-utils";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
-import { batchCostReasonLabel } from "@/lib/constants/batch-cost-reasons";
+import { formatDateSafe } from "@/lib/utils/date-utils";
+import { describeAuditDetails, formatAuditTitle, normalizeAction } from "./product-audit-description";
 
 interface HistoryItem {
   id: string;
@@ -175,7 +175,7 @@ export function ProductHistory({ productId }: { productId: string }) {
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 mb-1">
               <h4 className="text-sm font-medium">{item.title}</h4>
               <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {format(item.date, "MMM d, yyyy • h:mm a")}
+                {formatDateSafe(item.date, "dd/MM/yyyy HH:mm", "Unknown date")}
               </span>
             </div>
             <p className="text-sm text-muted-foreground mb-1">
@@ -187,108 +187,6 @@ export function ProductHistory({ productId }: { productId: string }) {
       })}
     </div>
   );
-}
-
-/** audit_logs.action is usually the raw DB op ("INSERT"/"UPDATE"/"DELETE"/
- * "HARD_DELETE") from the generic insert()/update()/softDelete() helpers,
- * not a friendly verb. Normalize case so both that and any hand-picked
- * AUDIT_ACTIONS value map to a readable title. */
-function normalizeAction(action: string) {
-  return (action || "").toLowerCase();
-}
-
-function formatAuditTitle(action: string) {
-  const a = normalizeAction(action);
-  if (a === "create" || a === "insert") return "Product Created";
-  if (a === "update") return "Product Updated";
-  if (a === "delete" || a === "hard_delete") return "Product Deleted";
-  return action
-    .toLowerCase()
-    .split("_")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-// Internal/bookkeeping columns that aren't useful to show a user reading history.
-const AUDIT_DETAIL_HIDDEN_KEYS = new Set([
-  "id",
-  "created_at",
-  "updated_at",
-  "_version",
-  "_synced",
-  "_synced_at",
-  "_deleted",
-  "store_id",
-  "category_id", // raw UUID, not human-readable
-]);
-
-const AUDIT_DETAIL_LABELS: Record<string, string> = {
-  name: "Name",
-  generic_name: "Generic Name",
-  nafdac_number: "NAFDAC No.",
-  strength: "Strength",
-  dosage_form: "Dosage Form",
-  manufacturer: "Manufacturer",
-  selling_price: "Selling Price",
-  reorder_level: "Reorder Level",
-  barcode: "Barcode",
-  base_unit: "Base Unit",
-  bulk_unit: "Bulk Unit",
-  units_per_bulk: "Units per Bulk",
-  is_active: "Active",
-  show_online: "Show Online",
-  requires_prescription: "Requires Prescription",
-  is_controlled: "Controlled Substance",
-};
-
-function formatAuditValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "-";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (value === 1 || value === 0) return value === 1 ? "Yes" : "No";
-  return String(value);
-}
-
-/** Turns the raw JSON payload logAction() stores into a short, readable
- * summary instead of dumping the JSON blob in the UI. */
-function describeAuditDetails(action: string, details: string | null, canViewCost: boolean) {
-  const a = normalizeAction(action);
-  if (a === "delete" || a === "hard_delete") {
-    return "Product removed from the catalog.";
-  }
-
-  if (!details) return "No details provided";
-
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(details);
-  } catch {
-    return details;
-  }
-
-  if (a === "batch_cost_corrected") {
-    const reason = batchCostReasonLabel(parsed.reason);
-    const reasonText = reason ? ` Reason: ${reason}.` : "";
-    if (!canViewCost) return `Batch #${parsed.batch_number || "Default"}: cost price corrected.${reasonText}`;
-    const formatCost = (value: unknown) => (typeof value === "number" ? value.toLocaleString() : "-");
-    return `Batch #${parsed.batch_number || "Default"}: cost price ${formatCost(parsed.previous_cost_price)} → ${formatCost(parsed.cost_price)}.${reasonText}`;
-  }
-
-  const entries = Object.entries(parsed).filter(
-    ([key, value]) => !AUDIT_DETAIL_HIDDEN_KEYS.has(key) && value !== undefined,
-  );
-
-  if (entries.length === 0) {
-    return a === "insert" ? "Product created." : "Details updated.";
-  }
-
-  const summary = entries
-    .map(([key, value]) => {
-      const label = AUDIT_DETAIL_LABELS[key] || key;
-      return `${label}: ${formatAuditValue(value)}`;
-    })
-    .join(" • ");
-
-  return (a === "insert" ? "Created with: " : "Changed: ") + summary;
 }
 
 function getIconForAction(item: HistoryItem) {

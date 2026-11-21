@@ -5,6 +5,7 @@ import { movementLogIsComplete } from "@/lib/db/sync-engine/stock-auto-heal";
 
 export interface ExpiringItem {
   id: string;
+  product_id: string;
   name: string;
   batch_number: string;
   expiry_date: string;
@@ -18,7 +19,7 @@ export async function getExpiringBatches(days: number = 90) {
   const storeId = getActiveStoreId();
   return query<ExpiringItem>(
     `
-    SELECT sb.id, p.name, sb.batch_number, sb.expiry_date, sb.quantity as stock_quantity, p.base_unit
+    SELECT sb.id, sb.product_id, p.name, sb.batch_number, sb.expiry_date, sb.quantity as stock_quantity, p.base_unit
     FROM stock_batches sb
     JOIN products p ON sb.product_id = p.id
     WHERE sb.expiry_date IS NOT NULL

@@ -141,22 +141,23 @@ export const INVENTORY_GUIDES: GuideItem[] = [
   },
   {
     id: "correct-batch-cost-price",
-    title: "Correct a Batch's Cost Price: Fix a Cost Typed Wrongly at Receiving",
+    title: "Correct a Batch: Fix a Cost, Expiry Date, Lot Number or Manufacture Date",
     category: "Inventory",
     badge: "Stock Control",
     readTime: "2 min read",
     videoDuration: "1:30",
     summary:
-      "Fix the cost price of a batch you have already received, so stock value and future profit use the right figure, while past sales keep the cost they were sold at.",
+      "Fix a batch you have already received: its cost price, expiry date, lot number or manufacture date, in one form. Stock value, profit and expiry alerts use the corrected figures, while past sales keep the cost they were sold at.",
     steps: [
       "Open Inventory > Catalog, select the product, and open its Batches tab.",
-      "Tap the pencil icon beside the batch whose cost is wrong.",
-      "Enter the correct cost per unit. The box below shows what changes as you type: this batch, the average cost, the stock value and the profit per unit at your selling price.",
-      "Optionally pick a reason (Typo at receiving, Supplier invoice corrected, Other), then tap 'Save cost'. The correction syncs to your other tills and is recorded, with its reason, in the Activity Log and the product's History tab.",
+      "Tap the pencil beside the batch that is wrong. (To set an expiry, you can also tap 'Add' or 'Edit' beside Next expiry on the Details tab.)",
+      "Change what is wrong: the cost per unit, the lot number, the expiry date or the manufacture date. Type a date as DD/MM/YYYY or pick it from the calendar; clear it to remove it. The manufacture date cannot be after the expiry date.",
+      "If you change the cost, the box below shows what changes as you type: the average cost, the stock value, the margin and the profit per unit at your selling price. Pick a reason (Typo at receiving, Supplier invoice corrected, Other).",
+      "Tap 'Save changes'. The correction syncs to your other tills and is recorded, with who made it, in the Activity Log and the product's History tab.",
     ],
     proTip:
-      "Only staff with both 'View Cost & Margin Fields' and 'Edit Product Cost Price' see the pencil. You can also correct a cost straight from the catalog list: see the 'See and Fix What a Product Costs' guide.",
-    videoPlaceholderText: "Video Walkthrough: Correcting a batch cost price from the product's Batches tab",
+      "Only staff with 'Edit Batch Details' see the pencil, and they need 'View Cost & Margin Fields' to see and change costs; without it they can still fix a batch's expiry, lot and manufacture date. You can reach the same form straight from the catalog list too: see the 'See and Fix What a Product Costs' guide.",
+    videoPlaceholderText: "Video Walkthrough: Correcting a batch's cost, expiry date and lot number from the product's Batches tab",
   },
   {
     id: "cost-breakdown",
@@ -168,16 +169,36 @@ export const INVENTORY_GUIDES: GuideItem[] = [
     summary:
       "Click a product's cost in the catalog to see every batch behind it: when it arrived, which order it came from, its lot, expiry, units left and cost, and which batch sells first. Correct a wrong cost right there. Each sale is costed at the batch it sells from, so this is what your profit is built on.",
     steps: [
-      "Open Inventory > Catalog on a computer or tablet and click the cost figure (the one with the small arrow) on any product row.",
+      "Open Inventory > Catalog on a computer or tablet and click the cost figure (the one with the small arrow) on any product row, or open a product and tap 'From N batches' under Avg cost on its Details tab.",
       "Read the batches: received date and time, 'From PO-...' when it came in on a purchase order, lot, expiry and units left. The batch marked 'Sells first' is the one the next sale takes stock from (earliest expiry first).",
       "The line at the bottom explains the average, for example 'Average 670 = (13 x 650 + 2 x 800) / 15 units', and shows the last cost you received the product at.",
       "Sold-out batches are hidden; tap 'Show sold-out batches' to see them. They can still be corrected, because the last cost you paid comes from them.",
-      "To correct a cost, tap 'Edit' beside the batch, type the right cost and check the preview, then tap 'Save cost'. Read any warning first: a cost of 0, a cost far from your other batches (an extra zero), or an older batch that will sell before this one.",
-      "Profit looks wrong at your selling price? Tap 'Change selling price' under the preview to open the product's edit form.",
+      "To correct a batch, tap the pencil beside it. One form holds the cost, lot number, expiry date and manufacture date: change what is wrong (a cost change shows 'After this correction' and asks for a reason), then tap 'Save changes'. Read any warning first: a cost of 0, a cost far from your other batches (an extra zero), or an older batch that will sell before this one.",
+      "Profit looks wrong at your selling price? Close the breakdown and tap 'Change selling price' on the product's Details tab.",
     ],
     proTip:
-      "Correcting a cost never changes sales you have already made: their profit stays as it was recorded. It also leaves the purchase order and what you paid the supplier untouched. Staff without 'Edit Product Cost Price' see the breakdown but cannot change it, and staff without 'View Cost & Margin Fields' do not see costs at all.",
+      "Correcting a cost never changes sales you have already made: their profit stays as it was recorded. It also leaves the purchase order and what you paid the supplier untouched. Staff without 'Edit Batch Details' see the breakdown but cannot change it, and staff without 'View Cost & Margin Fields' do not see costs at all (they can still fix a batch's expiry, lot and manufacture date).",
     videoPlaceholderText: "Video Walkthrough: Reading a product's cost breakdown and correcting a batch cost from the catalog",
+  },
+  {
+    id: "product-details-panel",
+    title: "The Product Details Panel: Stock, Price, Margin and Expiry at a Glance",
+    category: "Inventory",
+    badge: "New",
+    readTime: "2 min read",
+    videoDuration: "1:30",
+    summary:
+      "Open a product in the Catalog to see how much is in stock, what it sells for, what it costs you and what you make on each unit, all on one screen, with the next things to do one tap away.",
+    steps: [
+      "Open Inventory > Catalog and select a product. The top row has Edit, Adjust stock and Add to order. 'Add to order' opens a new purchase order with this product already on its first line.",
+      "The four cards show In stock (with your reorder level), Selling price, Avg cost and Margin. Tap 'From N batches' under Avg cost to see exactly how that average is worked out.",
+      "Under Pricing, compare your profit and margin on the average cost of stock on the shelf with what restocking costs now (the last cost you received). Tap 'Change selling price' to edit the selling price.",
+      "Under Stock & expiry, see the next expiry date and when the product was last counted. Tap 'Add' or 'Edit' beside Next expiry to set a batch's expiry date, or 'Count now' to count the product.",
+      "Switch to Batches for every batch on hand, or Movements for the history: who changed what, with the date and time.",
+    ],
+    proTip:
+      "Margin here is worked out on the average cost, while 'Last cost' shows what restocking costs today. If the last cost margin is much lower, it is time to raise the price. Staff without permission to view cost fields do not see the cost, margin or pricing figures.",
+    videoPlaceholderText: "Video Walkthrough: Reading the product details panel and acting from it",
   },
   {
     id: "product-images",
@@ -190,7 +211,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Give each product one photo. It shows in your catalog, on the POS product tiles so cashiers find items faster, and on your online store's product cards.",
     steps: [
       "Open Inventory > Catalog and select the product.",
-      "In the Image section at the top of the details panel, tap 'Upload image' and pick a photo, or take one with your phone or tablet camera.",
+      "In the Image section at the bottom of the Details tab, tap 'Upload image' and pick a photo, or take one with your phone or tablet camera.",
       "The photo is shrunk on your device before it uploads, so even a large camera photo uploads quickly. You need an internet connection; offline, the buttons are disabled and the rest of the product still saves as normal.",
       "Use 'Replace image' to change the photo, or 'Remove image' to go back to the category icon. Every till picks up the change on its next sync, and your online store on its next refresh.",
       "On a slower till, turn off 'Show product images in POS grid' in Settings > Register Configs. The POS then shows the category icon instead.",
@@ -214,6 +235,7 @@ export const INVENTORY_GUIDES: GuideItem[] = [
       "Need strength, dosage form, generic name, manufacturer or registration number? Open 'Additional Details'. It stays open or closed the way you last left it.",
       "Adding many products to one shelf? Use 'Save & Add Another': the category stays filled in. Opening the form fresh pins your last used category at the top of the category list.",
       "To change a product, hover its row in the catalog, or a line on a purchase order, and tap the pencil after the name (always visible on phones and tablets). The edit form opens straight away, in the same form you add products with.",
+      "To change a price, stock count, reorder level or category without opening the product, tap the value in the catalog row, type the new one and press Enter or tap the tick. Click away without changing anything and it simply closes. If you did change it, it stays open with an amber outline until you save it or cancel with the cross or Escape, so a stray tap never changes your stock or price. If you try to leave the page (a link, the Back button, or closing the tab) with a change still unsaved, you are asked whether to stay or leave without saving.",
       "On desktop, the 'Product actions' menu above the catalog holds Print barcode labels, Import products from a file, Export product list, Show or hide in online store, and Manage categories.",
     ],
     proTip:

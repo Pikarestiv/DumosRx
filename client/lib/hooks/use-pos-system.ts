@@ -254,11 +254,18 @@ export function usePOSSystem() {
     [isPrescriptionLocked, canSellWithoutStock, cart, addToCart, setSearchTerm],
   );
 
+  const [disambiguationProducts, setDisambiguationProducts] = useState<Product[] | null>(null);
+  const [disambiguationBarcode, setDisambiguationBarcode] = useState<string | null>(null);
+
   const { handleKeyPress, handleScanSuccess } = usePOSScan({
     products,
     searchTerm,
     setSearchTerm,
     addToCart: handleAddToCart,
+    onMultipleMatches: (matches, barcode) => {
+      setDisambiguationProducts(matches);
+      setDisambiguationBarcode(barcode);
+    },
   });
 
   return {
@@ -343,5 +350,9 @@ export function usePOSSystem() {
     spotSourceProduct,
     setSpotSourceProduct,
     handleSpotSourceConfirm,
+    disambiguationProducts,
+    setDisambiguationProducts,
+    disambiguationBarcode,
+    setDisambiguationBarcode,
   };
 }

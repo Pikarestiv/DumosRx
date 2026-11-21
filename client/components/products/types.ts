@@ -28,6 +28,7 @@ export const transformProduct = (apiData: ProductWithDetails): Product => ({
   bulkUnit: apiData.bulk_unit || "",
   unitsPerBulk: Number(apiData.units_per_bulk) || 1,
   lastAuditedAt: apiData.last_audited_at || null,
+  missingExpiryBatches: Number(apiData.missing_expiry_batches) || 0,
   lastBoughtPrice:
     apiData.last_bought_price !== null && apiData.last_bought_price !== undefined
       ? Number(apiData.last_bought_price)

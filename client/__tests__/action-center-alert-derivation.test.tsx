@@ -158,8 +158,9 @@ describe("useActionCenterAlerts", () => {
     const dueSoon = result.current.find((a) => a.id === "payables-due-soon");
     expect(overdue?.priority).toBe("critical");
     expect(overdue?.title).toBe("2 Supplier Payments Overdue");
+    expect(overdue?.actionRoute).toBe("/procurement?status=overdue");
     expect(dueSoon?.priority).toBe("warning");
-    expect(dueSoon?.actionRoute).toBe("/procurement");
+    expect(dueSoon?.actionRoute).toBe("/procurement?status=due-soon");
   });
 
   it("stays quiet about supplier payments when none are due", async () => {
@@ -316,6 +317,7 @@ describe("useActionCenterAlerts", () => {
     expect(byId["expiring-soon"].title).toBe("1 Item Expiring");
     expect(byId["low-stock"].title).toBe("2 Items Low Stock");
     expect(byId["missing-expiry"].title).toBe("1 Batch Missing Expiry");
+    expect(byId["missing-expiry"].actionRoute).toBe("/inventory/catalog?status=missing_expiry");
     expect(byId["oversold"].title).toBe("3 Items Oversold");
     expect(byId["oversold"].priority).toBe("critical");
     expect(byId["low-stock"].priority).toBe("warning");

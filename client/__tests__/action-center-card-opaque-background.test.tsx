@@ -7,6 +7,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: null }),
+}));
+
 vi.mock("@/lib/hooks/use-action-center-alerts", () => ({
   useActionCenterAlerts: () => [
     {

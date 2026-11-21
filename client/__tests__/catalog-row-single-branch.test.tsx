@@ -117,12 +117,10 @@ describe("CatalogRow", () => {
 
     expect(onSaveStockQuantity).not.toHaveBeenCalled();
 
-    // Blur abandons the edit and collapses the cell, so reopen it to prove an
-    // explicit confirm still commits (the cell isn't simply read-only).
-    fireEvent.click(screen.getByLabelText("Edit stock quantity for Panadol (12)"));
-    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "20" } });
+    // A blur leaves the edited cell open and unsaved, so Enter on it still commits.
+    expect(screen.getByRole("spinbutton")).toBeTruthy();
     fireEvent.keyDown(screen.getByRole("spinbutton"), { key: "Enter" });
 
-    expect(onSaveStockQuantity).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), 20);
+    expect(onSaveStockQuantity).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }), 999);
   });
 });

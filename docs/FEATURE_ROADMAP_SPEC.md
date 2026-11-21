@@ -156,6 +156,12 @@ Phase 1, the offline intent router, has shipped (`client/AGENTS.md`, "In-app Ass
 - **Current state:** a store can only move an online order from pending straight to fulfilled or cancelled. `/store/[slug]/track` and `/store/[slug]/prescription` work but are not linked from any storefront page, because there is no in-between progress to show.
 - **Action:** add intermediate statuses (e.g. confirmed, ready for pickup, out for delivery) that a store can set from the POS online-orders screen, then link both pages again.
 
+### Put Cloudflare in front of the API and the app (planned 2026-11-20, not urgent)
+
+- **Why:** a stable edge certificate, caching for the static client, and rate-limit rules the owner controls in front of the shared server.
+- **Not a fix for the 2026-11-20 block:** Namecheap said that block came from failed logins against services on the hosting account, which a web proxy does not cover (FTP, SSH, mail and cPanel logins go straight to the server). For web traffic the host would also see Cloudflare's addresses instead of the callers' and can block those. Plan it, never do it during an incident.
+- **Prerequisites:** whitelist Cloudflare's published ranges at the host; make Laravel read the real client IP (trusted proxies, `CF-Connecting-IP`) so throttling, the audit log and device records keep the right address; keep the FTP deploy and the schema health check working; test long sync requests against Cloudflare's timeout; move the dev subdomains first.
+
 ---
 
 ## 🔴 Large (1+ week)

@@ -1,3 +1,27 @@
+### A-426 — the settings Categories list gave unmatched categories an arbitrary icon
+- **Issue:** #398
+- **Fixed:** 2026-11-20, client only.
+- **Was:** a category with no keyword match took an icon from a hash of its name, so a clinic's "Dentals" or "Laser treatments" showed a syringe or a droplet.
+- **Now:** the list uses `getCategoryListIcon()`: the keyword match when there is one, otherwise one neutral tag icon. `getCategoryIcon()` is unchanged, so product tiles keep their fallback.
+- **Coverage:** `client/__tests__/category-list-icon.test.ts`.
+- **Compat:** UI only.
+
+### A-421 — a `stock_batches` push was not checked against the pusher's batch-editing permissions
+- **Issue:** #401
+- **Fixed:** 2026-11-21, server and client, TDD. Found 2026-11-18, building the catalog cost breakdown.
+- **Was:** correcting a batch's cost, expiry, lot or manufacture date was gated only in the client; the sync push checked store ownership and nothing else, so a session without the rights (or a modified bundle) could rewrite those columns.
+- **Now:** `StockBatchWriteGuard` (`laravel-server/app/Services/Sync/StockBatchWriteGuard.php`, called from `SyncController::push()`'s UPDATE path) compares the payload with the stored row and refuses a real change: to `cost_price` unless the session holds `edit_batch_details`, `edit_product_cost` (stock-audit cost correction) or `manage_products` (product import), and to `batch_number`, `expiry_date` or `manufacture_date` unless it holds `edit_batch_details`. Store owners, admins and super admins are unrestricted. A refusal is `permission_denied`, already terminal on every shipped client, and the client now rewinds the `stock_batches` pull window on it so the server's values replace what the device was showing. INSERTs (receiving) and quantity-only or unchanged full-row UPDATEs pass untouched.
+- **Coverage:** `laravel-server/tests/Feature/StockBatchWritePermissionTest.php` (7 cases, three of which fail without the guard) and `client/__tests__/push-version-conflict-handling.test.ts`.
+- **Compat:** §11: no payload or column changes. A device on an older bundle that tries a refused write gets the existing terminal `permission_denied` and drops the row.
+
+### A-427 — the product panel's "Last counted" always read "Never"
+- **Issue:** #399
+- **Fixed:** 2026-11-20, client only. Found while vetting the product details redesign.
+- **Was:** the redesigned Details tab hardcoded "Never" next to "Count now", dropping the `lastAuditedAt` the old stock card used.
+- **Now:** it shows `product.lastAuditedAt` as `dd/MM/yyyy HH:mm`, and "Never" only when the product has no reconciled audit.
+- **Coverage:** `client/__tests__/product-overview-cards.test.tsx`.
+- **Compat:** UI only.
+
 ### A-423 — editing the store owner's own account demanded a Group the owner cannot have, and the staff cards disagreed
 - **Fixed:** 2026-11-19, client only, TDD. Reported while editing the owner's account.
 - **Was:** the staff form required a Group for every account, and the owner belongs to no group, so the picker had nothing to choose; picking any listed group would have sent that group's role with the save and demoted the owner. Separately, "Total Staff" excluded the store owner (a plan seat limit) while "Active Now" counted the owner, so the cards could read 2 and 3, and "Active Now" meant "not deactivated", not signed in.
@@ -50,7 +74,7 @@
 ### A-402 — an app update reloaded the page and threw away an unsaved purchase order
 - **Fixed:** 2026-11-19, client only, TDD.
 - **Was:** `components/pwa-registrar.tsx` reloaded the moment a new service worker took control, and the order screens kept every line in React state only.
-- **Now:** the order screen autosaves (first item creates the draft; edits save after a 700 ms pause, at once for added or removed rows, and on `pagehide`/`visibilitychange`), and the registrar awaits every registered flush (`lib/utils/reload-guard.ts`, at most 2 s) before reloading. A committed sql.js write is already persisted to IndexedDB when its transaction resolves, so a flushed save survives the reload.
+- **Now:** the order screen autosaves (first item creates the draft; edits save after a pause (700 ms then, 3 s since 2026-11-20), at once for added or removed rows, and on `pagehide`/`visibilitychange`), and the registrar awaits every registered flush (`lib/utils/reload-guard.ts`, at most 2 s) before reloading. A committed sql.js write is already persisted to IndexedDB when its transaction resolves, so a flushed save survives the reload.
 - **Coverage:** `client/__tests__/reload-guard.test.ts`, `po-order-editor-autosave.test.tsx` (pagehide flush).
 - **Compat:** client only. A save that takes longer than 2 s still loses its last keystrokes; the reload is never blocked for longer.
 

@@ -346,6 +346,25 @@ describe("pushChanges handles a version_conflict failure as non-retryable", () =
       expect(windowFor("sales")[0].values[0][0]).toBe("2026-10-10T00:00:00Z");
     });
 
+    it("rewinds stock_batches after a refused batch edit, so the server's cost, expiry and lot replace the one this device is showing", async () => {
+      db.run(`INSERT INTO _sync_state (table_name, last_synced_at) VALUES ('stock_batches', '2026-10-10T00:00:00Z')`);
+      db.run(
+        `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)
+         VALUES (11, 'stock_batches', 'b11', 'UPDATE', ?, '2026-10-10T00:00:00Z')`,
+        [JSON.stringify({ id: "b11", cost_price: 1, _version: 1 })],
+      );
+      apiClient.pushChanges.mockResolvedValueOnce({
+        success: true,
+        processed: 0,
+        failed: [{ id: 11, table_name: "stock_batches", record_id: "b11", reason: "permission_denied" }],
+      });
+
+      await pushChanges();
+
+      expect(db.exec(`SELECT id FROM _sync_queue WHERE id = 11`).length).toBe(0);
+      expect(windowFor("stock_batches")[0].values[0][0]).toBeNull();
+    });
+
     it("does not rewind for a permission_denied drop, which no pull can settle and a gated queue would retrigger every round", async () => {
       db.run(
         `INSERT INTO _sync_queue (id, table_name, record_id, operation, payload, created_at)

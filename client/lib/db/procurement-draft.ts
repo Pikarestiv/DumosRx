@@ -16,6 +16,7 @@ export interface DraftOrderSnapshot {
   paymentStatus: string;
   amountPaid: number;
   dueDate: string | null;
+  ordered_by?: string | null;
   lock?: DraftLockHolder;
   takeOver?: boolean;
   base?: string;
@@ -50,6 +51,7 @@ interface StoredHeader {
   editing_device_id: string | null;
   editing_at: string | null;
   _deleted: number | null;
+  ordered_by: string | null;
 }
 
 export function lockHeldByAnother(
@@ -126,7 +128,7 @@ async function createDraft(snapshot: DraftOrderSnapshot, now: string): Promise<M
     id: snapshot.id,
     status: "pending",
     type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS,
-    ordered_by: getStoredUser()?.id ?? null,
+    ordered_by: snapshot.ordered_by ?? getStoredUser()?.id ?? null,
     created_at: now,
     ...headerFields(snapshot),
     ...lockFields(snapshot.lock, now),
@@ -146,7 +148,7 @@ export async function saveDraftOrder(snapshot: DraftOrderSnapshot): Promise<Draf
 async function writeDraftOrder(snapshot: DraftOrderSnapshot): Promise<DraftSaveResult> {
   const now = new Date().toISOString();
   const [stored] = await query<StoredHeader>(
-    `SELECT status, supplier_id, notes, payment_status, amount_paid, due_date, total_amount, editing_device_id, editing_at, _deleted
+    `SELECT status, supplier_id, notes, payment_status, amount_paid, due_date, total_amount, editing_device_id, editing_at, _deleted, ordered_by
      FROM purchase_orders WHERE id = ?`,
     [snapshot.id],
   );
@@ -165,8 +167,9 @@ async function writeDraftOrder(snapshot: DraftOrderSnapshot): Promise<DraftSaveR
   if (await baseMoved(snapshot)) return { outcome: "stale", lineIdMap: new Map() };
 
   const header = headerFields(snapshot);
+  const backfillOrderedBy = !stored.ordered_by ? { ordered_by: snapshot.ordered_by ?? getStoredUser()?.id ?? null } : {};
   const writeHeader = () =>
-    update("purchase_orders", snapshot.id, { ...header, ...lockFields(lock, now), type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS }, { skipAudit: true });
+    update("purchase_orders", snapshot.id, { ...header, ...backfillOrderedBy, ...lockFields(lock, now), type: ORDER_TYPE_WRITTEN_FOR_OLD_TILLS }, { skipAudit: true });
   const claimsLock = !!lock && stored.editing_device_id !== lock.deviceId;
   if (claimsLock) await writeHeader();
   const { idMap: lineIdMap, writes } = await reconcilePurchaseOrderLines(snapshot.id, snapshot.items, now, { skipAudit: true });

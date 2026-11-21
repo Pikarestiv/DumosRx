@@ -195,54 +195,63 @@ export function StockAdjustmentsLedger() {
     );
   }
 
-  return (
-    <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-2xl">
-      <div className="p-4 pb-3 border-b border-border space-y-3">
-        <div className="flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5">
-          <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search by adjustment ID or product"
-            className="border-0 outline-none text-[13px] w-full bg-transparent"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={reasonFilter} onValueChange={setReasonFilter}>
-            <SelectTrigger
-              aria-label="Filter by reason"
-              className="w-[170px] h-9 text-[13px] bg-muted/30 border-border"
-            >
-              <SelectValue placeholder="All reasons" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_ADJUSTMENT_REASONS}>
-                All reasons
-              </SelectItem>
-              {ADJUSTMENT_REASONS.map((reason) => (
-                <SelectItem key={reason.value} value={reason.value}>
-                  {reason.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <DateRangePicker
-            value={dateRange}
-            onChange={setDateRange}
-            className="bg-muted/30 border-border"
-          />
-        </div>
-        {!hasFullHistory && !dateRange.from && (
-          <p className="text-[11.5px] text-muted-foreground/70">
-            Showing the last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or
-            select a date range to look further back.
-          </p>
-        )}
+  const filtersNode = (isMobile?: boolean) => (
+    <div
+      className={
+        isMobile
+          ? "space-y-3 mb-4 shrink-0"
+          : "p-4 pb-3 border-b border-border space-y-3"
+      }
+    >
+      <div className="flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5 shadow-xs">
+        <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
+        <input
+          type="text"
+          placeholder="Search by adjustment ID or product"
+          className="border-0 outline-none text-[13px] w-full bg-transparent"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+        />
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={reasonFilter} onValueChange={setReasonFilter}>
+          <SelectTrigger
+            aria-label="Filter by reason"
+            className="w-[170px] h-9 text-[13px] bg-card border-border shadow-xs"
+          >
+            <SelectValue placeholder="All reasons" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_ADJUSTMENT_REASONS}>
+              All reasons
+            </SelectItem>
+            {ADJUSTMENT_REASONS.map((reason) => (
+              <SelectItem key={reason.value} value={reason.value}>
+                {reason.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <DateRangePicker
+          value={dateRange}
+          onChange={setDateRange}
+          className="bg-card border-border shadow-xs"
+        />
+      </div>
+      {!hasFullHistory && !dateRange.from && (
+        <p className="text-[11.5px] text-muted-foreground/70">
+          Showing the last {RECENT_ACTIVITY_WINDOW_DAYS} days. Search or
+          select a date range to look further back.
+        </p>
+      )}
+    </div>
+  );
 
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
       {isDesktop && (
-        <>
+        <div className="flex bg-card border border-border rounded-2xl flex-col flex-1 min-h-0">
+          {filtersNode(false)}
           <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)] gap-2 px-4 py-2.5 text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide border-b border-border">
             <div>Adjustment ID</div>
             <div>Date</div>
@@ -285,16 +294,13 @@ export function StockAdjustmentsLedger() {
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
-      {/* Mobile: grouped list, each group already renders its own card.
-          Conditionally rendered, not `md:hidden`: the desktop branch is
-          virtualized and this one isn't, so CSS-hiding meant desktop paid
-          for a full unvirtualized render of the whole ledger and then threw
-          it away. */}
+      {/* Mobile: grouped list, each group renders its own card */}
       {!isDesktop && (
-        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pt-3 pb-0">
+        <div className="flex flex-col flex-1 min-h-0">
+          {filtersNode(true)}
           {visibleGroups.length === 0 && (
             <EmptyState
               icon={ClipboardList}

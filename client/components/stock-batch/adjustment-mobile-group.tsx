@@ -21,15 +21,20 @@ export function AdjustmentMobileGroup({ groupLabel, adjustments }: Props) {
         {adjustments.map((group) => {
           const isAudit = group.source === AUDIT_REFERENCE_TYPE;
           const Icon = isAudit ? ClipboardList : SlidersHorizontal;
+          const iconBg = isAudit
+            ? "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400"
+            : "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400";
 
           return (
             <div
               key={group.referenceId}
               data-testid={`adjustment-row-${group.referenceId}`}
-              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card shadow-sm"
+              className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card shadow-sm hover:bg-accent/50 transition-colors"
             >
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-muted/50">
-                <Icon className="w-4 h-4 text-muted-foreground" />
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg}`}
+              >
+                <Icon className="w-4 h-4" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-semibold text-foreground truncate">

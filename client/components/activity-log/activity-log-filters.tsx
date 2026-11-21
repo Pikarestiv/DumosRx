@@ -55,16 +55,21 @@ export function ActivityLogFilters({
         onChange={onSearchChange}
         placeholder="Search by action, table, or staff member"
         aria-label="Search activity log"
-        inputClassName="bg-muted border-transparent"
+        inputClassName="bg-card border-border shadow-xs"
       />
 
       <div className="flex flex-wrap gap-2">
-        <DateRangePicker value={dateRange} onChange={onDateRangeChange} />
+        <DateRangePicker
+          value={dateRange}
+          onChange={onDateRangeChange}
+          className="bg-card border-border shadow-xs"
+        />
 
         <FilterPill
           label="Action"
           value={actionFilter}
           onValueChange={onActionFilterChange}
+          className="bg-card border-border shadow-xs"
           options={[
             { value: "all", label: "All Actions" },
             ...actions.map((a) => ({
@@ -79,6 +84,7 @@ export function ActivityLogFilters({
             label="Role"
             value={roleFilter}
             onValueChange={onRoleFilterChange}
+            className="bg-card border-border shadow-xs"
             options={[
               { value: "all", label: "All Roles" },
               ...STAFF_ROLES.map((r) => ({
@@ -94,6 +100,7 @@ export function ActivityLogFilters({
             label="Staff"
             value={userFilter}
             onValueChange={onUserFilterChange}
+            className="bg-card border-border shadow-xs"
             options={[
               { value: "all", label: "Everyone" },
               ...users.map((u) => ({

@@ -123,7 +123,7 @@ export function StaffActivitiesTab() {
           }}
           placeholder="Search by action or staff member"
           aria-label="Search staff activity"
-          inputClassName="bg-muted border-transparent"
+          inputClassName="bg-card border-border shadow-xs"
         />
 
         <div className="flex flex-wrap gap-2">
@@ -133,6 +133,7 @@ export function StaffActivitiesTab() {
               setDateRange(v);
               setPage(1);
             }}
+            className="bg-card border-border shadow-xs"
           />
 
           <FilterPill
@@ -142,6 +143,7 @@ export function StaffActivitiesTab() {
               setActionFilter(v);
               setPage(1);
             }}
+            className="bg-card border-border shadow-xs"
             options={[
               { value: "all", label: "All Actions" },
               ...actions.map((a) => ({ value: a, label: describeActionVerb(a) })),
@@ -155,6 +157,7 @@ export function StaffActivitiesTab() {
               setRoleFilter(v);
               setPage(1);
             }}
+            className="bg-card border-border shadow-xs"
             options={[
               { value: "all", label: "All Roles" },
               ...STAFF_ROLES.map((r) => ({ value: r.value, label: r.label })),
@@ -168,6 +171,7 @@ export function StaffActivitiesTab() {
               setUserFilter(v);
               setPage(1);
             }}
+            className="bg-card border-border shadow-xs"
             options={[
               { value: "all", label: "Everyone" },
               ...users.map((u) => ({ value: u.user_id, label: u.user_name || "Unknown" })),

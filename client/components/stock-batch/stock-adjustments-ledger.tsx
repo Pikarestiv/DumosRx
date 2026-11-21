@@ -270,7 +270,7 @@ export function StockAdjustmentsLedger() {
           for a full unvirtualized render of the whole ledger and then threw
           it away. */}
       {!isDesktop && (
-        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pt-3">
+        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pt-3 pb-8">
           {visibleGroups.length === 0 && (
             <EmptyState icon={ClipboardList} title="No adjustments found" className="py-8" />
           )}

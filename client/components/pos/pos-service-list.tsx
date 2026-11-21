@@ -103,7 +103,7 @@ export function POSServiceList({
         <POSCategoryFilter categories={categories} value={selectedCategory} onChange={setSelectedCategory} />
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1">
+      <div className="flex-1 overflow-y-auto pr-1 pb-24 lg:pb-0">
         {filteredServices.length === 0 ? (
           <div className="border border-dashed rounded-2xl border-border bg-card/50">
             <EmptyState

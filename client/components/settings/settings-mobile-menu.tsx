@@ -120,7 +120,7 @@ export function SettingsMobileMenu({ isAdmin, canAccessTab }: SettingsMobileMenu
       : isAdmin || !item.adminOnly;
 
   return (
-    <div className="flex flex-col gap-5 max-w-md mx-auto">
+    <div className="flex flex-col gap-5 max-w-md mx-auto pb-10">
       {MENU_GROUPS.map((group) => {
         const visibleItems = group.items.filter(isVisible);
         if (visibleItems.length === 0) return null;

@@ -176,7 +176,7 @@ export function ExpenseList() {
 
       {/* Mobile: flat card list, no wrapping table card. — docs/CLIENT_COMMENTS.md#block-components-expenses-expense-list-tsx-L170 */}
       {!isDesktop && (
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 pb-8">
         {filteredExpenses.length === 0 && EmptyState}
         {filteredExpenses.map((expense: Expense) => {
           const meta =

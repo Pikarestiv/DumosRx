@@ -229,7 +229,7 @@ export function StockMovements() {
       {/* Mobile: grouped list, each group renders its own card. Conditionally rendered, not `md:hidden`. */}
       {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window */}
       {!isDesktop && (
-      <div>
+      <div className="pb-8">
         {filteredMovements.length === 0 && <NoMovementsFound />}
         {filteredMovements.length > 0 &&
           Object.entries(groupedMovements).map(([groupLabel, groupItems]) => (

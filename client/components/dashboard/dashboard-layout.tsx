@@ -85,13 +85,16 @@ const MAIN_LAYOUT_STYLES: Record<
   // POS and the mobile full-screen takeovers (create PO, settings inner tabs) manage their own padding/back-header, so <main…
   // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L75
   pos: { className: "" },
-  settings: { className: "" },
+  settings: {
+    className:
+      "pb-[calc(4rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-0",
+  },
   createPO: { className: "p-0 lg:p-6 lg:pt-3" },
   default: {
     // Below lg: clears MobileBottomNav (h-16 = 4rem tall, plus its own safe-area inset, plus breathing room) on every route th…
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L87
     className:
-      "px-4 pt-4 sm:px-6 sm:pt-3 pb-[calc(5.5rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-[calc(1rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))]",
+      "px-4 pt-4 sm:px-6 sm:pt-3 pb-[calc(8rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-[calc(1rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))]",
   },
 };
 

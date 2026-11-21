@@ -5,7 +5,8 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { format, isToday, isYesterday, differenceInDays } from "date-fns";
-import { ClipboardList, Search } from "lucide-react";
+import { ClipboardList } from "lucide-react";
+import { SearchInput } from "@/components/ui/search-input";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -203,22 +204,17 @@ export function StockAdjustmentsLedger() {
           : "p-4 pb-3 border-b border-border space-y-3"
       }
     >
-      <div
-        className={
+      <SearchInput
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder="Search by adjustment ID or product"
+        aria-label="Search stock adjustments"
+        inputClassName={
           isMobile
-            ? "flex items-center gap-2 bg-card border border-border rounded-[10px] px-3.5 py-2.5 shadow-xs"
-            : "flex items-center gap-2 bg-muted/30 border border-border rounded-[10px] px-3.5 py-2.5"
+            ? "bg-card border-border shadow-xs"
+            : "bg-muted border-transparent"
         }
-      >
-        <Search className="w-4 h-4 text-muted-foreground/70 shrink-0" />
-        <input
-          type="text"
-          placeholder="Search by adjustment ID or product"
-          className="border-0 outline-none text-[13px] w-full bg-transparent"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-        />
-      </div>
+      />
       <div className="flex flex-wrap items-center gap-2">
         <Select value={reasonFilter} onValueChange={setReasonFilter}>
           <SelectTrigger

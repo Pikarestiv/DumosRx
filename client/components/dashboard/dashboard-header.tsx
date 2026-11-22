@@ -88,7 +88,7 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Desktop only features */}
           <div className="hidden sm:flex items-center gap-3">
             {isSettingsRoute ? (
@@ -110,12 +110,12 @@ export function DashboardHeader({ onOpenFeedback }: DashboardHeaderProps) {
           </div>
 
           {/* Assistant */}
-          <div className="relative border border-border/50 rounded-full p-0.5">
+          <div className="relative border border-border/50 rounded-full sm:p-0.5">
             <AssistantLauncher />
           </div>
 
           {/* Notification Bell */}
-          <div className="relative border border-border/50 rounded-full p-0.5">
+          <div className="relative border border-border/50 rounded-full sm:p-0.5">
             <NotificationBell />
           </div>
 

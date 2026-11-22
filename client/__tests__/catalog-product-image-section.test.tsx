@@ -111,4 +111,49 @@ describe("Catalog detail panel image section", () => {
     expect(init.method).toBe("DELETE");
     await waitFor(() => expect(db.exec("SELECT image_key FROM products WHERE id = 'p1'")[0].values[0][0]).toBeNull());
   });
+
+  it("opens the square camera dialog on Take photo and stops tracks when closed", async () => {
+    const stopTrack = vi.fn();
+    const getUserMedia = vi.fn(() =>
+      Promise.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream),
+    );
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      onLine: true,
+      mediaDevices: { getUserMedia },
+    });
+
+    renderSection();
+
+    fireEvent.click(screen.getByRole("button", { name: /Take photo/ }));
+    expect(await screen.findByRole("dialog", { name: /Take square photo/ })).toBeTruthy();
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        audio: false,
+        video: expect.objectContaining({ facingMode: { ideal: "environment" } }),
+      }),
+    ));
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(stopTrack).toHaveBeenCalledTimes(1));
+  });
+
+  it("falls back to device camera input when camera permission is denied", async () => {
+    const getUserMedia = vi.fn(() => Promise.reject(new DOMException("Denied", "NotAllowedError")));
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      onLine: true,
+      mediaDevices: { getUserMedia },
+    });
+
+    renderSection();
+    const cameraInput = screen.getByLabelText("Take a photo of Panadol Extra") as HTMLInputElement;
+    const clickSpy = vi.spyOn(cameraInput, "click");
+
+    fireEvent.click(screen.getByRole("button", { name: /Take photo/ }));
+    const fallbackBtn = await screen.findByRole("button", { name: /Use device camera/ });
+    fireEvent.click(fallbackBtn);
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
 });

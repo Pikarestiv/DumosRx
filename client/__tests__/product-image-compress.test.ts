@@ -5,6 +5,7 @@ import {
   fitWithin,
   ImageRejectedError,
   MAX_SOURCE_BYTES,
+  squareCropSource,
   TARGET_BYTES,
   validateSourceFile,
 } from "@/lib/product-images/compress";
@@ -48,6 +49,17 @@ describe("fitWithin", () => {
     [10000, 1, 512, 1],
   ])("%sx%s fits as %sx%s without upscaling", (w, h, ew, eh) => {
     expect(fitWithin(w, h)).toEqual({ width: ew, height: eh });
+  });
+});
+
+describe("squareCropSource", () => {
+  it.each([
+    [4000, 3000, 500, 0, 3000, 512],
+    [3000, 4000, 0, 500, 3000, 512],
+    [512, 512, 0, 0, 512, 512],
+    [400, 200, 100, 0, 200, 200],
+  ])("%sx%s crops at (%s,%s) side %s -> %spx", (w, h, sx, sy, side, target) => {
+    expect(squareCropSource(w, h)).toEqual({ sx, sy, side, target });
   });
 });
 
@@ -105,6 +117,29 @@ describe("compressProductImage", () => {
     expect(canvas.width).toBe(512);
     expect(canvas.height).toBe(256);
     expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 512, 256);
+  });
+
+  it("center-crops to a 1:1 square when square option is enabled", async () => {
+    const drawImage = vi.fn();
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({ drawImage }),
+      toBlob: (cb: (b: Blob) => void, type: string) => cb(blobOf(60 * KB, type)),
+    };
+    vi.spyOn(document, "createElement").mockReturnValueOnce(canvas as unknown as HTMLElement);
+    vi.stubGlobal("createImageBitmap", () => Promise.resolve({ width: 2048, height: 1024, close: () => {} }));
+
+    const blob = await compressProductImage(
+      new File([new Uint8Array(1000)], "p.jpg", { type: "image/jpeg" }),
+      undefined,
+      { square: true },
+    );
+
+    expect(blob.type).toBe("image/webp");
+    expect(canvas.width).toBe(512);
+    expect(canvas.height).toBe(512);
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 512, 0, 1024, 1024, 0, 0, 512, 512);
   });
 
   it("reports an undecodable file as a rejected image", async () => {

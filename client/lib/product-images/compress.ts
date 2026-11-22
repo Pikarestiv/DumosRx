@@ -32,6 +32,17 @@ export function fitWithin(width: number, height: number, maxEdge = MAX_EDGE_PX) 
   };
 }
 
+export function squareCropSource(width: number, height: number, maxEdge = MAX_EDGE_PX) {
+  const side = Math.min(width, height);
+  const target = Math.max(1, Math.min(maxEdge, side));
+  return {
+    sx: Math.floor((width - side) / 2),
+    sy: Math.floor((height - side) / 2),
+    side,
+    target,
+  };
+}
+
 export async function encodeWithinBudget(encode: Encoder, hardCapBytes = DEFAULT_HARD_CAP_BYTES): Promise<Blob> {
   let smallest: Blob | null = null;
 
@@ -57,17 +68,31 @@ async function decode(file: Blob): Promise<ImageBitmap> {
   }
 }
 
-export async function compressProductImage(file: File, hardCapBytes = DEFAULT_HARD_CAP_BYTES): Promise<Blob> {
+export async function compressProductImage(
+  file: File,
+  hardCapBytes = DEFAULT_HARD_CAP_BYTES,
+  options?: { square?: boolean },
+): Promise<Blob> {
   validateSourceFile(file);
   const bitmap = await decode(file);
-  const { width, height } = fitWithin(bitmap.width, bitmap.height);
-
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
   const context = canvas.getContext("2d");
-  if (!context) throw new ImageRejectedError("This device cannot resize images.");
-  context.drawImage(bitmap, 0, 0, width, height);
+  if (!context) {
+    bitmap.close?.();
+    throw new ImageRejectedError("This device cannot resize images.");
+  }
+
+  if (options?.square) {
+    const { sx, sy, side, target } = squareCropSource(bitmap.width, bitmap.height);
+    canvas.width = target;
+    canvas.height = target;
+    context.drawImage(bitmap, sx, sy, side, side, 0, 0, target, target);
+  } else {
+    const { width, height } = fitWithin(bitmap.width, bitmap.height);
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(bitmap, 0, 0, width, height);
+  }
   bitmap.close?.();
 
   return encodeWithinBudget(

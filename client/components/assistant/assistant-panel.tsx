@@ -27,13 +27,14 @@ import { AssistantMessageList } from "./assistant-message-list";
 import { AssistantComposer } from "./assistant-composer";
 import { AssistantSuggestionChips } from "./assistant-suggestion-chips";
 import { ASSISTANT_NAME, AssistantBetaTag } from "./assistant-brand";
+import { ScrollFade } from "@/components/ui/scroll-fade";
 
 const PANEL_DESCRIPTION = "Ask how to do something, or check your stock and sales.";
 const HEADER_CLASS =
   "flex shrink-0 flex-row items-start justify-between gap-3 space-y-0 bg-primary bg-gradient-to-b from-primary to-primary/85 px-4 py-3 text-left";
 const HEADER_WRAP_CLASS = "shrink-0 bg-primary bg-gradient-to-b from-primary to-primary/85";
 const HEADER_ROW_CLASS =
-  "flex flex-row items-start justify-between gap-3 space-y-0 px-4 py-3 text-left";
+  "flex flex-row items-start justify-between gap-3 space-y-0 px-4 py-3 text-left [[data-keyboard-open]_&]:py-2";
 const GRAB_HANDLE_CLASS = "mx-auto mt-2 h-1.5 w-10 rounded-full bg-primary-foreground/40";
 const CLOSE_CLASS =
   "rounded-sm p-1 text-primary-foreground opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -64,6 +65,10 @@ export function AssistantPanel() {
     inputRef.current?.focus();
   }, []);
 
+  const handleMobileOpenAutoFocus = useCallback((event: Event) => {
+    event.preventDefault();
+  }, []);
+
   const handleSend = useCallback(
     (text: string) => {
       void Promise.resolve()
@@ -85,15 +90,18 @@ export function AssistantPanel() {
   const body = (
     <>
       <div className="flex min-h-0 flex-1 flex-col">
-        {messages.length === 0 && (
-          <AssistantSuggestionChips suggestions={suggestions} onPick={handleSend} />
+        {messages.length === 0 && !isThinking ? (
+          <ScrollFade containerClassName="flex-1 min-h-0">
+            <AssistantSuggestionChips suggestions={suggestions} onPick={handleSend} />
+          </ScrollFade>
+        ) : (
+          <AssistantMessageList
+            messages={messages}
+            isThinking={isThinking}
+            userInitials={userInitials}
+            onActionClick={close}
+          />
         )}
-        <AssistantMessageList
-          messages={messages}
-          isThinking={isThinking}
-          userInitials={userInitials}
-          onActionClick={close}
-        />
       </div>
       <div className="shrink-0">
         <AssistantComposer isThinking={isThinking} onSend={handleSend} inputRef={inputRef} />
@@ -140,11 +148,17 @@ export function AssistantPanel() {
   }
 
   return (
-    <Drawer open={isOpen} onOpenChange={handleOpenChange}>
+    <Drawer open={isOpen} onOpenChange={handleOpenChange} repositionInputs={false}>
       <DrawerContent
         hideHandle
-        onOpenAutoFocus={handleOpenAutoFocus}
-        className="flex h-[90vh] flex-col overflow-hidden bg-background/95 p-0 backdrop-blur-sm"
+        onOpenAutoFocus={handleMobileOpenAutoFocus}
+        className="mt-0 flex h-[82dvh] flex-col overflow-hidden bg-background/95 p-0 backdrop-blur-sm"
+        style={{
+          bottom: "var(--kb-inset, 0px)",
+          maxHeight:
+            "calc(var(--vv-height, 100dvh) - max(var(--tauri-top, env(safe-area-inset-top, 0px)), 0.75rem) - 0.5rem)",
+          paddingBottom: "0px",
+        }}
       >
         <div className={HEADER_WRAP_CLASS}>
           <div className={GRAB_HANDLE_CLASS} />
@@ -157,7 +171,7 @@ export function AssistantPanel() {
                 </DrawerTitle>
               }
               description={
-                <DrawerDescription className="text-primary-foreground/80">
+                <DrawerDescription className="text-primary-foreground/80 [[data-keyboard-open]_&]:hidden">
                   {PANEL_DESCRIPTION}
                 </DrawerDescription>
               }

@@ -93,5 +93,44 @@ class AdminMaintenanceBackupTest extends TestCase
             'record_id' => $key,
         ]);
         $this->assertNotEmpty($response->json('status_after.recent_backups'));
+        $this->assertSame('ok', $response->json('status_after.last_run.status'));
+        $this->assertSame('manual', $response->json('status_after.last_run.trigger'));
+        $this->assertSame($key, $response->json('status_after.last_run.key'));
+        $this->assertNull($response->json('status_after.last_run.error'));
+        $this->assertNotEmpty($response->json('status_after.last_run.ran_at'));
+    }
+
+    public function test_scheduled_backup_command_records_last_run_status_for_admin_panel(): void
+    {
+        $keypair = sodium_crypto_box_keypair();
+        $publicKey = sodium_crypto_box_publickey($keypair);
+        Storage::fake('r2_backups');
+
+        config([
+            'database_backup.bucket' => 'dumosrx-db-backups',
+            'database_backup.public_key' => base64_encode($publicKey),
+            'database_backup.min_bytes' => 16,
+        ]);
+
+        $this->artisan('backups:database')->assertSuccessful();
+
+        $response = $this->actingAs($this->superAdmin())
+            ->getJson('/api/v1/admin/maintenance/backup');
+
+        $response->assertOk()
+            ->assertJsonPath('last_run.status', 'ok')
+            ->assertJsonPath('last_run.trigger', 'scheduled')
+            ->assertJsonPath('last_run.error', null);
+
+        config(['database_backup.min_bytes' => 10_000_000]);
+        $this->artisan('backups:database')->assertFailed();
+
+        $failedResponse = $this->actingAs($this->superAdmin())
+            ->getJson('/api/v1/admin/maintenance/backup');
+
+        $failedResponse->assertOk()
+            ->assertJsonPath('last_run.status', 'failed')
+            ->assertJsonPath('last_run.trigger', 'scheduled');
+        $this->assertStringContainsString('refusing to upload', (string) $failedResponse->json('last_run.error'));
     }
 }

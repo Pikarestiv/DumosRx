@@ -2,13 +2,17 @@
 
 namespace App\Services\Backup;
 
+use App\Models\SystemConfig;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class DatabaseBackupService
 {
+    public const LAST_RUN_CONFIG_KEY = 'database_backup_last_run';
+
     public function __construct(
         private readonly DatabaseDumper $dumper,
         private readonly BackupEncryptor $encryptor,
@@ -22,6 +26,39 @@ class DatabaseBackupService
     public function disk(): Filesystem
     {
         return Storage::disk(config('database_backup.disk'));
+    }
+
+    /** @param array{key?: string, bytes?: int, monthly_key?: string|null}|null $result */
+    public function recordLastRun(string $status, string $trigger, ?array $result = null, ?string $error = null): void
+    {
+        if (! Schema::hasTable('system_configs')) {
+            return;
+        }
+
+        SystemConfig::setVal(
+            self::LAST_RUN_CONFIG_KEY,
+            [
+                'status' => $status,
+                'trigger' => $trigger,
+                'ran_at' => now('UTC')->toIso8601String(),
+                'key' => $result['key'] ?? null,
+                'bytes' => $result['bytes'] ?? null,
+                'monthly_key' => $result['monthly_key'] ?? null,
+                'error' => $error,
+            ],
+            'Latest database backup execution status and timestamp.',
+        );
+    }
+
+    public function lastRun(): ?array
+    {
+        if (! Schema::hasTable('system_configs')) {
+            return null;
+        }
+
+        $value = SystemConfig::getVal(self::LAST_RUN_CONFIG_KEY);
+
+        return is_array($value) ? $value : null;
     }
 
     /** @return array{key: string, bytes: int, monthly_key: string|null} */

@@ -113,4 +113,32 @@ describe("DatabaseBackupPanel", () => {
       ).toBeDefined();
     });
   });
+
+  it("renders last backup run status, trigger, timestamp, and failure error when present", async () => {
+    const failedStatus: AdminBackupStatus = {
+      configured: true,
+      bucket_configured: true,
+      public_key_configured: true,
+      disk: "r2_backups",
+      schedule: "Daily at 23:00 Africa/Lagos",
+      last_run: {
+        status: "failed",
+        trigger: "scheduled",
+        ran_at: "2026-11-22T08:15:00Z",
+        key: null,
+        bytes: null,
+        monthly_key: null,
+        error: "R2 upload timed out",
+      },
+      recent_backups: [],
+      list_error: null,
+    };
+    requestMock.mockResolvedValueOnce(failedStatus);
+
+    renderPanel();
+
+    expect(await screen.findByText(/failed · scheduled/i)).toBeDefined();
+    expect(screen.getByText(/22\/11\/2026 \d{2}:\d{2}/)).toBeDefined();
+    expect(screen.getByText("R2 upload timed out")).toBeDefined();
+  });
 });

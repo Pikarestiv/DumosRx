@@ -5159,9 +5159,11 @@ Whole-database disaster recovery, separate from the per-store manual backups
   (dump, encrypt, upload, size mismatch, or an encrypted file under `BACKUP_MIN_BYTES`)
   is logged critical, emailed to the admins via `AdminAlertService`, and exits non-zero.
   There is no alert for a night that never ran (for example the scheduler stopped);
-  `/admin/maintenance` exposes live config status, up to 5 recent `daily/` objects, and a
-  confirmed `"Run backup now"` trigger (`POST /api/v1/admin/maintenance/backup/run`, audited
-  as `maintenance_backup_run`, returning 422 when unconfigured instead of silently succeeding).
+  `/admin/maintenance` exposes live config status, the last recorded scheduled or manual run
+  (`SystemConfig` key `database_backup_last_run` with `status`, `trigger`, `ran_at`, `key`, `bytes`,
+  `monthly_key`, `error`), up to 5 recent `daily/` objects, and a confirmed `"Run backup now"` trigger
+  (`POST /api/v1/admin/maintenance/backup/run`, audited as `maintenance_backup_run`, returning 422
+  when unconfigured instead of silently succeeding).
 - **Restore drill** (rehearse against a scratch database, never production):
   1. Download the newest object from `dumosrx-db-backups` in the Cloudflare dashboard.
   2. On your machine: `php artisan backups:decrypt backup.sql.gz.enc backup.sql.gz --secret-key-file=keypair.txt`.

@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { StoreType } from "@/lib/context/store-context";
 import { useState } from "react";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import {
@@ -18,11 +17,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { StoreProfileSection } from "./store-profile-section";
 import { BusinessProfileField } from "./business-profile-field";
 
 interface BusinessInformationCardProps {
-  storeType: StoreType;
   localName: string;
   setLocalName: (val: string) => void;
   localAddress: string;
@@ -38,18 +35,10 @@ interface BusinessInformationCardProps {
   localLogo: string;
   handleLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveLogo: () => void;
-  localPcn: string;
-  setLocalPcn: (val: string) => void;
-  showRetailSuggestions?: boolean;
-  setShowRetailSuggestions?: (val: boolean) => void;
-  loyaltyProgramEnabled?: boolean;
-  setLoyaltyProgramEnabled?: (val: boolean) => void;
-  canAccessLoyaltyProgramPlan?: boolean;
   handleSaveProfile: () => void;
 }
 
 export function BusinessInformationCard({
-  storeType,
   localName,
   setLocalName,
   localAddress,
@@ -65,13 +54,6 @@ export function BusinessInformationCard({
   localLogo,
   handleLogoUpload,
   handleRemoveLogo,
-  localPcn,
-  setLocalPcn,
-  showRetailSuggestions = false,
-  setShowRetailSuggestions,
-  loyaltyProgramEnabled = false,
-  setLoyaltyProgramEnabled,
-  canAccessLoyaltyProgramPlan = false,
   handleSaveProfile,
 }: BusinessInformationCardProps) {
   const {
@@ -233,19 +215,6 @@ export function BusinessInformationCard({
             </div>
           </div>
         </div>
-
-        <StoreProfileSection
-          storeType={storeType}
-          isEditingProfile={isEditingProfile}
-          localPcn={localPcn}
-          setLocalPcn={setLocalPcn}
-          showRetailSuggestions={showRetailSuggestions}
-          setShowRetailSuggestions={setShowRetailSuggestions}
-          loyaltyProgramEnabled={loyaltyProgramEnabled}
-          setLoyaltyProgramEnabled={setLoyaltyProgramEnabled}
-          canAccessLoyaltyProgramPlan={canAccessLoyaltyProgramPlan}
-          getUpgradeMessage={getUpgradeMessage}
-        />
       </CardContent>
       {isEditingProfile && (
         <CardFooter className="border-t px-6 py-4">

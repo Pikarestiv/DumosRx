@@ -100,6 +100,50 @@ export function DatabaseBackupPanel() {
               </div>
             )}
 
+            <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+                  Last backup run
+                </span>
+                {status.last_run ? (
+                  <Badge
+                    variant={status.last_run.status === "ok" ? "secondary" : "destructive"}
+                    className="gap-1 text-xs font-medium"
+                  >
+                    {status.last_run.status === "ok" ? (
+                      <CheckCircle2 className="h-3 w-3" />
+                    ) : (
+                      <XCircle className="h-3 w-3" />
+                    )}
+                    {status.last_run.status === "ok" ? "Succeeded" : "Failed"} ·{" "}
+                    {status.last_run.trigger === "scheduled" ? "Scheduled" : "Manual"}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">No recorded runs yet</span>
+                )}
+              </div>
+              {status.last_run && (
+                <>
+                  <p className="text-muted-foreground">
+                    Ran at{" "}
+                    <span className="font-medium text-foreground">
+                      {formatDateSafe(status.last_run.ran_at, "dd/MM/yyyy HH:mm", "Unknown")}
+                    </span>
+                    {status.last_run.key ? (
+                      <>
+                        {" · "}
+                        <span className="font-mono">{status.last_run.key}</span>
+                        {status.last_run.bytes !== null ? ` (${formatBytes(status.last_run.bytes)})` : ""}
+                      </>
+                    ) : null}
+                  </p>
+                  {status.last_run.status === "failed" && status.last_run.error && (
+                    <p className="text-destructive break-words">{status.last_run.error}</p>
+                  )}
+                </>
+              )}
+            </div>
+
             {status.list_error && (
               <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />

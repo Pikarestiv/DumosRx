@@ -214,6 +214,7 @@ class AdminMaintenanceService
             'public_key_configured' => $publicKeyConfigured,
             'disk' => (string) config('database_backup.disk'),
             'schedule' => 'Daily at 23:00 Africa/Lagos',
+            'last_run' => $backups->lastRun(),
             'recent_backups' => $recentBackups,
             'list_error' => $listError,
         ];
@@ -234,6 +235,7 @@ class AdminMaintenanceService
         try {
             $result = $backups->run(now('Africa/Lagos'));
         } catch (\Throwable $e) {
+            $backups->recordLastRun('failed', 'manual', null, $e->getMessage());
             \Illuminate\Support\Facades\Log::critical('Manual database backup failed', [
                 'error' => $e->getMessage(),
                 'actor_id' => $actorId,
@@ -247,6 +249,7 @@ class AdminMaintenanceService
             ];
         }
 
+        $backups->recordLastRun('ok', 'manual', $result);
         $monthlySuffix = $result['monthly_key'] ? " and {$result['monthly_key']}" : '';
         $output = "Wrote {$result['key']} ({$result['bytes']} bytes){$monthlySuffix}.";
 

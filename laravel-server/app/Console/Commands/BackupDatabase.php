@@ -25,6 +25,7 @@ class BackupDatabase extends Command
         try {
             $result = $backups->run(now('Africa/Lagos'));
         } catch (Throwable $e) {
+            $backups->recordLastRun('failed', 'scheduled', null, $e->getMessage());
             Log::critical('Nightly database backup failed', ['error' => $e->getMessage()]);
             AdminAlertService::send(
                 'Nightly database backup failed',
@@ -47,6 +48,7 @@ class BackupDatabase extends Command
             return self::FAILURE;
         }
 
+        $backups->recordLastRun('ok', 'scheduled', $result);
         Log::info('Nightly database backup written', $result);
         $this->info("Wrote {$result['key']} ({$result['bytes']} bytes).");
 

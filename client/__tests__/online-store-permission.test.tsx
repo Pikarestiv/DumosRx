@@ -35,8 +35,15 @@ vi.mock("@/components/settings/store/online-payments-section", () => ({
   OnlinePaymentsSection: () => <div>online-payments-section</div>,
 }));
 
+vi.mock("@/lib/hooks/use-feature-gate", () => ({
+  useFeatureGate: () => ({
+    withRestriction: <T extends (...args: never[]) => unknown>(fn: T) => fn,
+    getUpgradeMessage: (_f: string, fallback?: string) => fallback ?? "",
+  }),
+}));
+
 import { OnlineStorefrontCard } from "@/components/settings/store/online-storefront-card";
-import { StoreProfileSection } from "@/components/settings/store/store-profile-section";
+import { StoreProfileCard } from "@/components/settings/store/store-profile-card";
 import { PaymentMethodsPanel } from "@/app/(dashboard)/settings/[tab]/panels/payment-methods-panel";
 import type { SettingsState } from "@/hooks/use-settings";
 
@@ -44,15 +51,14 @@ function deny(...denied: string[]) {
   hasPermission.mockImplementation((key: string) => !denied.includes(key));
 }
 
-const sectionProps = {
+const storeProfileProps = {
   storeType: "retail" as const,
-  isEditingProfile: true,
   localPcn: "",
   setLocalPcn: vi.fn(),
   loyaltyProgramEnabled: false,
   setLoyaltyProgramEnabled: vi.fn(),
   canAccessLoyaltyProgramPlan: true,
-  getUpgradeMessage: (_f: string, fallback?: string) => fallback ?? "",
+  handleSaveProfile: vi.fn(),
 };
 
 const storefrontProps = {
@@ -138,17 +144,20 @@ describe("manage_online_store", () => {
     expect(screen.queryByText("storefront-appearance")).toBeNull();
   });
 
-  it("no longer carries the storefront controls in Store Profile, which keeps the loyalty toggle", () => {
-    render(<StoreProfileSection {...sectionProps} />);
+  it("no longer carries the storefront controls in Store Profile, which keeps the loyalty toggle and its own edit pencil", () => {
+    render(<StoreProfileCard {...storeProfileProps} />);
     expect(screen.queryByText("Store URL Slug")).toBeNull();
     expect(screen.queryByText("Enable Online Store")).toBeNull();
     expect(screen.queryByText("Enable Loyalty Program")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit store profile" }));
+    expect(screen.getByRole("button", { name: "Save Changes" })).toBeTruthy();
   });
 
   it("renders nothing at all rather than an empty bordered box", () => {
     const { container } = render(
-      <StoreProfileSection
-        {...sectionProps}
+      <StoreProfileCard
+        {...storeProfileProps}
         setLoyaltyProgramEnabled={undefined}
       />,
     );

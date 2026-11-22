@@ -301,12 +301,23 @@ export interface AdminBackupEntry {
   last_modified: string;
 }
 
+export interface AdminBackupLastRun {
+  status: "ok" | "failed";
+  trigger: "scheduled" | "manual";
+  ran_at: string;
+  key: string | null;
+  bytes: number | null;
+  monthly_key: string | null;
+  error: string | null;
+}
+
 export interface AdminBackupStatus {
   configured: boolean;
   bucket_configured: boolean;
   public_key_configured: boolean;
   disk: string;
   schedule: string;
+  last_run?: AdminBackupLastRun | null;
   recent_backups: AdminBackupEntry[];
   list_error: string | null;
 }

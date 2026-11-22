@@ -5173,3 +5173,8 @@ Whole-database disaster recovery, separate from the per-store manual backups
   are covered by `tests/Feature/Backup`, and the dumper has been run read-only against a
   local MySQL database (75 tables dumped).
 
+## Super-admin alerts & daily platform brief (2026-11-22)
+
+- **Structured `SuperAdminAlertMail` (`app/Mail/SuperAdminAlertMail.php`, `resources/views/emails/super-admin-alert.blade.php`) & `AdminAlertService::send()`:** Accepts optional `$details` (`severity`, `badge`, `subject`, `meta`, `metrics`, `sections`, `action`) while staying backward-compatible with `($title, $messageLines)`. Every alert renders environment badge (`APP_ENV`), `Africa/Lagos` (`WAT`) and `UTC` timestamps, server host, grouped Key/Value tables parsed from `"Label: Value"` lines, XSS-safe line escaping (callers pass plain strings; `FeedbackController` no longer pre-applies `nl2br(e())`), and an admin CTA link. Do not add `ShouldQueue`.
+- **PWA-era daily brief (`SendAdminDailySummary`, `AdminDailySummaryService`, `AdminDailyMetricsCollector`):** Replaced the `DownloadLog`-only `"Total Downloads: 0"` alert with an `Africa/Lagos` yesterday platform digest (`startOfDay()->utc()`..`endOfDay()->utc()`, excluding `is_demo` stores and soft-deleted `sales`/`online_orders`). Summarizes synced stores, distinct PWA/Web vs Desktop (`Desktop App ...` label) devices, active `app_version`/`build_sha` counts, multi-currency POS & storefront totals (`CurrencyTotals::fromPairs()`), subscription cash & 7-day expirations, `SyncHealthDaily` acceptance, `SyncFailure` counts, pending `Feedback` tickets, and security events; `DownloadLog` counts appear only when `> 0`.
+

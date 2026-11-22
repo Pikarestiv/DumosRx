@@ -59,9 +59,27 @@ class SyncSubaccountFeeRates extends Command
                 SystemConfig::setVal($failureCountKey, $failures);
 
                 if ($failures >= self::FAILURE_ALERT_THRESHOLD) {
+                    $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
                     $alerts->send(
                         'Storefront subaccount fee sync repeatedly failing',
-                        ["Store {$store->id} ({$store->name}) has failed {$failures} consecutive fee-sync attempts. Last error: ".$e->getMessage()],
+                        [
+                            "Store: {$store->name} ({$store->id})",
+                            "Consecutive Failures: {$failures}",
+                            "Target Fee Percentage: {$feePercentage}%",
+                            'Last error: '.$e->getMessage(),
+                        ],
+                        [
+                            'severity' => 'warning',
+                            'badge' => 'Fee Sync Escalation',
+                            'meta' => [
+                                'Store ID' => (string) $store->id,
+                                'Failures' => (string) $failures,
+                            ],
+                            'action' => [
+                                'label' => 'Inspect Store in Admin',
+                                'url' => $adminBase.'/stores/details?id='.$store->id,
+                            ],
+                        ],
                     );
                 }
                 // Deliberately left dirty - retried next scheduled run.

@@ -83,15 +83,31 @@ class PaymentMismatchHandler
             : 'Refund: FAILED — refund this by hand. '.($refund['message'] ?: 'no provider message');
 
         try {
-            AdminAlertService::send('Payment mismatch: '.($txn->metadata['plan_name'] ?? 'unknown plan'), [
-                'A payment was confirmed by the provider for an amount or currency that does not match the transaction it was created for. The subscription was NOT activated.',
-                'Reference: '.$txn->provider_reference,
-                'Provider: '.$txn->provider,
-                'User: '.($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : 'unknown'),
-                'Expected: '.number_format((float) $txn->amount, 2).' '.$expectedCurrency,
-                'Reported: '.number_format($reportedAmount, 2).' '.($reportedCurrency ?: 'unknown'),
-                $refunded,
-            ]);
+            $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
+            AdminAlertService::send(
+                'Payment mismatch: '.($txn->metadata['plan_name'] ?? 'unknown plan'),
+                [
+                    'A payment was confirmed by the provider for an amount or currency that does not match the transaction it was created for. The subscription was NOT activated.',
+                    'Reference: '.$txn->provider_reference,
+                    'Provider: '.$txn->provider,
+                    'User: '.($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : 'unknown'),
+                    'Expected: '.number_format((float) $txn->amount, 2).' '.$expectedCurrency,
+                    'Reported: '.number_format($reportedAmount, 2).' '.($reportedCurrency ?: 'unknown'),
+                    $refunded,
+                ],
+                [
+                    'severity' => $refund['success'] ? 'warning' : 'critical',
+                    'badge' => 'Payment Mismatch',
+                    'meta' => [
+                        'Reference' => (string) $txn->provider_reference,
+                        'Provider' => ucfirst((string) $txn->provider),
+                    ],
+                    'action' => [
+                        'label' => 'Review Revenue & Transactions',
+                        'url' => $adminBase.'/marketing',
+                    ],
+                ],
+            );
         } catch (\Throwable $e) {
             Log::error('Failed to send the payment-mismatch admin alert: '.$e->getMessage());
         }

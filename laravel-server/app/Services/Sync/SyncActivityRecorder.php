@@ -137,13 +137,30 @@ class SyncActivityRecorder
         }
 
         try {
+            $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
             \App\Services\AdminAlertService::send(
                 'First-Time Sync Completed: '.$store->name,
-                [
+                array_values(array_filter([
                     'A user has just successfully completed their first local sync with the DumosRx Cloud.',
                     "Store: {$store->name}",
+                    "Store ID: {$store->id}",
+                    'Store Type: '.($store->store_type ?: 'pharmacy'),
+                    'Currency: '.($store->currency ?: 'NGN'),
+                    $store->location ? "Location: {$store->location}" : null,
                     "User: {$user->first_name} {$user->last_name} ({$user->email})",
-                ]
+                ])),
+                [
+                    'severity' => 'success',
+                    'badge' => 'First Cloud Sync',
+                    'meta' => array_filter([
+                        'Store ID' => (string) $store->id,
+                        'Device ID' => $store->device_id ?: null,
+                    ]),
+                    'action' => [
+                        'label' => 'Inspect Store in Admin',
+                        'url' => $adminBase.'/stores/details?id='.$store->id,
+                    ],
+                ],
             );
         } catch (\Exception $e) {
             Log::error('Failed to send super admin alert for sync: '.$e->getMessage());

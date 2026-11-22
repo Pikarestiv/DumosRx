@@ -207,7 +207,25 @@ class StorefrontPaymentReconciler
     private function alert(string $title, array $lines, StorefrontPaymentIntent $intent): void
     {
         try {
-            AdminAlertService::send($title, $lines);
+            $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
+            $details = [
+                'severity' => str_contains(strtolower($title), 'mismatch') ? 'critical' : 'warning',
+                'badge' => 'Storefront Reconciliation',
+                'meta' => array_filter([
+                    'Store ID' => $intent->store_id ? (string) $intent->store_id : null,
+                    'Reference' => $intent->reference ? (string) $intent->reference : null,
+                    'Provider' => $intent->provider ? ucfirst((string) $intent->provider) : null,
+                ]),
+            ];
+
+            if ($intent->store_id) {
+                $details['action'] = [
+                    'label' => 'Inspect Store in Admin',
+                    'url' => $adminBase.'/stores/details?id='.$intent->store_id,
+                ];
+            }
+
+            AdminAlertService::send($title, $lines, $details);
         } catch (\Throwable $e) {
             Log::error('Failed to send the storefront reconciliation alert: '.$e->getMessage());
         }

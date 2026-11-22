@@ -2,54 +2,52 @@
 
 namespace App\Console\Commands;
 
-use App\Models\DownloadLog;
+use App\Services\Admin\AdminDailySummaryService;
+use App\Services\AdminAlertService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 class SendAdminDailySummary extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'admin:send-daily-summary';
+    protected $signature = 'admin:send-daily-summary {--date= : Report calendar date (YYYY-MM-DD, Africa/Lagos); defaults to yesterday}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Send daily summary of app downloads to super admins';
+    protected $description = 'Send the daily platform operations, PWA activity, commerce, and sync health summary to super admins';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(AdminDailySummaryService $summaryService): int
     {
-        $yesterday = Carbon::yesterday();
-        $logs = DownloadLog::whereDate('created_at', $yesterday)->get();
+        $dateOption = $this->option('date');
+        $targetDate = null;
 
-        $totalDownloads = $logs->count();
-        $platforms = $logs->groupBy('platform')->map->count();
+        if (is_string($dateOption) && trim($dateOption) !== '') {
+            $rawDate = trim($dateOption);
+            try {
+                $targetDate = Carbon::createFromFormat('!Y-m-d', $rawDate, 'Africa/Lagos');
+            } catch (\Throwable) {
+                $targetDate = null;
+            }
 
-        $lines = [
-            'Here is the daily summary of DumosRx app downloads for '.$yesterday->format('Y-m-d').':',
-            "Total Downloads: {$totalDownloads}",
-        ];
+            if (! $targetDate || $targetDate->format('Y-m-d') !== $rawDate) {
+                $this->error('Invalid --date format. Expected YYYY-MM-DD.');
 
-        foreach ($platforms as $platform => $count) {
-            $lines[] = '- '.ucfirst($platform).": {$count}";
+                return self::FAILURE;
+            }
         }
 
+        $summary = $summaryService->buildForDate($targetDate);
+
         try {
-            \App\Services\AdminAlertService::send(
-                "Daily App Downloads Summary ({$yesterday->format('Y-m-d')})",
-                $lines
+            AdminAlertService::send(
+                $summary['title'],
+                $summary['lines'],
+                $summary['details'],
             );
-            $this->info('Admin daily summary sent successfully.');
-        } catch (\Exception $e) {
+            $this->info('Admin daily platform summary sent successfully.');
+
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
             $this->error('Failed to send admin daily summary: '.$e->getMessage());
+
+            return self::FAILURE;
         }
     }
 }

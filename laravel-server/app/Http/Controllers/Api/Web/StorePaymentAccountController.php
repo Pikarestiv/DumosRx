@@ -215,6 +215,7 @@ class StorePaymentAccountController extends Controller
         ]);
 
         try {
+            $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
             \App\Services\AdminAlertService::send(
                 'Orphaned Paystack subaccount needs reconciliation',
                 [
@@ -224,7 +225,19 @@ class StorePaymentAccountController extends Controller
                     "Bank code: {$validated['bank_code']}, account ending {$columns['paystack_account_number_last4']}",
                     'Set stores.paystack_subaccount_code to this code by hand rather than letting the owner retry, which would create a second subaccount.',
                     'Last error: '.$lastError->getMessage(),
-                ]
+                ],
+                [
+                    'severity' => 'critical',
+                    'badge' => 'Subaccount Reconciliation',
+                    'meta' => [
+                        'Store ID' => (string) $store->id,
+                        'Subaccount' => (string) $code,
+                    ],
+                    'action' => [
+                        'label' => 'Inspect Store in Admin',
+                        'url' => $adminBase.'/stores/details?id='.$store->id,
+                    ],
+                ],
             );
         } catch (\Throwable $e) {
             Log::error('Failed to alert admins about an orphaned Paystack subaccount: '.$e->getMessage());

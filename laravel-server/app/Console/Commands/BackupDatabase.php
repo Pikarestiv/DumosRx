@@ -26,7 +26,22 @@ class BackupDatabase extends Command
             $result = $backups->run(now('Africa/Lagos'));
         } catch (Throwable $e) {
             Log::critical('Nightly database backup failed', ['error' => $e->getMessage()]);
-            AdminAlertService::send('Nightly database backup failed', [$e->getMessage(), 'Run backups:database again and check the log.']);
+            AdminAlertService::send(
+                'Nightly database backup failed',
+                [$e->getMessage(), 'Run backups:database again and check the log.'],
+                [
+                    'severity' => 'critical',
+                    'badge' => 'Backup Failed',
+                    'meta' => array_filter([
+                        'Bucket' => (string) config('database_backup.bucket'),
+                        'Connection' => (string) config('database.default'),
+                    ]),
+                    'action' => [
+                        'label' => 'Open Operations Health',
+                        'url' => rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin/operations',
+                    ],
+                ],
+            );
             $this->error($e->getMessage());
 
             return self::FAILURE;

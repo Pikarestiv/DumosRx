@@ -254,7 +254,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           // On POS/settings routes there's no header to carry the inset, so keep it here.
           // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L304
           paddingTop:
-            isPosRoute || isSettingsRoute ? "var(--tauri-top, 0px)" : undefined,
+            isPosRoute || isSettingsRoute ? "var(--tauri-top, env(safe-area-inset-top, 0px))" : undefined,
         }}
       >
         <div
@@ -265,7 +265,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
           style={{
             paddingTop:
               !isPosRoute && !isSettingsRoute
-                ? "var(--tauri-top, 0px)"
+                ? "var(--tauri-top, env(safe-area-inset-top, 0px))"
                 : undefined,
           }}
         >

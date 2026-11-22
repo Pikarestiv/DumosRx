@@ -80,41 +80,39 @@ export function ServicesList({
           <div
             key={srv.id}
             data-service-card-mobile
-            className="flex items-center justify-between p-3.5 bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors shadow-sm"
+            className="p-3.5 bg-card border border-border rounded-xl hover:bg-muted/30 transition-colors shadow-sm space-y-2.5"
           >
-            <div className="min-w-0 pr-3 flex-1">
-              <div className="flex items-center gap-2">
-                <span className={`font-semibold text-foreground text-sm truncate ${capsClass}`}>
+            <div className="flex items-start justify-between gap-2.5">
+              <div className="min-w-0 flex-1">
+                <div className={`font-semibold text-foreground text-[15px] leading-snug line-clamp-2 ${capsClass}`}>
                   {srv.name}
-                </span>
-                {srv.is_active ? (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9.5px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                    Active
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9.5px] font-semibold bg-muted text-muted-foreground shrink-0">
-                    Inactive
-                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5 flex-wrap">
+                  {srv.code && <span className="font-mono">{srv.code}</span>}
+                  {srv.code && srv.category && <span>•</span>}
+                  <span className={capsClass}>{srv.category || "Uncategorized"}</span>
+                </div>
+                {srv.description && (
+                  <div className="text-[11.5px] text-muted-foreground/80 mt-1 line-clamp-2">
+                    {srv.description}
+                  </div>
                 )}
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
-                {srv.code && <span className="font-mono">{srv.code}</span>}
-                {srv.code && srv.category && <span>•</span>}
-                <span className={capsClass}>{srv.category || "Uncategorized"}</span>
-              </div>
-              {srv.description && (
-                <div className="text-[11.5px] text-muted-foreground/80 mt-1 line-clamp-1">
-                  {srv.description}
-                </div>
+              {srv.is_active ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                  Active
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground shrink-0">
+                  Inactive
+                </span>
               )}
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <div className="text-right">
-                <div className="font-bold text-sm text-foreground">
-                  {formatCurrency(srv.price, currencyCode)}
-                </div>
+            <div className="pt-2.5 border-t border-border/50 flex items-center justify-between gap-2">
+              <div className="font-bold text-[15px] text-foreground tabular-nums">
+                {formatCurrency(srv.price, currencyCode)}
               </div>
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-1">
                 <ServiceRowActions srv={srv} onEdit={onEdit} onDelete={onDelete} />
               </div>
             </div>

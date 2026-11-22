@@ -116,7 +116,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
     return (
       <div
         className="flex flex-col w-full overflow-hidden bg-background"
-        style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
+        style={{ height: "calc(100dvh - var(--tauri-top, env(safe-area-inset-top, 0px)))" }}
       >
         <SettingsHeader
           title="Settings"
@@ -137,7 +137,7 @@ export default function SettingsPage({ isIndex }: { isIndex?: boolean }) {
       onValueChange={s.handleTabChange}
       orientation="vertical"
       className="flex flex-col md:flex-row w-full overflow-hidden bg-background"
-      style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
+      style={{ height: "calc(100dvh - var(--tauri-top, env(safe-area-inset-top, 0px)))" }}
     >
       <aside
         ref={asideRef}

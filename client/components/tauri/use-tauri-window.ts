@@ -67,8 +67,8 @@ export function useTauriWindow() {
         document.body.style.setProperty("--tauri-bottom", "max(env(safe-area-inset-bottom), 16px)");
       }
     } else {
-      document.body.style.setProperty("--tauri-top", "0px");
-      document.body.style.setProperty("--tauri-bottom", "0px");
+      document.body.style.setProperty("--tauri-top", "env(safe-area-inset-top, 0px)");
+      document.body.style.setProperty("--tauri-bottom", "env(safe-area-inset-bottom, 0px)");
     }
   }, [isTauri, isDesktop, isMobile]);
 

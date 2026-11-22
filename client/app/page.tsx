@@ -48,7 +48,7 @@ export default function HomePage() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background text-foreground transition-colors duration-500"
-      style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+      style={{ paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)" }}
     >
       {/* Premium Background Effects */}
       <div className="absolute inset-0 z-0">
@@ -60,7 +60,7 @@ export default function HomePage() {
 
       <div
         className="absolute z-20 flex items-center gap-4 right-14 md:right-6"
-        style={{ top: "calc(var(--tauri-top, 0px) + 1.5rem)" }}
+        style={{ top: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1.5rem)" }}
       >
         <ServerSelector />
       </div>

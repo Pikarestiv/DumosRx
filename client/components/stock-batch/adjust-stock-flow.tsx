@@ -85,7 +85,7 @@ export function AdjustStockFlow({ onClose, onSubmitted }: AdjustStockFlowProps) 
     >
       <div
         className="flex items-center gap-3 px-4 md:px-6 pb-4 md:pb-5 border-b border-border bg-card"
-        style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+        style={{ paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)" }}
       >
         <button
           type="button"

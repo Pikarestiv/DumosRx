@@ -122,12 +122,44 @@ function CatalogRowInner({
       {!isDesktop && (
         <div
           data-catalog-row-mobile
-          className="flex items-center justify-between"
+          className="space-y-2.5"
         >
-          {thumbnail("h-10 w-10 mr-3", 40)}
-          <div className="min-w-0 pr-2 flex-1">
-            <div className="text-[15px] font-bold text-foreground flex items-start gap-2">
-              <span className={`min-w-0 line-clamp-2 ${capsClass}`}>{product.name}</span>
+          <div className="flex items-start gap-3">
+            {thumbnail("h-10 w-10 mt-0.5", 40)}
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-start justify-between gap-2">
+                <div className={`min-w-0 flex-1 text-[15px] font-bold leading-snug text-foreground line-clamp-2 ${capsClass}`}>
+                  {product.name}
+                </div>
+                <ChevronRight className="w-4 h-4 mt-1 shrink-0 text-muted-foreground/40" />
+              </div>
+              <div className="text-[12.5px] text-muted-foreground truncate">
+                {product.barcode || product.id.slice(0, 8)} ·{" "}
+                <span className={capsClass}>
+                  {product.category || "Uncategorized"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="pt-2.5 border-t border-border/50 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span
+                className={`text-[13px] font-semibold ${product.stockQuantity <= product.reorderLevel ? "text-orange-600 dark:text-orange-400" : "text-emerald-600 dark:text-emerald-400"}`}
+              >
+                {showStockQuantity
+                  ? `${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`
+                  : describeStock(product.stockQuantity, product.reorderLevel, false)}
+              </span>
+              {owedQuantity > 0 && (
+                <span className="text-[10.5px] font-semibold text-amber-700 bg-amber-100 dark:bg-amber-500/20 dark:text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/30 whitespace-nowrap">
+                  {showStockQuantity ? `${owedQuantity} owed` : "Stock owed"}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[15px] font-bold text-foreground tabular-nums">
+                {formatCurrency(product.sellingPrice)}
+              </span>
               {canEdit && (
                 <EditProductPencil
                   productName={product.name}
@@ -136,32 +168,6 @@ function CatalogRowInner({
                 />
               )}
             </div>
-            <div className="text-[13px] text-muted-foreground mt-0.5 truncate flex">
-              {product.barcode || product.id.slice(0, 8)} ·{" "}
-              <span className={capsClass}>
-                {product.category || "Uncategorized"}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex flex-col items-end">
-              <div className="text-[15px] font-bold text-foreground">
-                {formatCurrency(product.sellingPrice)}
-              </div>
-              <div
-                className={`text-[13px] font-semibold mt-0.5 ${product.stockQuantity <= product.reorderLevel ? "text-orange-600" : "text-emerald-600"}`}
-              >
-                {showStockQuantity
-                  ? `${product.stockQuantity} ${product.baseUnit || "unit"}${product.stockQuantity === 1 ? "" : "s"}`
-                  : describeStock(product.stockQuantity, product.reorderLevel, false)}
-              </div>
-              {owedQuantity > 0 && (
-                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 dark:bg-amber-500/20 dark:text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-500/30 mt-0.5">
-                  {showStockQuantity ? `${owedQuantity} owed` : "Stock owed"}
-                </span>
-              )}
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/30" />
           </div>
         </div>
       )}

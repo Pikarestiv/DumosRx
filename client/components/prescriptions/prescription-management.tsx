@@ -95,7 +95,7 @@ export function PrescriptionManagement() {
         <div className="fixed inset-0 z-[60] bg-background flex flex-col fixed-visual-viewport">
           <div
             className="flex items-center gap-3 px-4 pb-4 border-b border-border bg-card shrink-0"
-            style={{ paddingTop: "calc(var(--tauri-top, 0px) + 1rem)" }}
+            style={{ paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)" }}
           >
             <button
               type="button"

@@ -6062,19 +6062,28 @@ same tab session still gets its own fresh one-time retry.
   `useMediaQuery`/`useResolvedMediaQuery("(min-width: 1024px)")` to match it —
   otherwise a 768–1023px device shows the mobile bottom nav and the desktop
   table at once. `__tests__/responsive-table-breakpoint-convention.test.ts`
-  pins the six such components and the nav's own class so the two cannot
-  drift again (they did: all six sat at `768px` until the `A-48` sweep).
+  pins those components and the nav's own class so the two cannot drift again.
   This is specifically about *table vs. card layout*. Dialog- and
   toast-presentation breakpoints are a separate, unrelated decision and stay
   where they are: `ResponsiveModal`, `Sonner`, `DateRangePicker` and the
   assistant panel's Sheet-vs-Drawer split all deliberately switch at `768px`,
   and the adjustment/PO *item-builder* lists at `640px`.
+- **Safe-area insets flow through `--tauri-top` / `--tauri-bottom`, not `body` top/bottom padding**:
+  In non-Tauri browser/PWA mode, `app/layout.tsx` and `useTauriWindow()` set
+  `--tauri-top` to `env(safe-area-inset-top, 0px)` and `--tauri-bottom` to
+  `env(safe-area-inset-bottom, 0px)` (while Tauri desktop sets `40px`/`0px` and
+  Tauri mobile sets `max(env(safe-area-inset-*), 24px/16px)`), and headers/overlays
+  fall back to `env(safe-area-inset-top, 0px)` (`var(--tauri-top, env(safe-area-inset-top, 0px))`).
+  Keep top/bottom `env(safe-area-inset-*)` padding *off* `body` in `globals.css`:
+  combining `body` top/bottom padding with a `100dvh` child (`DashboardLayout`)
+  makes the document taller than `100dvh` on iOS PWAs and lets page scroll push
+  `DashboardHeader` behind the Dynamic Island/clock (caught on iPhone 17 Pro Edge PWA).
 - **Full-screen page takeover**: `fixed inset-0 z-50 flex flex-col
   bg-background` (no dashboard shell, no sidebar), used for
   `stock-batch/stock-audits.tsx` (Cycle Count) and both
   `app/(dashboard)/procurement/new|edit/page.tsx`. Header uses `style={{
-  paddingTop: "calc(var(--tauri-top, 0px) + 1.25rem)" }}` to clear the
-  Tauri title bar. Reach for this pattern (over an embedded
+  paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1.25rem)" }}`
+  (`+ 0.75rem` when `compact`) to clear the status bar / Tauri title bar. Reach for this pattern (over an embedded
   `rounded-2xl border` panel inside the dashboard shell) for any
   multi-step or dense-table flow that deserves the user's full attention.
 - **Search-to-create combobox pattern**: `components/ui/product-combobox.tsx`

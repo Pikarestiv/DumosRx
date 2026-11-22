@@ -183,19 +183,37 @@ export function POItemBuilder({
   }, [items, itemFilter]);
 
   return (
-    <div className="space-y-3">
-      <ProductCombobox
-        value={searchValue}
-        onChange={handleProductChange}
-        onCreateNew={(name) => onOpenAddProduct({ name })}
-        showGlobalSuggestions={false}
-        showSearchIcon
-        placeholder="Search item by name, SKU or barcode"
-        className="bg-muted border-border h-10 px-3 text-[13px] rounded-[10px]"
-        onClear={() => setSearchValue("")}
-        inputRef={searchInputRef}
-        products={productsWithStockInfo}
-      />
+    <div className="space-y-3.5">
+      <div className="space-y-1.5">
+        <span className="text-[11.5px] font-medium text-muted-foreground">
+          Add item to order
+        </span>
+        <ProductCombobox
+          value={searchValue}
+          onChange={handleProductChange}
+          onCreateNew={(name) => onOpenAddProduct({ name })}
+          showGlobalSuggestions={false}
+          showSearchIcon
+          placeholder="Search item by name, SKU or barcode"
+          className="bg-card border-border h-10 px-3 text-[13px] rounded-[10px]"
+          onClear={() => setSearchValue("")}
+          inputRef={searchInputRef}
+          products={productsWithStockInfo}
+        />
+      </div>
+
+      {items.length > 0 && (
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-[12px] font-semibold text-foreground">
+            Order items ({items.length})
+          </span>
+          {itemFilter.trim().length > 0 && (
+            <span className="text-[11.5px] text-muted-foreground">
+              {visibleRows.length} shown
+            </span>
+          )}
+        </div>
+      )}
 
       {items.length > 1 && (
         <div className="relative">
@@ -205,7 +223,7 @@ export function POItemBuilder({
             onChange={(e) => setItemFilter(e.target.value)}
             placeholder="Search items in this purchase order"
             aria-label="Search items in this purchase order"
-            className="pl-9 pr-9 h-9 text-[12.5px] rounded-[10px]"
+            className="pl-9 pr-9 h-9 text-[12.5px] rounded-[10px] bg-card"
           />
           {itemFilter && (
             <button

@@ -110,7 +110,7 @@ export function AssistantPanel() {
           onOpenAutoFocus={handleOpenAutoFocus}
           className="flex w-full flex-col gap-0 overflow-hidden border-l-2 border-primary bg-background/95 p-0 shadow-sm backdrop-blur-sm sm:max-w-md"
           style={{
-            paddingTop: "var(--tauri-top, 0px)",
+            paddingTop: "var(--tauri-top, env(safe-area-inset-top, 0px))",
             paddingBottom: "var(--tauri-bottom, env(safe-area-inset-bottom, 0px))",
           }}
         >

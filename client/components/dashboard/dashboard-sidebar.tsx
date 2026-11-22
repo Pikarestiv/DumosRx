@@ -205,8 +205,8 @@ export function DashboardSidebar({
             collapsed ? "w-[68px]" : "w-48",
           )}
           style={{
-            top: "var(--tauri-top, 0px)",
-            height: "calc(100vh - var(--tauri-top, 0px))",
+            top: "var(--tauri-top, env(safe-area-inset-top, 0px))",
+            height: "calc(100vh - var(--tauri-top, env(safe-area-inset-top, 0px)))",
           }}
         >
           {/* Logo header */}

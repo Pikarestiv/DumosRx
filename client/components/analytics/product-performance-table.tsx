@@ -11,6 +11,11 @@ import { useStore } from "@/lib/context/store-context";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { ProductName } from "@/components/ui/product-name";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  ProductPerformanceMobileList,
+  type ProductPerformanceSortKey,
+} from "./product-performance-mobile-list";
 
 export interface ProductPerformanceRow {
   id: string;
@@ -26,8 +31,6 @@ interface ProductPerformanceTableProps {
   products: ProductPerformanceRow[];
 }
 
-type SortKey = "name" | "category" | "revenue" | "units" | "margin";
-
 /** Uniform single-line rows, so a fixed estimate is exact; each row still
  * measures itself in case a wrapped cell ever makes one taller. */
 const ROW_HEIGHT = 41;
@@ -37,10 +40,11 @@ const ROW_HEIGHT = 41;
 export function ProductPerformanceTable({ products }: ProductPerformanceTableProps) {
   const { storeProfile } = useStore();
   const currencyCode = storeProfile?.currency;
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const scrollRef = useRef<HTMLDivElement>(null);
   const { sortKey, direction, toggleSort, sortedData } = useSortableData<
     ProductPerformanceRow,
-    SortKey
+    ProductPerformanceSortKey
   >(products, {
     name: (p) => p.name.toLowerCase(),
     category: (p) => p.category.toLowerCase(),
@@ -57,16 +61,26 @@ export function ProductPerformanceTable({ products }: ProductPerformanceTablePro
   });
 
   return (
-    <Card className="p-5 border shadow-sm rounded-2xl lg:col-span-2">
+    <Card className="p-4 sm:p-5 border shadow-sm rounded-2xl lg:col-span-2">
       <div className="mb-4">
         <div className="text-[14.5px] font-semibold">Product Performance</div>
         <div className="text-[12px] text-muted-foreground">
-          Every product sold this period - click a column to sort
+          {isDesktop
+            ? "Every product sold this period - click a column to sort"
+            : "Every product sold this period"}
         </div>
       </div>
 
       {sortedData.length === 0 ? (
         <EmptyState icon={TrendingUp} title="No sales data" description="No sales data available for the selected filters." />
+      ) : !isDesktop ? (
+        <ProductPerformanceMobileList
+          products={sortedData}
+          currencyCode={currencyCode}
+          sortKey={sortKey}
+          direction={direction}
+          onToggleSort={toggleSort}
+        />
       ) : (
         <div className="overflow-x-auto">
           <div role="table" aria-label="Product performance" className="w-full min-w-[560px]">

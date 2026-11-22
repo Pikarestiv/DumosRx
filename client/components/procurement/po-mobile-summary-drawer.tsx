@@ -35,28 +35,31 @@ export function POMobileSummaryDrawer({
 }: POMobileSummaryDrawerProps) {
   const formatCurrency = useFormatCurrency();
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
       <div className="pointer-events-auto">
         <Drawer>
           <DrawerTrigger asChild>
-            <div className="w-full bg-primary text-primary-foreground p-3 rounded-[20px] cursor-pointer flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-primary/90 transition-colors">
-              <div className="flex items-center gap-3.5">
-                <div className="relative flex items-center justify-center w-[46px] h-[46px] rounded-[14px] bg-white/15">
-                  <ShoppingCart className="w-5 h-5 text-white" />
-                  <div className="absolute -top-1.5 -right-1.5 bg-white text-primary text-[11.5px] font-bold w-[22px] h-[22px] rounded-full flex items-center justify-center shadow-sm">
+            <div className="w-full bg-primary text-primary-foreground px-3.5 py-2.5 rounded-2xl cursor-pointer flex items-center justify-between shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:bg-primary/90 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-white/15">
+                  <ShoppingCart className="w-4 h-4 text-white" />
+                  <div className="absolute -top-1.5 -right-1.5 bg-white text-primary text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
                     {itemCount}
                   </div>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[13.5px] font-medium text-white/90 leading-[1.2] mb-0.5">
+                  <span className="text-[12px] font-medium text-white/90 leading-tight">
                     {itemCount} {itemCount === 1 ? "item" : "items"}
                   </span>
-                  <span className="text-[19px] font-bold leading-[1.2] tracking-tight">
+                  <span className="text-[17px] font-bold leading-tight tracking-tight tabular-nums">
                     {formatCurrency(totalAmount)}
                   </span>
                 </div>
               </div>
-              <ChevronUp className="w-6 h-6 mr-1 opacity-90" />
+              <div className="flex items-center gap-1 text-[12px] font-medium text-white/90">
+                <span>Summary</span>
+                <ChevronUp className="w-5 h-5" />
+              </div>
             </div>
           </DrawerTrigger>
           <DrawerContent className="h-auto max-h-[75vh] mt-0 flex flex-col bg-background">

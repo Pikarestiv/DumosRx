@@ -15,9 +15,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
   useAdminBackupStatus,
   useRunBackupMutation,
+  useUpdateBackupScheduleMutation,
 } from "@/lib/api/admin-hooks-maintenance";
+import type { AdminBackupFrequency } from "@/lib/types/admin";
 import { formatDateSafe } from "@/lib/utils/date-utils";
 
 function formatBytes(bytes: number): string {
@@ -42,6 +52,26 @@ export function DatabaseBackupPanel() {
   const [confirming, setConfirming] = useState(false);
   const { data: status, isLoading, isError } = useAdminBackupStatus();
   const runBackup = useRunBackupMutation();
+  const updateSchedule = useUpdateBackupScheduleMutation();
+
+  const scheduleEnabled = status?.schedule_enabled ?? true;
+  const scheduleFrequency: AdminBackupFrequency = status?.schedule_frequency ?? "daily";
+
+  const handleScheduleChange = (enabled: boolean, frequency: AdminBackupFrequency) => {
+    updateSchedule.mutate(
+      { enabled, frequency },
+      {
+        onSuccess: () => {
+          toast.success(
+            enabled ? `Automatic ${frequency} backups enabled` : "Switched to manual-only backups",
+          );
+        },
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : "Could not update backup schedule");
+        },
+      },
+    );
+  };
 
   const handleConfirmRun = () => {
     runBackup.mutate(undefined, {
@@ -87,6 +117,43 @@ export function DatabaseBackupPanel() {
             <div className="flex flex-wrap gap-2">
               <ConfigBadge label="R2 bucket" ok={status.bucket_configured} />
               <ConfigBadge label="Encryption key" ok={status.public_key_configured} />
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border bg-muted/20 p-3">
+              <div className="flex items-center gap-3">
+                <Switch
+                  aria-label="Automatic scheduled backups"
+                  checked={scheduleEnabled}
+                  disabled={updateSchedule.isPending}
+                  onCheckedChange={(checked) => handleScheduleChange(checked, scheduleFrequency)}
+                />
+                <div className="text-xs">
+                  <p className="font-medium text-foreground">
+                    {scheduleEnabled ? "Automatic schedule enabled" : "Manual mode only"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {scheduleEnabled
+                      ? "Daily backups pruned after 7 days; monthly backups after 6 months."
+                      : "Scheduled runs are paused. Use Run backup now whenever needed."}
+                  </p>
+                </div>
+              </div>
+              <Select
+                value={scheduleFrequency}
+                disabled={!scheduleEnabled || updateSchedule.isPending}
+                onValueChange={(value) =>
+                  handleScheduleChange(scheduleEnabled, value as AdminBackupFrequency)
+                }
+              >
+                <SelectTrigger aria-label="Backup frequency" className="w-full sm:w-44 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily (23:00)</SelectItem>
+                  <SelectItem value="weekly">Weekly (Sundays)</SelectItem>
+                  <SelectItem value="monthly">Monthly (1st)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {!status.configured && (

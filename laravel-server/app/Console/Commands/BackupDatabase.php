@@ -22,8 +22,15 @@ class BackupDatabase extends Command
             return self::SUCCESS;
         }
 
+        $now = now('Africa/Lagos');
+        if (! $backups->shouldRunScheduled($now)) {
+            $this->info('Scheduled database backup skipped for the current schedule setting.');
+
+            return self::SUCCESS;
+        }
+
         try {
-            $result = $backups->run(now('Africa/Lagos'));
+            $result = $backups->run($now);
         } catch (Throwable $e) {
             $backups->recordLastRun('failed', 'scheduled', null, $e->getMessage());
             Log::critical('Nightly database backup failed', ['error' => $e->getMessage()]);

@@ -66,12 +66,42 @@ class DatabaseBackupTest extends TestCase
     {
         $result = app(\App\Services\Backup\DatabaseBackupService::class)->run(Carbon::parse('2026-12-01 23:00:00', 'Africa/Lagos'));
 
-        $this->assertSame('monthly/2026-12.sql.gz.enc', $result['monthly_key']);
-        Storage::disk('r2_backups')->assertExists('monthly/2026-12.sql.gz.enc');
+        $this->assertSame('daily/2026/12/backup-01-12-2026_23-00.sql.gz.enc', $result['key']);
+        $this->assertSame('monthly/monthly-01-12-2026_23-00.sql.gz.enc', $result['monthly_key']);
+        Storage::disk('r2_backups')->assertExists('monthly/monthly-01-12-2026_23-00.sql.gz.enc');
         $this->assertSame(
             Storage::disk('r2_backups')->get($result['key']),
             Storage::disk('r2_backups')->get($result['monthly_key']),
         );
+    }
+
+    public function test_prune_removes_daily_backups_7_days_old_and_monthly_backups_6_months_old(): void
+    {
+        $disk = Storage::disk('r2_backups');
+        $now = Carbon::parse('2026-12-15 23:00:00', 'Africa/Lagos');
+
+        $oldDaily = 'daily/2026/12/backup-08-12-2026_23-00.sql.gz.enc';
+        $recentDaily = 'daily/2026/12/backup-10-12-2026_23-00.sql.gz.enc';
+        $oldMonthly = 'monthly/monthly-01-06-2026_23-00.sql.gz.enc';
+        $recentMonthly = 'monthly/monthly-01-08-2026_23-00.sql.gz.enc';
+
+        $disk->put($oldDaily, 'old-daily');
+        $disk->put($recentDaily, 'recent-daily');
+        $disk->put($oldMonthly, 'old-monthly');
+        $disk->put($recentMonthly, 'recent-monthly');
+
+        touch($disk->path($oldDaily), $now->copy()->subDays(7)->getTimestamp());
+        touch($disk->path($recentDaily), $now->copy()->subDays(5)->getTimestamp());
+        touch($disk->path($oldMonthly), $now->copy()->subMonthsNoOverflow(6)->getTimestamp());
+        touch($disk->path($recentMonthly), $now->copy()->subMonthsNoOverflow(4)->getTimestamp());
+
+        $pruned = app(\App\Services\Backup\DatabaseBackupService::class)->prune($now);
+
+        $this->assertSame(['daily_deleted' => 1, 'monthly_deleted' => 1], $pruned);
+        $disk->assertMissing($oldDaily);
+        $disk->assertExists($recentDaily);
+        $disk->assertMissing($oldMonthly);
+        $disk->assertExists($recentMonthly);
     }
 
     public function test_other_days_write_only_the_daily_copy(): void

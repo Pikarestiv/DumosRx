@@ -272,6 +272,7 @@ Route::prefix('v1')->group(function () {
                 Route::post('/maintenance/roles/sync', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'syncRoles'])->middleware('role:super_admin');
                 Route::get('/maintenance/backup', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'backupStatus'])->middleware('role:super_admin');
                 Route::post('/maintenance/backup/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runBackup'])->middleware('role:super_admin');
+                Route::put('/maintenance/backup/schedule', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'updateBackupSchedule'])->middleware('role:super_admin');
 
                 Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('permission:view_platform_revenue');
                 Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');

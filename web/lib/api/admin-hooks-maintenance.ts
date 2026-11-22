@@ -2,7 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
 import type {
+  AdminBackupFrequency,
   AdminBackupRunResult,
+  AdminBackupScheduleResult,
   AdminBackupStatus,
   AdminMigrationStatus,
 } from "@/lib/types/admin";
@@ -67,6 +69,20 @@ export const useRunBackupMutation = () => {
     mutationFn: () =>
       webApiClient.request<AdminBackupRunResult>("admin/maintenance/backup/run", {
         method: "POST",
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
+};
+
+export const useUpdateBackupScheduleMutation = () => {
+  const queryClient = useQueryClient();
+  const queryKey = useScopedKey([BACKUP_STATUS_KEY]);
+
+  return useMutation({
+    mutationFn: (payload: { enabled: boolean; frequency: AdminBackupFrequency }) =>
+      webApiClient.request<AdminBackupScheduleResult>("admin/maintenance/backup/schedule", {
+        method: "PUT",
+        body: JSON.stringify(payload),
       }),
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });

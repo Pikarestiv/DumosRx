@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
 import { useStore } from "@/lib/context/store-context";
 import { useExpenseList, useExpenseTotals } from "@/lib/hooks/use-finance-data";
@@ -30,13 +30,32 @@ const CATEGORIES = [
  * filtering (all pushed into SQL), and the headline figures. */
 export function useExpensesPage() {
   const { storeProfile } = useStore();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const selectedParam = searchParams.get("selected");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(
-    null,
+    selectedParam,
   );
+  const [prevSelectedParam, setPrevSelectedParam] = useState<string | null>(
+    selectedParam,
+  );
+  if (selectedParam !== prevSelectedParam) {
+    setPrevSelectedParam(selectedParam);
+    if (selectedParam) {
+      setSelectedExpenseId(selectedParam);
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedParam) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("selected");
+    const nextUrl = `/expenses${params.toString() ? `?${params.toString()}` : ""}`;
+    router.replace(nextUrl);
+  }, [selectedParam, router, searchParams]);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [limit, setLimit] = useState(EXPENSES_PAGE_SIZE);
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => rangeFromParams(searchParams));

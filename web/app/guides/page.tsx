@@ -9,7 +9,6 @@ import {
   Sparkles,
   HelpCircle,
   Headphones,
-  CheckCircle,
 } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Input } from "@/components/ui/input";

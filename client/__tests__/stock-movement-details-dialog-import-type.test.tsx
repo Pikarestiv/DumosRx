@@ -3,6 +3,10 @@ import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock("@/components/ui/responsive-modal", () => ({
   ResponsiveModal: ({
     open,

@@ -29,6 +29,10 @@ if (!globalThis.ResizeObserver) {
   } as unknown as typeof ResizeObserver;
 }
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
 }));

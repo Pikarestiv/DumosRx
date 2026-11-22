@@ -38,9 +38,12 @@ export function ReportFiltersBar({
   showPaymentMethod = true,
   compact = false,
 }: ReportFiltersBarProps) {
-  const selectClassName = compact
+  const staffClassName = compact
     ? "w-full sm:w-[130px] h-8 text-[12px]"
-    : undefined;
+    : "w-full sm:w-[140px] h-9 text-[13px]";
+  const paymentClassName = compact
+    ? "w-full sm:w-[130px] h-8 text-[12px]"
+    : "w-full sm:w-[150px] h-9 text-[13px]";
 
   return (
     <div
@@ -50,21 +53,32 @@ export function ReportFiltersBar({
         <DateRangePicker
           value={value.dateRange}
           onChange={(dateRange) => onChange({ ...value, dateRange })}
+          className="w-full sm:w-auto"
         />
       )}
-      {showStaff && (
-        <StaffSelect
-          value={value.staffId}
-          onChange={(staffId) => onChange({ ...value, staffId })}
-          className={selectClassName}
-        />
-      )}
-      {showPaymentMethod && (
-        <PaymentMethodSelect
-          value={value.paymentMethod}
-          onChange={(paymentMethod) => onChange({ ...value, paymentMethod })}
-          className={selectClassName}
-        />
+      {(showStaff || showPaymentMethod) && (
+        <div
+          className={
+            showStaff && showPaymentMethod
+              ? "grid grid-cols-2 gap-2.5 w-full sm:w-auto sm:flex sm:items-center"
+              : "w-full sm:w-auto"
+          }
+        >
+          {showStaff && (
+            <StaffSelect
+              value={value.staffId}
+              onChange={(staffId) => onChange({ ...value, staffId })}
+              className={staffClassName}
+            />
+          )}
+          {showPaymentMethod && (
+            <PaymentMethodSelect
+              value={value.paymentMethod}
+              onChange={(paymentMethod) => onChange({ ...value, paymentMethod })}
+              className={paymentClassName}
+            />
+          )}
+        </div>
       )}
     </div>
   );

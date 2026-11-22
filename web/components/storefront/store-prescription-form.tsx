@@ -108,7 +108,9 @@ export function StorePrescriptionForm({
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={(e) => {
+        void handleSubmit(e);
+      }}
       className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5"
     >
       <div className="space-y-1">

@@ -40,6 +40,7 @@ export interface ConfirmProduct {
   id: string;
   selling_price?: number | null;
   cost_price?: number | null;
+  units_per_bulk?: number | null;
 }
 
 function countMarginCues(items: POLineItemDraft[], products: ConfirmProduct[]) {
@@ -48,7 +49,11 @@ function countMarginCues(items: POLineItemDraft[], products: ConfirmProduct[]) {
   for (const item of items) {
     if (!(Number(item.bulk_quantity) > 0)) continue;
     const product = productMap.get(item.product_id);
-    const cue = getMarginCue({ unitCost: getImmediateUnitCost(item), sellingPrice: product?.selling_price, previousCost: product?.cost_price });
+    const cue = getMarginCue({
+      unitCost: getImmediateUnitCost(item, product?.units_per_bulk),
+      sellingPrice: product?.selling_price,
+      previousCost: product?.cost_price,
+    });
     if (cue) counts[cue] += 1;
   }
   return counts;

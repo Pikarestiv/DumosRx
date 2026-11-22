@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
 
 import { formatCurrency as formatCurrencyWithCode } from "@/lib/utils";
@@ -196,6 +197,7 @@ export function SupplierManagement() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="border-0 outline-none text-[13px] w-full bg-card md:bg-muted h-auto p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none"
                 />
+                {searchTerm && <SearchClearButton className="shrink-0" onClick={() => setSearchTerm("")} />}
               </div>
             </div>
             <div className="flex items-center justify-between">

@@ -179,7 +179,7 @@ export function CatalogList({
   const rowVirtualizer = useVirtualizer({
     count: filteredProducts.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 72,
+    estimateSize: () => (isDesktop ? 72 : 116),
     overscan: 8,
     paddingEnd: 32,
   });

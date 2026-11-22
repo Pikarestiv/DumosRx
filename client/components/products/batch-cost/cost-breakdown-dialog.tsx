@@ -32,7 +32,7 @@ export interface CostBreakdownDialogProps {
 }
 
 const DIVIDER = "border-slate-200 dark:border-slate-800";
-const EMPTY_FORM: BatchDetailsForm = { batch_number: "", expiry_date: "", manufacture_date: "" };
+const EMPTY_FORM: BatchDetailsForm = { batch_number: "", expiry_date: "", manufacture_date: "", location: "" };
 
 export function CostBreakdownDialog({
   open,

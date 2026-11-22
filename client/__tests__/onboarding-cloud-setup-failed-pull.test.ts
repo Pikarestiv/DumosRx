@@ -126,6 +126,7 @@ describe("useOnboarding() cloud setup when the identity pull fails", () => {
       await restorePromise;
     });
 
+    expect(syncMock).toHaveBeenCalledWith(true, true, expect.any(Function));
     expect(toastErrorMock).toHaveBeenCalledWith(
       expect.stringContaining("Cloud sync failed: server unreachable"),
     );

@@ -39,6 +39,7 @@ interface MenuItem {
   description: string;
   adminOnly?: boolean;
   disabled?: boolean;
+  destructive?: boolean;
   badge?: string;
 }
 
@@ -96,7 +97,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: "Danger Zone",
     items: [
-      { value: "danger-zone", href: "/settings/danger-zone", icon: AlertTriangle, title: "Danger Zone", description: "Irreversible resets & deletions", adminOnly: true },
+      { value: "danger-zone", href: "/settings/danger-zone", icon: AlertTriangle, title: "Danger Zone", description: "Irreversible resets & deletions", adminOnly: true, destructive: true },
     ],
   },
   {
@@ -155,16 +156,40 @@ export function SettingsMobileMenu({ isAdmin, canAccessTab }: SettingsMobileMenu
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors"
+                  className={
+                    item.destructive
+                      ? "flex items-center gap-4 p-4 bg-destructive text-destructive-foreground border border-destructive/80 rounded-2xl shadow-sm hover:bg-destructive/90 transition-colors"
+                      : "flex items-center gap-4 p-4 bg-card border border-border/50 rounded-2xl shadow-sm hover:bg-accent/50 transition-colors"
+                  }
                 >
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <div
+                    className={
+                      item.destructive
+                        ? "w-10 h-10 rounded-lg bg-destructive-foreground/15 flex items-center justify-center text-destructive-foreground shrink-0"
+                        : "w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0"
+                    }
+                  >
                     <item.icon className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col flex-1">
                     <span className="font-semibold text-[15px]">{item.title}</span>
-                    <span className="text-xs text-muted-foreground">{item.description}</span>
+                    <span
+                      className={
+                        item.destructive
+                          ? "text-xs text-destructive-foreground/85"
+                          : "text-xs text-muted-foreground"
+                      }
+                    >
+                      {item.description}
+                    </span>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground/50 shrink-0" />
+                  <ChevronRight
+                    className={
+                      item.destructive
+                        ? "w-5 h-5 text-destructive-foreground/75 shrink-0"
+                        : "w-5 h-5 text-muted-foreground/50 shrink-0"
+                    }
+                  />
                 </Link>
               )
             )}

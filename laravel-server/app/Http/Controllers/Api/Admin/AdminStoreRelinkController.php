@@ -11,7 +11,7 @@ class AdminStoreRelinkController extends AdminBaseController
 {
     #[OA\Post(
         path: '/admin/stores/{id}/relink-code',
-        summary: "Generate an 8-character till re-link code for a store on behalf of its owner",
+        summary: 'Generate an 8-character till re-link code for a store on behalf of its owner',
         description: "Creates a single-use 15-minute re-link code that staff can enter at the till to re-authenticate offline or unlinked devices without needing the owner's credentials.",
         tags: ['Admin'],
         security: [['sanctum' => []]],
@@ -43,4 +43,3 @@ class AdminStoreRelinkController extends AdminBaseController
         return response()->json($result);
     }
 }
-

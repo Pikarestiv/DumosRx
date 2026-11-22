@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { legacyStoreTarget } from "@/lib/storefront-legacy-path";
 
+const emptySubscribe = () => () => {};
+
 export function LegacyStoreRedirect() {
-  const [target, setTarget] = useState<string | null>(null);
+  const target = useSyncExternalStore(
+    emptySubscribe,
+    () => legacyStoreTarget(window.location.pathname) + window.location.search + window.location.hash,
+    () => null,
+  );
 
   useEffect(() => {
-    const next = legacyStoreTarget(window.location.pathname) + window.location.search + window.location.hash;
-    setTarget(next);
-    window.location.replace(next);
-  }, []);
+    if (target) {
+      window.location.replace(target);
+    }
+  }, [target]);
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6 text-center">

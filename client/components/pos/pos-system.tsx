@@ -169,7 +169,7 @@ export function POSSystem() {
   return (
     <div
       className="flex flex-col lg:flex-row w-full overflow-hidden bg-background"
-      style={{ height: "calc(100dvh - var(--tauri-top, 0px))" }}
+      style={{ height: "calc(100dvh - var(--tauri-top, env(safe-area-inset-top, 0px)))" }}
     >
       {/* Left: header + tabs/products (full width on mobile, shrinks to make room for the cart on desktop) */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">

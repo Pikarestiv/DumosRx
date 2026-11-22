@@ -78,7 +78,7 @@ function cancelAllSaves() {
 
 export function migrateStockAdjustmentDraft(
   persisted: unknown,
-  version: number,
+  _version: number,
 ): {
   reason: AdjustmentReasonValue;
   note: string;

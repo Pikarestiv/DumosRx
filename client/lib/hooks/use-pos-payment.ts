@@ -111,11 +111,14 @@ export function usePOSPayment({
       setSelectedAccountId("");
       setPaymentSplits([]);
       setSaleNote("");
-      prevTotalRef.current = 0;
     }
   }
 
   useEffect(() => {
+    if (cartIsEmpty) {
+      prevTotalRef.current = 0;
+      return;
+    }
     const prevTotal = prevTotalRef.current;
     if (prevTotal !== total) {
       prevTotalRef.current = total;
@@ -134,7 +137,7 @@ export function usePOSPayment({
         setPaymentSplits([{ ...paymentSplits[0], amount: total }]);
       }
     }
-  }, [total, amountPaid, paymentSplits]);
+  }, [cartIsEmpty, total, amountPaid, paymentSplits]);
 
   const handlePayment = async () => {
     if (processingPaymentRef.current) return;

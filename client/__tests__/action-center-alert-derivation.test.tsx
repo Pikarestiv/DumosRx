@@ -72,24 +72,16 @@ vi.mock("@/lib/hooks/use-widget-pin-prompt", () => ({
 
 import { useActionCenterAlerts } from "@/lib/hooks/use-action-center-alerts";
 
+const FULL_STORE = { name: "Pharma", address: "1 Road", phone: "080", email: "a@b.c", logo_url: "/l.png", store_type: "supermarket" };
 const DAY = 24 * 60 * 60 * 1000;
 
-// useActionCenterAlerts decides what the dashboard tells an owner to act on and in what order.
-// Rationale: docs/CLIENT_COMMENTS.md#block-__tests__-action-center-alert-derivation-test-tsx-L72
 describe("useActionCenterAlerts", () => {
   beforeEach(() => {
     Object.assign(state, {
       isAuthenticated: true,
       isAdmin: true,
       role: "store_owner",
-      storeProfile: {
-        name: "Pharma",
-        address: "1 Road",
-        phone: "080",
-        email: "a@b.c",
-        logo_url: "/l.png",
-        store_type: "supermarket",
-      },
+      storeProfile: { ...FULL_STORE },
       staffCount: 3,
       syncQueueCount: 0,
       license: null,
@@ -102,43 +94,19 @@ describe("useActionCenterAlerts", () => {
   });
 
   function wrapper({ children }: { children: ReactNode }) {
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return React.createElement(QueryClientProvider, { client: queryClient }, children);
   }
 
   async function alerts(
-    counts: {
-      expiring?: number;
-      lowStock?: number;
-      missingExpiry?: number;
-      oversold?: number;
-      oversoldProduct?: string;
-      owed?: number;
-      owedProduct?: string;
-    } = {},
+    counts: { expiring?: number; lowStock?: number; missingExpiry?: number; oversold?: number; oversoldProduct?: string; owed?: number; owedProduct?: string } = {},
   ) {
     const { result } = renderHook(
-      () =>
-        useActionCenterAlerts(
-          counts.expiring ?? 0,
-          counts.lowStock ?? 0,
-          counts.missingExpiry ?? 0,
-          counts.oversold ?? 0,
-          counts.oversoldProduct,
-          counts.owed ?? 0,
-          counts.owedProduct,
-        ),
+      () => useActionCenterAlerts(counts.expiring ?? 0, counts.lowStock ?? 0, counts.missingExpiry ?? 0, counts.oversold ?? 0, counts.oversoldProduct, counts.owed ?? 0, counts.owedProduct),
       { wrapper },
     );
-    // the staff/sync/licence queries all resolve asynchronously
     await waitFor(() => expect(result.current).toBeDefined());
-    await waitFor(() => {
-      expect(result.current.some((a) => a.id === "no-staff")).toBe(
-        state.staffCount === 0,
-      );
-    });
+    await waitFor(() => expect(result.current.some((a) => a.id === "no-staff")).toBe(state.staffCount === 0));
     return result;
   }
 

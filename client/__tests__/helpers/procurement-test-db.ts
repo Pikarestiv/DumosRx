@@ -25,7 +25,7 @@ const PROCUREMENT_SCHEMA = `
   );
   CREATE TABLE products (
     id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
-    selling_price REAL, category_id TEXT, updated_at TEXT,
+    selling_price REAL, location TEXT, category_id TEXT, updated_at TEXT,
     _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
   );
   CREATE TABLE categories (
@@ -42,7 +42,7 @@ const PROCUREMENT_SCHEMA = `
   );
   CREATE TABLE stock_batches (
     id TEXT PRIMARY KEY, expiry_date TEXT, product_id TEXT, quantity REAL, cost_price REAL,
-    batch_number TEXT, created_at TEXT, updated_at TEXT, is_active INTEGER DEFAULT 1,
+    batch_number TEXT, location TEXT, created_at TEXT, updated_at TEXT, is_active INTEGER DEFAULT 1,
     _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
   );
   CREATE TABLE _sync_queue (

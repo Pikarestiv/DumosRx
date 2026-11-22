@@ -59,17 +59,17 @@ const POItemCard = React.memo(function POItemCard({
   const hasTouchCapability = useHasTouchCapability();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
-  const effectiveUnitCost = getImmediateUnitCost(item);
+  const effectiveUnitCost = getImmediateUnitCost(item, product?.units_per_bulk);
   const total = getLineTotal(item);
 
   return (
-    <div className="group p-4 space-y-3">
+    <div className="group rounded-2xl border border-border bg-card p-3.5 shadow-sm space-y-3">
       <div className="flex justify-between items-start gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             <ProductName
               name={item.product_name}
-              className="font-semibold text-[14px]"
+              className="font-semibold text-[14.5px] leading-snug line-clamp-2"
             />
             {onEditProduct && (
               <EditProductPencil
@@ -90,18 +90,17 @@ const POItemCard = React.memo(function POItemCard({
         <Button
           type="button"
           variant="ghost"
-          size="icon"
           aria-label={`Remove ${item.product_name}`}
-          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+          className="h-7 w-7 p-0 pointer-coarse:size-8 pointer-coarse:-my-0.5 shrink-0 text-muted-foreground hover:text-destructive"
           onClick={() => onRemoveItem(index)}
         >
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         <div className="space-y-1">
-          <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <Label className="text-[11.5px] font-medium text-muted-foreground">
             Received ({item.bulk_unit})
           </Label>
           <EditableNumberCell
@@ -115,8 +114,8 @@ const POItemCard = React.memo(function POItemCard({
           {was("bulk_quantity")}
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-            New Cost
+          <Label className="text-[11.5px] font-medium text-muted-foreground">
+            New cost
           </Label>
           <Input
             type="number"
@@ -135,21 +134,22 @@ const POItemCard = React.memo(function POItemCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5 rounded-xl bg-muted/35 p-2.5">
         <div className="space-y-1">
-          <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <Label className="text-[11px] font-medium text-muted-foreground">
             Lot/Batch (Optional)
           </Label>
           <Input
             aria-label={`Lot or batch number for ${item.product_name}`}
             placeholder="e.g. BATCH-123"
+            className="bg-background"
             value={item.lot_number || ""}
             onChange={(e) => onUpdateItem(index, { lot_number: e.target.value })}
           />
           {was("lot_number")}
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <Label className="text-[11px] font-medium text-muted-foreground">
             Expiry (Optional)
           </Label>
           <DatePickerInput
@@ -157,6 +157,7 @@ const POItemCard = React.memo(function POItemCard({
             onChange={(val) => onUpdateItem(index, { expiry_date: val })}
             ariaLabel={`Expiry date for ${item.product_name}`}
             placeholder="Select"
+            inputClassName="bg-background"
             disablePast
             fromYear={new Date().getFullYear()}
             toYear={new Date().getFullYear() + 15}
@@ -165,22 +166,26 @@ const POItemCard = React.memo(function POItemCard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">Total</span>
-        <span className="text-[14px] font-bold text-foreground">{formatCurrency(total)}</span>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">
-          Sell Price
-        </span>
-        <POSellPriceCell
-          productName={item.product_name}
-          sellingPrice={product?.selling_price}
-          unitCost={effectiveUnitCost}
-          previousCost={product?.cost_price}
-          onEditProduct={onEditProduct ? () => onEditProduct(item.product_id) : undefined}
-        />
+      <div className="rounded-xl bg-muted/50 px-3 py-2 flex items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <div className="text-[11px] font-medium text-muted-foreground">
+            Sell Price
+          </div>
+          <POSellPriceCell
+            productName={item.product_name}
+            sellingPrice={product?.selling_price}
+            unitCost={effectiveUnitCost}
+            previousCost={product?.cost_price}
+            onEditProduct={onEditProduct ? () => onEditProduct(item.product_id) : undefined}
+            align="start"
+          />
+        </div>
+        <div className="text-right shrink-0 space-y-0.5">
+          <div className="text-[11px] font-medium text-muted-foreground">Total</div>
+          <div className="text-[15px] font-bold text-foreground tabular-nums">
+            {formatCurrency(total)}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -225,7 +230,7 @@ export function POItemCardList({
   }
 
   return (
-    <div className="border border-border rounded-xl divide-y divide-border">
+    <div className="space-y-3">
       {rows.map(({ item, index }) => (
         <POItemCard
           key={item.id ?? item.product_id}

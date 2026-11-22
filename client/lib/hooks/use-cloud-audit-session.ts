@@ -255,7 +255,7 @@ export function useCloudAuditSession(storeId: string | null) {
     } finally {
       setIsTakingOver(false);
     }
-  }, [setItems, handleConflict]);
+  }, [setItems, handleConflict, setCloudSessionId]);
 
   const complete = useCallback(async (submittedStockAuditId?: string | null) => {
     const cur = sessionRef.current;

@@ -63,7 +63,7 @@ class StorefrontSettingsController extends Controller
         $storefront = $this->ownerStorefront($user);
 
         if (! $storefront?->owner_style_enabled) {
-            return response()->json(['message' => "Your account manager manages how your storefront looks. Contact them to change it."], 403);
+            return response()->json(['message' => 'Your account manager manages how your storefront looks. Contact them to change it.'], 403);
         }
 
         $this->styleService->apply(

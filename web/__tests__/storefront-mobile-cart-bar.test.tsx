@@ -8,7 +8,7 @@ let pathname = "/s/grace";
 vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
 
 const fillCart = () =>
-  act(() =>
+  act(() => {
     useCartStore.setState({
       carts: {
         grace: [
@@ -16,13 +16,15 @@ const fillCart = () =>
           { id: "b", name: "Lamp", price: 3000, quantity: 1 },
         ],
       },
-    }),
-  );
+    });
+  });
 
 describe("mobile cart bar", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     pathname = "/s/grace";
-    act(() => useCartStore.setState({ carts: {} }));
+    await act(() => {
+      useCartStore.setState({ carts: {} });
+    });
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -32,35 +34,37 @@ describe("mobile cart bar", () => {
     expect(screen.queryByRole("button", { name: /view cart/i })).toBeNull();
   });
 
-  it("shows the item count and total once the cart has items", () => {
+  it("shows the item count and total once the cart has items", async () => {
     render(<MobileCartBar storeSlug="grace" currency="NGN" />);
-    fillCart();
+    await fillCart();
 
     const bar = screen.getByRole("button", { name: /view cart/i });
     expect(bar.textContent).toContain("2");
     expect(bar.textContent).toContain("₦4,500");
   });
 
-  it("only counts the cart of its own store", () => {
+  it("only counts the cart of its own store", async () => {
     render(<MobileCartBar storeSlug="grace" currency="NGN" />);
-    act(() => useCartStore.setState({ carts: { other: [{ id: "x", name: "Other", price: 100, quantity: 5 }] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { other: [{ id: "x", name: "Other", price: 100, quantity: 5 }] } });
+    });
 
     expect(screen.queryByRole("button", { name: /view cart/i })).toBeNull();
   });
 
-  it("is hidden on the checkout page", () => {
+  it("is hidden on the checkout page", async () => {
     pathname = "/s/grace/checkout";
     render(<MobileCartBar storeSlug="grace" currency="NGN" />);
-    fillCart();
+    await fillCart();
 
     expect(screen.queryByRole("button", { name: /view cart/i })).toBeNull();
   });
 
-  it("asks the cart sheet to open when tapped", () => {
+  it("asks the cart sheet to open when tapped", async () => {
     const opened = vi.fn();
     window.addEventListener("storefront:open-cart", opened);
     render(<MobileCartBar storeSlug="grace" currency="NGN" />);
-    fillCart();
+    await fillCart();
 
     fireEvent.click(screen.getByRole("button", { name: /view cart/i }));
 

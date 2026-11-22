@@ -261,3 +261,25 @@ describe("receivableLimit", () => {
     expect(clampReceivedQuantity("-3", receivableLimit({ bulk_quantity: 0, quantity_received: null }))).toBe(0);
   });
 });
+
+describe("pulled PO line item conversion cost fallback", () => {
+  it("uses live product units_per_bulk when a pulled PO line carried units_per_bulk = 1 and carton cost", () => {
+    const pulledLine = item({
+      product_name: "GLUCOPHAGE",
+      bulk_quantity: 0,
+      units_per_bulk: 1,
+      unit_cost: 33600,
+      subtotal: 0,
+    });
+
+    const baseCost = getImmediateUnitCost(pulledLine, 60);
+    expect(baseCost).toBe(560);
+    expect(
+      getMarginCue({
+        unitCost: baseCost,
+        sellingPrice: 900,
+        previousCost: 560,
+      }),
+    ).toBeNull();
+  });
+});

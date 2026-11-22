@@ -1,5 +1,6 @@
 import { BusinessVerticalCard } from "@/components/settings/store/business-vertical-card";
 import { BusinessInformationCard } from "@/components/settings/store/business-information-card";
+import { StoreProfileCard } from "@/components/settings/store/store-profile-card";
 import { OnlineStorefrontCard } from "@/components/settings/store/online-storefront-card";
 import { ContactSpecialistCard } from "@/components/settings/store/contact-specialist-card";
 import type { SettingsState } from "@/hooks/use-settings";
@@ -13,7 +14,6 @@ export function BusinessInfoPanel(s: SettingsState) {
       />
       <ContactSpecialistCard />
       <BusinessInformationCard
-        storeType={s.storeType}
         localName={s.localName}
         setLocalName={s.setLocalName}
         localAddress={s.localAddress}
@@ -29,6 +29,10 @@ export function BusinessInfoPanel(s: SettingsState) {
         localLogo={s.localLogo}
         handleLogoUpload={s.handleLogoUpload}
         handleRemoveLogo={s.handleRemoveLogo}
+        handleSaveProfile={() => void s.handleSaveProfile()}
+      />
+      <StoreProfileCard
+        storeType={s.storeType}
         localPcn={s.localPcn}
         setLocalPcn={s.setLocalPcn}
         showRetailSuggestions={s.showRetailSuggestions}

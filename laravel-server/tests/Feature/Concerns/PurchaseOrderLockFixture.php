@@ -15,7 +15,6 @@ trait PurchaseOrderLockFixture
     protected function setUpLockFixture(): void
     {
 
-
         $this->owner = User::create([
             'first_name' => 'Store',
             'last_name' => 'Owner',
@@ -44,7 +43,6 @@ trait PurchaseOrderLockFixture
         ]);
 
         $this->withoutMiddleware();
-
 
         DB::table('products')->insert([
             'id' => 'prod-1',

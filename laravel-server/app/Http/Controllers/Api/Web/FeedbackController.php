@@ -53,6 +53,7 @@ class FeedbackController extends Controller
         $feedback->save();
 
         try {
+            $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
             \App\Services\AdminAlertService::send(
                 'New Support Request: '.$request->input('subject'),
                 [
@@ -63,8 +64,20 @@ class FeedbackController extends Controller
                     'Subject: '.$request->input('subject'),
                     '',
                     'Message:',
-                    nl2br(e($request->input('message'))),
-                ]
+                    (string) $request->input('message'),
+                ],
+                [
+                    'severity' => 'info',
+                    'badge' => 'Support Request',
+                    'meta' => [
+                        'Ticket ID' => (string) $feedback->id,
+                        'Contact' => (string) $request->input('email'),
+                    ],
+                    'action' => [
+                        'label' => 'Review Support Tickets',
+                        'url' => $adminBase.'/communications',
+                    ],
+                ],
             );
         } catch (\Exception $e) {
             // Log but don't fail the request

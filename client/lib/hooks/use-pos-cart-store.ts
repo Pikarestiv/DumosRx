@@ -277,8 +277,8 @@ export function updateCartSpotSourcing(
     if (!existing) return { cart };
 
     const baseProductId = existing.product_id || existing.id.replace(/:spot_sourced$/, "");
-    const shelfQty = splitOptions.shelfQuantity!;
-    const spotQty = splitOptions.spotQuantity!;
+    const shelfQty = splitOptions.shelfQuantity ?? 0;
+    const spotQty = splitOptions.spotQuantity ?? 0;
     const sellingPrice =
       config.sellingPrice !== undefined ? Math.max(0, config.sellingPrice) : existing.unit_price;
 

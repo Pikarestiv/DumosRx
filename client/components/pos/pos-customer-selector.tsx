@@ -4,6 +4,7 @@ import { memo, useMemo, useState } from "react";
 import { Search, UserPlus, X, Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { insert } from "@/lib/db/local-database";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -165,8 +166,9 @@ export const POSCustomerSelector = memo(function POSCustomerSelector({
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search customers by name or phone number"
               placeholder="Search by name or phone number"
-              className="pl-9 h-10 rounded-xl"
+              className={`pl-9 ${search ? "pr-8" : ""} h-10 rounded-xl`}
             />
+            {search && <SearchClearButton onClick={() => setSearch("")} />}
           </div>
 
           {canManageCustomers && (

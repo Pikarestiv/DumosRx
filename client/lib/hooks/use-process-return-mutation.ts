@@ -9,7 +9,6 @@ import { recordReturnDisposition } from "@/lib/db/queries/returns";
 import { getCustomerBalance, getCustomerLoyaltyPoints } from "@/lib/db/queries/customers";
 import { revertPrescriptionDispense } from "@/lib/db/queries/prescriptions";
 import { calculateLoyaltyPointsAfterSale, calculateReturnPointsAdjustment } from "@/lib/utils/loyalty-calculator";
-import { ADJUSTMENT_REASON_NOTE_SEPARATOR } from "@/lib/constants/stock-adjustments";
 import type { Sale, SaleWithDetails, SaleItemDetail } from "@/lib/types/sale";
 import { getStoredUser } from "@/lib/storage-keys";
 import { roundMoney } from "@/lib/utils/pos-calculations";
@@ -80,7 +79,6 @@ export function useProcessReturnMutation() {
         for (const item of itemsToReturn) {
           const totalReturnQty = item.returnQuantity;
           const discardQty = Math.max(0, Math.min(item.discardQuantity || 0, totalReturnQty));
-          const restockQty = totalReturnQty - discardQty;
 
           await insert("return_items", {
             return_id: returnId,

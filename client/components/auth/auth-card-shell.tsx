@@ -2,9 +2,9 @@
 
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 interface AuthCardShellProps {
   children: ReactNode;
@@ -21,14 +21,7 @@ interface AuthCardShellProps {
 }
 
 const DEFAULT_LOGO = (
-  <Image
-    src="/logo.png"
-    alt="Logo"
-    width={150}
-    height={58}
-    className="object-contain"
-    style={{ filter: "var(--logo-filter)", height: "auto" }}
-  />
+  <BrandLogo src="/logo.png" alt="Logo" width={150} height={58} />
 );
 
 // Shared by /login's login/setup tabs and the dashboard's auto-lock overlay.
@@ -79,14 +72,7 @@ export function AuthCardShell({
               className={cn("overflow-hidden", isOverlay ? "mb-6" : "mb-1")}
             >
               {isOverlay ? (
-                <Image
-                  src="/logo.png"
-                  alt="Logo"
-                  width={180}
-                  height={70}
-                  className="object-contain"
-                  style={{ filter: "var(--logo-filter)", height: "auto" }}
-                />
+                <BrandLogo src="/logo.png" alt="Logo" width={180} height={70} />
               ) : (
                 icon
               )}

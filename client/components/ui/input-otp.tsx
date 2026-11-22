@@ -5,13 +5,20 @@ import { OTPInput, OTPInputContext } from "input-otp"
 import { Dot } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { triggerHapticFeedback } from "@/lib/utils/haptics"
 
 const InputOTP = React.forwardRef<
   React.ComponentRef<typeof OTPInput>,
   React.ComponentPropsWithoutRef<typeof OTPInput>
->(({ className, containerClassName, ...props }, ref) => (
+>(({ className, containerClassName, onChange, ...props }, ref) => (
   <OTPInput
     ref={ref}
+    onChange={(nextValue) => {
+      if (nextValue !== props.value) {
+        triggerHapticFeedback(10)
+      }
+      onChange?.(nextValue)
+    }}
     containerClassName={cn(
       "flex items-center gap-2 has-[:disabled]:opacity-50",
       containerClassName

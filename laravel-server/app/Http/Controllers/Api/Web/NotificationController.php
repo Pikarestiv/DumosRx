@@ -206,6 +206,7 @@ class NotificationController extends Controller
 
             $readableAction = $this->getUserAlertTitle($act);
             $readableTable = str_replace('_', ' ', $matches[2]);
+
             return "{$readableAction} on {$readableTable}.";
         }
 

@@ -1195,10 +1195,13 @@ Spec: `docs/superpowers/specs/2026-10-07-admin-panel-phase-5-maintenance-design.
   API returns `pending_count: null` when it cannot read the migrator, precisely
   so the UI cannot render the one sentence that is indistinguishable from "all
   good" — that false statement is what A-170 consisted of.
-- **Two separate actions, two separate confirmations.** Running migrations no
+- **Three separate actions, separate confirmations.** Running migrations no
   longer seeds (A-174), so "sync roles and permissions" is its own button;
   a permission added to `RolesAndPermissionsSeeder` does not exist in production
-  until someone presses it.
+  until someone presses it. `DatabaseBackupPanel` surfaces `R2_BACKUP_BUCKET` /
+  `BACKUP_ENCRYPTION_PUBLIC_KEY` config status, the last recorded run (`last_run`: `ok`/`failed`,
+  `scheduled`/`manual`, `dd/MM/yyyy HH:mm`, and error if failed), recent `daily/` backups (`dd/MM/yyyy HH:mm`),
+  any R2 listing error, and a confirmed `"Run backup now"` trigger.
 - **The migration runner names the environment it is about to touch.** The
   dialog and the page header both read `useApiEnvironmentName()`, which
   reflects which API this session is talking to rather than which build it is

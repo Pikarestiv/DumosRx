@@ -36,6 +36,10 @@ export function ProductBasicInfo({ product, creator }: ProductBasicInfoProps) {
           <p className="font-mono font-medium">{product.barcode || "Not set"}</p>
         </div>
         <div>
+          <p className="text-sm text-muted-foreground">Location / Shelf</p>
+          <p className="font-medium">{product.location || "Default Shelf"}</p>
+        </div>
+        <div>
           <p className="text-sm text-muted-foreground">Created By</p>
           <p className="font-medium">
             {creator?.user_name?.trim() || "-"}

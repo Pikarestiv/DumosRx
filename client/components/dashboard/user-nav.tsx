@@ -52,7 +52,7 @@ const NavTrigger = ({
       "relative rounded-xl hover:bg-muted/50 transition-colors text-foreground hover:text-foreground",
       showDetails
         ? "h-auto w-full flex items-center justify-start gap-3 p-2"
-        : "h-8 w-8 rounded-full p-0",
+        : "h-9 w-9 sm:h-8 sm:w-8 rounded-full p-0",
       className,
     )}
     {...props}
@@ -60,7 +60,7 @@ const NavTrigger = ({
     <Avatar
       className={cn(
         "border border-border shrink-0",
-        showDetails ? "h-9 w-9" : "h-8 w-8",
+        showDetails ? "h-9 w-9" : "h-9 w-9 sm:h-8 sm:w-8",
       )}
     >
       <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
@@ -153,7 +153,7 @@ export function UserNav({
           "rounded-xl hover:bg-destructive/10 text-destructive transition-colors",
           showDetails
             ? "h-auto w-full flex items-center justify-start gap-3 p-2"
-            : "h-8 w-8 rounded-full p-0",
+            : "h-9 w-9 sm:h-8 sm:w-8 rounded-full p-0",
         )}
         onClick={() => {
           clearStoredUser();

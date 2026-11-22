@@ -21,7 +21,6 @@ class SyncPushPurchaseOrderReceiptVoidTest extends TestCase
     {
         parent::setUp();
 
-
         $this->owner = User::create([
             'first_name' => 'Store',
             'last_name' => 'Owner',
@@ -50,7 +49,6 @@ class SyncPushPurchaseOrderReceiptVoidTest extends TestCase
         ]);
 
         $this->withoutMiddleware();
-
 
         DB::table('products')->insert([
             'id' => 'prod-1',

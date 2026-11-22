@@ -56,7 +56,7 @@ const NotificationTrigger = ({
   <Button
     variant="ghost"
     size="icon"
-    className="relative"
+    className="relative size-9 pointer-coarse:size-9 rounded-full"
     aria-label={
       unreadCount > 0
         ? `Notifications, ${unreadCount} unread`
@@ -64,11 +64,11 @@ const NotificationTrigger = ({
     }
     {...props}
   >
-    <Bell className="h-5 w-5" />
+    <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
     {unreadCount > 0 && (
       <Badge
         variant="destructive"
-        className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full"
+        className="absolute -top-1 -right-1 h-4 min-w-4 sm:h-5 sm:min-w-5 flex items-center justify-center p-0 px-1 text-[10px] sm:text-xs rounded-full"
       >
         {unreadCount}
       </Badge>

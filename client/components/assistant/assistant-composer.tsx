@@ -27,7 +27,7 @@ export function AssistantComposer({ isThinking, onSend, inputRef }: AssistantCom
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-center gap-2 border-t border-border bg-background/95 p-3 backdrop-blur-sm"
+      className="flex items-center gap-2 border-t border-border bg-background/95 p-3 pb-[calc(0.75rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] [[data-keyboard-open]_&]:pb-3 backdrop-blur-sm"
     >
       <Input
         ref={inputRef}

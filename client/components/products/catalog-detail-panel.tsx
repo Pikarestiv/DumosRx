@@ -227,7 +227,10 @@ export function CatalogDetailPanel({
           <ProductDetailTabNav batchCount={batches.length} />
         </div>
 
-        <div className="flex-1 overflow-y-auto stable-scrollbar p-4 pb-0">
+        <div
+          data-vaul-no-drag=""
+          className="flex-1 min-h-0 overflow-y-auto touch-pan-y stable-scrollbar p-4 pb-[calc(1.5rem+var(--tauri-bottom,env(safe-area-inset-bottom,0px)))] lg:pb-6"
+        >
           <TabsContent value="details" className="mt-0 space-y-4">
             <ProductOverviewCards
               product={product}

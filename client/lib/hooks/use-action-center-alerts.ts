@@ -314,6 +314,7 @@ export function useActionCenterAlerts(
     licenseCheckedAt,
     showWidgetPrompt,
     promptPinWidget,
+    onOpenProfileChecklist,
   ]);
 
   return alerts;

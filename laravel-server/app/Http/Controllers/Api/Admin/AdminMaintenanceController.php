@@ -27,4 +27,16 @@ class AdminMaintenanceController extends AdminBaseController
 
         return response()->json($result, $result['ok'] ? 200 : 500);
     }
+
+    public function backupStatus()
+    {
+        return response()->json($this->maintenance->backupStatus());
+    }
+
+    public function runBackup()
+    {
+        $result = $this->maintenance->runBackup(Auth::id());
+
+        return response()->json($result, $result['status'] ?? ($result['ok'] ? 200 : 500));
+    }
 }

@@ -17,28 +17,10 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
-/**
- * Account creation and email-verification endpoints of AuthController.
- *
- * Extracted verbatim from AuthController purely to make that ~900-line file
- * navigable. It is a trait, NOT a separate controller, deliberately: every
- * AuthController route's middleware is assigned by route group in
- * routes/api.php (three different groups - throttle:auth,
- * throttle:session-refresh and the auth:sanctum protected group), so the
- * class name in those bindings must not change. Using traits keeps the
- * controller's identity, its route bindings and its middleware application
- * exactly as they were.
- */
 trait RegistersAccounts
 {
     private const EMAIL_VERIFICATION_TOKEN_TTL_HOURS = 168;
 
-    /**
-     * Whether the platform requires a verified email before an account is
-     * usable. Resolved once per registration, above the store_name branch:
-     * it is read on both paths, so assigning it inside the branch left a
-     * store-less registration auto-marked verified.
-     */
     private function requiresEmailVerification(): bool
     {
         $configured = \App\Models\SystemConfig::getVal('require_email_verification', false);
@@ -185,6 +167,7 @@ trait RegistersAccounts
 
             // Send Super Admin Alert
             try {
+                $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
                 \App\Services\AdminAlertService::send(
                     'New Registration: '.$request->store_name,
                     [
@@ -194,7 +177,18 @@ trait RegistersAccounts
                         "Phone: {$user->phone}",
                         "Store Name: {$request->store_name}",
                         'Referred By: '.($refCode ?? 'None'),
-                    ]
+                    ],
+                    [
+                        'severity' => 'success',
+                        'badge' => 'New Registration',
+                        'meta' => [
+                            'User ID' => (string) $user->id,
+                        ],
+                        'action' => [
+                            'label' => 'View Store Owners',
+                            'url' => $adminBase.'/users',
+                        ],
+                    ],
                 );
             } catch (Exception $e) {
                 Log::error('Failed to send super admin alert: '.$e->getMessage());

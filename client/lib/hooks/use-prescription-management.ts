@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -15,15 +15,24 @@ export function usePrescriptionManagement() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const canManagePrescriptions = useHasPermission("manage_prescriptions");
+  const selectedRxParam = searchParams.get("selected");
   const showNewPrescription =
     canManagePrescriptions &&
     (searchParams.get("action") === "add" || !!searchParams.get("edit_rx"));
+
+  useEffect(() => {
+    if (!selectedRxParam) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("selected");
+    const nextUrl = `/prescriptions${params.toString() ? `?${params.toString()}` : ""}`;
+    router.replace(nextUrl);
+  }, [selectedRxParam, router, searchParams]);
 
   const closeNewPrescription = () => {
     router.push("/prescriptions");
   };
 
-  const queue = usePrescriptionQueue();
+  const queue = usePrescriptionQueue(selectedRxParam);
 
   const handleEdit = (prescription: Prescription) => {
     // Navigate to edit form, could just show new prescription with ID.

@@ -184,7 +184,7 @@ describe("Cloud Audit Session API Client", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ success: true, session: mockSession }),
+      json: () => Promise.resolve({ success: true, session: mockSession }),
     } as Response);
 
     const res = await fetchActiveAuditSession();
@@ -206,7 +206,7 @@ describe("Cloud Audit Session API Client", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 409,
-      json: async () => ({
+      json: () => Promise.resolve({
         message: "An active audit session already exists on another device.",
         conflict: true,
         session: { id: "existing-session", active_till_id: "TILL-OTHER" },
@@ -231,7 +231,7 @@ describe("Cloud Audit Session API Client", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: () => Promise.resolve({
         success: true,
         lease_expires_at: "2026-11-03T16:00:00Z",
         lease_version: 1,
@@ -254,7 +254,7 @@ describe("Cloud Audit Session API Client", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: () => Promise.resolve({
         success: true,
         total_items_count: 5,
         counted_items_count: 3,
@@ -275,7 +275,7 @@ describe("Cloud Audit Session API Client", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: () => Promise.resolve({
         success: true,
         session: {
           id: "session-1",
@@ -295,7 +295,7 @@ describe("Cloud Audit Session API Client", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({
+      json: () => Promise.resolve({
         success: true,
         session: {
           id: "session-1",

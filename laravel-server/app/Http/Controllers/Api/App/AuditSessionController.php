@@ -244,4 +244,3 @@ class AuditSessionController extends Controller
         ]);
     }
 }
-

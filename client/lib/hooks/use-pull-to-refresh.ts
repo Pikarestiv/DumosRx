@@ -1,21 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { triggerHapticFeedback } from "@/lib/utils/haptics";
 
 const PULL_THRESHOLD = 64;
 const MAX_PULL = 96;
 const RESISTANCE = 0.5;
-// Vertical travel required before a touch is treated as a pull rather than a tap.
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pull-to-refresh-ts-L8
-const PULL_SLOP = 12;
+const PULL_SLOP = 10;
 
 interface UsePullToRefreshOptions {
   onRefresh: () => Promise<void> | void;
   disabled?: boolean;
 }
 
-// Gated to pointerType === "touch":
-// Rationale: docs/CLIENT_LIB_COMMENTS.md#hooks-use-pull-to-refresh-ts-L20
+function isScrolledToTop(target: EventTarget | null, root: HTMLElement): boolean {
+  if (root.scrollTop > 0) return false;
+  let node = target instanceof HTMLElement ? target : null;
+  while (node && node !== root) {
+    if (node.scrollTop > 0) return false;
+    node = node.parentElement;
+  }
+  return true;
+}
+
 export function usePullToRefresh<T extends HTMLElement>({
   onRefresh,
   disabled,
@@ -28,6 +35,7 @@ export function usePullToRefresh<T extends HTMLElement>({
   const startX = useRef<number | null>(null);
   const pulling = useRef(false);
   const engaged = useRef(false);
+  const thresholdReached = useRef(false);
   const currentPull = useRef(0);
   const onRefreshRef = useRef(onRefresh);
 
@@ -44,44 +52,62 @@ export function usePullToRefresh<T extends HTMLElement>({
       setPullDistance(v);
     };
 
-    const handlePointerDown = (e: PointerEvent) => {
-      if (e.pointerType !== "touch") return;
-      if (el.scrollTop > 0) return;
-      startY.current = e.clientY;
-      startX.current = e.clientX;
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      if (!isScrolledToTop(e.target, el)) return;
+      startY.current = e.touches[0].clientY;
+      startX.current = e.touches[0].clientX;
       pulling.current = true;
       engaged.current = false;
+      thresholdReached.current = false;
     };
 
-    const handlePointerMove = (e: PointerEvent) => {
+    const handleTouchMove = (e: TouchEvent) => {
       if (!pulling.current || startY.current === null || startX.current === null) return;
-      const diff = e.clientY - startY.current;
-      const diffX = e.clientX - startX.current;
-      if (diff <= 0 || el.scrollTop > 0) {
+      if (e.touches.length !== 1) {
         pulling.current = false;
         if (engaged.current) setPull(0);
         engaged.current = false;
         return;
       }
-      // Below PULL_SLOP, diff and diffX are both still jitter-scale, so a horizontal-intent comparison here is unreliable:
-      // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pull-to-refresh-ts-L66
-      if (diff < PULL_SLOP) return;
-      if (Math.abs(diffX) > diff) {
-        // Now that there's real vertical travel to compare against, a horizontal component that still dominates it means this is a sideways gesture, n…
-        // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-pull-to-refresh-ts-L78
+
+      const diff = e.touches[0].clientY - startY.current;
+      const diffX = e.touches[0].clientX - startX.current;
+
+      if (diff <= 0 || !isScrolledToTop(e.target, el)) {
         pulling.current = false;
+        if (engaged.current) setPull(0);
+        engaged.current = false;
         return;
       }
+
+      if (Math.abs(diffX) > diff && diff >= PULL_SLOP) {
+        pulling.current = false;
+        if (engaged.current) setPull(0);
+        engaged.current = false;
+        return;
+      }
+
+      if (diff < PULL_SLOP) return;
+
       engaged.current = true;
-      e.preventDefault();
-      setPull(Math.min((diff - PULL_SLOP) * RESISTANCE, MAX_PULL));
+      if (e.cancelable) e.preventDefault();
+      const nextPull = Math.min((diff - PULL_SLOP) * RESISTANCE, MAX_PULL);
+      if (nextPull >= PULL_THRESHOLD && !thresholdReached.current) {
+        thresholdReached.current = true;
+        triggerHapticFeedback(12);
+      } else if (nextPull < PULL_THRESHOLD) {
+        thresholdReached.current = false;
+      }
+      setPull(nextPull);
     };
 
-    const handlePointerUp = async () => {
+    const handleTouchEnd = async () => {
       if (!pulling.current) return;
       pulling.current = false;
       startY.current = null;
       startX.current = null;
+      thresholdReached.current = false;
       if (!engaged.current) return;
       engaged.current = false;
       if (currentPull.current >= PULL_THRESHOLD) {
@@ -98,18 +124,18 @@ export function usePullToRefresh<T extends HTMLElement>({
       }
     };
 
-    const onPointerUp = () => void handlePointerUp();
+    const onTouchEnd = () => void handleTouchEnd();
 
-    el.addEventListener("pointerdown", handlePointerDown);
-    el.addEventListener("pointermove", handlePointerMove, { passive: false });
-    el.addEventListener("pointerup", onPointerUp);
-    el.addEventListener("pointercancel", onPointerUp);
+    el.addEventListener("touchstart", handleTouchStart, { passive: true });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
 
     return () => {
-      el.removeEventListener("pointerdown", handlePointerDown);
-      el.removeEventListener("pointermove", handlePointerMove);
-      el.removeEventListener("pointerup", onPointerUp);
-      el.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [disabled]);
 

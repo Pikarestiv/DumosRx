@@ -94,8 +94,14 @@ describe("CatalogRow", () => {
   });
 
   it("shows the product on both branches", () => {
-    renderRow(true);
+    const { unmount } = renderRow(true);
     expect(screen.getByText("Panadol")).toBeTruthy();
+    unmount();
+
+    renderRow(false);
+    expect(screen.getByText("Panadol")).toBeTruthy();
+    expect(screen.getByText("N100")).toBeTruthy();
+    expect(screen.getByText("12 units")).toBeTruthy();
   });
 
   // The commitOnBlur={false} / ariaLabel wiring was merge-ported into this

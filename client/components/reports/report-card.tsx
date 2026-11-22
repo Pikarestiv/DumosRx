@@ -48,7 +48,7 @@ export function ReportCard({
   onPrint,
 }: ReportCardProps) {
   return (
-    <div className="p-4 rounded-[14px] border hover:bg-primary/5 transition-all group">
+    <div className="p-4 rounded-[14px] border bg-card hover:bg-primary/5 transition-all group">
       {/* Icon-title-tag as one row (A-158): — docs/CLIENT_COMMENTS.md#block-components-reports-report-card-tsx-L52 */}
       <div className="flex items-center gap-2 mb-1">
         <div className="h-8 w-8 rounded-[10px] bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform shrink-0">

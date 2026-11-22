@@ -8,7 +8,9 @@ import {
 } from "@/components/ui/product-combobox-options";
 
 if (typeof CSS === "undefined" || !CSS.escape) {
-  (global as any).CSS = { escape: (s: string) => s };
+  (globalThis as { CSS?: { escape: (s: string) => string } }).CSS = {
+    escape: (s: string) => s,
+  };
 }
 
 vi.mock("@/lib/context/store-context", () => ({

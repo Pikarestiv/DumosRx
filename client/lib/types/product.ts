@@ -19,6 +19,7 @@ export interface Product {
   requires_prescription?: number;
   is_controlled?: number;
   image_key?: string | null;
+  location?: string | null;
 }
 
 // Row shape returned by getProductsWithDetails():
@@ -77,6 +78,7 @@ export interface NewProductPayload {
   base_unit?: string;
   bulk_unit?: string;
   units_per_bulk?: number;
+  location?: string | null;
   is_active?: number;
   show_online?: number;
   requires_prescription?: number;
@@ -111,5 +113,6 @@ export interface ProductViewModel {
   lastAuditedAt?: string | null;
   lastBoughtPrice?: number | null;
   imageKey?: string | null;
+  location?: string;
   missingExpiryBatches?: number;
 }

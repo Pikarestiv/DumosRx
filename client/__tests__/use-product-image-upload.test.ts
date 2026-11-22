@@ -14,21 +14,21 @@ type Route = { status: number; body?: unknown };
 
 function stubNetwork(routes: Record<string, Route>) {
   const calls: Array<{ method: string; url: string }> = [];
-  vi.stubGlobal("fetch", vi.fn(async (url: string, init: RequestInit = {}) => {
+  vi.stubGlobal("fetch", vi.fn((url: string, init: RequestInit = {}) => {
     const method = init.method ?? "GET";
     calls.push({ method, url });
     const match = Object.entries(routes).find(([pattern]) => `${method} ${url}`.includes(pattern));
     const route = match?.[1] ?? { status: 404, body: { message: "not found" } };
-    return new Response(JSON.stringify(route.body ?? {}), {
+    return Promise.resolve(new Response(JSON.stringify(route.body ?? {}), {
       status: route.status,
       headers: { "Content-Type": "application/json" },
-    });
+    }));
   }));
   return calls;
 }
 
 function stubCanvas() {
-  vi.stubGlobal("createImageBitmap", async () => ({ width: 1024, height: 768, close: () => {} }));
+  vi.stubGlobal("createImageBitmap", () => Promise.resolve({ width: 1024, height: 768, close: () => {} }));
   const realCreate = document.createElement.bind(document);
   vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
     if (tag !== "canvas") return realCreate(tag);

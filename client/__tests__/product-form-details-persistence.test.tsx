@@ -64,10 +64,11 @@ describe("product form additional details", () => {
     expect(detailsPanel().className).toContain("max-h-0");
   });
 
-  it("keeps strength and dosage form inside the additional details", () => {
+  it("keeps strength, dosage form and location/shelf inside the additional details", () => {
     renderForm();
     expect(detailsPanel().contains(screen.getByLabelText("Strength / Size"))).toBe(true);
     expect(detailsPanel().contains(screen.getByLabelText("Dosage Form"))).toBe(true);
+    expect(detailsPanel().contains(screen.getByLabelText("Location / Shelf"))).toBe(true);
   });
 
   it("does not put a field hint ahead of the name field in the tab order", () => {

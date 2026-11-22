@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatMetricCurrency } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface CustomerBehaviorTabProps {
   customerMetrics: {
@@ -36,6 +37,7 @@ export function CustomerBehaviorTab({
 }: CustomerBehaviorTabProps) {
   const { storeProfile } = useStore();
   const currency = storeProfile?.currency || "NGN";
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   return (
     <div className="flex flex-col gap-5">
@@ -65,7 +67,7 @@ export function CustomerBehaviorTab({
         })}
       </div>
 
-      <Card className="p-5 border shadow-sm rounded-2xl">
+      <Card className="p-4 sm:p-5 border shadow-sm rounded-2xl space-y-4">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <Clock className="w-4 h-4 text-primary" />
@@ -80,9 +82,45 @@ export function CustomerBehaviorTab({
             title="No transaction data available"
             description="Sales will appear here once transactions are recorded for the selected filters."
           />
+        ) : !isDesktop ? (
+          <div className="space-y-2.5">
+            {purchasePatterns.map((row) => (
+              <div
+                key={row.slot}
+                data-purchase-pattern-card-mobile
+                className="rounded-xl border border-border bg-background/60 p-3.5 space-y-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-semibold text-[14px] text-foreground">
+                    {row.slot}
+                  </div>
+                  <span className="text-[12px] font-medium text-muted-foreground tabular-nums">
+                    {row.transactions.toLocaleString()} {row.transactions === 1 ? "transaction" : "transactions"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
+                  <div>
+                    <div className="text-[11px] font-medium text-muted-foreground">
+                      Avg. Value
+                    </div>
+                    <div className="text-[13.5px] font-semibold text-foreground tabular-nums mt-0.5">
+                      {formatMetricCurrency(row.avgValue, currency)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-medium text-muted-foreground">
+                      Top Category
+                    </div>
+                    <div className="text-[13px] font-medium text-foreground break-words mt-0.5">
+                      {row.topCategory}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="w-full overflow-x-auto border rounded-xl">
-            {/* Div-based table; ARIA roles stand in for real <table> semantics */}
             <div role="table" aria-label="Customer purchase patterns" className="w-full text-[13px] text-left">
               <div role="rowgroup">
                 <div role="row" className="grid grid-cols-4 bg-primary/5 border-b text-primary font-semibold text-[11.5px] uppercase">

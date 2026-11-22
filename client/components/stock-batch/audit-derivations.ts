@@ -1,6 +1,5 @@
 import type { AuditItem } from "./stock-audits";
 import type { StockAuditSubmission } from "@/lib/db/queries/inventory";
-import type { ProductWithDetails } from "@/lib/types/product";
 
 export const ALL_AUDIT_CATEGORIES = "__all__";
 

@@ -25,13 +25,16 @@ interface GuideDetailViewProps {
   relatedGuides: GuideItem[];
 }
 
-export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) {
+export function GuideDetailView({
+  guide,
+  relatedGuides,
+}: GuideDetailViewProps) {
   const [copied, setCopied] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const handleCopyLink = () => {
     if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.href);
+      void navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -79,7 +82,10 @@ export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) 
         {/* Hero Section */}
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="font-medium text-xs px-2.5 py-0.5">
+            <Badge
+              variant="outline"
+              className="font-medium text-xs px-2.5 py-0.5"
+            >
               {guide.category}
             </Badge>
             {guide.badge && (
@@ -105,11 +111,13 @@ export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) 
         </section>
 
         {/* Video Tutorial Container */}
-        <div className="relative rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 aspect-video max-h-[460px] flex items-center justify-center group shadow-xl">
+        <div className="relative rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 aspect-video max-h-115 flex items-center justify-center group shadow-xl">
           {isPlaying ? (
             <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950 text-slate-200 space-y-4">
               <Video className="w-14 h-14 text-primary animate-pulse" />
-              <h4 className="font-semibold text-xl text-white">Interactive Video Tutorial</h4>
+              <h4 className="font-semibold text-xl text-white">
+                Interactive Video Tutorial
+              </h4>
               <p className="text-sm text-slate-400 max-w-lg">
                 {guide.videoPlaceholderText}
               </p>
@@ -125,7 +133,7 @@ export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) 
           ) : (
             <div className="relative w-full h-full flex flex-col items-center justify-center p-8 text-center bg-linear-to-tr from-slate-950 via-slate-900 to-slate-950">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.12)_0,transparent_70%)] pointer-events-none" />
-              
+
               <button
                 type="button"
                 onClick={() => setIsPlaying(true)}
@@ -138,7 +146,8 @@ export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) 
                 {guide.videoPlaceholderText}
               </p>
               <span className="relative z-10 mt-2 inline-flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
-                <Clock className="w-3.5 h-3.5 text-primary" /> Video duration: {guide.videoDuration}
+                <Clock className="w-3.5 h-3.5 text-primary" /> Video duration:{" "}
+                {guide.videoDuration}
               </span>
             </div>
           )}
@@ -205,7 +214,9 @@ export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) 
               Need a personal walkthrough for your store?
             </h3>
             <p className="text-sm text-muted-foreground max-w-xl">
-              Your dedicated DumosRx Account Manager can walk you and your staff through turning these features on, configuring permissions, and running live test transactions.
+              Your dedicated DumosRx Account Manager can walk you and your staff
+              through turning these features on, configuring permissions, and
+              running live test transactions.
             </p>
           </div>
           <Button asChild className="rounded-full shrink-0 shadow-md">
@@ -216,4 +227,3 @@ export function GuideDetailView({ guide, relatedGuides }: GuideDetailViewProps) 
     </div>
   );
 }
-

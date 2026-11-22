@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Models\ActivityLog;
 use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
@@ -164,4 +163,3 @@ class AdminStoreRelinkCodeTest extends TestCase
         ]);
     }
 }
-

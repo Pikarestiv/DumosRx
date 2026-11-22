@@ -33,9 +33,12 @@ vi.mock("@/lib/store/use-admin-auth-store", () => ({
 
 vi.mock("@/lib/api/admin-hooks-maintenance", () => ({
   MIGRATION_STATUS_KEY: "admin-migration-status",
+  BACKUP_STATUS_KEY: "admin-backup-status",
   useAdminMigrationStatus: statusHook,
   useRunMigrationsMutation: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
   useSyncRolesMutation: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
+  useAdminBackupStatus: () => ({ data: undefined, isLoading: false, isError: false }),
+  useRunBackupMutation: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
 }));
 
 const { default: MaintenancePage } = await import("@/app/admin/maintenance/page");

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { StoreBranchSelector } from "@/components/storefront/store-branch-selector";
 import { StoreOrderTracker } from "@/components/storefront/store-order-tracker";
 import { StorePrescriptionForm } from "@/components/storefront/store-prescription-form";
@@ -52,7 +52,7 @@ describe("StoreOrderTracker", () => {
     expect(screen.getByRole("button", { name: /track/i })).toBeDefined();
   });
 
-  it("handles empty submission gracefully", async () => {
+  it("handles empty submission gracefully", () => {
     render(<StoreOrderTracker storeSlug="demo" />);
     const submitBtn = screen.getByRole("button", { name: /track/i });
     fireEvent.click(submitBtn);

@@ -91,6 +91,7 @@ export function StoreOrderTracker({ storeSlug, store }: StoreOrderTrackerProps) 
             Cancelled
           </span>
         );
+      case "pending":
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
@@ -103,7 +104,9 @@ export function StoreOrderTracker({ storeSlug, store }: StoreOrderTrackerProps) 
   return (
     <div className="space-y-6">
       <form
-        onSubmit={handleSearch}
+        onSubmit={(e) => {
+          void handleSearch(e);
+        }}
         className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
       >
         <div className="space-y-1.5">

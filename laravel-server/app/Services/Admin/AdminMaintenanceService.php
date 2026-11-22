@@ -181,4 +181,94 @@ class AdminMaintenanceService
             'error' => $error,
         ];
     }
+
+    public function backupStatus(): array
+    {
+        $backups = app(\App\Services\Backup\DatabaseBackupService::class);
+        $bucketConfigured = filled(config('database_backup.bucket'));
+        $publicKeyConfigured = filled(config('database_backup.public_key'));
+        $configured = $backups->isConfigured();
+        $recentBackups = [];
+        $listError = null;
+
+        if ($configured) {
+            try {
+                $disk = $backups->disk();
+                $files = $disk->allFiles('daily');
+                rsort($files);
+                foreach (array_slice($files, 0, 5) as $key) {
+                    $recentBackups[] = [
+                        'key' => $key,
+                        'bytes' => $disk->size($key),
+                        'last_modified' => \Carbon\Carbon::createFromTimestamp($disk->lastModified($key))->toIso8601String(),
+                    ];
+                }
+            } catch (\Throwable $e) {
+                $listError = $e->getMessage();
+            }
+        }
+
+        return [
+            'configured' => $configured,
+            'bucket_configured' => $bucketConfigured,
+            'public_key_configured' => $publicKeyConfigured,
+            'disk' => (string) config('database_backup.disk'),
+            'schedule' => 'Daily at 23:00 Africa/Lagos',
+            'last_run' => $backups->lastRun(),
+            'recent_backups' => $recentBackups,
+            'list_error' => $listError,
+        ];
+    }
+
+    public function runBackup(?string $actorId = null): array
+    {
+        $backups = app(\App\Services\Backup\DatabaseBackupService::class);
+        if (! $backups->isConfigured()) {
+            return [
+                'ok' => false,
+                'status' => 422,
+                'output' => 'Database backups are not configured. Set R2_BACKUP_BUCKET and BACKUP_ENCRYPTION_PUBLIC_KEY in the server environment.',
+                'status_after' => $this->backupStatus(),
+            ];
+        }
+
+        try {
+            $result = $backups->run(now('Africa/Lagos'));
+        } catch (\Throwable $e) {
+            $backups->recordLastRun('failed', 'manual', null, $e->getMessage());
+            \Illuminate\Support\Facades\Log::critical('Manual database backup failed', [
+                'error' => $e->getMessage(),
+                'actor_id' => $actorId,
+            ]);
+
+            return [
+                'ok' => false,
+                'status' => 500,
+                'output' => $e->getMessage(),
+                'status_after' => $this->backupStatus(),
+            ];
+        }
+
+        $backups->recordLastRun('ok', 'manual', $result);
+        $monthlySuffix = $result['monthly_key'] ? " and {$result['monthly_key']}" : '';
+        $output = "Wrote {$result['key']} ({$result['bytes']} bytes){$monthlySuffix}.";
+
+        \App\Models\ActivityLog::create([
+            'user_id' => $actorId,
+            'action' => 'maintenance_backup_run',
+            'table_name' => 'system',
+            'record_id' => $result['key'],
+            'changes' => $result,
+        ]);
+
+        \Illuminate\Support\Facades\Log::info('Manual database backup written', $result);
+
+        return [
+            'ok' => true,
+            'status' => 200,
+            'result' => $result,
+            'output' => $output,
+            'status_after' => $this->backupStatus(),
+        ];
+    }
 }

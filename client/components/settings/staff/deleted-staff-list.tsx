@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateSafe } from "@/lib/utils/date-utils";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { RotateCcw, Loader2, Users, Search } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -57,8 +58,9 @@ export function DeletedStaffList({
             placeholder="Search deleted staff..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9"
+            className={`pl-9 ${search ? "pr-8" : ""} h-9`}
           />
+          {search && <SearchClearButton onClick={() => setSearch("")} />}
         </div>
       </div>
 

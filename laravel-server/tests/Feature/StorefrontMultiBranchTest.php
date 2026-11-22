@@ -16,8 +16,11 @@ class StorefrontMultiBranchTest extends TestCase
     use RefreshDatabase;
 
     private User $owner;
+
     private Store $branchLekki;
+
     private Store $branchIkeja;
+
     private Storefront $storefront;
 
     protected function setUp(): void

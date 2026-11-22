@@ -3259,8 +3259,7 @@ account's lifecycle state. It is built *on top of*
 `resolveEffectiveSubscription()` — the same method `CheckSubscription`,
 `hasFeature()`, `checkLimit()` and `enforceStaffLimits()` gate
 live traffic on — so the admin panel and the application can never disagree
-about who is subscribed. (`SyncGate::validateSync()` does not use it: it reads
-the owner's latest `active` subscription with a future `end_date` directly.)
+about who is subscribed. `SyncGate::validateSync()` also uses `resolveEffectiveSubscription()`, exempts initial device sync (`setup=1` / empty `last_synced`) from the interval throttle once `cloud_sync` is allowed, and sync routes use dedicated `throttle:sync` (`300/min`) instead of the general `60/min` API limit.
 
 - **Never re-derive the grace window.** `subscriptionState()` reads `end_date`
   only to *classify* the row `resolveEffectiveSubscription()` already chose. If
@@ -5007,8 +5006,7 @@ cd ~/api.dumosrx.com
 
 This affects the CLI only — the web app itself is served under 8.2, which is
 why nothing else breaks. There is also no generic command-runner endpoint by
-design: `/admin/maintenance` exposes only `migrations` and `roles/sync`
-(`AdminMaintenanceController`, `role:super_admin`), so anything else needs
+design: `/admin/maintenance` exposes `migrations`, `roles/sync`, and manual `backup` status/run (`AdminMaintenanceController`, `role:super_admin`), so anything else needs
 terminal access. Worth remembering before writing a command that an operator
 has no way to invoke.
 
@@ -5161,7 +5159,11 @@ Whole-database disaster recovery, separate from the per-store manual backups
   (dump, encrypt, upload, size mismatch, or an encrypted file under `BACKUP_MIN_BYTES`)
   is logged critical, emailed to the admins via `AdminAlertService`, and exits non-zero.
   There is no alert for a night that never ran (for example the scheduler stopped);
-  check `daily/` in the bucket for yesterday's file.
+  `/admin/maintenance` exposes live config status, the last recorded scheduled or manual run
+  (`SystemConfig` key `database_backup_last_run` with `status`, `trigger`, `ran_at`, `key`, `bytes`,
+  `monthly_key`, `error`), up to 5 recent `daily/` objects, and a confirmed `"Run backup now"` trigger
+  (`POST /api/v1/admin/maintenance/backup/run`, audited as `maintenance_backup_run`, returning 422
+  when unconfigured instead of silently succeeding).
 - **Restore drill** (rehearse against a scratch database, never production):
   1. Download the newest object from `dumosrx-db-backups` in the Cloudflare dashboard.
   2. On your machine: `php artisan backups:decrypt backup.sql.gz.enc backup.sql.gz --secret-key-file=keypair.txt`.
@@ -5172,4 +5174,9 @@ Whole-database disaster recovery, separate from the per-store manual backups
 - The restore import itself has not been rehearsed yet; the dump and the decrypt round trip
   are covered by `tests/Feature/Backup`, and the dumper has been run read-only against a
   local MySQL database (75 tables dumped).
+
+## Super-admin alerts & daily platform brief (2026-11-22)
+
+- **Structured `SuperAdminAlertMail` (`app/Mail/SuperAdminAlertMail.php`, `resources/views/emails/super-admin-alert.blade.php`) & `AdminAlertService::send()`:** Accepts optional `$details` (`severity`, `badge`, `subject`, `meta`, `metrics`, `sections`, `action`) while staying backward-compatible with `($title, $messageLines)`. Every alert renders environment badge (`APP_ENV`), `Africa/Lagos` (`WAT`) and `UTC` timestamps, server host, grouped Key/Value tables parsed from `"Label: Value"` lines, XSS-safe line escaping (callers pass plain strings; `FeedbackController` no longer pre-applies `nl2br(e())`), and an admin CTA link. Do not add `ShouldQueue`.
+- **PWA-era daily brief (`SendAdminDailySummary`, `AdminDailySummaryService`, `AdminDailyMetricsCollector`):** Replaced the `DownloadLog`-only `"Total Downloads: 0"` alert with an `Africa/Lagos` yesterday platform digest (`startOfDay()->utc()`..`endOfDay()->utc()`, excluding `is_demo` stores and soft-deleted `sales`/`online_orders`). Summarizes synced stores, distinct PWA/Web vs Desktop (`Desktop App ...` label) devices, active `app_version`/`build_sha` counts, multi-currency POS & storefront totals (`CurrencyTotals::fromPairs()`), subscription cash & 7-day expirations, `SyncHealthDaily` acceptance, `SyncFailure` counts, pending `Feedback` tickets, and security events; `DownloadLog` counts appear only when `> 0`.
 

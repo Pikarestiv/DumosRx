@@ -148,6 +148,7 @@ class PaymentController extends Controller
         Log::warning('Payment webhook reports a refund, dispute or chargeback that happened outside the app.', $context + ['webhook_data' => $data]);
 
         try {
+            $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
             \App\Services\AdminAlertService::send(
                 'Payment '.$provider.' webhook: refund/dispute needs attention',
                 [
@@ -156,7 +157,19 @@ class PaymentController extends Controller
                     "Event: {$event}",
                     'Reference: '.($reference ?: 'none supplied'),
                     'Nothing was refunded, reversed or cancelled in DumosRx - reconcile this by hand in the provider dashboard and in the affected subscription or order.',
-                ]
+                ],
+                [
+                    'severity' => 'warning',
+                    'badge' => 'Payment Dispute',
+                    'meta' => [
+                        'Provider' => ucfirst((string) $provider),
+                        'Event' => (string) $event,
+                    ],
+                    'action' => [
+                        'label' => 'View Revenue & Transactions',
+                        'url' => $adminBase.'/marketing',
+                    ],
+                ],
             );
         } catch (\Exception $e) {
             Log::error('Failed to alert admins about a refund/dispute webhook: '.$e->getMessage());
@@ -213,16 +226,29 @@ class PaymentController extends Controller
         $txn->refresh();
 
         try {
+            $adminBase = rtrim((string) config('app.frontend_url', 'https://dumosrx.com'), '/').'/admin';
             $user = \App\Models\User::find($txn->metadata['user_id']);
             \App\Services\AdminAlertService::send(
                 'Payment Successful: '.($txn->metadata['plan_name'] ?? 'Unknown Plan'),
                 [
                     'A successful payment has been processed.',
                     'User: '.($user ? "{$user->first_name} {$user->last_name} ({$user->email})" : "Unknown (ID: {$txn->metadata['user_id']})"),
-                    'Amount: ₦'.number_format($txn->amount ?? 0, 2),
+                    'Amount: '.strtoupper((string) ($txn->currency ?: 'NGN')).' '.number_format((float) ($txn->amount ?? 0), 2),
                     "Provider: {$provider}",
                     "Reference: {$reference}",
-                ]
+                ],
+                [
+                    'severity' => 'success',
+                    'badge' => 'Payment Received',
+                    'meta' => [
+                        'Provider' => ucfirst((string) $provider),
+                        'Reference' => (string) $reference,
+                    ],
+                    'action' => [
+                        'label' => 'View Subscriptions',
+                        'url' => $adminBase.'/subscriptions',
+                    ],
+                ],
             );
         } catch (\Exception $e) {
             Log::error('Failed to send super admin alert for payment: '.$e->getMessage());

@@ -106,6 +106,7 @@ const SYNC_COLUMN_MIGRATIONS: { table: string; columns: string[] }[] = [
       "is_active INTEGER DEFAULT 1",
       "store_id TEXT",
       "image_key TEXT",
+      "location TEXT",
     ],
   },
   {

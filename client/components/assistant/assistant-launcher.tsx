@@ -8,8 +8,9 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { ASSISTANT_FEATURE_KEY, ASSISTANT_NAME, AssistantBetaTag } from "./assistant-brand";
 
 const LAUNCHER_CLASS =
-  "rounded-full animate-assistant-sheen bg-gradient-to-br from-primary via-primary/60 to-primary text-primary-foreground shadow-sm hover:from-primary hover:via-primary/70 hover:to-primary";
-const LOCKED_CLASS = "rounded-full bg-muted text-muted-foreground shadow-sm hover:bg-muted";
+  "size-9 pointer-coarse:size-9 rounded-full animate-assistant-sheen bg-gradient-to-br from-primary via-primary/60 to-primary text-primary-foreground shadow-sm hover:from-primary hover:via-primary/70 hover:to-primary";
+const LOCKED_CLASS =
+  "size-9 pointer-coarse:size-9 rounded-full bg-muted text-muted-foreground shadow-sm hover:bg-muted";
 
 export function AssistantLauncher() {
   const open = useAssistantPanel((state) => state.open);
@@ -30,7 +31,11 @@ export function AssistantLauncher() {
           onClick={handleClick}
           className={canUseAiAssistant ? LAUNCHER_CLASS : LOCKED_CLASS}
         >
-          {canUseAiAssistant ? <Sparkles className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+          {canUseAiAssistant ? (
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+          ) : (
+            <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
+          )}
         </Button>
       </TooltipTrigger>
       <TooltipContent className="flex items-center gap-2">

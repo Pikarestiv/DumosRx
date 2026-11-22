@@ -25,6 +25,10 @@ vi.mock("@/lib/context/store-context", () => ({
 
 // The counted cost/selling cells are gated on edit_product_cost/
 // edit_product_price - see audit-ledger-step-price-permissions.test.tsx.
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => true,
+}));
+
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
 }));

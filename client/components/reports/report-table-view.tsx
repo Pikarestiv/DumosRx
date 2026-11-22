@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { useSortableData } from "@/lib/hooks/use-sortable-data";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { ReportMobileCardList } from "./report-mobile-card-list";
 
 export type ReportRow = Record<string, unknown>;
 
@@ -40,6 +42,7 @@ function comparableValue(value: unknown): string | number {
 // One generic on-screen renderer for every Report Center report:
 // Rationale: docs/CLIENT_COMMENTS.md#block-components-reports-report-table-view-tsx-L40
 export function ReportTableView({ rows, headers, onRowClick }: ReportTableViewProps) {
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const columns = useMemo(
     () => headers ?? (rows.length > 0 ? Object.keys(rows[0]) : []),
     [headers, rows],
@@ -64,6 +67,20 @@ export function ReportTableView({ rows, headers, onRowClick }: ReportTableViewPr
         icon={FileText}
         title="Nothing to show"
         description="No rows matched the selected date range and filters."
+      />
+    );
+  }
+
+  if (!isDesktop) {
+    return (
+      <ReportMobileCardList
+        rows={sortedData}
+        columns={columns}
+        sortKey={sortKey}
+        direction={direction}
+        onSelectSort={(column) => toggleSort(column)}
+        onToggleDirection={() => sortKey && toggleSort(sortKey)}
+        onRowClick={onRowClick}
       />
     );
   }

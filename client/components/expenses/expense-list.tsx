@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { Search, ReceiptText, ChevronRight } from "lucide-react";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { toast } from "sonner";
 import { useExpensesPage } from "@/lib/hooks/use-expenses-page";
@@ -149,6 +150,7 @@ export function ExpenseList() {
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
+      {searchTerm && <SearchClearButton className="shrink-0" onClick={() => setSearchTerm("")} />}
     </div>
   );
 

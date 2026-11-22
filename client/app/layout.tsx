@@ -84,7 +84,12 @@ export default function RootLayout({
       <body
         className="font-sans min-h-screen flex flex-col"
         suppressHydrationWarning
-        style={{ "--tauri-top": "0px" } as React.CSSProperties}
+        style={
+          {
+            "--tauri-top": "env(safe-area-inset-top, 0px)",
+            "--tauri-bottom": "env(safe-area-inset-bottom, 0px)",
+          } as React.CSSProperties
+        }
       >
         <TauriTitleBar />
         <div className="flex-1 flex flex-col">

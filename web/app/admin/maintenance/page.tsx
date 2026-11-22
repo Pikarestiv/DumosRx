@@ -8,6 +8,7 @@ import { useApiEnvironmentName } from "@/hooks/use-api-environment";
 import { Badge } from "@/components/ui/badge";
 import { PendingMigrationsPanel } from "@/components/admin/maintenance/pending-migrations-panel";
 import { RolesSyncPanel } from "@/components/admin/maintenance/roles-sync-panel";
+import { DatabaseBackupPanel } from "@/components/admin/maintenance/database-backup-panel";
 
 function NotAvailable() {
   return (
@@ -63,6 +64,7 @@ function MaintenanceContent() {
 
       <PendingMigrationsPanel />
       <RolesSyncPanel />
+      <DatabaseBackupPanel />
     </div>
   );
 }

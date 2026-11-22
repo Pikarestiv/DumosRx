@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, Search, Clock, ClipboardList } from "lucide-react";
 import { useResolvedMediaQuery } from "@/hooks/use-media-query";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -99,10 +100,11 @@ export function PurchaseOrderTable({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 pointer-events-none" />
             <Input
               placeholder="Search vendor or PO#..."
-              className="pl-9 h-10 text-[13px] rounded-[10px] bg-card border-border md:bg-muted md:border-transparent"
+              className={`pl-9 ${searchQuery ? "pr-8" : ""} h-10 text-[13px] rounded-[10px] bg-card border-border md:bg-muted md:border-transparent`}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
             />
+            {searchQuery && <SearchClearButton onClick={() => onSearchChange("")} />}
           </div>
           <PurchaseOrderStatusFilter
             activeTab={activeTab}

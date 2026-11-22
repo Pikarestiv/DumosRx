@@ -2,15 +2,19 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Search, SearchX } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { SearchClearButton } from "@/components/ui/search-input";
 import { FilterPill } from "@/components/ui/filter-pill";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import type { AuditItem } from "./stock-audits";
 import { type AuditCountStatus, type AuditSortKey } from "./audit-derivations";
-import { getAuditLedgerGridCols } from "./audit-ledger-format";
-import { AuditLedgerRowCells } from "./audit-ledger-row-cells";
-import { AuditLedgerTotalsRow } from "./audit-ledger-totals-row";
+import { AuditMobileCard } from "./audit-mobile-card";
+import {
+  AuditDesktopTable,
+  AuditMobileSortBar,
+  AuditMobileTotalsBar,
+} from "./audit-ledger-views";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { SortDirection } from "@/lib/hooks/use-sortable-data";
 import { isBlockedBySync, type PreAuditSync } from "@/lib/hooks/use-pre-audit-sync";
 import { AuditPresyncPanel } from "./audit-presync-panel";
@@ -38,20 +42,16 @@ interface AuditLedgerStepProps {
   presync: PreAuditSync;
   isReadOnly?: boolean;
   onUpdateItem: (id: string, patch: Partial<AuditItem>) => void;
-  /** Records a count and re-baselines the row against live stock (A-263). */
   onCountRow: (id: string, countedQty?: number) => void;
-  /** Drops a re-read still in flight, so it cannot re-count a cleared row. */
   onClearCount: (id: string) => void;
   categories: { id: string; label: string; count: number }[];
   selectedCategory: string;
   setSelectedCategory: (category: string) => void;
   countStatus: AuditCountStatus;
   setCountStatus: (status: AuditCountStatus) => void;
-  /** Rows counted across the whole audit, not just the filtered slice. */
   countedCount: number;
   search: string;
   setSearch: (val: string) => void;
-  /** The screen's own scroll region; react-virtual needs the real one. */
   scrollElementRef: React.RefObject<HTMLDivElement | null>;
   sort: {
     sortKey: AuditSortKey | null;
@@ -60,8 +60,6 @@ interface AuditLedgerStepProps {
   };
 }
 
-// Dense, single-screen count flow; the filters are lenses, not scope gates.
-// Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-audit-ledger-step-tsx-ledger
 export function AuditLedgerStep({
   items,
   totalItems,
@@ -85,7 +83,7 @@ export function AuditLedgerStep({
   const canViewCost = useHasPermission("view_cost_fields");
   const canEditProductCost = useHasPermission("edit_product_cost");
   const canEditProductPrice = useHasPermission("edit_product_price");
-  const gridCols = getAuditLedgerGridCols(canViewCost);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const displayedColumns = useMemo(
     () =>
       canViewCost
@@ -98,7 +96,6 @@ export function AuditLedgerStep({
           ),
     [canViewCost],
   );
-  // Totals cover the rows shown, so a filtered view gets a live subtotal.
   const totals = useMemo(
     () =>
       items.reduce(
@@ -119,11 +116,18 @@ export function AuditLedgerStep({
 
   const { sortKey, direction, toggleSort } = sort;
   const blockedBySync = isBlockedBySync(presync);
+  const hasActiveFilters =
+    selectedCategory !== ALL_CATEGORIES ||
+    countStatus !== "all" ||
+    search.trim().length > 0;
+  const clearFilters = () => {
+    setSelectedCategory(ALL_CATEGORIES);
+    setCountStatus("all");
+    setSearch("");
+  };
 
   const rowsContainerRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
-  // No deps array on purpose; the !== guard prevents a loop.
-  // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-audit-ledger-step-tsx-scroll-margin
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const top = rowsContainerRef.current?.offsetTop;
@@ -133,7 +137,7 @@ export function AuditLedgerStep({
   const rowVirtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollElementRef.current,
-    estimateSize: () => LEDGER_ROW_HEIGHT,
+    estimateSize: () => (isDesktop ? LEDGER_ROW_HEIGHT : 196),
     overscan: 10,
     scrollMargin,
   });
@@ -181,8 +185,9 @@ export function AuditLedgerStep({
             placeholder="Search by name or SKU"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-[13px]"
+            className={`pl-9 ${search ? "pr-8" : ""} h-9 text-[13px]`}
           />
+          {search && <SearchClearButton onClick={() => setSearch("")} />}
         </div>
       </div>
 
@@ -194,123 +199,101 @@ export function AuditLedgerStep({
         </div>
       )}
 
-      {!isLoading && !blockedBySync && (
-        <div className="border border-border rounded-xl overflow-x-auto">
-          <div
-            role="table"
-            aria-label="Physical inventory count"
-            className="w-full text-[12.5px]"
-          >
-            <div role="rowgroup">
+      {!isLoading && !blockedBySync && !isDesktop && (
+        <div>
+          {items.length > 0 && (
+            <AuditMobileSortBar
+              columns={displayedColumns}
+              sortKey={sortKey}
+              direction={direction}
+              onToggleSort={toggleSort}
+            />
+          )}
+
+          {items.length === 0 ? (
+            <EmptyState
+              icon={SearchX}
+              title="No items match"
+              description="Try a different search term or category."
+              action={
+                hasActiveFilters
+                  ? { label: "Clear filters", onClick: clearFilters }
+                  : undefined
+              }
+            />
+          ) : (
+            <>
               <div
-                role="row"
-                className={`grid ${gridCols} bg-muted/40 text-muted-foreground text-[11px] uppercase font-semibold`}
+                ref={rowsContainerRef}
+                className="relative"
+                style={{
+                  height: items.length > 0 ? rowVirtualizer.getTotalSize() : undefined,
+                }}
               >
-                <div
-                  role="columnheader"
-                  className="text-left px-3 py-2 sticky left-0 z-10 bg-muted"
-                >
-                  <SortableHeaderCell
-                    label="Item"
-                    active={sortKey === "name"}
-                    direction={direction}
-                    onClick={() => toggleSort("name")}
-                  />
-                </div>
-                {displayedColumns.map((column) => (
-                  <div
-                    key={column.key}
-                    role="columnheader"
-                    className="text-right px-3 py-2"
-                  >
-                    <SortableHeaderCell
-                      label={column.label}
-                      active={sortKey === column.key}
-                      direction={direction}
-                      onClick={() => toggleSort(column.key)}
-                      className="justify-end"
-                    />
-                  </div>
-                ))}
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const item = items[virtualRow.index];
+                  if (!item) return null;
+
+                  return (
+                    <div
+                      key={item.id}
+                      data-index={virtualRow.index}
+                      ref={rowVirtualizer.measureElement}
+                      className="absolute top-0 left-0 w-full pb-2.5"
+                      style={{
+                        transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                      }}
+                    >
+                      <AuditMobileCard
+                        item={item}
+                        canEditProductCost={canEditProductCost}
+                        canEditProductPrice={canEditProductPrice}
+                        canViewCost={canViewCost}
+                        isReadOnly={isReadOnly}
+                        onUpdateItem={onUpdateItem}
+                        onCountRow={onCountRow}
+                        onClearCount={onClearCount}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            </div>
 
-            <div
-              role="rowgroup"
-              ref={rowsContainerRef}
-              className="relative"
-              style={{
-                height: items.length > 0 ? rowVirtualizer.getTotalSize() : undefined,
-              }}
-            >
-              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const item = items[virtualRow.index];
-                if (!item) return null;
-
-                return (
-                  <div
-                    key={item.id}
-                    role="row"
-                    data-index={virtualRow.index}
-                    ref={rowVirtualizer.measureElement}
-                    className={`grid ${gridCols} bg-card hover:bg-accent/10 absolute top-0 left-0 w-full border-b border-border`}
-                    style={{
-                      transform: `translateY(${virtualRow.start - scrollMargin}px)`,
-                    }}
-                  >
-                    <AuditLedgerRowCells
-                      item={item}
-                      canEditProductCost={canEditProductCost}
-                      canEditProductPrice={canEditProductPrice}
-                      canViewCost={canViewCost}
-                      isReadOnly={isReadOnly}
-                      onUpdateItem={onUpdateItem}
-                      onCountRow={onCountRow}
-                      onClearCount={onClearCount}
-                    />
-                  </div>
-                );
-              })}
-              {items.length === 0 && (
-                <div role="row" className={`grid ${gridCols}`}>
-                  <div role="cell" className={canViewCost ? "col-span-11" : "col-span-8"}>
-                    <EmptyState
-                      icon={SearchX}
-                      title="No items match"
-                      description="Try a different search term or category."
-                      action={
-                        selectedCategory !== ALL_CATEGORIES ||
-                        countStatus !== "all" ||
-                        search.trim().length > 0
-                          ? {
-                              label: "Clear filters",
-                              onClick: () => {
-                                setSelectedCategory(ALL_CATEGORIES);
-                                setCountStatus("all");
-                                setSearch("");
-                              },
-                            }
-                          : undefined
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {items.length > 0 && (
-              <div role="rowgroup">
-                <AuditLedgerTotalsRow
-                  totals={totals}
-                  selectedCategory={selectedCategory}
-                  countStatus={countStatus}
-                  search={search}
-                  canViewCost={canViewCost}
-                />
-              </div>
-            )}
-          </div>
+              <AuditMobileTotalsBar
+                diffQty={totals.diffQty}
+                diffCost={totals.diffCost}
+                diffSelling={totals.diffSelling}
+                canViewCost={canViewCost}
+              />
+            </>
+          )}
         </div>
+      )}
+
+      {!isLoading && !blockedBySync && isDesktop && (
+        <AuditDesktopTable
+          items={items}
+          displayedColumns={displayedColumns}
+          canViewCost={canViewCost}
+          canEditProductCost={canEditProductCost}
+          canEditProductPrice={canEditProductPrice}
+          isReadOnly={isReadOnly}
+          sortKey={sortKey}
+          direction={direction}
+          toggleSort={toggleSort}
+          totals={totals}
+          selectedCategory={selectedCategory}
+          countStatus={countStatus}
+          search={search}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={clearFilters}
+          onUpdateItem={onUpdateItem}
+          onCountRow={onCountRow}
+          onClearCount={onClearCount}
+          rowsContainerRef={rowsContainerRef}
+          rowVirtualizer={rowVirtualizer}
+          scrollMargin={scrollMargin}
+        />
       )}
     </div>
   );

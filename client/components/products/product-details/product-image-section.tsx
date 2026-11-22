@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ProductImage } from "@/components/products/product-image";
+import { SquareCameraDialog } from "@/components/products/product-details/square-camera-dialog";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
 import { useProductImageConfig } from "@/lib/product-images/config-store";
 import { useDisplayName } from "@/lib/hooks/use-uppercase-display";
@@ -37,6 +38,7 @@ export function ProductImageSection({ productId, productName: storedName, imageK
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   if (!config.enabled) return null;
 
@@ -44,15 +46,27 @@ export function ProductImageSection({ productId, productName: storedName, imageK
   const disabled = !image.isOnline || image.isBusy;
   const message = image.status !== "idle" ? STATUS_TEXT[image.status] : image.error ?? (!image.isOnline && canEdit ? OFFLINE_IMAGE_MESSAGE : null);
 
-  const onFileChosen = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadFile = async (file: File, options?: { square?: boolean }) => {
+    if (await image.upload(file, options)) toast.success("Product image saved");
+  };
+
+  const onFileChosen = async (event: React.ChangeEvent<HTMLInputElement>, options?: { square?: boolean }) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file && (await image.upload(file))) toast.success("Product image saved");
+    if (file) await uploadFile(file, options);
   };
 
   const onRemove = async () => {
     setConfirmingRemove(false);
     if (await image.remove()) toast.success("Product image removed");
+  };
+
+  const handleTakePhotoClick = () => {
+    if (typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function") {
+      setCameraOpen(true);
+    } else {
+      cameraInput.current?.click();
+    }
   };
 
   return (
@@ -89,7 +103,7 @@ export function ProductImageSection({ productId, productName: storedName, imageK
               capture="environment"
               className="sr-only"
               aria-label={`Take a photo of ${productName}`}
-              onChange={(event) => void onFileChosen(event)}
+              onChange={(event) => void onFileChosen(event, { square: true })}
               tabIndex={-1}
             />
             <div className="flex flex-wrap gap-2">
@@ -97,7 +111,7 @@ export function ProductImageSection({ productId, productName: storedName, imageK
                 {image.isBusy && image.status !== "removing" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ImagePlus className="w-4 h-4 mr-2" />}
                 {hasImage ? "Replace image" : "Upload image"}
               </Button>
-              <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => cameraInput.current?.click()}>
+              <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={handleTakePhotoClick}>
                 <Camera className="w-4 h-4 mr-2" />
                 Take photo
               </Button>
@@ -114,6 +128,13 @@ export function ProductImageSection({ productId, productName: storedName, imageK
       <p role="status" aria-live="polite" className={image.error ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
         {message}
       </p>
+      <SquareCameraDialog
+        open={cameraOpen}
+        onOpenChange={setCameraOpen}
+        productName={productName}
+        onCapture={(file) => void uploadFile(file, { square: true })}
+        onFallbackToFileInput={() => cameraInput.current?.click()}
+      />
       <ConfirmDialog
         open={confirmingRemove}
         onOpenChange={setConfirmingRemove}

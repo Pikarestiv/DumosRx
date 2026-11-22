@@ -125,4 +125,3 @@ class StorefrontListingTest extends TestCase
         $this->assertSame(['Zinc', 'Aspirin'], $names);
     }
 }
-

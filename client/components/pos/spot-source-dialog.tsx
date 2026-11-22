@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,15 +55,21 @@ export function SpotSourceDialog({
   );
   const [partner, setPartner] = useState(cartItem?.sourcing_partner ?? "");
 
-  useEffect(() => {
-    if (!open) return;
-    setSourcingCostInput(String(defaultCost));
-    setSellingPriceInput(String(defaultSelling));
-    setQuantityInput(String(cartItem?.quantity ?? 1));
-    setPaymentSource(cartItem?.sourcing_payment_source ?? "cash_drawer");
-    setPartner(cartItem?.sourcing_partner ?? "");
-    setAllocationMode("split");
-  }, [open, cartItem, product, defaultCost, defaultSelling]);
+  const resetKey = open
+    ? `${product?.id ?? ""}:${cartItem?.id ?? ""}:${defaultCost}:${defaultSelling}:${cartItem?.quantity ?? 1}:${cartItem?.sourcing_payment_source ?? "cash_drawer"}:${cartItem?.sourcing_partner ?? ""}`
+    : null;
+  const [prevResetKey, setPrevResetKey] = useState<string | null>(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    if (open) {
+      setSourcingCostInput(String(defaultCost));
+      setSellingPriceInput(String(defaultSelling));
+      setQuantityInput(String(cartItem?.quantity ?? 1));
+      setPaymentSource(cartItem?.sourcing_payment_source ?? "cash_drawer");
+      setPartner(cartItem?.sourcing_partner ?? "");
+      setAllocationMode("split");
+    }
+  }
 
   const sourcingCost = Math.max(0, parseFloat(sourcingCostInput) || 0);
   const sellingPrice = Math.max(0, parseFloat(sellingPriceInput) || 0);

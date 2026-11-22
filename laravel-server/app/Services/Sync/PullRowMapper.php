@@ -23,12 +23,8 @@ class PullRowMapper
             $plan = 'free';
             $expiry = null;
             $isTrial = false;
-            if ($item->user && $item->user->subscriptions->isNotEmpty()) {
-                $sub = $item->user->subscriptions()
-                    ->where('status', 'active')
-                    ->where('end_date', '>', now())
-                    ->latest()
-                    ->first();
+            if ($item->user) {
+                $sub = app(\App\Services\SubscriptionService::class)->resolveEffectiveSubscription($item->user);
                 if ($sub) {
                     $plan = $sub->plan_name;
                     $expiry = $sub->end_date;

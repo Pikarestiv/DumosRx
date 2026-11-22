@@ -107,4 +107,3 @@ class SyncPushPurgedDeleteTest extends TestCase
         $this->assertNotNull($row->deleted_at);
     }
 }
-

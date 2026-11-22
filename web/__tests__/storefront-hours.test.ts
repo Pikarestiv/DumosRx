@@ -15,10 +15,15 @@ const monToSat: OpeningHours = {
 
 const monday = (hours: number, minutes = 0) => new Date(2026, 10, 16, hours, minutes);
 const saturday = (hours: number) => new Date(2026, 10, 14, hours);
+const mustStatus = (value: ReturnType<typeof openStatus>) => {
+  expect(value).not.toBeNull();
+  if (value === null) throw new Error("Expected opening status");
+  return value;
+};
 
 describe("storefront opening status", () => {
   it("says when an open store closes", () => {
-    expect(describeOpenStatus(openStatus(monToSat, monday(10))!)).toBe("Open · closes at 6:00 pm");
+    expect(describeOpenStatus(mustStatus(openStatus(monToSat, monday(10))))).toBe("Open · closes at 6:00 pm");
   });
 
   it("treats the closing minute as closed and the opening minute as open", () => {
@@ -27,21 +32,21 @@ describe("storefront opening status", () => {
   });
 
   it("says a store that has not opened yet opens today", () => {
-    expect(describeOpenStatus(openStatus(monToSat, monday(7, 30))!)).toBe("Closed · opens today at 8:00 am");
+    expect(describeOpenStatus(mustStatus(openStatus(monToSat, monday(7, 30))))).toBe("Closed · opens today at 8:00 am");
   });
 
   it("says a store that has closed for the night opens tomorrow", () => {
-    expect(describeOpenStatus(openStatus(monToSat, monday(19))!)).toBe("Closed · opens tomorrow at 8:00 am");
+    expect(describeOpenStatus(mustStatus(openStatus(monToSat, monday(19))))).toBe("Closed · opens tomorrow at 8:00 am");
   });
 
   it("names the day when the next opening is not tomorrow, skipping closed days", () => {
-    expect(describeOpenStatus(openStatus(monToSat, saturday(19))!)).toBe("Closed · opens Mon at 8:00 am");
+    expect(describeOpenStatus(mustStatus(openStatus(monToSat, saturday(19))))).toBe("Closed · opens Mon at 8:00 am");
   });
 
   it("finds tomorrow's opening across the end of the week", () => {
     const sundayOnly: OpeningHours = { sun: { open: "10:00", close: "14:00" } };
 
-    expect(describeOpenStatus(openStatus(sundayOnly, saturday(12))!)).toBe("Closed · opens tomorrow at 10:00 am");
+    expect(describeOpenStatus(mustStatus(openStatus(sundayOnly, saturday(12))))).toBe("Closed · opens tomorrow at 10:00 am");
   });
 
   it("reports no status when no hours are set, none are usable, or every day is closed", () => {
@@ -115,9 +120,9 @@ describe("opening status in the store's own time zone", () => {
   });
 
   it("uses the store's date, which can already be the next day", () => {
-    const status = openStatus(lagosHours, new Date(Date.UTC(2026, 10, 16, 23, 30)), "Africa/Lagos");
+    const status = mustStatus(openStatus(lagosHours, new Date(Date.UTC(2026, 10, 16, 23, 30)), "Africa/Lagos"));
 
-    expect(describeOpenStatus(status!)).toBe("Closed · opens Mon at 8:00 am");
+    expect(describeOpenStatus(status)).toBe("Closed · opens Mon at 8:00 am");
   });
 
   it("falls back to the visitor's clock for no zone, the UTC default, or a name it does not know", () => {

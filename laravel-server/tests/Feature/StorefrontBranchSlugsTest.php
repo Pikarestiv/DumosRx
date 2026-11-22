@@ -140,7 +140,7 @@ class StorefrontBranchSlugsTest extends TestCase
     public function test_the_migrations_backfill_reserves_the_same_page_names_as_the_runtime_check(): void
     {
         $migration = file_get_contents(database_path('migrations/2026_11_17_000001_create_storefront_branches_table.php'));
-        preg_match("/RESERVED = \\[([^\\]]*)\\]/", $migration, $found);
+        preg_match('/RESERVED = \\[([^\\]]*)\\]/', $migration, $found);
         preg_match_all("/'([a-z]+)'/", $found[1], $names);
 
         $this->assertEqualsCanonicalizing(\App\Services\Storefront\StorefrontBranchSlugs::RESERVED, $names[1]);

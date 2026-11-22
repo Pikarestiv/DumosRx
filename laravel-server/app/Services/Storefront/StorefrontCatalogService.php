@@ -18,13 +18,19 @@ use Illuminate\Support\Facades\DB;
 class StorefrontCatalogService
 {
     public const MAX_STOREFRONT_PRODUCTS = 50;
+
     public const PER_PAGE = 50;
 
     private const MAX_REQUESTED_IDS = 100;
+
     public const FEATURED_PRODUCT_COUNT = 8;
+
     public const BEST_SELLER_WINDOW_DAYS = 90;
+
     public const BEST_SELLER_UNITS_WEIGHT = 0.5;
+
     public const BEST_SELLER_REVENUE_WEIGHT = 0.5;
+
     public const NOT_SOLD_PAYMENT_STATUSES = ['failed', 'refunded'];
 
     public function __construct(

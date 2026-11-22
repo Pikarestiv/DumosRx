@@ -62,10 +62,10 @@ export function useProductImageUpload(productId: string) {
   }, []);
 
   const upload = useCallback(
-    (file: File) =>
+    (file: File, options?: { square?: boolean }) =>
       run(async () => {
         setStatus("compressing");
-        const blob = await compressProductImage(file, config.max_bytes);
+        const blob = await compressProductImage(file, config.max_bytes, options);
         setStatus("uploading");
         const presign = await apiClient.presignProductImage(productId, blob.type, blob.size);
         await putToStorage(presign.upload_url, presign.headers, blob);

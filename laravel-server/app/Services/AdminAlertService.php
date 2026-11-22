@@ -9,20 +9,14 @@ use Illuminate\Support\Facades\Mail;
 class AdminAlertService
 {
     /**
-     * Send an alert to all configured super admins.
-     *
      * @param  string  $title
-     * @param  array|string  $messageLines
-     * @return void
+     * @param  array<int, string>|string  $messageLines
+     * @param  array<string, mixed>  $details
      */
-    public static function send($title, $messageLines)
+    public static function send($title, $messageLines, array $details = []): void
     {
         $emails = config('dumos.admin_emails', []);
 
-        // One Mail::to() with every address is one SMTP round-trip
-        // regardless of admin count, not N - the registration-latency
-        // concern this call site exists inside (A-125) is N blocking
-        // round-trips, not merely "an email gets sent".
         $validEmails = array_values(array_filter(
             array_map('trim', $emails),
             fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL),
@@ -33,19 +27,24 @@ class AdminAlertService
         }
 
         try {
-            Mail::to($validEmails)->send(new SuperAdminAlertMail($title, $messageLines));
+            Mail::to($validEmails)->send(new SuperAdminAlertMail($title, $messageLines, $details));
         } catch (\Throwable $e) {
-            self::sendIndividually($validEmails, $title, $messageLines, $e);
+            self::sendIndividually($validEmails, $title, $messageLines, $details, $e);
         }
     }
 
-    private static function sendIndividually(array $emails, $title, $messageLines, \Throwable $bulkFailure): void
+    /**
+     * @param  array<int, string>  $emails
+     * @param  array<int, string>|string  $messageLines
+     * @param  array<string, mixed>  $details
+     */
+    private static function sendIndividually(array $emails, string $title, array|string $messageLines, array $details, \Throwable $bulkFailure): void
     {
         Log::warning('Admin alert to all recipients failed, retrying one by one: '.$bulkFailure->getMessage());
 
         foreach ($emails as $email) {
             try {
-                Mail::to($email)->send(new SuperAdminAlertMail($title, $messageLines));
+                Mail::to($email)->send(new SuperAdminAlertMail($title, $messageLines, $details));
             } catch (\Throwable $e) {
                 Log::error("Admin alert to {$email} failed: ".$e->getMessage());
             }

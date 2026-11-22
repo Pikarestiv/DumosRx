@@ -17,7 +17,11 @@ function NoFastMoversData() {
   );
 }
 
-export function FastMovers() {
+export function FastMovers({
+  onSelectProduct,
+}: {
+  onSelectProduct?: (productId: string) => void;
+}) {
   const { data: fastMoversData, isLoading } = useQuery({
     ...queryKeys.sales.fastMovers(),
     queryFn: () => getFastMovers(),
@@ -59,7 +63,24 @@ export function FastMovers() {
               return (
                 <div
                   key={item.id}
-                  className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== fastMovers.length - 1 ? "md:border-b md:border-border" : ""}`}
+                  role={onSelectProduct ? "button" : undefined}
+                  tabIndex={onSelectProduct ? 0 : undefined}
+                  onClick={onSelectProduct ? () => onSelectProduct(item.id) : undefined}
+                  onKeyDown={
+                    onSelectProduct
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onSelectProduct(item.id);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${
+                    onSelectProduct
+                      ? "cursor-pointer hover:bg-muted/40 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+                      : ""
+                  } ${idx !== fastMovers.length - 1 ? "md:border-b md:border-border" : ""}`}
                 >
                   <div className="w-6 text-[12.5px] font-bold text-muted-foreground">
                     {(idx + 1).toString().padStart(2, "0")}

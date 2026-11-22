@@ -32,7 +32,6 @@ interface UseAccountActionsOptions {
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-account-actions-ts-L29
 export function useAccountActions({
   onClose,
-  onOpenFeedback,
 }: UseAccountActionsOptions) {
   const { logout } = useAuth();
   const router = useRouter();

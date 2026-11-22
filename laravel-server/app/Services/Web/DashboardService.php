@@ -491,7 +491,7 @@ class DashboardService
     private function salesQuery(array $storeIds, array $userIds)
     {
         return Sale::where(function ($q) use ($storeIds, $userIds) {
-            if (!empty($storeIds)) {
+            if (! empty($storeIds)) {
                 $q->whereIn('store_id', $storeIds)
                     ->orWhere(function ($legacy) use ($userIds) {
                         $legacy->whereNull('store_id')->whereIn('cashier_id', $userIds);
@@ -515,7 +515,7 @@ class DashboardService
                 ->where('stock_batches.quantity', '>', 0)
                 ->where(function ($q) use ($storeIds, $ownerId, $user) {
                     $q->whereIn('products.store_id', $storeIds);
-                    if (!$user->store_id && $ownerId) {
+                    if (! $user->store_id && $ownerId) {
                         $q->orWhere(function ($legacy) use ($ownerId) {
                             $legacy->whereNull('products.store_id')->where('products.user_id', $ownerId);
                         });
@@ -536,7 +536,7 @@ class DashboardService
     {
         try {
             $query = Customer::where(function ($q) use ($storeIds, $userIds) {
-                if (!empty($storeIds)) {
+                if (! empty($storeIds)) {
                     $q->whereIn('store_id', $storeIds);
                 }
                 $q->orWhereIn('user_id', $userIds);

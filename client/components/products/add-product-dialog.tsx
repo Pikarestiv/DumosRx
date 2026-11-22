@@ -142,6 +142,7 @@ export function AddProductDialog({
       strength: formData.strength,
       dosage_form: formData.dosageForm,
       manufacturer: formData.manufacturer,
+      location: formData.location?.trim() || null,
       selling_price: formData.sellingPrice,
       reorder_level: formData.reorderLevel,
       barcode: formData.barcode,

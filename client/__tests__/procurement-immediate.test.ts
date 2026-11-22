@@ -43,11 +43,11 @@ describe("createAndReceivePurchaseOrder", () => {
       );
       CREATE TABLE products (
         id TEXT PRIMARY KEY, name TEXT, base_unit TEXT, bulk_unit TEXT, units_per_bulk INTEGER,
-        selling_price REAL, updated_at TEXT, _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0
+        selling_price REAL, location TEXT, updated_at TEXT, _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0
       );
       CREATE TABLE stock_batches (
         id TEXT PRIMARY KEY, product_id TEXT, quantity INTEGER, cost_price REAL,
-        batch_number TEXT, expiry_date TEXT, created_at TEXT, updated_at TEXT, is_active INTEGER DEFAULT 1,
+        batch_number TEXT, location TEXT, expiry_date TEXT, created_at TEXT, updated_at TEXT, is_active INTEGER DEFAULT 1,
         _version INTEGER DEFAULT 1, _synced INTEGER DEFAULT 0, _deleted INTEGER DEFAULT 0
       );
       CREATE TABLE stock_movements (

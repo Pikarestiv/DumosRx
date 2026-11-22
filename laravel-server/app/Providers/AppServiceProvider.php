@@ -152,6 +152,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
 
+        RateLimiter::for('sync', function (Request $request) {
+            return Limit::perMinute(300)->by($request->user()?->id ?: $request->ip());
+        });
+
         Gate::define('manage-staff', function (User $user) {
             $role = $user->getAttribute('role');
 

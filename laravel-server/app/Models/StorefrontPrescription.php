@@ -52,4 +52,3 @@ class StorefrontPrescription extends Model
         return $this->belongsTo(Storefront::class, 'storefront_id');
     }
 }
-

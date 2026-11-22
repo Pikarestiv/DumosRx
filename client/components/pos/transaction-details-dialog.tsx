@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Printer, RotateCcw, Wallet } from "lucide-react";
+import { ArrowRight, ChevronDown, Printer, RotateCcw, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +39,7 @@ interface TransactionDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   currencyCode?: string;
   onReturnClick?: (sale: SaleWithDetails) => void;
+  viewHref?: string;
 }
 
 export function TransactionDetailsDialog({
@@ -46,7 +48,9 @@ export function TransactionDetailsDialog({
   onOpenChange,
   currencyCode,
   onReturnClick,
+  viewHref,
 }: TransactionDetailsDialogProps) {
+  const router = useRouter();
   const { isAdmin, user } = useAuth();
   const showProfit = user?.role !== "sales_staff";
   // Unconditional top-level const (see pos-cart.tsx's canApplyDiscounts).
@@ -212,6 +216,20 @@ export function TransactionDetailsDialog({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+      {viewHref && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            onOpenChange(false);
+            router.push(viewHref);
+          }}
+        >
+          View Sale
+          <ArrowRight className="w-4 h-4 ml-1.5" />
+        </Button>
+      )}
     </div>
   );
 
@@ -247,7 +265,6 @@ export function TransactionDetailsDialog({
         {detailsData?.stockReconciliation && detailsData.stockReconciliation.originallyOwed > 0 && (
           <TransactionStockReconciliation
             reconciliation={detailsData.stockReconciliation}
-            currencyCode={currencyCode}
           />
         )}
 

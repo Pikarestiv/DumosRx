@@ -11,13 +11,17 @@ import { useCartStore } from "@/lib/store/use-cart-store";
 const item = (id: string, price = 100) => ({ id, name: `Item ${id}`, price, quantity: 1 });
 
 describe("cart repricing", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     getMock.mockReset();
-    act(() => useCartStore.setState({ carts: {} }));
+    await act(() => {
+      useCartStore.setState({ carts: {} });
+    });
   });
 
   it("looks the cart's own products up by id, so an item far down a large catalog is not dropped", async () => {
-    act(() => useCartStore.setState({ carts: { shop: [item("deep-120"), item("near-3")] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: [item("deep-120"), item("near-3")] } });
+    });
     getMock.mockResolvedValue({
       data: {
         data: [
@@ -38,7 +42,9 @@ describe("cart repricing", () => {
   });
 
   it("still removes an item the store no longer lists, and updates a changed price", async () => {
-    act(() => useCartStore.setState({ carts: { shop: [item("gone"), item("dearer", 100)] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: [item("gone"), item("dearer", 100)] } });
+    });
     getMock.mockResolvedValue({ data: { data: [{ id: "dearer", selling_price: 150 }], store: {} } });
 
     const { result } = renderHook(() => useCartRepricing("shop"));
@@ -49,7 +55,9 @@ describe("cart repricing", () => {
 
   it("asks about at most 100 items and leaves any beyond that exactly as they were", async () => {
     const many = Array.from({ length: 105 }, (_, i) => item(`p${i}`));
-    act(() => useCartStore.setState({ carts: { shop: many } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: many } });
+    });
     getMock.mockImplementation((_url: string, { params }: { params: { ids: string } }) =>
       Promise.resolve({ data: { data: params.ids.split(",").map((id) => ({ id, selling_price: 100 })), store: {} } }),
     );
@@ -69,7 +77,9 @@ describe("cart repricing", () => {
   });
 
   it("marks prices stale, without touching the cart, when the lookup fails", async () => {
-    act(() => useCartStore.setState({ carts: { shop: [item("a")] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: [item("a")] } });
+    });
     getMock.mockRejectedValue(new Error("offline"));
 
     const { result } = renderHook(() => useCartRepricing("shop"));
@@ -79,7 +89,9 @@ describe("cart repricing", () => {
   });
 
   it("marks prices stale, and removes nothing, when an older API ignores ids and answers with other products", async () => {
-    act(() => useCartStore.setState({ carts: { shop: [item("deep-120")] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: [item("deep-120")] } });
+    });
     getMock.mockResolvedValue({ data: { data: [{ id: "first-alphabetically", selling_price: 5 }], store: {} } });
 
     const { result } = renderHook(() => useCartRepricing("shop"));
@@ -91,7 +103,9 @@ describe("cart repricing", () => {
 
   it("reprices a booked service from the services list and drops one the store stopped offering", async () => {
     const service = (id: string, price = 100) => ({ ...item(id, price), kind: "service" as const });
-    act(() => useCartStore.setState({ carts: { shop: [item("p1"), service("svc-kept"), service("svc-gone")] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: [item("p1"), service("svc-kept"), service("svc-gone")] } });
+    });
     getMock.mockImplementation((url: string) =>
       Promise.resolve(
         url.endsWith("/services")
@@ -108,7 +122,9 @@ describe("cart repricing", () => {
   });
 
   it("asks for products and services at the same time", async () => {
-    act(() => useCartStore.setState({ carts: { shop: [item("p1"), { ...item("svc"), kind: "service" as const }] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: [item("p1"), { ...item("svc"), kind: "service" as const }] } });
+    });
     getMock.mockReturnValue(new Promise(() => {}));
 
     renderHook(() => useCartRepricing("shop"));
@@ -118,7 +134,9 @@ describe("cart repricing", () => {
 
   it("still confirms product prices, and keeps the booking as it was, when only the services lookup fails", async () => {
     const booking = { ...item("svc", 900), kind: "service" as const };
-    act(() => useCartStore.setState({ carts: { shop: [item("p1", 100), booking] } }));
+    await act(() => {
+      useCartStore.setState({ carts: { shop: [item("p1", 100), booking] } });
+    });
     getMock.mockImplementation((url: string) =>
       url.endsWith("/services")
         ? Promise.reject(new Error("offline"))

@@ -133,6 +133,7 @@ export async function receivePurchaseOrder(id: string, receivedItems?: ReceivedI
         cost_price: baseUnitCost,
         batch_number: batchNumber,
         expiry_date: expiryDate,
+        location: item.product_location || null,
         created_at: now,
         is_active: 1,
         _version: 1,
@@ -275,6 +276,10 @@ export async function createAndReceivePurchaseOrder(
       const expiryDate = item.expiry_date ? new Date(item.expiry_date).toISOString().slice(0, 10) : null;
 
       const baseUnitCost = immediateBaseUnitCost(item);
+      const [productRow] = await query<{ location: string | null }>(
+        "SELECT location FROM products WHERE id = ? LIMIT 1",
+        [item.product_id],
+      );
 
       const invId = await insert("stock_batches", {
         product_id: item.product_id,
@@ -282,6 +287,7 @@ export async function createAndReceivePurchaseOrder(
         cost_price: baseUnitCost,
         batch_number: batchNumber,
         expiry_date: expiryDate,
+        location: productRow?.location || null,
         created_at: now,
         is_active: 1,
         _version: 1,

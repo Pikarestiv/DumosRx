@@ -15,6 +15,7 @@ class SessionControllerTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private Store $store;
 
     protected function setUp(): void

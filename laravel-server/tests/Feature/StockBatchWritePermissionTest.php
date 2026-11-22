@@ -100,13 +100,14 @@ class StockBatchWritePermissionTest extends TestCase
     {
         $cashier = $this->staff('sales_staff', ['process_sales']);
 
-        foreach ([['expiry_date' => '2030-01-01'], ['batch_number' => 'HIJACK'], ['manufacture_date' => '2025-01-01']] as $fields) {
+        foreach ([['expiry_date' => '2030-01-01'], ['batch_number' => 'HIJACK'], ['manufacture_date' => '2025-01-01'], ['location' => 'HIJACK SHELF']] as $fields) {
             $response = $this->push($cashier, $fields);
             $this->assertSame('permission_denied', $response->json('failed.0.reason'), json_encode($fields));
         }
 
         $row = $this->batch();
         $this->assertSame('LOT-7', $row->batch_number);
+        $this->assertNull($row->location);
         $this->assertSame('2027-03-01', substr((string) $row->expiry_date, 0, 10));
         $this->assertSame('2026-01-15', substr((string) $row->manufacture_date, 0, 10));
     }
@@ -129,10 +130,11 @@ class StockBatchWritePermissionTest extends TestCase
     {
         $editor = $this->staff('specialist', ['edit_batch_details']);
 
-        $response = $this->push($editor, ['cost_price' => 1100, 'expiry_date' => '2027-06-30', 'batch_number' => 'LOT-8', 'manufacture_date' => '2026-02-01']);
+        $response = $this->push($editor, ['cost_price' => 1100, 'expiry_date' => '2027-06-30', 'batch_number' => 'LOT-8', 'manufacture_date' => '2026-02-01', 'location' => 'Shelf B2, Row 4']);
 
         $response->assertJsonCount(0, 'failed');
         $row = $this->batch();
+        $this->assertSame('Shelf B2, Row 4', $row->location);
         $this->assertEquals('1100.00', $row->cost_price);
         $this->assertSame('LOT-8', $row->batch_number);
         $this->assertSame('2027-06-30', substr((string) $row->expiry_date, 0, 10));

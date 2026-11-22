@@ -136,258 +136,263 @@ Route::prefix('v1')->group(function () {
     });
 
     // Protected Routes
-    Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class, 'throttle:60,1'])->group(function () {
-        Route::post('/logout', [AuthController::class, 'logout']);
-        Route::get('/user', [AuthController::class, 'user']);
-        Route::get('/account-manager', [\App\Http\Controllers\Api\AccountManagerController::class, 'show']);
-        Route::post('/refresh', [AuthController::class, 'refresh']);
-        Route::prefix('profile')->group(function () {
-            Route::post('/update', [AuthController::class, 'updateProfile']);
-            Route::post('/set-pin', [AuthController::class, 'updatePin']);
-            Route::post('/change-password', [AuthController::class, 'changePassword']);
-            Route::post('/request-deletion', [AuthController::class, 'requestDeletion']);
-            Route::post('/cancel-deletion', [AuthController::class, 'cancelDeletion']);
-        });
-
-        Route::post('/app/relink-code', [\App\Http\Controllers\Api\App\TillRelinkController::class, 'create']);
-
-        Route::prefix('sessions')->group(function () {
-            Route::get('/', [SessionController::class, 'index']);
-            Route::post('/revoke-all', [SessionController::class, 'revokeAll']);
-            Route::delete('/{id}', [SessionController::class, 'destroy']);
-        });
-
-        // --- WEB DASHBOARD ROUTES ---
-        Route::prefix('dashboard')->group(function () {
-            Route::get('/summary', [DashboardController::class, 'summary']);
-            Route::get('/stats', [DashboardController::class, 'stats']);
-            Route::get('/widget-snapshot', [DashboardController::class, 'widgetSnapshot']);
-            Route::post('/reset', [DashboardController::class, 'resetData']);
-            Route::post('/send-summary', [\App\Http\Controllers\Api\StoreSummaryController::class, 'sendSummary'])->middleware('subscription:web_dashboard');
-        });
-        Route::get('/alerts', [NotificationController::class, 'index']);
-        Route::post('/alerts/read-all', [NotificationController::class, 'markAllAsRead']);
-        Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
-
-        // Purchase Orders
-        Route::get('/purchase-orders', [\App\Http\Controllers\Api\App\PurchaseOrderController::class, 'index']);
-
-        Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
-        Route::get('stores/check-slug', [StoreController::class, 'checkSlug']);
-        Route::get('stores/{store}/payment-banks', [StorePaymentAccountController::class, 'paymentBanks']);
-        Route::post('stores/{store}/payment-account/resolve', [StorePaymentAccountController::class, 'resolvePaymentAccount'])
-            ->middleware('throttle:bank-account-resolve');
-        Route::post('stores/{store}/payment-account', [StorePaymentAccountController::class, 'createPaymentAccount']);
-        Route::apiResource('stores', StoreController::class);
-
-        Route::prefix('subscription')->group(function () {
-            Route::get('/status', [SubscriptionController::class, 'status']);
-            Route::post('/verify-license', [SubscriptionController::class, 'verifyLicense']);
-            Route::post('/validate-coupon', [SubscriptionController::class, 'validateCoupon']);
-            Route::post('/pay', [SubscriptionController::class, 'initiatePayment']);
-            Route::post('/verify', [SubscriptionController::class, 'verifyPayment']);
-            Route::get('/billing-history', [SubscriptionController::class, 'billingHistory']);
-            Route::get('/referral-stats', [SubscriptionController::class, 'getReferralStats']);
-        });
-
-        // Backups
-        Route::prefix('backups')->middleware('subscription')->group(function () {
-            Route::post('/upload', [BackupController::class, 'upload']);
-            Route::get('/', [BackupController::class, 'list']);
-            Route::get('/{backup}/download', [BackupController::class, 'download']);
-        });
-
-        // Activity Logs
-        Route::get('/logs', [ActivityLogController::class, 'index'])->middleware(['permission:view_reports', 'subscription']);
-
-        // Publicly accessible within authenticated session (for impersonation return)
-        Route::post('/admin/restore-session', [AdminStoreController::class, 'restoreSession']);
-
-        Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')->group(function () {
-            // Self-service only: admin_id always comes from the authenticated
-            // caller, never from input, so no admin can mint a credential that
-            // acts as another admin.
-            Route::get('/till-codes/mine', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'mine']);
-            // Deliberately super_admin-only and audited: see the spec's
-            // "Super-admin visibility" section for why codes are recoverable.
-            Route::get('/till-codes/all', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'all'])
-                ->middleware('role:super_admin');
-            Route::post('/till-codes', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'issue']);
-            Route::delete('/till-codes/{id}', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'revoke']);
-
-            // super_admin-only actions (stricter than the group's manage_platform
-            // permission, which platform_admin/agent can also hold) get the
-            // check via route middleware instead of a per-method guard clause.
-            Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
-            Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('permission:view_platform_data');
-            Route::post('/stores', [AdminStoreController::class, 'registerStore']);
-            // Must stay above /stores/{id}: a literal segment registered after
-            // the wildcard would be swallowed by it.
-            Route::get('/stores/registered-by-me', [AdminStoreController::class, 'storesRegisteredByMe'])
-                ->middleware('permission:create_accounts');
-            Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('permission:view_platform_data');
-            Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('permission:manage_account_status');
-            Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('permission:manage_account_status');
-            Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
-            Route::put('/stores/{id}/storefront', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'update'])->middleware('permission:manage_account_status');
-            Route::put('/stores/{id}/storefront/theme', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'updateTheme'])->middleware('role:super_admin');
-            Route::put('/stores/{id}/storefront/settings', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'updateSettings'])->middleware('role:super_admin');
-            Route::post('/storefront/rebuild', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'rebuild'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
-            Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan'])->middleware('permission:grant_trials');
-            Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('permission:view_platform_revenue');
-            Route::delete('/stores/{id}/purge', [AdminStoreDeletionController::class, 'purgeStore'])->middleware('role:super_admin');
-            Route::delete('/stores/{id}', [AdminStoreDeletionController::class, 'archiveStore'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/restore', [AdminStoreDeletionController::class, 'restoreStore'])->middleware('role:super_admin');
-            Route::post('/users/{id}/grant-trial', [AdminUserController::class, 'grantUserTrial'])->middleware('permission:grant_trials');
-            Route::post('/users/{id}/activate-plan', [AdminUserController::class, 'activateUserPlan'])->middleware('permission:grant_trials');
-            Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');
-            Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
-            Route::get('/users', [AdminUserController::class, 'users'])->middleware('permission:view_platform_data');
-            Route::get('/users/{id}/permissions', [AdminUserController::class, 'effectivePermissions'])->middleware('role:super_admin');
-            Route::get('/users/{id}/devices', [AdminUserController::class, 'devices'])->middleware('permission:view_platform_data');
-            Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
-            Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('permission:view_platform_health');
-            Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('permission:view_platform_health');
-            Route::get('/subscriptions/lifecycle', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'lifecycle'])->middleware('permission:view_subscriptions');
-            Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('permission:view_subscriptions');
-            Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('permission:view_platform_health');
-            Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('permission:view_platform_health');
-            Route::get('/stores/{id}/stock-divergence', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'stockDivergence'])->middleware('permission:view_platform_health');
-            Route::delete('/stores/{id}/stock-divergence/{deviceId}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'deleteStockReport'])->middleware('role:super_admin');
-            Route::put('/stores/{id}/devices/{deviceId}/nickname', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'renameDevice'])->middleware('role:super_admin');
-            Route::get('/stores/{id}/table-agreement', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'tableAgreement'])->middleware('permission:view_platform_health');
-            Route::delete('/stores/{id}/table-agreement/{deviceId}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'deleteTableReport'])->middleware('role:super_admin');
-
-            Route::get('/stores/{id}/queue-state', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'queueState'])->middleware('permission:view_platform_health');
-            // Acting ON a customer device is super_admin-only and never
-            // delegatable — see laravel-server/AGENTS.md.
-            Route::get('/stores/{id}/sync-commands', [\App\Http\Controllers\Api\Admin\AdminSyncCommandController::class, 'index'])->middleware('role:super_admin');
-            Route::post('/stores/{id}/sync-commands', [\App\Http\Controllers\Api\Admin\AdminSyncCommandController::class, 'store'])->middleware('role:super_admin');
-
-            Route::get('/maintenance/migrations', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'migrations'])->middleware('role:super_admin');
-            Route::post('/maintenance/migrations/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runMigrations'])->middleware('role:super_admin');
-            Route::post('/maintenance/roles/sync', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'syncRoles'])->middleware('role:super_admin');
-
-            Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('permission:view_platform_revenue');
-            Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
-            Route::get('/client/version', [AdminPlatformController::class, 'clientVersion'])->middleware('role:super_admin');
-            Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
-            Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
-            Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivateUser'])->middleware('permission:manage_account_status');
-            Route::post('/users/{id}/reactivate', [AdminUserController::class, 'reactivateUser'])->middleware('permission:manage_account_status');
-            Route::post('/users/{id}/reset-password', [AdminUserController::class, 'forcePasswordReset'])->middleware('permission:reset_user_passwords');
-            Route::post('/users/{id}/notify', [AdminUserController::class, 'notifyUser'])->middleware('permission:send_notifications');
-            Route::post('/users/bulk-notify', [AdminUserController::class, 'bulkNotify'])->middleware('permission:send_notifications');
-            Route::get('/search', [AdminPlatformController::class, 'search'])->middleware('role:super_admin');
-            Route::get('/activity-logs', [AdminPlatformController::class, 'activityLogs'])->middleware('permission:view_platform_data');
-            Route::get('/activity-feed', [\App\Http\Controllers\Api\Admin\AdminActivityFeedController::class, 'index'])->middleware('permission:view_platform_data');
-            Route::get('/my-referrals', [AdminUserController::class, 'myReferrals']);
-            Route::get('/referral-code/check', [AdminUserController::class, 'checkReferralCode']);
-            Route::post('/referral-code', [AdminUserController::class, 'updateReferralCode']);
-            Route::post('/stores/{id}/impersonate', [AdminStoreController::class, 'impersonateStore'])->middleware('permission:impersonate_store');
-            Route::post('/stores/{id}/relink-code', [\App\Http\Controllers\Api\Admin\AdminStoreRelinkController::class, 'generate'])->middleware('permission:impersonate_store');
-            Route::put('/stores/{id}/account-manager', [AdminStoreController::class, 'updateAccountManager'])->middleware('role:super_admin');
-            Route::put('/stores/{id}/referrer', [AdminStoreController::class, 'updateReferrer'])->middleware('role:super_admin');
-            Route::get('/account-managers', [AdminStoreController::class, 'accountManagerCandidates'])->middleware('role:super_admin');
-            Route::get('/roles', [AdminRoleController::class, 'index'])->middleware('role:super_admin');
-            Route::post('/roles', [AdminRoleController::class, 'store'])->middleware('role:super_admin');
-            Route::put('/roles/{role}/permissions', [AdminRoleController::class, 'updatePermissions'])->middleware('role:super_admin');
-            Route::delete('/roles/{role}', [AdminRoleController::class, 'destroy'])->middleware('role:super_admin');
-            Route::put('/users/{id}/permission-overrides', [AdminRoleController::class, 'updateUserPermissionOverrides'])->middleware('role:super_admin');
-
-            // Email Templates
-            Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)
-                ->only(['index', 'show', 'update'])
-                ->middleware('role:super_admin');
-
-            // Feedback
-            Route::get('/feedback', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'index'])->middleware('role:super_admin');
-            Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus'])->middleware('role:super_admin');
-
-            // Broadcasts
-            Route::prefix('announcements')->middleware(['permission:send_notifications'])->group(function () {
-                Route::get('/', [BroadcastController::class, 'adminIndex']);
-                Route::post('/preview-email', [BroadcastController::class, 'previewEmail']);
-                Route::post('/test-email', [BroadcastController::class, 'sendTestEmail']);
-                Route::post('/', [BroadcastController::class, 'store']);
-                Route::put('/{id}', [BroadcastController::class, 'update']);
-                Route::patch('/{id}/toggle', [BroadcastController::class, 'toggle']);
-                Route::delete('/{id}', [BroadcastController::class, 'destroy']);
+    Route::middleware(['auth:sanctum', 'account_status', \App\Http\Middleware\EnsureEmailIsVerified::class])->group(function () {
+        Route::middleware('throttle:60,1')->group(function () {
+            Route::post('/logout', [AuthController::class, 'logout']);
+            Route::get('/user', [AuthController::class, 'user']);
+            Route::get('/account-manager', [\App\Http\Controllers\Api\AccountManagerController::class, 'show']);
+            Route::post('/refresh', [AuthController::class, 'refresh']);
+            Route::prefix('profile')->group(function () {
+                Route::post('/update', [AuthController::class, 'updateProfile']);
+                Route::post('/set-pin', [AuthController::class, 'updatePin']);
+                Route::post('/change-password', [AuthController::class, 'changePassword']);
+                Route::post('/request-deletion', [AuthController::class, 'requestDeletion']);
+                Route::post('/cancel-deletion', [AuthController::class, 'cancelDeletion']);
             });
 
-            // Emails
-            Route::post('/mail/send', [MailController::class, 'send'])->middleware('role:super_admin');
-            Route::post('/mail/preview', [MailController::class, 'preview'])->middleware('role:super_admin');
-            Route::post('/mail/test', [MailController::class, 'sendTest'])->middleware('role:super_admin');
-            Route::get('/mail/recipient-count', [MailController::class, 'recipientCount'])->middleware('role:super_admin');
+            Route::post('/app/relink-code', [\App\Http\Controllers\Api\App\TillRelinkController::class, 'create']);
 
-            // System Configs
-            Route::put('/system-configs/{key}', [SystemConfigController::class, 'update'])->middleware('role:super_admin');
-
-            // Revenue (Marketing > Revenue tab)
-            Route::get('/marketing/revenue', [\App\Http\Controllers\Api\Admin\RevenueController::class, 'overview'])->middleware('permission:view_platform_revenue');
-
-            // Coupons
-            Route::middleware('role:super_admin')->group(function () {
-                Route::get('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'index']);
-                Route::post('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'store']);
-                Route::put('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'update']);
-                Route::put('/coupons/{coupon}/toggle', [\App\Http\Controllers\Api\Admin\CouponController::class, 'toggleActive']);
-                Route::get('/coupons/{coupon}/usages', [\App\Http\Controllers\Api\Admin\CouponController::class, 'usages']);
-                Route::delete('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'destroy']);
+            Route::prefix('sessions')->group(function () {
+                Route::get('/', [SessionController::class, 'index']);
+                Route::post('/revoke-all', [SessionController::class, 'revokeAll']);
+                Route::delete('/{id}', [SessionController::class, 'destroy']);
             });
 
-            // Referrals
-            // The read endpoints stay on the group's manage_platform check:
-            // agents legitimately review their own referral pipeline there.
-            // Adjusting credit balances and rewriting the reward settings are
-            // a different matter - an agent holding manage_platform could
-            // otherwise award themselves credits.
-            Route::get('/referrals/summary', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSummary']);
-            Route::get('/referrals', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getReferrals']);
-            Route::get('/referrals/transactions', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getTransactions']);
-            Route::post('/referrals/adjust-credits', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'adjustCredits'])->middleware('role:super_admin');
-            Route::get('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSettings'])->middleware('role:super_admin');
-            Route::put('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'updateSettings'])->middleware('role:super_admin');
+            // --- WEB DASHBOARD ROUTES ---
+            Route::prefix('dashboard')->group(function () {
+                Route::get('/summary', [DashboardController::class, 'summary']);
+                Route::get('/stats', [DashboardController::class, 'stats']);
+                Route::get('/widget-snapshot', [DashboardController::class, 'widgetSnapshot']);
+                Route::post('/reset', [DashboardController::class, 'resetData']);
+                Route::post('/send-summary', [\App\Http\Controllers\Api\StoreSummaryController::class, 'sendSummary'])->middleware('subscription:web_dashboard');
+            });
+            Route::get('/alerts', [NotificationController::class, 'index']);
+            Route::post('/alerts/read-all', [NotificationController::class, 'markAllAsRead']);
+            Route::post('/alerts/{id}/read', [NotificationController::class, 'markAsRead']);
+
+            // Purchase Orders
+            Route::get('/purchase-orders', [\App\Http\Controllers\Api\App\PurchaseOrderController::class, 'index']);
+
+            Route::apiResource('staff', StaffController::class)->middleware(['permission:manage_staff', 'subscription']);
+            Route::get('stores/check-slug', [StoreController::class, 'checkSlug']);
+            Route::get('stores/{store}/payment-banks', [StorePaymentAccountController::class, 'paymentBanks']);
+            Route::post('stores/{store}/payment-account/resolve', [StorePaymentAccountController::class, 'resolvePaymentAccount'])
+                ->middleware('throttle:bank-account-resolve');
+            Route::post('stores/{store}/payment-account', [StorePaymentAccountController::class, 'createPaymentAccount']);
+            Route::apiResource('stores', StoreController::class);
+
+            Route::prefix('subscription')->group(function () {
+                Route::get('/status', [SubscriptionController::class, 'status']);
+                Route::post('/verify-license', [SubscriptionController::class, 'verifyLicense']);
+                Route::post('/validate-coupon', [SubscriptionController::class, 'validateCoupon']);
+                Route::post('/pay', [SubscriptionController::class, 'initiatePayment']);
+                Route::post('/verify', [SubscriptionController::class, 'verifyPayment']);
+                Route::get('/billing-history', [SubscriptionController::class, 'billingHistory']);
+                Route::get('/referral-stats', [SubscriptionController::class, 'getReferralStats']);
+            });
+
+            // Backups
+            Route::prefix('backups')->middleware('subscription')->group(function () {
+                Route::post('/upload', [BackupController::class, 'upload']);
+                Route::get('/', [BackupController::class, 'list']);
+                Route::get('/{backup}/download', [BackupController::class, 'download']);
+            });
+
+            // Activity Logs
+            Route::get('/logs', [ActivityLogController::class, 'index'])->middleware(['permission:view_reports', 'subscription']);
+
+            // Publicly accessible within authenticated session (for impersonation return)
+            Route::post('/admin/restore-session', [AdminStoreController::class, 'restoreSession']);
+
+            Route::middleware(['permission:manage_platform', 'subscription'])->prefix('admin')->group(function () {
+                // Self-service only: admin_id always comes from the authenticated
+                // caller, never from input, so no admin can mint a credential that
+                // acts as another admin.
+                Route::get('/till-codes/mine', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'mine']);
+                // Deliberately super_admin-only and audited: see the spec's
+                // "Super-admin visibility" section for why codes are recoverable.
+                Route::get('/till-codes/all', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'all'])
+                    ->middleware('role:super_admin');
+                Route::post('/till-codes', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'issue']);
+                Route::delete('/till-codes/{id}', [\App\Http\Controllers\Api\Admin\AdminTillCodeController::class, 'revoke']);
+
+                // super_admin-only actions (stricter than the group's manage_platform
+                // permission, which platform_admin/agent can also hold) get the
+                // check via route middleware instead of a per-method guard clause.
+                Route::get('/summary', [AdminPlatformController::class, 'summary'])->middleware('role:super_admin');
+                Route::get('/stores', [AdminStoreController::class, 'stores'])->middleware('permission:view_platform_data');
+                Route::post('/stores', [AdminStoreController::class, 'registerStore']);
+                // Must stay above /stores/{id}: a literal segment registered after
+                // the wildcard would be swallowed by it.
+                Route::get('/stores/registered-by-me', [AdminStoreController::class, 'storesRegisteredByMe'])
+                    ->middleware('permission:create_accounts');
+                Route::get('/stores/{id}', [AdminStoreController::class, 'storeDetail'])->middleware('permission:view_platform_data');
+                Route::post('/stores/{id}/suspend', [AdminStoreController::class, 'suspendStore'])->middleware('permission:manage_account_status');
+                Route::post('/stores/{id}/unsuspend', [AdminStoreController::class, 'unsuspendStore'])->middleware('permission:manage_account_status');
+                Route::post('/stores/{id}/mark-demo', [AdminStoreController::class, 'markStoreDemo'])->middleware('role:super_admin');
+                Route::post('/stores/{id}/unmark-demo', [AdminStoreController::class, 'unmarkStoreDemo'])->middleware('role:super_admin');
+                Route::put('/stores/{id}/storefront', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'update'])->middleware('permission:manage_account_status');
+                Route::put('/stores/{id}/storefront/theme', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'updateTheme'])->middleware('role:super_admin');
+                Route::put('/stores/{id}/storefront/settings', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'updateSettings'])->middleware('role:super_admin');
+                Route::post('/storefront/rebuild', [\App\Http\Controllers\Api\Admin\AdminStoreStorefrontController::class, 'rebuild'])->middleware('role:super_admin');
+                Route::post('/stores/{id}/grant-trial', [AdminStoreController::class, 'grantTrial'])->middleware('permission:grant_trials');
+                Route::post('/stores/{id}/activate-plan', [AdminStoreController::class, 'activatePlan'])->middleware('permission:grant_trials');
+                Route::get('/stores/{id}/billing-history', [AdminStoreController::class, 'billingHistory'])->middleware('permission:view_platform_revenue');
+                Route::delete('/stores/{id}/purge', [AdminStoreDeletionController::class, 'purgeStore'])->middleware('role:super_admin');
+                Route::delete('/stores/{id}', [AdminStoreDeletionController::class, 'archiveStore'])->middleware('role:super_admin');
+                Route::post('/stores/{id}/restore', [AdminStoreDeletionController::class, 'restoreStore'])->middleware('role:super_admin');
+                Route::post('/users/{id}/grant-trial', [AdminUserController::class, 'grantUserTrial'])->middleware('permission:grant_trials');
+                Route::post('/users/{id}/activate-plan', [AdminUserController::class, 'activateUserPlan'])->middleware('permission:grant_trials');
+                Route::get('/products', [AdminPlatformController::class, 'products'])->middleware('role:super_admin');
+                Route::post('/products/standardize', [AdminPlatformController::class, 'standardize'])->middleware('role:super_admin');
+                Route::get('/users', [AdminUserController::class, 'users'])->middleware('permission:view_platform_data');
+                Route::get('/users/{id}/permissions', [AdminUserController::class, 'effectivePermissions'])->middleware('role:super_admin');
+                Route::get('/users/{id}/devices', [AdminUserController::class, 'devices'])->middleware('permission:view_platform_data');
+                Route::post('/users', [AdminUserController::class, 'createPlatformAdmin'])->middleware('role:super_admin');
+                Route::get('/health', [AdminPlatformController::class, 'health'])->middleware('permission:view_platform_health');
+                Route::get('/errors', [AdminPlatformController::class, 'errors'])->middleware('permission:view_platform_health');
+                Route::get('/subscriptions/lifecycle', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'lifecycle'])->middleware('permission:view_subscriptions');
+                Route::get('/subscriptions/{bucket}', [\App\Http\Controllers\Api\Admin\AdminSubscriptionController::class, 'bucket'])->middleware('permission:view_subscriptions');
+                Route::get('/sync/health', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'summary'])->middleware('permission:view_platform_health');
+                Route::get('/sync/stores/{id}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'store'])->middleware('permission:view_platform_health');
+                Route::get('/stores/{id}/stock-divergence', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'stockDivergence'])->middleware('permission:view_platform_health');
+                Route::delete('/stores/{id}/stock-divergence/{deviceId}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'deleteStockReport'])->middleware('role:super_admin');
+                Route::put('/stores/{id}/devices/{deviceId}/nickname', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'renameDevice'])->middleware('role:super_admin');
+                Route::get('/stores/{id}/table-agreement', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'tableAgreement'])->middleware('permission:view_platform_health');
+                Route::delete('/stores/{id}/table-agreement/{deviceId}', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'deleteTableReport'])->middleware('role:super_admin');
+
+                Route::get('/stores/{id}/queue-state', [\App\Http\Controllers\Api\Admin\AdminSyncHealthController::class, 'queueState'])->middleware('permission:view_platform_health');
+                // Acting ON a customer device is super_admin-only and never
+                // delegatable — see laravel-server/AGENTS.md.
+                Route::get('/stores/{id}/sync-commands', [\App\Http\Controllers\Api\Admin\AdminSyncCommandController::class, 'index'])->middleware('role:super_admin');
+                Route::post('/stores/{id}/sync-commands', [\App\Http\Controllers\Api\Admin\AdminSyncCommandController::class, 'store'])->middleware('role:super_admin');
+
+                Route::get('/maintenance/migrations', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'migrations'])->middleware('role:super_admin');
+                Route::post('/maintenance/migrations/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runMigrations'])->middleware('role:super_admin');
+                Route::post('/maintenance/roles/sync', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'syncRoles'])->middleware('role:super_admin');
+                Route::get('/maintenance/backup', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'backupStatus'])->middleware('role:super_admin');
+                Route::post('/maintenance/backup/run', [\App\Http\Controllers\Api\Admin\AdminMaintenanceController::class, 'runBackup'])->middleware('role:super_admin');
+
+                Route::get('/trends', [\App\Http\Controllers\Api\Admin\AdminTrendsController::class, 'index'])->middleware('permission:view_platform_revenue');
+                Route::get('/downloads/manifest', [AdminPlatformController::class, 'downloadsManifest'])->middleware('role:super_admin');
+                Route::get('/client/version', [AdminPlatformController::class, 'clientVersion'])->middleware('role:super_admin');
+                Route::put('/users/{id}', [AdminUserController::class, 'updateUser'])->middleware('role:super_admin');
+                Route::delete('/users/{id}', [AdminUserController::class, 'deleteUser'])->middleware('role:super_admin');
+                Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivateUser'])->middleware('permission:manage_account_status');
+                Route::post('/users/{id}/reactivate', [AdminUserController::class, 'reactivateUser'])->middleware('permission:manage_account_status');
+                Route::post('/users/{id}/reset-password', [AdminUserController::class, 'forcePasswordReset'])->middleware('permission:reset_user_passwords');
+                Route::post('/users/{id}/notify', [AdminUserController::class, 'notifyUser'])->middleware('permission:send_notifications');
+                Route::post('/users/bulk-notify', [AdminUserController::class, 'bulkNotify'])->middleware('permission:send_notifications');
+                Route::get('/search', [AdminPlatformController::class, 'search'])->middleware('role:super_admin');
+                Route::get('/activity-logs', [AdminPlatformController::class, 'activityLogs'])->middleware('permission:view_platform_data');
+                Route::get('/activity-feed', [\App\Http\Controllers\Api\Admin\AdminActivityFeedController::class, 'index'])->middleware('permission:view_platform_data');
+                Route::get('/my-referrals', [AdminUserController::class, 'myReferrals']);
+                Route::get('/referral-code/check', [AdminUserController::class, 'checkReferralCode']);
+                Route::post('/referral-code', [AdminUserController::class, 'updateReferralCode']);
+                Route::post('/stores/{id}/impersonate', [AdminStoreController::class, 'impersonateStore'])->middleware('permission:impersonate_store');
+                Route::post('/stores/{id}/relink-code', [\App\Http\Controllers\Api\Admin\AdminStoreRelinkController::class, 'generate'])->middleware('permission:impersonate_store');
+                Route::put('/stores/{id}/account-manager', [AdminStoreController::class, 'updateAccountManager'])->middleware('role:super_admin');
+                Route::put('/stores/{id}/referrer', [AdminStoreController::class, 'updateReferrer'])->middleware('role:super_admin');
+                Route::get('/account-managers', [AdminStoreController::class, 'accountManagerCandidates'])->middleware('role:super_admin');
+                Route::get('/roles', [AdminRoleController::class, 'index'])->middleware('role:super_admin');
+                Route::post('/roles', [AdminRoleController::class, 'store'])->middleware('role:super_admin');
+                Route::put('/roles/{role}/permissions', [AdminRoleController::class, 'updatePermissions'])->middleware('role:super_admin');
+                Route::delete('/roles/{role}', [AdminRoleController::class, 'destroy'])->middleware('role:super_admin');
+                Route::put('/users/{id}/permission-overrides', [AdminRoleController::class, 'updateUserPermissionOverrides'])->middleware('role:super_admin');
+
+                // Email Templates
+                Route::apiResource('email-templates', \App\Http\Controllers\Api\Admin\EmailTemplateController::class)
+                    ->only(['index', 'show', 'update'])
+                    ->middleware('role:super_admin');
+
+                // Feedback
+                Route::get('/feedback', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'index'])->middleware('role:super_admin');
+                Route::post('/feedback/{id}/status', [\App\Http\Controllers\Api\Web\FeedbackController::class, 'updateStatus'])->middleware('role:super_admin');
+
+                // Broadcasts
+                Route::prefix('announcements')->middleware(['permission:send_notifications'])->group(function () {
+                    Route::get('/', [BroadcastController::class, 'adminIndex']);
+                    Route::post('/preview-email', [BroadcastController::class, 'previewEmail']);
+                    Route::post('/test-email', [BroadcastController::class, 'sendTestEmail']);
+                    Route::post('/', [BroadcastController::class, 'store']);
+                    Route::put('/{id}', [BroadcastController::class, 'update']);
+                    Route::patch('/{id}/toggle', [BroadcastController::class, 'toggle']);
+                    Route::delete('/{id}', [BroadcastController::class, 'destroy']);
+                });
+
+                // Emails
+                Route::post('/mail/send', [MailController::class, 'send'])->middleware('role:super_admin');
+                Route::post('/mail/preview', [MailController::class, 'preview'])->middleware('role:super_admin');
+                Route::post('/mail/test', [MailController::class, 'sendTest'])->middleware('role:super_admin');
+                Route::get('/mail/recipient-count', [MailController::class, 'recipientCount'])->middleware('role:super_admin');
+
+                // System Configs
+                Route::put('/system-configs/{key}', [SystemConfigController::class, 'update'])->middleware('role:super_admin');
+
+                // Revenue (Marketing > Revenue tab)
+                Route::get('/marketing/revenue', [\App\Http\Controllers\Api\Admin\RevenueController::class, 'overview'])->middleware('permission:view_platform_revenue');
+
+                // Coupons
+                Route::middleware('role:super_admin')->group(function () {
+                    Route::get('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'index']);
+                    Route::post('/coupons', [\App\Http\Controllers\Api\Admin\CouponController::class, 'store']);
+                    Route::put('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'update']);
+                    Route::put('/coupons/{coupon}/toggle', [\App\Http\Controllers\Api\Admin\CouponController::class, 'toggleActive']);
+                    Route::get('/coupons/{coupon}/usages', [\App\Http\Controllers\Api\Admin\CouponController::class, 'usages']);
+                    Route::delete('/coupons/{coupon}', [\App\Http\Controllers\Api\Admin\CouponController::class, 'destroy']);
+                });
+
+                // Referrals
+                // The read endpoints stay on the group's manage_platform check:
+                // agents legitimately review their own referral pipeline there.
+                // Adjusting credit balances and rewriting the reward settings are
+                // a different matter - an agent holding manage_platform could
+                // otherwise award themselves credits.
+                Route::get('/referrals/summary', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSummary']);
+                Route::get('/referrals', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getReferrals']);
+                Route::get('/referrals/transactions', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getTransactions']);
+                Route::post('/referrals/adjust-credits', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'adjustCredits'])->middleware('role:super_admin');
+                Route::get('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'getSettings'])->middleware('role:super_admin');
+                Route::put('/referrals/settings', [\App\Http\Controllers\Api\Admin\ReferralController::class, 'updateSettings'])->middleware('role:super_admin');
+            });
+            // --- APP / TERMINAL ROUTES ---
+            Route::prefix('app')->middleware('subscription')->group(function () {
+                // Online Orders
+                Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
+                Route::post('/online-orders/{id}/ready', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markReady']);
+                Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
+
+                // Staff email pre-check
+                Route::get('/staff/email-available', [\App\Http\Controllers\Api\App\StaffEmailController::class, 'available'])->middleware('permission:manage_staff');
+
+                // Storefront look (owner only)
+                Route::get('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'show']);
+                Route::put('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'update'])->middleware('subscription:custom_branding');
+
+                // Audit Sessions (Multi-Till Cloud Backing)
+                Route::get('/audit-sessions/active', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'active']);
+                Route::post('/audit-sessions', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'start']);
+                Route::post('/audit-sessions/{session}/heartbeat', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'heartbeat']);
+                Route::post('/audit-sessions/{session}/sync-items', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'syncItems']);
+                Route::post('/audit-sessions/{session}/takeover', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'takeover']);
+                Route::post('/audit-sessions/{session}/complete', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'complete']);
+                Route::post('/audit-sessions/{session}/abandon', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'abandon']);
+
+                Route::get('/product-images/config', [\App\Http\Controllers\Api\App\ProductImageController::class, 'config']);
+                Route::middleware('throttle:product-images')->group(function () {
+                    Route::post('/products/{product}/image/presign', [\App\Http\Controllers\Api\App\ProductImageController::class, 'presign']);
+                    Route::post('/products/{product}/image/confirm', [\App\Http\Controllers\Api\App\ProductImageController::class, 'confirm']);
+                    Route::delete('/products/{product}/image', [\App\Http\Controllers\Api\App\ProductImageController::class, 'destroy']);
+                });
+            });
         });
-        // --- APP / TERMINAL ROUTES ---
-        Route::prefix('app')->middleware('subscription')->group(function () {
-            // Online Orders
-            Route::get('/online-orders', [\App\Http\Controllers\Api\OnlineOrderController::class, 'index']);
-            Route::post('/online-orders/{id}/ready', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markReady']);
-            Route::post('/online-orders/{id}/fulfill', [\App\Http\Controllers\Api\OnlineOrderController::class, 'markFulfilled']);
 
-            // Staff email pre-check
-            Route::get('/staff/email-available', [\App\Http\Controllers\Api\App\StaffEmailController::class, 'available'])->middleware('permission:manage_staff');
-
-            // Storefront look (owner only)
-            Route::get('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'show']);
-            Route::put('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'update'])->middleware('subscription:custom_branding');
-
-            // Sync
-            Route::post('/sync/push', [SyncController::class, 'push']);
-            Route::post('/sync/pull', [SyncController::class, 'pull']);
-            Route::get('/sync/counts', [SyncController::class, 'counts']);
-            Route::get('/sync/peer-freshness', [SyncController::class, 'peerFreshness']);
-            Route::post('/sync/reconcile-quantities', [SyncController::class, 'reconcileQuantities']);
-
-            // Audit Sessions (Multi-Till Cloud Backing)
-            Route::get('/audit-sessions/active', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'active']);
-            Route::post('/audit-sessions', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'start']);
-            Route::post('/audit-sessions/{session}/heartbeat', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'heartbeat']);
-            Route::post('/audit-sessions/{session}/sync-items', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'syncItems']);
-            Route::post('/audit-sessions/{session}/takeover', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'takeover']);
-            Route::post('/audit-sessions/{session}/complete', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'complete']);
-            Route::post('/audit-sessions/{session}/abandon', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'abandon']);
-
-            Route::get('/product-images/config', [\App\Http\Controllers\Api\App\ProductImageController::class, 'config']);
-            Route::middleware('throttle:product-images')->group(function () {
-                Route::post('/products/{product}/image/presign', [\App\Http\Controllers\Api\App\ProductImageController::class, 'presign']);
-                Route::post('/products/{product}/image/confirm', [\App\Http\Controllers\Api\App\ProductImageController::class, 'confirm']);
-                Route::delete('/products/{product}/image', [\App\Http\Controllers\Api\App\ProductImageController::class, 'destroy']);
-            });
+        Route::prefix('app/sync')->middleware(['subscription', 'throttle:sync'])->group(function () {
+            Route::post('/push', [SyncController::class, 'push']);
+            Route::post('/pull', [SyncController::class, 'pull']);
+            Route::get('/counts', [SyncController::class, 'counts']);
+            Route::get('/peer-freshness', [SyncController::class, 'peerFreshness']);
+            Route::post('/reconcile-quantities', [SyncController::class, 'reconcileQuantities']);
         });
 
     });

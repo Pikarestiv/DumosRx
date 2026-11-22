@@ -12,10 +12,9 @@ export function EditProductPencil({ productName, hasTouchCapability, onClick }: 
     <Button
       type="button"
       variant="ghost"
-      size="icon"
       aria-label={`Edit ${productName}`}
       title="Edit product"
-      className={`h-6 w-6 shrink-0 text-muted-foreground hover:bg-primary hover:text-primary-foreground ${
+      className={`h-6 w-6 p-0 pointer-coarse:size-8 pointer-coarse:-my-1 shrink-0 text-muted-foreground hover:bg-primary hover:text-primary-foreground ${
         hasTouchCapability ? "opacity-60" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
       }`}
       onClick={(e) => {

@@ -128,6 +128,10 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   useKeyboardViewport();
   useNumberInputWheelGuard();
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
   const isPosRoute = pathname.startsWith("/pos");
   const posFullscreen = usePosFullscreenStore((s) => s.isFullscreen);
   const isPosFullscreen = isPosRoute && posFullscreen;
@@ -198,7 +202,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   return (
     // h-dvh, not min-h-screen:
     // Rationale: docs/CLIENT_COMMENTS.md#line-components-dashboard-dashboard-layout-tsx-L245
-    <div className="h-dvh bg-background relative">
+    <div className="fixed inset-0 overflow-hidden bg-background">
       {/* First focusable element in the shell: lets keyboard/screen-reader
           users jump the persistent sidebar and header nav (WCAG 2.4.1). */}
       <a

@@ -10,10 +10,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { ServerSelector } from "@/components/ui/server-selector";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import Image from "next/image";
 import Link from "next/link";
 import { getRecentUsers } from "@/lib/storage-keys";
 import { useHydrated } from "@/lib/hooks/use-hydrated";
@@ -137,13 +137,11 @@ export default function HomePage() {
 
             <CardHeader className="space-y-1 relative pt-10">
               <div className="flex justify-center mb-8">
-                <Image
+                <BrandLogo
                   src="/logo.png"
                   alt="DumosRx Logo"
                   width={150}
                   height={60}
-                  className="object-contain"
-                  style={{ filter: "var(--logo-filter)", height: "auto" }}
                 />
               </div>
               <CardTitle className="font-serif font-bold text-3xl text-center">

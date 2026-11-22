@@ -37,8 +37,8 @@ export function NewPrescription() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
+      <Card className="bg-transparent border-0 shadow-none rounded-none p-0 gap-4 lg:bg-card lg:border lg:border-border lg:rounded-xl lg:shadow-sm lg:py-6 lg:gap-6">
+        <CardHeader className="px-0 pt-0 pb-1 lg:px-6 lg:pb-0">
           <CardTitle className="font-serif font-bold">
             {isEditing
               ? `Edit Prescription ${existingPrescriptionData?.prescription_number || ""}`
@@ -50,7 +50,7 @@ export function NewPrescription() {
               : "Enter prescription details and medications for processing"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0 lg:px-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <PrescriptionPatientInfo
               formData={formData}

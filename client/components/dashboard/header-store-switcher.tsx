@@ -13,6 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { FleetFormDialog } from "@/components/settings/store/fleet-form-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -41,8 +48,10 @@ export function HeaderStoreSwitcher({
   isAdmin,
 }: HeaderStoreSwitcherProps) {
   const queryClient = useQueryClient();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const { canManageMultiStore, getUpgradeMessage } = useFeatureGate();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [pendingStoreId, setPendingStoreId] = useState<string | null>(null);
   const [showAuditReminder, setShowAuditReminder] = useState(false);
 
@@ -143,47 +152,110 @@ export function HeaderStoreSwitcher({
     setShowAuditReminder(false);
   };
 
+  const triggerButton = (
+    <button
+      type="button"
+      onClick={!isDesktop ? () => setMobileSheetOpen(true) : undefined}
+      className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors outline-none pointer-coarse:-my-3 pointer-coarse:py-3"
+    >
+      <StoreIcon className="h-3 w-3" />
+      <span className="truncate max-w-[40vw] sm:max-w-[200px]">
+        {storeProfile?.name || APP_NAME}
+      </span>
+      <ChevronDown className="h-3 w-3 shrink-0" />
+    </button>
+  );
+
   return (
     <>
-      <DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors outline-none pointer-coarse:-my-3 pointer-coarse:py-3">
-                <StoreIcon className="h-3 w-3" />
-                <span className="truncate max-w-[40vw] sm:max-w-[200px]">
-                  {storeProfile?.name || APP_NAME}
-                </span>
-                <ChevronDown className="h-3 w-3 shrink-0" />
-              </button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent>{storeProfile?.name || APP_NAME}</TooltipContent>
-        </Tooltip>
-        <DropdownMenuContent align="start" className="w-56">
-          {storesToList.map((store) => (
+      {isDesktop ? (
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{storeProfile?.name || APP_NAME}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" className="w-56">
+            {storesToList.map((store) => (
+              <DropdownMenuItem
+                key={store.id}
+                onClick={() => handleStoreClick(store.id)}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="truncate">{store.name}</span>
+                {currentStoreId === store.id && (
+                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                )}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
             <DropdownMenuItem
-              key={store.id}
-              onClick={() => handleStoreClick(store.id)}
-              className="flex items-center justify-between gap-2"
+              onClick={handleCreateStore}
+              className="group flex items-center gap-2 text-primary"
             >
-              <span className="truncate">{store.name}</span>
-              {(activeStoreId ?? storeProfile?.id) === store.id && (
-                <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-              )}
+              {/* DropdownMenuItem's base styles force any icon without its own text-* class to text-muted-foreground permanently (see dro… — docs/CLIENT_COMMENTS.md#block-components-dashboard-header-store-switcher-tsx-L156 */}
+              <Plus className="h-3.5 w-3.5 text-primary group-focus:text-accent-foreground" />
+              <span>Create new store</span>
             </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={handleCreateStore}
-            className="group flex items-center gap-2 text-primary"
-          >
-            {/* DropdownMenuItem's base styles force any icon without its own text-* class to text-muted-foreground permanently (see dro… — docs/CLIENT_COMMENTS.md#block-components-dashboard-header-store-switcher-tsx-L156 */}
-            <Plus className="h-3.5 w-3.5 text-primary group-focus:text-accent-foreground" />
-            <span>Create new store</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>{triggerButton}</TooltipTrigger>
+            <TooltipContent>{storeProfile?.name || APP_NAME}</TooltipContent>
+          </Tooltip>
+          <Drawer open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+            <DrawerContent className="bg-card border-border px-4">
+              <DrawerHeader className="px-0 pb-3 border-b border-border text-left">
+                <DrawerTitle className="font-serif text-base font-bold">
+                  Switch Store
+                </DrawerTitle>
+              </DrawerHeader>
+              <div className="py-2 space-y-1 max-h-[60dvh] overflow-y-auto">
+                {storesToList.map((store) => {
+                  const isActive = currentStoreId === store.id;
+                  return (
+                    <button
+                      key={store.id}
+                      type="button"
+                      onClick={() => {
+                        setMobileSheetOpen(false);
+                        handleStoreClick(store.id);
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-3 rounded-xl text-left text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-primary/10 text-primary font-semibold"
+                          : "text-foreground hover:bg-muted/60"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5 min-w-0">
+                        <StoreIcon className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{store.name}</span>
+                      </span>
+                      {isActive && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    </button>
+                  );
+                })}
+                <div className="pt-2 mt-2 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileSheetOpen(false);
+                      handleCreateStore();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-3 rounded-xl text-left text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 shrink-0" />
+                    <span>Create new store</span>
+                  </button>
+                </div>
+              </div>
+            </DrawerContent>
+          </Drawer>
+        </>
+      )}
 
       <ConfirmDialog
         open={showAuditReminder}

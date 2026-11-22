@@ -98,7 +98,7 @@ export function NotificationItemRow({ notif, onClick, isDrawer }: Props) {
         "w-full text-left flex items-start gap-3 p-3.5 sm:p-4 transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-800/80 last:border-b-0",
         notif.isRead
           ? "bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
-          : "bg-blue-50/40 dark:bg-blue-950/20 hover:bg-blue-50/60 dark:hover:bg-blue-950/30",
+          : "bg-blue-50/90 dark:bg-blue-950/45 hover:bg-blue-100/80 dark:hover:bg-blue-950/60",
         isDrawer && "rounded-xl border my-1 border-slate-200/60 dark:border-slate-800"
       )}
     >
@@ -112,7 +112,7 @@ export function NotificationItemRow({ notif, onClick, isDrawer }: Props) {
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
             <span
               className={cn(
@@ -135,7 +135,15 @@ export function NotificationItemRow({ notif, onClick, isDrawer }: Props) {
               </span>
             )}
           </div>
-          <span className="text-[11px] text-muted-foreground shrink-0">{notif.time}</span>
+          <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap">{notif.time}</span>
+            {!notif.isRead && (
+              <span
+                className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 shrink-0"
+                aria-label="Unread"
+              />
+            )}
+          </div>
         </div>
 
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
@@ -148,13 +156,6 @@ export function NotificationItemRow({ notif, onClick, isDrawer }: Props) {
           </span>
         )}
       </div>
-
-      {!notif.isRead && (
-        <span
-          className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-400 shrink-0 mt-2"
-          aria-label="Unread"
-        />
-      )}
     </div>
   );
 }

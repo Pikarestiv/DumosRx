@@ -1,5 +1,7 @@
 "use client";
+import { createPortal } from "react-dom";
 import { usePrescriptionManagement } from "@/lib/hooks/use-prescription-management";
+import { useHydrated } from "@/lib/hooks/use-hydrated";
 import { PrescriptionList } from "./prescription-list";
 import { PrescriptionSearchBar } from "./prescription-search-bar";
 import { PrescriptionDetailPanel } from "./prescription-detail-panel";
@@ -18,6 +20,7 @@ const STATUS_FILTERS = [
 ];
 
 export function PrescriptionManagement() {
+  const hydrated = useHydrated();
   const {
     searchTerm,
     setSearchTerm,
@@ -91,37 +94,43 @@ export function PrescriptionManagement() {
       </ResponsiveDetailPanel>
 
       {/* Full Screen Overlay for New Prescription: top/bottom padding clears the status bar / Tauri title bar and home indicator */}
-      {showNewPrescription && (
-        <div className="fixed inset-0 z-[60] bg-background flex flex-col fixed-visual-viewport">
-          <div
-            className="flex items-center gap-3 px-4 pb-4 border-b border-border bg-card shrink-0"
-            style={{ paddingTop: "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 1rem)" }}
-          >
-            <button
-              type="button"
-              aria-label="Back"
-              className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
-              onClick={closeNewPrescription}
+      {hydrated &&
+        showNewPrescription &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] bg-background flex flex-col fixed-visual-viewport overscroll-contain">
+            <div
+              className="flex items-center gap-3 px-4 pb-3.5 border-b border-border bg-card shrink-0"
+              style={{
+                paddingTop:
+                  "calc(var(--tauri-top, env(safe-area-inset-top, 0px)) + 0.875rem)",
+              }}
             >
-              <ArrowLeft className="w-[17px] h-[17px]" />
-            </button>
-            <h2 className="text-[17px] font-serif font-bold">
-              New Prescription
-            </h2>
-          </div>
-          <div
-            className="flex-1 min-h-0 overflow-y-auto p-4"
-            style={{
-              paddingBottom:
-                "calc(var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 3rem)",
-            }}
-          >
-            <div className="max-w-4xl mx-auto">
-              <NewPrescription />
+              <button
+                type="button"
+                aria-label="Back"
+                className="w-[38px] h-[38px] rounded-[10px] bg-muted flex items-center justify-center cursor-pointer text-muted-foreground shrink-0 hover:bg-muted/80 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring"
+                onClick={closeNewPrescription}
+              >
+                <ArrowLeft className="w-[17px] h-[17px]" />
+              </button>
+              <h2 className="text-[17px] font-serif font-bold">
+                New Prescription
+              </h2>
             </div>
-          </div>
-        </div>
-      )}
+            <div
+              className="flex-1 min-h-0 overflow-y-auto touch-pan-y p-4"
+              style={{
+                paddingBottom:
+                  "calc(var(--kb-inset, 0px) + var(--tauri-bottom, env(safe-area-inset-bottom, 0px)) + 4.5rem)",
+              }}
+            >
+              <div className="max-w-4xl mx-auto">
+                <NewPrescription />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

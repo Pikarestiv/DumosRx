@@ -199,8 +199,8 @@ export function ReportCenter() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-5">
         {/* Report Center */}
-        <Card className="border rounded-2xl p-5 shadow-sm">
-          <div>
+        <Card className="bg-transparent border-0 shadow-none rounded-none p-0 gap-4 lg:bg-card lg:border lg:border-border lg:rounded-2xl lg:p-5 lg:shadow-sm">
+          <div className="hidden lg:block">
             <div className="text-[14.5px] font-semibold mb-0.5">Report Center</div>
             <div className="text-[12px] text-muted-foreground">Generate and download structured data exports</div>
           </div>

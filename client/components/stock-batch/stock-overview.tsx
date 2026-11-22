@@ -1,14 +1,21 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { getStockOverviewData } from "@/lib/db/queries/inventory";
+import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { useStockBatchStats } from "@/lib/hooks/use-stock-batch-stats";
 import { useStore } from "@/lib/context/store-context";
 import { NeedsAttention } from "./needs-attention";
 import { FastMovers } from "./fast-movers";
 import { queryKeys } from "@/lib/query-keys";
+import { ResponsiveDetailPanel } from "@/components/ui/responsive-detail-panel";
+import { CatalogDetailPanel } from "@/components/products/catalog-detail-panel";
+import { AddProductDialog } from "@/components/products/add-product-dialog";
+import { useAddProduct } from "@/components/products/use-add-product";
+import { transformProduct, type Product } from "@/components/products/types";
 
 interface StockItem {
   id: string;
@@ -27,15 +34,60 @@ interface StockItem {
 
 export function StockOverview() {
   const { storeProfile: _storeProfile } = useStore();
+  const [selectedDetail, setSelectedDetail] = useState<{
+    productId: string;
+    tab: string;
+    highlightBatchId?: string | null;
+  } | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   // Shared stats hook: single source of truth for all stat cards
   const stats = useStockBatchStats();
 
   // Stock list: read aggregated batch details
-  const { data: stockDataRaw, isLoading: stockLoading } = useQuery({
+  const { data: stockDataRaw, isLoading: stockLoading, refetch: refetchStock } = useQuery({
     ...queryKeys.stockBatches.overview(),
     queryFn: () => getStockOverviewData(),
   });
+  const { data: rawProducts, refetch: refetchProducts } = useQuery({
+    ...queryKeys.products.withDetails(),
+    queryFn: () => getProductsWithDetails(),
+  });
+  const products = useMemo(
+    () => (rawProducts ? rawProducts.map(transformProduct) : []),
+    [rawProducts],
+  );
+  const selectedProduct = useMemo(
+    () =>
+      selectedDetail
+        ? (products.find((p) => p.id === selectedDetail.productId) ?? null)
+        : null,
+    [products, selectedDetail],
+  );
+
+  const { handleAddProduct, isSaving } = useAddProduct({
+    refetch: () => {
+      void refetchProducts();
+      void refetchStock();
+    },
+    setShowAddDialog: (open) => {
+      setShowEditDialog(open);
+      if (!open) setEditingProduct(null);
+    },
+  });
+
+  const handleSelectProduct = (
+    productId: string,
+    options?: { tab?: string; batchId?: string },
+  ) => {
+    setSelectedDetail({
+      productId,
+      tab: options?.tab ?? "details",
+      highlightBatchId: options?.batchId ?? null,
+    });
+  };
+
   const stockData = stockDataRaw || [];
 
   const getStatus = (
@@ -113,9 +165,47 @@ export function StockOverview() {
   return (
     <div className="flex flex-col lg:flex-1 lg:min-h-0 gap-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:flex-1 lg:min-h-0">
-        <NeedsAttention stockData={stockItems} />
-        <FastMovers />
+        <NeedsAttention
+          stockData={stockItems}
+          onSelectProduct={handleSelectProduct}
+        />
+        <FastMovers
+          onSelectProduct={(productId) => handleSelectProduct(productId)}
+        />
       </div>
+
+      <ResponsiveDetailPanel
+        open={!!selectedProduct}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDetail(null);
+        }}
+      >
+        <CatalogDetailPanel
+          product={selectedProduct}
+          className="border-none rounded-none"
+          onEditProduct={(product) => {
+            setEditingProduct(product);
+            setShowEditDialog(true);
+          }}
+          onClose={() => setSelectedDetail(null)}
+          activeTab={selectedDetail?.tab}
+          onTabChange={(tab) =>
+            setSelectedDetail((prev) => (prev ? { ...prev, tab } : null))
+          }
+          highlightBatchId={selectedDetail?.highlightBatchId}
+        />
+      </ResponsiveDetailPanel>
+
+      <AddProductDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open);
+          if (!open) setEditingProduct(null);
+        }}
+        onAddProduct={handleAddProduct}
+        editingProduct={editingProduct}
+        isSubmitting={isSaving}
+      />
     </div>
   );
 }

@@ -8342,3 +8342,9 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
   the selling-price value with "At selling price (no cost prices set)" when the cost value is 0.
   The BI dashboard and the valuation report are still cost-only.
 
+## Mobile PWA layout, branding, and drawer conventions (2026-11-22)
+
+- **`BrandLogo` theme tinting (`components/ui/brand-logo.tsx`)**: Renders `/logo.png` and `/logo-icon.png` (transparent backgrounds) with CSS `mask-image` + `bg-primary` instead of `--logo-filter` `hue-rotate()`, avoiding purple hue drift against bluish `--primary` themes on auth/lock screens and sidebars.
+- **Viewport lock & bottom sheets (`dashboard-layout.tsx`, `use-keyboard-viewport.ts`, `drawer.tsx`, `responsive-detail-panel.tsx`, `catalog-detail-panel.tsx`)**: `DashboardLayout` stays pinned with `fixed inset-0 overflow-hidden` and resets `window.scrollTo(0, 0)` on route changes and keyboard close; `Drawer` sets `shouldScaleBackground = false` by default and uses `bg-muted-foreground/30` for visible drag handles; `ResponsiveDetailPanel` gives mobile `DrawerContent` an explicit `h-[88dvh]` so `CatalogDetailPanel` tabs scroll cleanly to safe-area padding.
+- **Mobile navigation, flow layouts & haptics**: `PrescriptionList` switches to flow cards below `1024px` (listed in `responsive-table-breakpoint-convention.test.ts`) and `PrescriptionManagement` portals `NewPrescription` to `document.body`; `ReportCenter` hides its duplicate title and outer wrapper `Card` below `lg`; `HeaderStoreSwitcher` opens a `Drawer` bottom sheet below `768px`; `NeedsAttention` (including "View batch") and `FastMovers` pass `onSelectProduct` into `StockOverview` to open `CatalogDetailPanel`; `triggerHapticFeedback()` (`lib/utils/haptics.ts`) falls back synchronously to a hidden `<input type="checkbox" switch>` label click on Apple touch devices lacking `navigator.vibrate`.
+

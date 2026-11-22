@@ -66,7 +66,7 @@ const POItemCard = React.memo(function POItemCard({
     <div className="group rounded-2xl border border-border bg-card p-3.5 shadow-sm space-y-3">
       <div className="flex justify-between items-start gap-2">
         <div className="min-w-0 flex-1 space-y-0.5">
-          <div className="flex items-start gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             <ProductName
               name={item.product_name}
               className="font-semibold text-[14.5px] leading-snug line-clamp-2"
@@ -90,9 +90,8 @@ const POItemCard = React.memo(function POItemCard({
         <Button
           type="button"
           variant="ghost"
-          size="icon"
           aria-label={`Remove ${item.product_name}`}
-          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+          className="h-7 w-7 p-0 pointer-coarse:size-8 pointer-coarse:-my-0.5 shrink-0 text-muted-foreground hover:text-destructive"
           onClick={() => onRemoveItem(index)}
         >
           <Trash2 className="w-3.5 h-3.5" />

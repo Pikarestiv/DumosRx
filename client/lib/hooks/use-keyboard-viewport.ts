@@ -10,6 +10,7 @@ export function useKeyboardViewport() {
     if (!viewport) return;
     const root = document.documentElement;
     let frame = 0;
+    let wasOpen = false;
 
     const publish = () => {
       cancelAnimationFrame(frame);
@@ -19,7 +20,12 @@ export function useKeyboardViewport() {
         root.style.setProperty("--vv-height", `${viewport.height}px`);
         root.style.setProperty("--vv-top", `${viewport.offsetTop}px`);
         root.style.setProperty("--kb-inset", `${inset}px`);
-        root.toggleAttribute("data-keyboard-open", inset > KEYBOARD_MIN_INSET);
+        const isOpen = inset > KEYBOARD_MIN_INSET;
+        root.toggleAttribute("data-keyboard-open", isOpen);
+        if (!isOpen && wasOpen) {
+          window.scrollTo(0, 0);
+        }
+        wasOpen = isOpen;
       });
     };
 

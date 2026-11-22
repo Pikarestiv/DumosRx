@@ -39,7 +39,15 @@ export function ProductName({
     <TooltipProvider delayDuration={250}>
       <Tooltip open={isOpen} onOpenChange={handleOpenChange}>
         <TooltipTrigger asChild>
-          <span ref={ref} className={cn("block truncate", capsClass, className)}>
+          <span
+            ref={ref}
+            className={cn(
+              "block",
+              !className?.includes("line-clamp-") && "truncate",
+              capsClass,
+              className,
+            )}
+          >
             {name}
           </span>
         </TooltipTrigger>

@@ -1,6 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { HeaderStoreSwitcher } from "@/components/dashboard/header-store-switcher";
+
+let mockIsDesktop = true;
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => mockIsDesktop,
+}));
 
 vi.mock("@/lib/hooks/use-feature-gate", () => ({
   useFeatureGate: () => ({
@@ -60,6 +65,10 @@ const sampleStores: StoreProfile[] = [
 ];
 
 describe("HeaderStoreSwitcher with active audit", () => {
+  beforeEach(() => {
+    mockIsDesktop = true;
+  });
+
   it("shows reminder dialog before switching stores when active audit exists", async () => {
     mockHasActiveStockAuditCount.mockReturnValue(true);
     const onSwitchStore = vi.fn();
@@ -74,24 +83,22 @@ describe("HeaderStoreSwitcher with active audit", () => {
       />,
     );
 
-    // Open dropdown
     const trigger = screen.getByRole("button", { name: /main pharmacy/i });
     fireEvent.click(trigger);
 
-    // Click target store
+    expect(screen.getAllByRole("menuitem").length).toBeGreaterThan(0);
+
     const branchItem = screen.getByText("Branch Pharmacy");
     act(() => {
       fireEvent.click(branchItem);
     });
 
-    // Dialog should be shown, onSwitchStore should NOT have been called yet
     expect(screen.getByText("Stock Audit in Progress")).toBeDefined();
     expect(
       screen.getByText(/Your counted rows stay saved locally on this device/i),
     ).toBeDefined();
     expect(onSwitchStore).not.toHaveBeenCalled();
 
-    // Click confirm "Switch Store"
     const confirmBtn = screen.getByRole("button", { name: /switch store/i });
     act(() => {
       fireEvent.click(confirmBtn);
@@ -122,5 +129,56 @@ describe("HeaderStoreSwitcher with active audit", () => {
 
     expect(onSwitchStore).toHaveBeenCalledWith("store-2");
     expect(screen.queryByText("Stock Audit in Progress")).toBeNull();
+  });
+
+  it("opens a bottom sheet Drawer instead of a dropdown on mobile and handles audit confirmation", () => {
+    mockIsDesktop = false;
+    mockHasActiveStockAuditCount.mockReturnValue(true);
+    const onSwitchStore = vi.fn();
+
+    render(
+      <HeaderStoreSwitcher
+        storeProfile={sampleStores[0]}
+        availableStores={sampleStores}
+        activeStoreId="store-1"
+        onSwitchStore={onSwitchStore}
+        isAdmin={true}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: /main pharmacy/i });
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.queryByRole("menuitem")).toBeNull();
+
+    fireEvent.click(screen.getByText("Branch Pharmacy"));
+    expect(screen.getByText("Stock Audit in Progress")).toBeDefined();
+    expect(onSwitchStore).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /switch store/i }));
+    expect(onSwitchStore).toHaveBeenCalledWith("store-2");
+  });
+
+  it("switches store directly from the mobile bottom sheet when no audit is active", () => {
+    mockIsDesktop = false;
+    mockHasActiveStockAuditCount.mockReturnValue(false);
+    const onSwitchStore = vi.fn();
+
+    render(
+      <HeaderStoreSwitcher
+        storeProfile={sampleStores[0]}
+        availableStores={sampleStores}
+        activeStoreId="store-1"
+        onSwitchStore={onSwitchStore}
+        isAdmin={true}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /main pharmacy/i }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Branch Pharmacy"));
+    expect(onSwitchStore).toHaveBeenCalledWith("store-2");
   });
 });

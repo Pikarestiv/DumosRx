@@ -2,9 +2,9 @@
 
 import { Fragment } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/ui/brand-logo";
 
 import {
   Tooltip,
@@ -217,21 +217,20 @@ export function DashboardSidebar({
             )}
           >
             {collapsed && (
-              <Image
+              <BrandLogo
                 src="/logo-icon.png"
                 alt="Logo"
                 width={32}
                 height={32}
-                className="object-contain shrink-0"
-                style={{ filter: "var(--logo-filter)" }}
               />
             )}
             {!collapsed && (
-              <img
+              <BrandLogo
                 src="/logo.png"
                 alt="Logo"
-                className="h-8 w-auto object-contain transition-all duration-300"
-                style={{ filter: "var(--logo-filter)" }}
+                width={124}
+                height={32}
+                className="transition-all duration-300"
               />
             )}
           </div>

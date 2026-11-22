@@ -52,7 +52,7 @@ export function ResponsiveDetailPanel({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
         className={cn(
-          "max-h-[88dvh] flex flex-col overflow-hidden bg-card border-border p-0",
+          "h-[88dvh] max-h-[88dvh] flex flex-col overflow-hidden bg-card border-border p-0",
           className,
         )}
         style={{

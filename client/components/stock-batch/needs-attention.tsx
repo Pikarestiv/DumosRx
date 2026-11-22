@@ -19,13 +19,23 @@ import { useStockVisibility } from "@/lib/hooks/use-stock-visibility";
 interface AttentionItem {
   type: "expiring" | "critical" | "low";
   id: string;
+  product_id: string;
+  batch_id?: string;
   product_name: string;
   description: string;
   icon: React.ReactNode;
   iconClass: string;
   actionText: string;
   actionClass: string;
-  onClick: () => void;
+  onAction: () => void;
+}
+
+interface NeedsAttentionProps {
+  stockData: StockItem[];
+  onSelectProduct?: (
+    productId: string,
+    options?: { tab?: string; batchId?: string },
+  ) => void;
 }
 
 interface StockItem {
@@ -45,7 +55,7 @@ function formatUnit(quantity: number, baseUnit?: string) {
   return quantity === 1 ? unit : `${unit}s`;
 }
 
-export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
+export function NeedsAttention({ stockData, onSelectProduct }: NeedsAttentionProps) {
   const router = useRouter();
   const { storeProfile } = useStore();
   const capsClass = useUppercaseDisplayClass();
@@ -79,9 +89,21 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       expiryText = `Expires in ${daysLeft} days`;
     }
 
+    const openBatchDetails = () => {
+      if (onSelectProduct) {
+        onSelectProduct(batch.product_id, { tab: "batches", batchId: batch.id });
+        return;
+      }
+      router.push(
+        `/inventory/catalog?productId=${batch.product_id}&batchId=${batch.id}&tab=batches`,
+      );
+    };
+
     items.push({
       type: "expiring",
       id: batch.id,
+      product_id: batch.product_id,
+      batch_id: batch.id,
       product_name: batch.name,
       description: canSeeQuantities
         ? `Batch ${batch.batch_number} · ${expiryText} · ${batch.stock_quantity} ${formatUnit(batch.stock_quantity, batch.base_unit)}`
@@ -90,10 +112,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       iconClass: "bg-destructive/10 text-destructive",
       actionText: "View batch",
       actionClass: "text-destructive bg-destructive/10 hover:bg-destructive/20",
-      onClick: () =>
-        router.push(
-          `/inventory/catalog?productId=${batch.product_id}&batchId=${batch.id}&tab=batches`,
-        ),
+      onAction: openBatchDetails,
     });
   });
 
@@ -104,6 +123,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
       items.push({
         type: item.status,
         id: item.id,
+        product_id: item.product_id,
         product_name: item.product_name,
         description:
           item.quantity === 0
@@ -121,7 +141,7 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
         actionClass: isCritical
           ? "text-destructive bg-destructive/10 hover:bg-destructive/20"
           : "text-orange-600 dark:text-orange-400 bg-orange-500/10 hover:bg-orange-500/20",
-        onClick: () => router.push(`/procurement`),
+        onAction: () => router.push(`/procurement`),
       });
     }
   });
@@ -167,34 +187,60 @@ export function NeedsAttention({ stockData }: { stockData: StockItem[] }) {
             />
           )}
           {!(items.length === 0) &&
-            items.slice(0, 5).map((item, idx) => (
-              <div
-                key={item.id + idx}
-                className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent ${idx !== items.length - 1 && idx !== 4 ? "md:border-b md:border-border" : ""}`}
-              >
+            items.slice(0, 5).map((item, idx) => {
+              const handleCardSelect = () => {
+                if (onSelectProduct) {
+                  onSelectProduct(item.product_id, {
+                    tab: item.type === "expiring" ? "batches" : "details",
+                    batchId: item.batch_id,
+                  });
+                  return;
+                }
+                router.push(`/inventory/catalog?productId=${item.product_id}`);
+              };
+
+              return (
                 <div
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}
+                  key={item.id + idx}
+                  role="button"
+                  tabIndex={0}
+                  onClick={handleCardSelect}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleCardSelect();
+                    }
+                  }}
+                  className={`flex items-center gap-3 p-3 md:py-3 md:px-0 rounded-xl md:rounded-none border md:border-0 border-border bg-card md:bg-transparent cursor-pointer hover:bg-muted/40 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring ${idx !== items.length - 1 && idx !== 4 ? "md:border-b md:border-border" : ""}`}
                 >
-                  {item.icon}
-                </div>
-                <div className="flex-1 min-w-0">
                   <div
-                    className={`text-[13px] font-semibold truncate ${capsClass}`}
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.iconClass}`}
                   >
-                    {item.product_name}
+                    {item.icon}
                   </div>
-                  <div className="text-[11.5px] text-muted-foreground">
-                    {item.description}
+                  <div className="flex-1 min-w-0">
+                    <div
+                      className={`text-[13px] font-semibold truncate ${capsClass}`}
+                    >
+                      {item.product_name}
+                    </div>
+                    <div className="text-[11.5px] text-muted-foreground">
+                      {item.description}
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      item.onAction();
+                    }}
+                  >
+                    {item.actionText}
+                  </button>
                 </div>
-                <button
-                  className={`text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors ${item.actionClass}`}
-                  onClick={item.onClick}
-                >
-                  {item.actionText}
-                </button>
-              </div>
-            ))}
+              );
+            })}
         </div>
       </div>
     </div>

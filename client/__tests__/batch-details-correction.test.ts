@@ -136,4 +136,24 @@ describe("correctBatchDetails", () => {
     await expect(correctBatchDetails("batch-1", { expiry_date: "2027-06-30" })).rejects.toThrow(/no longer exists/i);
     await expect(correctBatchDetails("nope", { expiry_date: "2027-06-30" })).rejects.toThrow(/no longer exists/i);
   });
+
+  it("updates location/shelf, trims spaces, clears blank values to null, and queues a sync UPDATE", async () => {
+    await correctBatchDetails("batch-1", { location: "  Shelf A2  " });
+    expect(scalar(`SELECT location FROM stock_batches WHERE id = 'batch-1'`)).toBe("Shelf A2");
+
+    await correctBatchDetails("batch-1", { location: "   " });
+    expect(scalar(`SELECT location FROM stock_batches WHERE id = 'batch-1'`)).toBeNull();
+
+    const rows = db.exec(
+      `SELECT payload FROM _sync_queue WHERE table_name = 'stock_batches' AND record_id = 'batch-1' ORDER BY id DESC LIMIT 1`,
+    );
+    expect(JSON.parse(String(rows[0].values[0][0])).location).toBeNull();
+  });
+
+  it("rejects a location exceeding 100 characters without writing", async () => {
+    await expect(correctBatchDetails("batch-1", { location: "S".repeat(101) })).rejects.toThrow(
+      /100 characters/i,
+    );
+    expect(scalar(`SELECT COUNT(*) FROM _sync_queue`)).toBe(0);
+  });
 });

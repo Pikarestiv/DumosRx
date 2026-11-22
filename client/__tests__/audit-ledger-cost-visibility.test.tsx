@@ -7,6 +7,10 @@ import { AuditReviewStep } from "@/components/stock-batch/audit-review-step";
 
 const granted = new Set<string>();
 
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => true,
+}));
+
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => granted.has(key),
 }));

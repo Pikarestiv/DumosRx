@@ -91,6 +91,7 @@ export interface PurchaseOrderItem {
   // The cost of the most recent real (non-adjustment) batch, so the receive panel can show what was actually last paid rather than only the blen…
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#db-procurement-ts-L102
   last_bought_price?: number | null;
+  product_location?: string | null;
 }
 
 // A line item as it exists in the create/edit PO form before submission:
@@ -102,6 +103,7 @@ export interface DraftPOLineItem {
   bulk_unit: string;
   bulk_quantity: number;
   units_per_bulk: number;
+  product_units_per_bulk?: number;
   unit_cost: number;
   subtotal: number;
   cost_price_override?: number | string;
@@ -186,7 +188,7 @@ export async function getPurchaseOrderById(id: string) {
 
   const items = await query<PurchaseOrderItem>(
     `SELECT poi.*, m.name as product_name, m.base_unit, m.bulk_unit, m.units_per_bulk as product_units_per_bulk,
-       m.selling_price as current_selling_price,
+       m.selling_price as current_selling_price, m.location as product_location,
        cat.name as category_name,
        (SELECT SUM(cost_price * quantity) * 1.0 / NULLIF(SUM(quantity), 0) FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND is_active = 1 AND quantity > 0) as current_cost_price,
        (SELECT cost_price FROM stock_batches WHERE product_id = m.id AND _deleted = 0 AND cost_price > 0 AND batch_number NOT LIKE 'ADJ-%' ORDER BY created_at DESC LIMIT 1) as last_bought_price

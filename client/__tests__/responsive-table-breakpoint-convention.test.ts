@@ -17,6 +17,8 @@ const TABLE_LAYOUT_COMPONENTS = [
   "components/analytics/product-performance-table.tsx",
   "components/analytics/customer-behavior-tab.tsx",
   "components/prescriptions/prescription-list.tsx",
+  "components/reports/report-table-view.tsx",
+  "components/stock-batch/audit-ledger-step.tsx",
 ];
 
 function read(relativePath: string): string {

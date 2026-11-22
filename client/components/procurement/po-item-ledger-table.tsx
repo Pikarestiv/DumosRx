@@ -26,6 +26,7 @@ export interface POLineItemDraft {
   bulk_unit: string;
   bulk_quantity: number;
   units_per_bulk: number;
+  product_units_per_bulk?: number;
   unit_cost: number;
   subtotal: number;
   cost_price_override?: number | string;
@@ -89,7 +90,7 @@ const POItemLedgerRow = React.memo(function POItemLedgerRow({
   const hasTouchCapability = useHasTouchCapability();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
-  const effectiveUnitCost = getImmediateUnitCost(item);
+  const effectiveUnitCost = getImmediateUnitCost(item, product?.units_per_bulk);
   const total = getLineTotal(item);
 
   return (

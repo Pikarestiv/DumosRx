@@ -8,6 +8,10 @@ import type { AuditItem } from "@/components/stock-batch/stock-audits";
 
 const hasPermission = vi.fn((_key: string) => true);
 
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => true,
+}));
+
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => hasPermission(key),
 }));

@@ -37,7 +37,7 @@ class SyncGate
             $subscriptionService = app(\App\Services\SubscriptionService::class);
             $owner = $subscriptionService->getSubscriptionOwner($user);
 
-            $sub = $owner->subscriptions()->where('status', 'active')->where('end_date', '>', now())->latest()->first();
+            $sub = $subscriptionService->resolveEffectiveSubscription($owner);
             $plan = $sub ? strtolower($sub->plan_name) : 'free';
 
             $systemConfig = \App\Models\SystemConfig::getVal('subscription_plans', []);
@@ -47,6 +47,10 @@ class SyncGate
             $store = $syncedStoreId ? Store::where('id', $syncedStoreId)->first() : null;
 
             $isManual = $request->boolean('manual');
+            $isDeviceInit = $isPush
+                ? $request->boolean('setup')
+                : (empty($request->input('last_synced', []))
+                    || $this->isStoresOnlySetupOverridePull($request, $request->input('last_synced', [])));
             $isSetup = $isPush
                 ? ($request->boolean('setup') && ! ($store && $store->last_sync_at))
                 : ((empty($request->input('last_synced', [])) && ! ($store && $store->last_sync_at))
@@ -72,7 +76,7 @@ class SyncGate
                         && $store->last_sync_run_started_at
                         && abs((int) $store->last_sync_run_started_at->diffInMinutes(now())) < self::SYNC_RUN_MAX_MINUTES;
 
-                    if (! $isManual && ! $isSameRun && $store && $store->last_sync_at) {
+                    if (! $isManual && ! $isDeviceInit && ! $isSameRun && $store && $store->last_sync_at) {
                         $minutesSinceLastSync = abs((int) $store->last_sync_at->diffInMinutes(now()));
                         if ($minutesSinceLastSync < $syncIntervalMinutes) {
                             if (! $isPush && $minutesSinceLastSync === 0) {

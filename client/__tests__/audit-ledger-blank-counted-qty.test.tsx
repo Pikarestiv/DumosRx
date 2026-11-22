@@ -4,6 +4,10 @@ import { createRef } from "react";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import { AuditLedgerStep } from "@/components/stock-batch/audit-ledger-step";
 
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => true,
+}));
+
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: () => true,
 }));

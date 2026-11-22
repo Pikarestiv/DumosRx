@@ -20,7 +20,7 @@ class StockBatchWriteGuard
 
     private const DETAIL_PERMISSIONS = ['edit_batch_details'];
 
-    private const DETAIL_COLUMNS = ['batch_number', 'expiry_date', 'manufacture_date'];
+    private const DETAIL_COLUMNS = ['batch_number', 'expiry_date', 'manufacture_date', 'location'];
 
     public function refuses(User $user, Model $batch, array $payload): bool
     {
@@ -63,7 +63,7 @@ class StockBatchWriteGuard
             return null;
         }
 
-        return $column === 'batch_number' ? $text : substr($text, 0, 10);
+        return in_array($column, ['batch_number', 'location'], true) ? $text : substr($text, 0, 10);
     }
 
     private function holdsAny(User $user, array $permissions): bool

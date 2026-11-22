@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { Receipt } from "lucide-react";
+import { ArrowRight, Receipt } from "lucide-react";
 import { DetailRow } from "./detail-row";
 import type { Expense } from "@/lib/db/queries/finance";
 
@@ -19,6 +21,7 @@ export function ExpenseDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: ExpenseDetailsDialogProps) {
+  const router = useRouter();
   if (!expense) return null;
 
   return (
@@ -28,6 +31,21 @@ export function ExpenseDetailsDialog({
       title="Expense detail"
       className="sm:max-w-[440px] p-0 gap-0 overflow-hidden"
       headerClassName="px-5 py-4 pt-0 sm:pt-4 border-b border-border m-0"
+      footer={
+        <div className="px-5 pb-4 pt-2 flex justify-end border-t border-border bg-background">
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              onOpenChange(false);
+              router.push(`/expenses?selected=${encodeURIComponent(expense.id)}`);
+            }}
+          >
+            View Expense
+            <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        </div>
+      }
     >
       <div className="px-5 py-[18px]">
         <div className="flex items-start gap-3 mb-4">

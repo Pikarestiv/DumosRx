@@ -55,7 +55,7 @@ export function useOnboardingRegister({
       // Refetches /login's own stale mount snapshot - see A-154, docs/FIXED_BUGS.md.
       notifyDeviceDataChanged();
       if (success) {
-        sync(false, true).catch(console.error);
+        sync(true, true).catch(console.error);
         navigate("/dashboard");
       } else {
         setIsLoading(false);
@@ -167,7 +167,7 @@ export function useOnboardingRegister({
       notifyDeviceDataChanged();
       if (success) {
         toast.info("Pushing your account to cloud...");
-        sync(false, true).catch(console.error);
+        sync(true, true).catch(console.error);
         navigate("/dashboard");
       }
     } catch (_err) {

@@ -1,11 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { getPurchaseOrderItemsForDetail } from "@/lib/db/procurement";
 import { queryKeys } from "@/lib/query-keys";
-import { Truck } from "lucide-react";
+import { ArrowRight, Truck } from "lucide-react";
 import { DetailRow } from "./detail-row";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 import { ProductName } from "@/components/ui/product-name";
@@ -43,6 +45,7 @@ export function ProcurementDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: ProcurementDetailsDialogProps) {
+  const router = useRouter();
   const itemsQuery = useQuery({
     ...queryKeys.purchaseOrders.detailItems(po?.id ?? null),
     queryFn: () => getPurchaseOrderItemsForDetail(po?.id as string),
@@ -63,6 +66,21 @@ export function ProcurementDetailsDialog({
       title="Purchase order detail"
       className="sm:max-w-lg p-0 gap-0 overflow-hidden"
       headerClassName="px-5 py-4 pt-0 sm:pt-4 border-b border-border m-0"
+      footer={
+        <div className="px-5 pb-4 pt-2 flex justify-end border-t border-border bg-background">
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              onOpenChange(false);
+              router.push(`/procurement?selected=${encodeURIComponent(po.id)}`);
+            }}
+          >
+            View Order
+            <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        </div>
+      }
     >
       <div className="px-5 py-[18px]">
         <div className="flex items-start gap-3 mb-4">

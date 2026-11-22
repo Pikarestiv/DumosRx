@@ -44,6 +44,8 @@ class AdminMaintenanceEndpointGateTest extends TestCase
 
         $this->actingAs($this->makeAdmin('super_admin'))
             ->getJson('/api/v1/admin/maintenance/migrations')->assertOk();
+        $this->actingAs($this->makeAdmin('super_admin'))
+            ->getJson('/api/v1/admin/maintenance/backup')->assertOk();
 
         foreach (['platform_admin', 'agent'] as $role) {
             $this->actingAs($this->makeAdmin($role))
@@ -52,6 +54,10 @@ class AdminMaintenanceEndpointGateTest extends TestCase
                 ->postJson('/api/v1/admin/maintenance/migrations/run')->assertStatus(403);
             $this->actingAs($this->makeAdmin($role))
                 ->postJson('/api/v1/admin/maintenance/roles/sync')->assertStatus(403);
+            $this->actingAs($this->makeAdmin($role))
+                ->getJson('/api/v1/admin/maintenance/backup')->assertStatus(403);
+            $this->actingAs($this->makeAdmin($role))
+                ->postJson('/api/v1/admin/maintenance/backup/run')->assertStatus(403);
         }
     }
 
@@ -81,6 +87,10 @@ class AdminMaintenanceEndpointGateTest extends TestCase
             ->postJson('/api/v1/admin/maintenance/migrations/run')->assertStatus(403);
         $this->actingAs($this->makeAdmin($slug))
             ->postJson('/api/v1/admin/maintenance/roles/sync')->assertStatus(403);
+        $this->actingAs($this->makeAdmin($slug))
+            ->getJson('/api/v1/admin/maintenance/backup')->assertStatus(403);
+        $this->actingAs($this->makeAdmin($slug))
+            ->postJson('/api/v1/admin/maintenance/backup/run')->assertStatus(403);
     }
 
     public function test_the_status_payload_carries_what_the_panel_needs(): void

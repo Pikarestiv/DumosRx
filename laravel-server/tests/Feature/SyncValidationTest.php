@@ -449,4 +449,65 @@ class SyncValidationTest extends TestCase
         $this->assertNotNull($storeB->fresh()->last_sync_at);
         $this->assertNull($this->store->fresh()->last_sync_at);
     }
+
+    public function test_second_device_initial_sync_is_not_throttled_when_cloud_sync_is_allowed(): void
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'tiers' => [
+                'free' => [
+                    'features' => ['cloud_sync' => true],
+                    'limits' => ['stores' => -1, 'sync_interval' => 60],
+                ],
+            ],
+        ]);
+        $this->store->update(['last_sync_at' => now()->subMinute()]);
+
+        $pushSetup = $this->push(['setup' => true]);
+        $pushSetup->assertStatus(200);
+
+        $pullInit = $this->pull(['last_synced' => []]);
+        $pullInit->assertStatus(200);
+    }
+
+    public function test_grace_period_enterprise_subscription_resolves_to_enterprise_in_sync_gate(): void
+    {
+        \App\Models\SystemConfig::setVal('subscription_plans', [
+            'grace_period_days' => 3,
+            'tiers' => [
+                'free' => [
+                    'features' => ['cloud_sync' => false],
+                    'limits' => ['stores' => 1, 'sync_interval' => 180],
+                ],
+                'enterprise' => [
+                    'features' => ['cloud_sync' => true],
+                    'limits' => ['stores' => -1, 'sync_interval' => 0],
+                ],
+            ],
+        ]);
+
+        \App\Models\Subscription::create([
+            'user_id' => $this->owner->id,
+            'plan_name' => 'enterprise',
+            'license_key' => 'ENT-'.uniqid(),
+            'status' => 'active',
+            'start_date' => now()->subMonth(),
+            'end_date' => now()->subDay(),
+        ]);
+
+        $this->store->update(['last_sync_at' => now()->subMinute()]);
+
+        $response = $this->push();
+        $response->assertStatus(200);
+    }
+
+    public function test_sync_endpoints_use_dedicated_sync_rate_limiter_instead_of_general_60_limit(): void
+    {
+        $routes = collect(app('router')->getRoutes()->getRoutes());
+        $pullRoute = $routes->first(fn ($r) => $r->uri() === 'api/v1/app/sync/pull');
+        $this->assertNotNull($pullRoute);
+
+        $middleware = $pullRoute->gatherMiddleware();
+        $this->assertContains('throttle:sync', $middleware);
+        $this->assertNotContains('throttle:60,1', $middleware);
+    }
 }

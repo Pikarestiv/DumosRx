@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BATCH_COST_REASONS, type BatchCostReason } from "@/lib/constants/batch-cost-reasons";
-import { MAX_BATCH_NUMBER_LENGTH, type BatchDetailsForm } from "@/lib/db/queries/batch-details-correction";
+import { MAX_BATCH_NUMBER_LENGTH, MAX_LOCATION_LENGTH, type BatchDetailsForm } from "@/lib/db/queries/batch-details-correction";
 import { batchesSellingBefore, isSoldOut, unusualCostWarning } from "@/lib/utils/batch-cost-breakdown";
 import { formatDateSafe, formatDateToDDMMYYYY } from "@/lib/utils/date-utils";
 import { formatPONumber } from "@/lib/utils/po-number";
@@ -81,13 +81,24 @@ function DetailFields({ editing }: { editing: RowEditing }) {
   const { details, onDetails } = editing;
   return (
     <div className="grid grid-cols-2 gap-3">
-      <div className="col-span-2 space-y-1.5">
+      <div className="space-y-1.5">
         <Label htmlFor="batch-lot" className="text-xs">Lot number</Label>
         <Input
           id="batch-lot"
           value={details.batch_number}
           maxLength={MAX_BATCH_NUMBER_LENGTH}
           onChange={(e) => onDetails({ batch_number: e.target.value })}
+          className="h-10 text-sm"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="batch-location" className="text-xs">Location / shelf</Label>
+        <Input
+          id="batch-location"
+          value={details.location}
+          maxLength={MAX_LOCATION_LENGTH}
+          onChange={(e) => onDetails({ location: e.target.value })}
+          placeholder="Default Shelf"
           className="h-10 text-sm"
         />
       </div>

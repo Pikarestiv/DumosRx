@@ -63,12 +63,12 @@ export function AuditReviewStep({
             const sellingChanged =
               item.countedSellingPrice !== undefined && item.countedSellingPrice !== item.sellingPrice;
             return (
-              <div key={item.id} className="p-4 flex items-center justify-between gap-3">
-                <div>
-                  <div className={`text-[14px] font-semibold text-foreground ${capsClass}`}>{item.name}</div>
-                  <div className="text-[12px] text-muted-foreground/70">{item.sku}</div>
+              <div key={item.id} className="p-4 flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className={`text-[14px] font-semibold text-foreground break-words ${capsClass}`}>{item.name}</div>
+                  <div className="text-[12px] text-muted-foreground/70 truncate">{item.sku}</div>
                 </div>
-                <div className="text-right space-y-0.5">
+                <div className="text-right space-y-0.5 shrink-0">
                   {qtyChanged && (
                     <div className="text-[13px] font-bold text-destructive">
                       Qty: {item.systemQty} → {item.countedQty}

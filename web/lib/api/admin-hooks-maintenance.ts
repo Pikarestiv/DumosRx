@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 import { useScopedKey } from "./query-scope";
-import type { AdminMigrationStatus } from "@/lib/types/admin";
+import type {
+  AdminBackupRunResult,
+  AdminBackupStatus,
+  AdminMigrationStatus,
+} from "@/lib/types/admin";
 
 export const MIGRATION_STATUS_KEY = "admin-migration-status";
+export const BACKUP_STATUS_KEY = "admin-backup-status";
 
 export const useAdminMigrationStatus = (enabled = true) =>
   useQuery({
@@ -45,3 +50,24 @@ export const useSyncRolesMutation = () =>
         method: "POST",
       }),
   });
+
+export const useAdminBackupStatus = (enabled = true) =>
+  useQuery({
+    queryKey: useScopedKey([BACKUP_STATUS_KEY]),
+    queryFn: () => webApiClient.request<AdminBackupStatus>("admin/maintenance/backup"),
+    enabled,
+    staleTime: 60 * 1000,
+  });
+
+export const useRunBackupMutation = () => {
+  const queryClient = useQueryClient();
+  const queryKey = useScopedKey([BACKUP_STATUS_KEY]);
+
+  return useMutation({
+    mutationFn: () =>
+      webApiClient.request<AdminBackupRunResult>("admin/maintenance/backup/run", {
+        method: "POST",
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  });
+};

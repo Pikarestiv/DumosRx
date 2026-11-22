@@ -3259,8 +3259,7 @@ account's lifecycle state. It is built *on top of*
 `resolveEffectiveSubscription()` — the same method `CheckSubscription`,
 `hasFeature()`, `checkLimit()` and `enforceStaffLimits()` gate
 live traffic on — so the admin panel and the application can never disagree
-about who is subscribed. (`SyncGate::validateSync()` does not use it: it reads
-the owner's latest `active` subscription with a future `end_date` directly.)
+about who is subscribed. `SyncGate::validateSync()` also uses `resolveEffectiveSubscription()`, exempts initial device sync (`setup=1` / empty `last_synced`) from the interval throttle once `cloud_sync` is allowed, and sync routes use dedicated `throttle:sync` (`300/min`) instead of the general `60/min` API limit.
 
 - **Never re-derive the grace window.** `subscriptionState()` reads `end_date`
   only to *classify* the row `resolveEffectiveSubscription()` already chose. If
@@ -5007,8 +5006,7 @@ cd ~/api.dumosrx.com
 
 This affects the CLI only — the web app itself is served under 8.2, which is
 why nothing else breaks. There is also no generic command-runner endpoint by
-design: `/admin/maintenance` exposes only `migrations` and `roles/sync`
-(`AdminMaintenanceController`, `role:super_admin`), so anything else needs
+design: `/admin/maintenance` exposes `migrations`, `roles/sync`, and manual `backup` status/run (`AdminMaintenanceController`, `role:super_admin`), so anything else needs
 terminal access. Worth remembering before writing a command that an operator
 has no way to invoke.
 
@@ -5161,7 +5159,9 @@ Whole-database disaster recovery, separate from the per-store manual backups
   (dump, encrypt, upload, size mismatch, or an encrypted file under `BACKUP_MIN_BYTES`)
   is logged critical, emailed to the admins via `AdminAlertService`, and exits non-zero.
   There is no alert for a night that never ran (for example the scheduler stopped);
-  check `daily/` in the bucket for yesterday's file.
+  `/admin/maintenance` exposes live config status, up to 5 recent `daily/` objects, and a
+  confirmed `"Run backup now"` trigger (`POST /api/v1/admin/maintenance/backup/run`, audited
+  as `maintenance_backup_run`, returning 422 when unconfigured instead of silently succeeding).
 - **Restore drill** (rehearse against a scratch database, never production):
   1. Download the newest object from `dumosrx-db-backups` in the Cloudflare dashboard.
   2. On your machine: `php artisan backups:decrypt backup.sql.gz.enc backup.sql.gz --secret-key-file=keypair.txt`.

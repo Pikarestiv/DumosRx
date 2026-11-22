@@ -23,6 +23,7 @@ interface SourceProductRow {
   base_unit: string | null;
   bulk_unit: string | null;
   units_per_bulk: number | null;
+  location: string | null;
 }
 
 export async function getSourceProduct(
@@ -136,6 +137,7 @@ export async function createDestProduct(
       base_unit: product.base_unit ?? "Unit",
       bulk_unit: product.bulk_unit ?? null,
       units_per_bulk: product.units_per_bulk ?? 1,
+      location: product.location ?? null,
       show_online: 1,
       store_id: destStoreId,
     },

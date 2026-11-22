@@ -44,6 +44,7 @@ const LABELS: Record<string, string> = {
   base_unit: "Base unit",
   bulk_unit: "Bulk unit",
   units_per_bulk: "Units per bulk",
+  location: "Location / shelf",
   is_active: "Active",
   show_online: "Show online",
   requires_prescription: "Requires prescription",
@@ -54,6 +55,7 @@ const BATCH_DETAIL_LABELS: Record<string, string> = {
   batch_number: "Lot number",
   expiry_date: "Expiry date",
   manufacture_date: "Manufacture date",
+  location: "Location / shelf",
 };
 
 const DATE_BATCH_DETAILS = new Set(["expiry_date", "manufacture_date"]);

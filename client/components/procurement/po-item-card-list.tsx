@@ -59,7 +59,7 @@ const POItemCard = React.memo(function POItemCard({
   const hasTouchCapability = useHasTouchCapability();
   const currentCost = product?.cost_price ?? 0;
   const stock = product?.stock_quantity ?? 0;
-  const effectiveUnitCost = getImmediateUnitCost(item);
+  const effectiveUnitCost = getImmediateUnitCost(item, product?.units_per_bulk);
   const total = getLineTotal(item);
 
   return (

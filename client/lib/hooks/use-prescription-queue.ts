@@ -107,11 +107,18 @@ async function fetchPrescriptions(): Promise<Prescription[]> {
   });
 }
 
-export function usePrescriptionQueue() {
+export function usePrescriptionQueue(initialSelectedId?: string | null) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
-  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(
+    initialSelectedId ?? null,
+  );
+  const [trackedInitialId, setTrackedInitialId] = useState(initialSelectedId);
+  if (initialSelectedId !== trackedInitialId) {
+    setTrackedInitialId(initialSelectedId);
+    if (initialSelectedId) setSelectedPrescriptionId(initialSelectedId);
+  }
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
   // Tagged with meta.tables:

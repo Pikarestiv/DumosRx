@@ -3,27 +3,33 @@ import { AUDIT_ACTIONS } from "@/lib/db/audit-actions";
 import type { StockBatch } from "@/lib/types/stock-batch";
 
 export const MAX_BATCH_NUMBER_LENGTH = 50;
+export const MAX_LOCATION_LENGTH = 100;
 
 export interface BatchDetailsInput {
   batch_number?: string | null;
   expiry_date?: string | null;
   manufacture_date?: string | null;
+  location?: string | null;
 }
 
 type BatchDetailField = keyof BatchDetailsInput;
 
-const FIELDS: BatchDetailField[] = ["batch_number", "expiry_date", "manufacture_date"];
+const FIELDS: BatchDetailField[] = ["batch_number", "expiry_date", "manufacture_date", "location"];
 
 export interface BatchDetailsForm {
   batch_number: string;
   expiry_date: string;
   manufacture_date: string;
+  location: string;
 }
 
-export const detailsFormOf = (batch: Pick<StockBatch, "batch_number" | "expiry_date" | "manufacture_date">): BatchDetailsForm => ({
+export const detailsFormOf = (
+  batch: Pick<StockBatch, "batch_number" | "expiry_date" | "manufacture_date" | "location">,
+): BatchDetailsForm => ({
   batch_number: batch.batch_number ?? "",
   expiry_date: batch.expiry_date?.slice(0, 10) ?? "",
   manufacture_date: batch.manufacture_date?.slice(0, 10) ?? "",
+  location: batch.location ?? "",
 });
 
 export function isValidIsoDate(value: string): boolean {
@@ -41,6 +47,8 @@ export function validateBatchDetails(details: BatchDetailsInput, current: Requir
   const next = { ...current, ...details };
   const lot = blankToNull(next.batch_number);
   if (lot && lot.length > MAX_BATCH_NUMBER_LENGTH) return `Keep the lot number to ${MAX_BATCH_NUMBER_LENGTH} characters or fewer.`;
+  const loc = blankToNull(next.location);
+  if (loc && loc.length > MAX_LOCATION_LENGTH) return `Keep the shelf / location to ${MAX_LOCATION_LENGTH} characters or fewer.`;
   const expiry = blankToNull(next.expiry_date);
   const manufacture = blankToNull(next.manufacture_date);
   if (expiry && !isValidIsoDate(expiry)) return "Enter a valid expiry date.";
@@ -51,7 +59,7 @@ export function validateBatchDetails(details: BatchDetailsInput, current: Requir
 
 export async function correctBatchDetails(batchId: string, details: BatchDetailsInput): Promise<void> {
   const [batch] = await query<{ product_id: string } & Record<BatchDetailField, string | null>>(
-    "SELECT product_id, batch_number, expiry_date, manufacture_date FROM stock_batches WHERE id = ? AND _deleted = 0",
+    "SELECT product_id, batch_number, expiry_date, manufacture_date, location FROM stock_batches WHERE id = ? AND _deleted = 0",
     [batchId],
   );
   if (!batch) throw new Error("This batch no longer exists.");
@@ -60,6 +68,7 @@ export async function correctBatchDetails(batchId: string, details: BatchDetails
     batch_number: batch.batch_number,
     expiry_date: batch.expiry_date,
     manufacture_date: batch.manufacture_date,
+    location: batch.location,
   });
   if (error) throw new Error(error);
 

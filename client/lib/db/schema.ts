@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS products (
   base_unit TEXT DEFAULT 'Unit',
   bulk_unit TEXT,
   units_per_bulk INTEGER DEFAULT 1,
+  location TEXT,
   created_at TEXT,
   updated_at TEXT,
   deleted_at TEXT,

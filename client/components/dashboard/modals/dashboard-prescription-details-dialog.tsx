@@ -1,11 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { getPrescriptionItems } from "@/lib/db/queries/prescriptions";
 import { queryKeys } from "@/lib/query-keys";
-import { Pill } from "lucide-react";
+import { ArrowRight, Pill } from "lucide-react";
 import { DetailRow } from "./detail-row";
 import type { PrescriptionRow } from "@/lib/types/prescription";
 import { ProductName } from "@/components/ui/product-name";
@@ -43,6 +45,7 @@ export function DashboardPrescriptionDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: DashboardPrescriptionDetailsDialogProps) {
+  const router = useRouter();
   const itemsQuery = useQuery({
     ...queryKeys.prescriptions.detailItems(prescription?.id ?? null),
     queryFn: () => getPrescriptionItems(prescription?.id as string),
@@ -63,6 +66,21 @@ export function DashboardPrescriptionDetailsDialog({
       title="Prescription detail"
       className="sm:max-w-[480px] p-0 gap-0 overflow-hidden"
       headerClassName="px-5 py-4 pt-0 sm:pt-4 border-b border-border m-0"
+      footer={
+        <div className="px-5 pb-4 pt-2 flex justify-end border-t border-border bg-background">
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              onOpenChange(false);
+              router.push(`/prescriptions?selected=${encodeURIComponent(prescription.id)}`);
+            }}
+          >
+            View Prescription
+            <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        </div>
+      }
     >
       <div className="px-5 py-[18px]">
         <div className="flex items-start gap-3 mb-4">

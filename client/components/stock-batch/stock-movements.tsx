@@ -77,6 +77,9 @@ export function StockMovements() {
     router.replace(newUrl);
   }, [searchParams, router, canTransferStock]);
 
+  const selectedMovementParam = searchParams.get("selected");
+  const [handledSelectedParam, setHandledSelectedParam] = useState<string | null>(null);
+
   // Rationale: docs/CLIENT_COMMENTS.md#block-components-stock-batch-stock-movements-tsx-loading-window
   const movementsQuery = useQuery({
     ...queryKeys.stockMovements.list(dateRange, hasFullHistory),
@@ -95,6 +98,36 @@ export function StockMovements() {
   const movements = useMemo(() => movementsData ?? [], [movementsData]);
   const loading = movementsQuery.isFetching;
   const initialLoad = movementsQuery.isLoading;
+
+  useEffect(() => {
+    if (!selectedMovementParam || selectedMovementParam === handledSelectedParam) return;
+    if (movementsQuery.isLoading) return;
+    const match = movements.find((m) => m.id === selectedMovementParam);
+    if (match) {
+      setSelectedMovement(match);
+      setHandledSelectedParam(selectedMovementParam);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("selected");
+      const nextUrl =
+        window.location.pathname +
+        (params.toString() ? `?${params.toString()}` : "");
+      router.replace(nextUrl);
+      return;
+    }
+    if (!hasFullHistory) {
+      setHasFullHistory(true);
+    } else {
+      setHandledSelectedParam(selectedMovementParam);
+    }
+  }, [
+    selectedMovementParam,
+    handledSelectedParam,
+    movements,
+    movementsQuery.isLoading,
+    hasFullHistory,
+    searchParams,
+    router,
+  ]);
 
   usePullToRefreshHandler(async () => {
     await movementsQuery.refetch();

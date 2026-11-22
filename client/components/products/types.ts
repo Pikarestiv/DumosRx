@@ -13,6 +13,7 @@ export const transformProduct = (apiData: ProductWithDetails): Product => ({
   categoryName: apiData.category_name || null,
   nafdacNumber: apiData.nafdac_number || "",
   strength: apiData.strength || "",
+  location: apiData.location || "",
   dosageForm: apiData.dosage_form || "",
   manufacturer: apiData.manufacturer || "",
   costPrice: Number(apiData.cost_price) || 0,

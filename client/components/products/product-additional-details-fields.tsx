@@ -135,6 +135,21 @@ export function ProductAdditionalDetailsFields({
           />
         </div>
 
+        <div className="space-y-2">
+          <FieldLabel
+            htmlFor="location"
+            hint="Default shelf or storage bin for this product (new stock batches inherit it when received)."
+          >
+            Location / Shelf
+          </FieldLabel>
+          <Input
+            id="location"
+            value={formData.location || ""}
+            onChange={(e) => onInputChange("location", e.target.value)}
+            placeholder="e.g., Shelf A2, Fridge 1"
+          />
+        </div>
+
         {isPharmacy && (
           <div className="pt-2 md:col-span-2 flex flex-row flex-wrap items-center gap-6">
             <div className="flex items-center gap-2">

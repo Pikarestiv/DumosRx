@@ -56,11 +56,14 @@ export function resolveBaseUnitCost({
   return Number.isFinite(resolved) ? roundMoney(Math.max(0, resolved)) : 0;
 }
 
-export function getImmediateUnitCost(item: POLineItemDraft): number {
+export function getImmediateUnitCost(
+  item: POLineItemDraft,
+  productUnitsPerBulk?: number | null,
+): number {
   return resolveBaseUnitCost({
     costOverride: item.cost_price_override,
     unitCost: item.unit_cost,
-    unitsPerBulk: item.units_per_bulk,
+    unitsPerBulk: productUnitsPerBulk || item.product_units_per_bulk || item.units_per_bulk,
   });
 }
 

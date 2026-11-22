@@ -15,16 +15,22 @@ export function PrescriptionActions({
   isSaving = false,
 }: PrescriptionActionsProps) {
   return (
-    <div className="flex flex-wrap gap-3 sm:gap-4">
+    <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full">
       <Button
         type="submit"
         disabled={isSaving}
-        className="bg-accent hover:bg-accent/90 flex items-center gap-2"
+        className="bg-accent hover:bg-accent/90 flex items-center gap-2 shrink-0"
       >
         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
         {isEditing ? "Update Prescription" : "Create Prescription"}
       </Button>
-      <Button type="button" variant="outline" onClick={resetForm} disabled={isSaving}>
+      <Button
+        type="button"
+        variant="destructive"
+        onClick={resetForm}
+        disabled={isSaving}
+        className="flex-1 min-w-[130px]"
+      >
         {isEditing ? "Reset Form" : "Clear Form"}
       </Button>
       {isEditing && (

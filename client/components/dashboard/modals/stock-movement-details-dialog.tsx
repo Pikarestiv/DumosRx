@@ -1,7 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { ResponsiveModal } from "@/components/ui/responsive-modal";
+import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { toUtcInstant } from "@/lib/utils/date-utils";
 import { getProductBasicInfo } from "@/lib/db/queries/products";
@@ -32,6 +35,7 @@ export function StockMovementDetailsDialog({
   onOpenChange,
   currencyCode = "NGN",
 }: StockMovementDetailsDialogProps) {
+  const router = useRouter();
   const productInfoQuery = useQuery({
     ...queryKeys.products.basicInfo(movement?.product_id ?? null),
     queryFn: () => getProductBasicInfo(movement?.product_id as string),
@@ -54,6 +58,21 @@ export function StockMovementDetailsDialog({
       title="Movement detail"
       className="sm:max-w-[440px] p-0 gap-0 overflow-hidden"
       headerClassName="px-5 py-4 pt-0 sm:pt-4 border-b border-border m-0"
+      footer={
+        <div className="px-5 pb-4 pt-2 flex justify-end border-t border-border bg-background">
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              onOpenChange(false);
+              router.push(`/inventory/ledger?selected=${encodeURIComponent(movement.id)}`);
+            }}
+          >
+            View Movement
+            <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        </div>
+      }
     >
       <div className="px-5 py-[18px]">
         <div className="flex items-start gap-3 mb-4">

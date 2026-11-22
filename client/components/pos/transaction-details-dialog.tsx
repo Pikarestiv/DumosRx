@@ -265,7 +265,6 @@ export function TransactionDetailsDialog({
         {detailsData?.stockReconciliation && detailsData.stockReconciliation.originallyOwed > 0 && (
           <TransactionStockReconciliation
             reconciliation={detailsData.stockReconciliation}
-            currencyCode={currencyCode}
           />
         )}
 

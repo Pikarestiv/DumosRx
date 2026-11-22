@@ -142,7 +142,10 @@ describe("add-to-cart button colours", () => {
   it.each(STOREFRONT_PRESETS.map((preset) => [preset.id] as const))(
     "%s never puts the accent on a background it was not checked against",
     (id) => {
-      const vars = storefrontPresetVars(STOREFRONT_PRESETS.find((preset) => preset.id === id)!);
+      const preset = STOREFRONT_PRESETS.find((item) => item.id === id);
+      expect(preset).toBeDefined();
+      if (!preset) return;
+      const vars = storefrontPresetVars(preset);
 
       if (vars["--sf-add-bg"] === "var(--primary)") expect(vars["--sf-add-fg"]).toBe("var(--primary-foreground)");
       else expect(vars["--sf-add-fg"]).not.toContain("--primary)");

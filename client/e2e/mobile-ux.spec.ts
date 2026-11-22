@@ -20,7 +20,7 @@ async function seedPaidLogin(page: Page, browser: Parameters<typeof getMigratedF
   ]);
   await login(page);
   await page.evaluate(async () => {
-    await window.__e2eSetSubscriptionTier!('pro');
+    await window.__e2eSetSubscriptionTier?.('pro');
   });
   await page.reload();
   await expect(page.getByText(/Today's Sales/i).first()).toBeVisible({ timeout: 15000 });
@@ -29,7 +29,8 @@ async function seedPaidLogin(page: Page, browser: Parameters<typeof getMigratedF
 async function setKeyboard(page: Page, open: boolean) {
   await page.evaluate(
     ({ open, height }: { open: boolean; height: number }) => {
-      const viewport = window.visualViewport!;
+      const viewport = window.visualViewport;
+      if (!viewport) throw new Error('Expected window.visualViewport');
       if (open) Object.defineProperty(viewport, 'height', { configurable: true, get: () => height });
       else delete (viewport as unknown as Record<string, unknown>).height;
       viewport.dispatchEvent(new Event('resize'));
@@ -84,7 +85,8 @@ test.describe('Mobile layout and ergonomics', () => {
   test('primary buttons are at least 40px tall on a touch screen', async ({ page }) => {
     await page.goto('/inventory/catalog');
     const box = await page.getByRole('button', { name: /^Add Product/i }).first().boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(40);
+    expect(box).not.toBeNull();
+    expect(box?.height).toBeGreaterThanOrEqual(40);
   });
 
   test('the POS search stays above the keyboard', async ({ page }) => {

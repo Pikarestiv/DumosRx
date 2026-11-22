@@ -281,7 +281,7 @@ export function StaffManagement() {
               <DeletedStaffList
                 users={deletedUsers}
                 isLoading={isDeletedLoading}
-                onRecover={handleRecover}
+                onRecover={(id, name) => void handleRecover(id, name)}
                 isRecovering={restore.isPending}
               />
             </div>
@@ -336,7 +336,7 @@ export function StaffManagement() {
         <DeletedStaffList
           users={deletedUsers}
           isLoading={isDeletedLoading}
-          onRecover={handleRecover}
+          onRecover={(id, name) => void handleRecover(id, name)}
           isRecovering={restore.isPending}
         />
       </TabsContent>

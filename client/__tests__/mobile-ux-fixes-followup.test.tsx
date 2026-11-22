@@ -47,17 +47,17 @@ vi.mock("@/lib/hooks/use-online-orders-modal", () => ({
 }));
 vi.mock("@/lib/hooks/use-broadcasts", () => ({ useBroadcasts: () => ({ data: [] }) }));
 vi.mock("@/lib/db/queries/payables", () => ({
-  getPayablesDueSummary: vi.fn(async () => ({
+  getPayablesDueSummary: vi.fn(() => Promise.resolve({
     overdueCount: 2, overdueTotal: 50000, dueSoonCount: 0, dueSoonTotal: 0,
   })),
 }));
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
-    getNotifications: vi.fn(async () => [
+    getNotifications: vi.fn(() => Promise.resolve([
       { id: "n-unread", title: "Stock alert", description: "Paracetamol stock is low", time: "5m ago", type: "stock", isRead: false, category: "system", link: "/inventory/overview" },
       { id: "n-read", title: "Daily backup complete", description: "Cloud sync completed successfully", time: "1h ago", type: "system", isRead: true, category: "system", link: "/settings" },
-    ]),
-    markNotificationRead: vi.fn(async () => undefined),
+    ])),
+    markNotificationRead: vi.fn(() => Promise.resolve(undefined)),
   },
 }));
 vi.mock("@/lib/hooks/queries/use-users", () => ({
@@ -89,22 +89,22 @@ const mockFastMovers = {
   items: [{ id: "prod-fast", name: "Norvasc", soldQuantity: 12, revenue: 24000, prevQuantity: 6, percentageChange: 100 }],
 };
 vi.mock("@/lib/db/queries/inventory", () => ({
-  getAvailableStockBatches: vi.fn(async () => []),
-  getFastMovers: vi.fn(async () => mockFastMovers),
-  getExpiringBatches: vi.fn(async () => mockExpiringBatches),
+  getAvailableStockBatches: vi.fn(() => Promise.resolve([])),
+  getFastMovers: vi.fn(() => Promise.resolve(mockFastMovers)),
+  getExpiringBatches: vi.fn(() => Promise.resolve(mockExpiringBatches)),
 }));
 vi.mock("@/lib/db/queries/inventory-alerts", () => ({
-  getExpiringBatches: vi.fn(async () => mockExpiringBatches),
+  getExpiringBatches: vi.fn(() => Promise.resolve(mockExpiringBatches)),
 }));
 vi.mock("@/lib/db/queries/inventory-stats", () => ({
-  getFastMovers: vi.fn(async () => mockFastMovers),
+  getFastMovers: vi.fn(() => Promise.resolve(mockFastMovers)),
 }));
 vi.mock("@/lib/db/queries/prescriptions", () => ({
-  getPrescriptionById: vi.fn(async () => null),
-  getPrescriptionItems: vi.fn(async () => []),
+  getPrescriptionById: vi.fn(() => Promise.resolve(null)),
+  getPrescriptionItems: vi.fn(() => Promise.resolve([])),
 }));
 vi.mock("@/lib/hooks/use-save-prescription-mutation", () => ({
-  useSavePrescriptionMutation: () => ({ mutateAsync: vi.fn(async () => ({})), isPending: false }),
+  useSavePrescriptionMutation: () => ({ mutateAsync: vi.fn(() => Promise.resolve({})), isPending: false }),
 }));
 
 import { BrandLogo } from "@/components/ui/brand-logo";

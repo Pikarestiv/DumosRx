@@ -22,15 +22,20 @@ vi.mock("@/components/ui/tooltip", () => ({
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-  DropdownMenuItem: ({ children, onSelect, onClick, ...props }: any) => (
+  DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({
+    children,
+    onSelect,
+    onClick,
+    ...props
+  }: React.HTMLAttributes<HTMLDivElement> & { onSelect?: () => void }) => (
     <div
       role="menuitem"
-      onClick={() => {
+      onClick={(e) => {
         if (onSelect) onSelect();
-        else if (onClick) onClick();
+        else if (onClick) onClick(e);
       }}
       {...props}
     >
@@ -69,7 +74,7 @@ describe("HeaderStoreSwitcher with active audit", () => {
     mockIsDesktop = true;
   });
 
-  it("shows reminder dialog before switching stores when active audit exists", async () => {
+  it("shows reminder dialog before switching stores when active audit exists", () => {
     mockHasActiveStockAuditCount.mockReturnValue(true);
     const onSwitchStore = vi.fn();
 

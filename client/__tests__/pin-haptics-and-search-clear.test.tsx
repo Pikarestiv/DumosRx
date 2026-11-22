@@ -74,7 +74,8 @@ describe("PIN haptic feedback", () => {
 
     const input = container.querySelector("input");
     expect(input).not.toBeNull();
-    fireEvent.change(input!, { target: { value: "4" } });
+    if (!input) return;
+    fireEvent.change(input, { target: { value: "4" } });
     expect(navigator.vibrate).toHaveBeenCalledWith(10);
   });
 });

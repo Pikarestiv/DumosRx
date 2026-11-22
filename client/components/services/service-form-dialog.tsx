@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -39,15 +39,18 @@ export function ServiceFormDialog({
   const { activeStoreId } = useStore();
   const categoryNames = useServiceCategories().map((c) => c.name);
 
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [category, setCategory] = useState("");
-  const [price, setPrice] = useState("");
-  const [description, setDescription] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [name, setName] = useState(service?.name || "");
+  const [code, setCode] = useState(service?.code || "");
+  const [category, setCategory] = useState(service?.category || "");
+  const [price, setPrice] = useState(service?.price != null ? String(service.price) : "");
+  const [description, setDescription] = useState(service?.description || "");
+  const [isActive, setIsActive] = useState(service ? Boolean(service.is_active) : true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const formKey = `${open ? "open" : "closed"}:${service?.id ?? "new"}`;
+  const [prevFormKey, setPrevFormKey] = useState(formKey);
+  if (prevFormKey !== formKey) {
+    setPrevFormKey(formKey);
     if (service) {
       setName(service.name || "");
       setCode(service.code || "");
@@ -64,7 +67,7 @@ export function ServiceFormDialog({
       setIsActive(true);
     }
     setError(null);
-  }, [service, open]);
+  }
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -98,7 +101,7 @@ export function ServiceFormDialog({
       }
     },
     onSuccess: (id) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.services.all().queryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.services.all().queryKey });
       onOpenChange(false);
       onSuccess?.(id);
     },

@@ -39,10 +39,18 @@ export function useExpensesPage() {
   const [selectedExpenseId, setSelectedExpenseId] = useState<string | null>(
     selectedParam,
   );
+  const [prevSelectedParam, setPrevSelectedParam] = useState<string | null>(
+    selectedParam,
+  );
+  if (selectedParam !== prevSelectedParam) {
+    setPrevSelectedParam(selectedParam);
+    if (selectedParam) {
+      setSelectedExpenseId(selectedParam);
+    }
+  }
 
   useEffect(() => {
     if (!selectedParam) return;
-    setSelectedExpenseId(selectedParam);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("selected");
     const nextUrl = `/expenses${params.toString() ? `?${params.toString()}` : ""}`;

@@ -58,8 +58,11 @@ describe("ProductBatchHistory accordion and details", () => {
       />,
     );
 
-    const firstCard = screen.getByText("Batch #FIRST").closest("div.bg-card")!;
-    const secondCard = screen.getByText("Batch #SECOND").closest("div.bg-card")!;
+    const firstCard = screen.getByText("Batch #FIRST").closest("div.bg-card");
+    const secondCard = screen.getByText("Batch #SECOND").closest("div.bg-card");
+    expect(firstCard).not.toBeNull();
+    expect(secondCard).not.toBeNull();
+    if (!firstCard || !secondCard) return;
 
     expect(screen.queryByText("Shelf 1")).toBeNull();
     expect(screen.queryByText("Shelf 2")).toBeNull();

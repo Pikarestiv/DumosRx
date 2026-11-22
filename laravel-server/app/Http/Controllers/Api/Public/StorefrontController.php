@@ -4,14 +4,13 @@ namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StorefrontProductResource;
-use App\Support\StorefrontCheckoutRules;
-use App\Support\StorefrontLocales;
-use App\Models\Store;
 use App\Services\Payment\PaymentService;
 use App\Services\Storefront\StorefrontBranchDirectory;
 use App\Services\Storefront\StorefrontCatalogService;
 use App\Services\Storefront\StorefrontCheckoutService;
 use App\Services\Storefront\StorefrontInteractionService;
+use App\Support\StorefrontCheckoutRules;
+use App\Support\StorefrontLocales;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 

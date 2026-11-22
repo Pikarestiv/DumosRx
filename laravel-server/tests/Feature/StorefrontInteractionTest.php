@@ -2,9 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Notification;
 use App\Models\OnlineOrder;
-use App\Models\OnlineOrderItem;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\Storefront;
@@ -21,7 +19,9 @@ class StorefrontInteractionTest extends TestCase
     use RefreshDatabase;
 
     private User $owner;
+
     private Store $store;
+
     private Storefront $storefront;
 
     protected function setUp(): void

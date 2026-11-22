@@ -42,10 +42,14 @@ export function ProductBatchHistory({
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(
     highlightBatchId || (batches.length === 1 ? batches[0]?.id : null),
   );
+  const [prevHighlightBatchId, setPrevHighlightBatchId] = useState(highlightBatchId);
+  if (highlightBatchId && prevHighlightBatchId !== highlightBatchId) {
+    setPrevHighlightBatchId(highlightBatchId);
+    setExpandedBatchId(highlightBatchId);
+  }
 
   useEffect(() => {
     if (highlightBatchId) {
-      setExpandedBatchId(highlightBatchId);
       const el = document.getElementById(`batch-card-${highlightBatchId}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });

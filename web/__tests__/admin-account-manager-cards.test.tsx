@@ -78,7 +78,7 @@ describe("AccountManagerCard", () => {
   });
 
   it("triggers updateAccountManager mutation and fires success toast on save", async () => {
-    mutateMock.mockImplementation(({ storeId, accountManagerId }, { onSuccess }) => {
+    mutateMock.mockImplementation((_vars, { onSuccess }) => {
       onSuccess?.();
     });
 

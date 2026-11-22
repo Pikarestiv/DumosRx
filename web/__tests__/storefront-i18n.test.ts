@@ -100,8 +100,12 @@ describe("opening hours in French", () => {
   });
 
   it("says when the store opens, in French", () => {
-    const status = openStatus(hours, new Date(2026, 10, 16, 19, 0))!;
+    const status = openStatus(hours, new Date(2026, 10, 16, 19, 0));
+    const openNow = openStatus(hours, new Date(2026, 10, 16, 10, 0));
+    expect(status).not.toBeNull();
+    expect(openNow).not.toBeNull();
+    if (!status || !openNow) return;
     expect(describeOpenStatus(status, "fr")).toBe("Fermé · ouvre demain à 08h00");
-    expect(describeOpenStatus(openStatus(hours, new Date(2026, 10, 16, 10, 0))!, "fr")).toBe("Ouvert · ferme à 18h00");
+    expect(describeOpenStatus(openNow, "fr")).toBe("Ouvert · ferme à 18h00");
   });
 });

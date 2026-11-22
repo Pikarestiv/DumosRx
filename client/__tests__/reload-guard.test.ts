@@ -10,7 +10,10 @@ describe("reload guard", () => {
 
   it("waits for every registered save to land before the reload goes ahead", async () => {
     const order: string[] = [];
-    cleanups.push(registerBeforeReload(async () => { order.push("saved"); }));
+    cleanups.push(registerBeforeReload(() => {
+      order.push("saved");
+      return Promise.resolve();
+    }));
     await runBeforeReload(1000);
     order.push("reload");
     expect(order).toEqual(["saved", "reload"]);

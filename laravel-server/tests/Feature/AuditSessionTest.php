@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\AuditSession;
-use App\Models\AuditSessionItem;
 use App\Models\Product;
 use App\Models\StockAudit;
 use App\Models\Store;
@@ -17,8 +16,11 @@ class AuditSessionTest extends TestCase
     use RefreshDatabase;
 
     protected User $owner;
+
     protected Store $store;
+
     protected Product $productA;
+
     protected Product $productB;
 
     protected function setUp(): void

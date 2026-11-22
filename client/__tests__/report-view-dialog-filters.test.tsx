@@ -77,6 +77,10 @@ vi.mock("@/components/reports/payment-method-select", () => ({
   ),
 }));
 
+vi.mock("@/hooks/use-media-query", () => ({
+  useMediaQuery: () => true,
+}));
+
 import { ReportViewDialog } from "@/components/reports/report-view-dialog";
 
 const rows = [

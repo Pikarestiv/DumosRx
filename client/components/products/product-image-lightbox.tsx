@@ -16,7 +16,6 @@ export function ProductImageLightbox({ src, name, open, onOpenChange }: ProductI
         <DialogTitle className="truncate pr-8 text-base">{name}</DialogTitle>
         <DialogDescription className="sr-only">Enlarged product image</DialogDescription>
         <div className="flex items-center justify-center rounded-lg bg-muted">
-          {/* eslint-disable-next-line @next/next/no-img-element -- remote CDN image, no optimizer in the static export */}
           <img src={src} alt={name} crossOrigin="anonymous" className="max-h-[75vh] w-full object-contain" />
         </div>
       </DialogContent>

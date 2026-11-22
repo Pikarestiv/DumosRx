@@ -13,8 +13,11 @@ class AuditSession extends Model
     use HasFactory, HasUuids;
 
     public const STATUS_IN_PROGRESS = 'in_progress';
+
     public const STATUS_COMPLETION_PENDING_SYNC = 'completion_pending_sync';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_ABANDONED = 'abandoned';
 
     protected $fillable = [
@@ -88,4 +91,3 @@ class AuditSession extends Model
         return ! $this->isLeaseExpired();
     }
 }
-

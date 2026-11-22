@@ -52,7 +52,7 @@ describe("Start over on the cycle count", () => {
   beforeEach(() => {
     posts.length = 0;
     localStorage.clear();
-    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    global.fetch = vi.fn((url: string, init?: RequestInit) => {
       if (init?.method === "POST") posts.push(url);
       const session = {
         id: "S1",
@@ -62,7 +62,7 @@ describe("Start over on the cycle count", () => {
         submitted_stock_audit_id: null,
         items: [],
       };
-      return { ok: true, status: 200, json: async () => ({ success: true, session }) } as Response;
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ success: true, session }) } as Response);
     }) as unknown as typeof fetch;
     useStockAuditDraftStore.setState({ items: draft, activeStoreId: null, loadedStoreId: null });
   });

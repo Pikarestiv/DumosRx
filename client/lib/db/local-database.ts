@@ -6,6 +6,7 @@ export * from "./base-helpers";
 export * from "./procurement";
 export * from "./procurement-receiving";
 export * from "./schema";
+export { forceSyncAllData } from "./force-sync";
 
 import {
   query,
@@ -31,9 +32,9 @@ import type { Product } from "@/lib/types/product";
 import type { CustomerDbRow } from "@/lib/types/customer";
 import { hashPin } from "@/lib/utils/pin-hash";
 import { getStoredUser } from "@/lib/storage-keys";
-import { serializeRequeuePayload } from "./requeue-payload";
 import { roundMoney } from "@/lib/utils/pos-calculations";
 import { normalizeStaffEmail } from "@/lib/utils/staff-save-errors";
+import { forceSyncAllData } from "./force-sync";
 
 const STOCK_MOVEMENT_AUDIT_ACTIONS: Record<string, string> = {
   adjustment: AUDIT_ACTIONS.STOCK_ADJUSTMENT,
@@ -435,68 +436,6 @@ export async function createStockMovement(data: Partial<StockMovementDbRow> & { 
     },
     { action: STOCK_MOVEMENT_AUDIT_ACTIONS[data.movement_type as string] },
   );
-}
-
-// Dev utility to force sync all tables
-export async function forceSyncAllData() {
-  const tables = [
-    "products",
-    "stock_batches",
-    "categories",
-    "customers",
-    "sales",
-    "sale_items",
-    "prescriptions",
-    "prescription_items",
-    "returns",
-    "return_items",
-    "customer_payments",
-    "stores",
-    "expenses",
-    "users",
-    "audit_logs",
-    "purchase_orders",
-    "purchase_order_items",
-    "suppliers",
-    "stock_audits",
-    "held_transactions",
-    "loyalty_transactions",
-    "feedback",
-    "stock_movements",
-    "payment_accounts",
-    "system_configs",
-    "services", "sale_services", "return_services",
-  ];
-
-  console.log(
-    "Marking all local data as un-synced and adding to sync queue...",
-  );
-  let count = 0;
-  await execute(`DELETE FROM _sync_queue`); // Clear existing queue to prevent duplicates
-
-  const now = new Date().toISOString();
-
-  for (const table of tables) {
-    try {
-      await execute(`UPDATE ${table} SET _synced = 0`);
-      const records = await query<{ id: string; [key: string]: unknown }>(`SELECT * FROM ${table}`);
-
-      for (const record of records) {
-        await execute(
-          `INSERT INTO _sync_queue (table_name, record_id, operation, payload, created_at)
-           VALUES (?, ?, ?, ?, ?)`,
-          [table, record.id, "INSERT", serializeRequeuePayload(record), now],
-        );
-        count++;
-      }
-    } catch (_e) {
-      // Table might not exist or error, ignore
-    }
-  }
-  console.log(
-    `Successfully queued ${count} records for syncing. You can now press 'Sync' on the POS to push everything to the cloud.`,
-  );
-  return `Done! Queued ${count} records. You can now press 'Sync' on the POS to push everything to the cloud.`;
 }
 
 if (typeof window !== "undefined") {

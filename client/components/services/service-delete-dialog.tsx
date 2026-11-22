@@ -33,7 +33,7 @@ export function ServiceDeleteDialog({
       await deleteService(service.id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.services.all().queryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.services.all().queryKey });
       onOpenChange(false);
     },
   });

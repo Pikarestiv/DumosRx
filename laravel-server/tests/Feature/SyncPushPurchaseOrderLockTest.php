@@ -10,9 +10,8 @@ use Tests\TestCase;
 /** The advisory draft lock: a till editing a purchase order fences other tills' line edits until its lock goes stale. */
 class SyncPushPurchaseOrderLockTest extends TestCase
 {
-    use RefreshDatabase;
-
     use PurchaseOrderLockFixture;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {

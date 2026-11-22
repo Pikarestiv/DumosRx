@@ -8,7 +8,6 @@ import type { SaleStockReconciliation } from "@/lib/types/sale";
 
 interface TransactionStockReconciliationProps {
   reconciliation: SaleStockReconciliation;
-  currencyCode?: string;
 }
 
 export function TransactionStockReconciliation({

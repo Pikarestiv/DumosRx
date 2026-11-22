@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import type { AuditItem } from "@/components/stock-batch/stock-audits";
-import type { CloudAuditSession } from "@/lib/api/audit-sessions";
 
 vi.mock("@/lib/utils/device-id", () => ({ getDeviceId: () => "TILL-A" }));
 vi.mock("@/lib/utils/device-label", () => ({ getDeviceLabel: () => "Front till" }));
@@ -24,59 +23,13 @@ import {
   useCloudAuditSession,
 } from "@/lib/hooks/use-cloud-audit-session";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
-
-const freshSheet: AuditItem[] = [
-  { id: "p1", name: "Amoxil", sku: "A", category: "c", systemQty: 20 },
-  { id: "p2", name: "Flagyl", sku: "F", category: "c", systemQty: 8 },
-];
-
-function session(overrides: Partial<CloudAuditSession> = {}): CloudAuditSession {
-  return {
-    id: "S1",
-    store_id: "store-1",
-    created_by: "user-1",
-    name: null,
-    notes: null,
-    status: "in_progress",
-    active_till_id: "TILL-A",
-    active_till_name: "Front till",
-    active_user_id: "user-1",
-    lease_version: 1,
-    lease_expires_at: null,
-    total_items_count: 2,
-    counted_items_count: 1,
-    submitted_stock_audit_id: null,
-    started_at: "2026-11-10T09:00:00Z",
-    completed_at: null,
-    last_synced_at: null,
-    items: [
-      { product_id: "p1", counted: true, counted_quantity: 15, counted_at: "2026-11-10T09:05:00Z" },
-    ],
-    ...overrides,
-  };
-}
-
-type Route = (url: string, init?: RequestInit) => Response | Promise<Response>;
-
-function json(body: unknown, status = 200): Response {
-  return { ok: status < 400, status, json: async () => body } as Response;
-}
-
-function serve(routes: { active: () => CloudAuditSession | null; complete: Route }) {
-  const calls: { url: string; body?: string }[] = [];
-  global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    calls.push({ url, body: init?.body as string | undefined });
-    if (url.includes("/active")) return json({ success: true, session: routes.active() });
-    if (url.endsWith("/complete")) return routes.complete(url, init);
-    if (url.endsWith("/abandon")) return json({ success: true, session: null });
-    return json({ success: true, last_synced_at: null });
-  }) as unknown as typeof fetch;
-  return calls;
-}
-
-const networkDown: Route = () => {
-  throw new TypeError("Failed to fetch");
-};
+import {
+  freshSheet,
+  json,
+  networkDown,
+  serve,
+  session,
+} from "./helpers/cloud-audit-session-harness";
 
 async function mountAndInit() {
   const hook = renderHook(() => useCloudAuditSession("store-1"));
@@ -197,9 +150,7 @@ describe("cloud audit session lifecycle", () => {
   it("queues an abandon made offline and sends it on the next open", async () => {
     serve({ active: () => session(), complete: networkDown });
     const first = await mountAndInit();
-    global.fetch = vi.fn(async () => {
-      throw new TypeError("Failed to fetch");
-    }) as unknown as typeof fetch;
+    global.fetch = vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))) as unknown as typeof fetch;
     await act(async () => {
       await first.result.current.abandon("Started over");
     });
@@ -317,125 +268,5 @@ describe("stamping counts for the cloud merge", () => {
 
     const stamped = useStockAuditDraftStore.getState().items[0].countedAt;
     expect(Date.parse(stamped ?? "")).toBeGreaterThanOrEqual(before);
-  });
-});
-
-describe("cross-till draft lifecycle resolution", () => {
-  it("clears a stale local draft and does not start a new session when its cloud session was completed elsewhere", async () => {
-    const startCalls: string[] = [];
-    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes("/active")) {
-        return json({ success: true, session: null, known_session_status: "completed" });
-      }
-      if (url.endsWith("/app/audit-sessions") && init?.method === "POST") {
-        startCalls.push(url);
-      }
-      return json({ success: true, session: null });
-    }) as unknown as typeof fetch;
-
-    useStockAuditDraftStore.setState({
-      activeStoreId: "store-1",
-      items: [{ ...freshSheet[0], counted: true, countedQty: 5 }],
-      cloudSessionId: "sess-completed",
-      cloudSessionIds: { "store-1": "sess-completed" },
-    });
-
-    const hook = await mountAndInit();
-
-    expect(startCalls).toHaveLength(0);
-    expect(useStockAuditDraftStore.getState().items).toEqual([]);
-    expect(useStockAuditDraftStore.getState().cloudSessionId).toBeNull();
-    expect(hook.result.current.session).toBeNull();
-  });
-
-  it("locks editing and preserves local recovery data when a session is completion_pending_sync", async () => {
-    const startCalls: string[] = [];
-    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes("/active")) {
-        return json({
-          success: true,
-          session: session({
-            id: "sess-pending",
-            status: "completion_pending_sync",
-            active_till_id: "TILL-B",
-            submitted_stock_audit_id: "audit-1",
-          }),
-          known_session_status: "completion_pending_sync",
-        });
-      }
-      if (url.endsWith("/app/audit-sessions") && init?.method === "POST") {
-        startCalls.push(url);
-      }
-      return json({ success: true });
-    }) as unknown as typeof fetch;
-
-    const countedDraft = [{ ...freshSheet[0], counted: true, countedQty: 5 }];
-    useStockAuditDraftStore.setState({
-      activeStoreId: "store-1",
-      items: countedDraft,
-      cloudSessionId: "sess-pending",
-      cloudSessionIds: { "store-1": "sess-pending" },
-    });
-
-    const hook = await mountAndInit();
-
-    expect(startCalls).toHaveLength(0);
-    expect(hook.result.current.isReadOnly).toBe(true);
-    expect(hook.result.current.draftResolution).toBe("pending_sync");
-    expect(useStockAuditDraftStore.getState().items).toHaveLength(1);
-  });
-
-  it("holds counted local items in explicit abandoned recovery mode instead of wiping or recreating", async () => {
-    const startCalls: string[] = [];
-    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes("/active")) {
-        return json({ success: true, session: null, known_session_status: "abandoned" });
-      }
-      if (url.endsWith("/app/audit-sessions") && init?.method === "POST") {
-        startCalls.push(url);
-      }
-      return json({ success: true });
-    }) as unknown as typeof fetch;
-
-    const countedDraft = [{ ...freshSheet[0], counted: true, countedQty: 5 }];
-    useStockAuditDraftStore.setState({
-      activeStoreId: "store-1",
-      items: countedDraft,
-      cloudSessionId: "sess-abandoned",
-      cloudSessionIds: { "store-1": "sess-abandoned" },
-    });
-
-    const hook = await mountAndInit();
-
-    expect(startCalls).toHaveLength(0);
-    expect(hook.result.current.isReadOnly).toBe(true);
-    expect(hook.result.current.draftResolution).toBe("abandoned");
-    expect(useStockAuditDraftStore.getState().items).toHaveLength(1);
-  });
-
-  it("does not silently start a new session when knownSessionId is set and status is null", async () => {
-    const startCalls: string[] = [];
-    global.fetch = vi.fn(async (url: string, init?: RequestInit) => {
-      if (url.includes("/active")) {
-        return json({ success: true, session: null, known_session_status: null });
-      }
-      if (url.endsWith("/app/audit-sessions") && init?.method === "POST") {
-        startCalls.push(url);
-      }
-      return json({ success: true });
-    }) as unknown as typeof fetch;
-
-    const countedDraft = [{ ...freshSheet[0], counted: true, countedQty: 5 }];
-    useStockAuditDraftStore.setState({
-      activeStoreId: "store-1",
-      items: countedDraft,
-      cloudSessionId: "sess-unknown",
-      cloudSessionIds: { "store-1": "sess-unknown" },
-    });
-
-    await mountAndInit();
-
-    expect(startCalls).toHaveLength(0);
-    expect(useStockAuditDraftStore.getState().items).toHaveLength(1);
   });
 });

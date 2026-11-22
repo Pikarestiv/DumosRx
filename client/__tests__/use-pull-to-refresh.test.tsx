@@ -39,7 +39,7 @@ describe("usePullToRefresh", () => {
     const { getByTestId } = render(<Harness onRefresh={onRefresh} />);
     const root = getByTestId("root");
 
-    await act(async () => {
+    await act(() => {
       root.dispatchEvent(touchEvent("touchstart", 100));
       root.dispatchEvent(touchEvent("touchmove", 260));
       root.dispatchEvent(new Event("touchend", { bubbles: true }));
@@ -53,7 +53,7 @@ describe("usePullToRefresh", () => {
     const { getByTestId } = render(<Harness onRefresh={onRefresh} nestedScrollTop={40} />);
     const nested = getByTestId("nested");
 
-    await act(async () => {
+    await act(() => {
       nested.dispatchEvent(touchEvent("touchstart", 100));
       nested.dispatchEvent(touchEvent("touchmove", 260));
       nested.dispatchEvent(new Event("touchend", { bubbles: true }));
@@ -67,7 +67,7 @@ describe("usePullToRefresh", () => {
     const { getByTestId } = render(<Harness onRefresh={onRefresh} />);
     const root = getByTestId("root");
 
-    await act(async () => {
+    await act(() => {
       root.dispatchEvent(touchEvent("touchstart", 100, 100));
       root.dispatchEvent(touchEvent("touchmove", 120, 260));
       root.dispatchEvent(new Event("touchend", { bubbles: true }));

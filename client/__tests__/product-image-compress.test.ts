@@ -17,12 +17,12 @@ function blobOf(size: number, type: string): Blob {
 
 function encoderBySize(sizes: Record<string, number[]>) {
   const calls: Array<[string, number]> = [];
-  const encode = async (type: string, quality: number) => {
+  const encode = (type: string, quality: number) => {
     calls.push([type, quality]);
     const queue = sizes[type];
-    if (!queue) return blobOf(10, "image/png");
+    if (!queue) return Promise.resolve(blobOf(10, "image/png"));
     const size = queue.shift();
-    return size === undefined ? null : blobOf(size, type);
+    return Promise.resolve(size === undefined ? null : blobOf(size, type));
   };
   return { encode, calls };
 }
@@ -97,7 +97,7 @@ describe("compressProductImage", () => {
       toBlob: (cb: (b: Blob) => void, type: string) => cb(blobOf(60 * KB, type)),
     };
     vi.spyOn(document, "createElement").mockReturnValueOnce(canvas as unknown as HTMLElement);
-    vi.stubGlobal("createImageBitmap", async () => ({ width: 2048, height: 1024, close: () => {} }));
+    vi.stubGlobal("createImageBitmap", () => Promise.resolve({ width: 2048, height: 1024, close: () => {} }));
 
     const blob = await compressProductImage(new File([new Uint8Array(1000)], "p.jpg", { type: "image/jpeg" }));
 
@@ -108,9 +108,7 @@ describe("compressProductImage", () => {
   });
 
   it("reports an undecodable file as a rejected image", async () => {
-    vi.stubGlobal("createImageBitmap", async () => {
-      throw new Error("decode failed");
-    });
+    vi.stubGlobal("createImageBitmap", () => Promise.reject(new Error("decode failed")));
 
     await expect(
       compressProductImage(new File([new Uint8Array(10)], "x.heic", { type: "image/heic" })),

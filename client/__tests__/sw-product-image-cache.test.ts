@@ -27,13 +27,13 @@ describe("service worker product image cache", () => {
       location: { origin: "https://app.dumosrx.test" },
     } as Record<string, unknown>;
     const stubCaches = {
-      keys: async () => ["dumosrx-v4", "dumosrx-product-images-v1", "dumosrx-v3"],
-      delete: async (name: string) => {
+      keys: () => Promise.resolve(["dumosrx-v4", "dumosrx-product-images-v1", "dumosrx-v3"]),
+      delete: (name: string) => {
         deletedCaches.push(name);
-        return true;
+        return Promise.resolve(true);
       },
     };
-    const stubFetch = async () => ({ ok: false });
+    const stubFetch = () => Promise.resolve({ ok: false });
     sw = new Function("self", "caches", "fetch", `${source}\nreturn self.__swInternals;`)(
       stubSelf,
       stubCaches,

@@ -24,11 +24,14 @@ export function ContactSpecialistCard() {
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.hash === "#contact-specialist") {
-      setHighlighted(true);
+      const startTimer = setTimeout(() => setHighlighted(true), 0);
       const el = document.getElementById("contact-specialist");
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      const timer = setTimeout(() => setHighlighted(false), 3000);
-      return () => clearTimeout(timer);
+      const endTimer = setTimeout(() => setHighlighted(false), 3000);
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(endTimer);
+      };
     }
   }, []);
 

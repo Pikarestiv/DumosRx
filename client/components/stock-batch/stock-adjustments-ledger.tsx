@@ -8,7 +8,6 @@ import { format, isToday, isYesterday, differenceInDays } from "date-fns";
 import { ClipboardList } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,

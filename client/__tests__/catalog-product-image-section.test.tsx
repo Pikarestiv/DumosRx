@@ -97,7 +97,7 @@ describe("Catalog detail panel image section", () => {
   });
 
   it("asks for confirmation before removing, then removes on the server", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "p1", image_key: null, image_url: null }), { status: 200 }));
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ id: "p1", image_key: null, image_url: null }), { status: 200 })));
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
 

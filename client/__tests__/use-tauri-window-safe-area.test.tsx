@@ -26,8 +26,8 @@ describe("useTauriWindow safe-area variables", () => {
     (window as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
     vi.doMock("@tauri-apps/api/window", () => ({
       getCurrentWindow: () => ({
-        isMaximized: vi.fn(async () => false),
-        onResized: vi.fn(async () => () => {}),
+        isMaximized: vi.fn(() => Promise.resolve(false)),
+        onResized: vi.fn(() => Promise.resolve(() => {})),
       }),
     }));
     vi.doMock("@tauri-apps/plugin-os", () => ({

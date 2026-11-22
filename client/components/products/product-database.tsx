@@ -119,14 +119,13 @@ export function ProductDatabase() {
     queryFn: () => getCategoryList(),
   });
 
-  const fetchedCategories = rawCategories?.map((c) => c.name) || [];
-
   const hasUncategorizedProducts = useMemo(
     () => products.some((p) => !p.categoryName || !p.categoryId),
     [products],
   );
 
   const categories = useMemo(() => {
+    const fetchedCategories = rawCategories?.map((c) => c.name) || [];
     const defaultCats = isStore
       ? PHARMACY_DEFAULT_CATEGORIES
       : RETAIL_DEFAULT_CATEGORIES;
@@ -138,7 +137,7 @@ export function ProductDatabase() {
       list.push(UNCATEGORIZED_CATEGORY_VALUE);
     }
     return list;
-  }, [fetchedCategories, isStore, hasUncategorizedProducts]);
+  }, [rawCategories, isStore, hasUncategorizedProducts]);
 
   const statuses = CATALOG_STATUS_FILTERS;
   const duplicateIds = useMemo(() => findDuplicateProductIds(products), [products]);

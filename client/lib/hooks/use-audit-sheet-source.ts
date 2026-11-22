@@ -2,8 +2,6 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getProductsWithDetails } from "@/lib/db/queries/products";
 import { queryKeys } from "@/lib/query-keys";
-import type { ProductWithDetails } from "@/lib/types/product";
-import type { AuditItem } from "@/components/stock-batch/stock-audits";
 import {
   shouldRebuildAuditSheet,
   toAuditItem,

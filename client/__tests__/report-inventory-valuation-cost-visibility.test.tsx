@@ -41,18 +41,8 @@ vi.mock("@/lib/utils/report-pdf", () => ({
   generateReportPdfBlob: generateReportPdfBlobMock,
 }));
 
-let lastDownloadedCsv = "";
 vi.mock("@/lib/utils/download-blob", () => ({
-  downloadBlob: vi.fn((blob: Blob) => {
-    if (blob.type.includes("csv")) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        lastDownloadedCsv = reader.result as string;
-      };
-      reader.readAsText(blob);
-    }
-    return 100;
-  }),
+  downloadBlob: vi.fn(() => 100),
   openBlobForPrint: vi.fn(),
 }));
 
@@ -68,7 +58,6 @@ vi.mock("@/components/reports/report-filters-bar", () => ({
 describe("A-383: Inventory Valuation report cost visibility gating", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    lastDownloadedCsv = "";
     mockPermissions = {};
   });
 

@@ -70,7 +70,7 @@ describe("CameraScannerDialog permission-aware start", () => {
     expect(await screen.findByText("Align the barcode within the frame.")).toBeTruthy();
   });
 
-  it("never shows the permission wait when the camera was allowed before", async () => {
+  it("never shows the permission wait when the camera was allowed before", () => {
     localStorage.setItem(STORAGE_KEYS.cameraScannerAllowed, "1");
     setCameraPermission(() => new Promise(() => {}));
     renderDialog();

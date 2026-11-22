@@ -33,7 +33,7 @@ let healOutcomeMock: import("../lib/db/sync-engine/stock-auto-heal").HealStockIn
 };
 
 vi.mock("../lib/db/sync-engine/stock-auto-heal", () => ({
-  healStockIntegrity: vi.fn(async () => healOutcomeMock),
+  healStockIntegrity: vi.fn(() => Promise.resolve(healOutcomeMock)),
 }));
 
 import { checkSyncHealth } from "../lib/db/sync-engine/health-check";

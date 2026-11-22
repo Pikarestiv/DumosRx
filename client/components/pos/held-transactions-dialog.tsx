@@ -72,12 +72,15 @@ export function HeldTransactionsDialog({
   const deletingId = deleteMutation.isPending ? deleteMutation.variables : null;
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+  if (prevOpen !== isOpen) {
+    setPrevOpen(isOpen);
+    if (!isOpen) setExpandedId(null);
+  }
 
   useEffect(() => {
     if (isOpen) {
       void loadHeldTransactions();
-    } else {
-      setExpandedId(null);
     }
   }, [isOpen, loadHeldTransactions]);
 

@@ -117,6 +117,18 @@ const DrawerDescription = React.forwardRef<
 ))
 DrawerDescription.displayName = DrawerPrimitive.Description.displayName
 
+const DrawerHandle = React.forwardRef<
+  React.ComponentRef<typeof DrawerPrimitive.Handle>,
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Handle>
+>(({ className, ...props }, ref) => (
+  <DrawerPrimitive.Handle
+    ref={ref}
+    className={cn("mx-auto mt-2 h-1.5 w-10 rounded-full bg-muted-foreground/30", className)}
+    {...props}
+  />
+))
+DrawerHandle.displayName = "DrawerHandle"
+
 export {
   Drawer,
   DrawerPortal,
@@ -128,4 +140,5 @@ export {
   DrawerFooter,
   DrawerTitle,
   DrawerDescription,
+  DrawerHandle,
 }

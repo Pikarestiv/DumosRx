@@ -4,6 +4,8 @@ import { render, screen } from "@testing-library/react";
 
 const drawerProps = vi.hoisted(() => ({
   repositionInputs: undefined as boolean | undefined,
+  fixed: undefined as boolean | undefined,
+  handleOnly: undefined as boolean | undefined,
   contentStyle: undefined as React.CSSProperties | undefined,
   contentClassName: undefined as string | undefined,
 }));
@@ -22,15 +24,24 @@ vi.mock("@/components/ui/drawer", () => ({
   Drawer: ({
     open,
     repositionInputs,
+    fixed,
+    handleOnly,
     children,
   }: {
     open: boolean;
     repositionInputs?: boolean;
+    fixed?: boolean;
+    handleOnly?: boolean;
     children: React.ReactNode;
   }) => {
     drawerProps.repositionInputs = repositionInputs;
+    drawerProps.fixed = fixed;
+    drawerProps.handleOnly = handleOnly;
     return open ? <div role="dialog">{children}</div> : null;
   },
+  DrawerHandle: ({ className }: { className?: string }) => (
+    <div data-testid="drawer-handle" className={className} />
+  ),
   DrawerContent: ({
     children,
     style,
@@ -86,22 +97,24 @@ vi.mock("@/lib/assistant/router", () => ({
 describe("AssistantPanel mobile keyboard-avoiding drawer", () => {
   beforeEach(async () => {
     drawerProps.repositionInputs = undefined;
+    drawerProps.fixed = undefined;
+    drawerProps.handleOnly = undefined;
     drawerProps.contentStyle = undefined;
     drawerProps.contentClassName = undefined;
     const { useAssistantPanel } = await import("@/lib/store/use-assistant-panel");
     useAssistantPanel.setState({ isOpen: true, messages: [] });
   });
 
-  it("disables Vaul repositionInputs and anchors bottom/maxHeight to visualViewport variables", async () => {
+  it("configures Vaul fixed and handleOnly so the keyboard shrinks height without floating gaps or touch drags", async () => {
     const { AssistantPanel } = await import("@/components/assistant/assistant-panel");
     render(<AssistantPanel />);
 
-    expect(drawerProps.repositionInputs).toBe(false);
-    expect(drawerProps.contentStyle?.bottom).toBe("var(--kb-inset, 0px)");
-    expect(String(drawerProps.contentStyle?.maxHeight)).toContain("var(--vv-height, 100dvh)");
-    expect(String(drawerProps.contentStyle?.maxHeight)).toContain("env(safe-area-inset-top, 0px)");
+    expect(drawerProps.fixed).toBe(true);
+    expect(drawerProps.handleOnly).toBe(true);
+    expect(drawerProps.repositionInputs).not.toBe(false);
     expect(drawerProps.contentStyle?.paddingBottom).toBe("0px");
     expect(drawerProps.contentClassName).toContain("mt-0");
+    expect(screen.getByTestId("drawer-handle")).toBeDefined();
   });
 
   it("does not auto-focus the composer on mobile open so the keyboard does not fight the drawer animation", async () => {

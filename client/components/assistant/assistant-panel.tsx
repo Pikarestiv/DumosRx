@@ -18,6 +18,7 @@ import {
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
+  DrawerHandle,
 } from "@/components/ui/drawer";
 import { useAuth } from "@/lib/context/auth-context";
 import { getUserInitials } from "@/lib/utils";
@@ -148,20 +149,17 @@ export function AssistantPanel() {
   }
 
   return (
-    <Drawer open={isOpen} onOpenChange={handleOpenChange} repositionInputs={false}>
+    <Drawer open={isOpen} onOpenChange={handleOpenChange} fixed handleOnly>
       <DrawerContent
         hideHandle
         onOpenAutoFocus={handleMobileOpenAutoFocus}
         className="mt-0 flex h-[82dvh] flex-col overflow-hidden bg-background/95 p-0 backdrop-blur-sm"
         style={{
-          bottom: "var(--kb-inset, 0px)",
-          maxHeight:
-            "calc(var(--vv-height, 100dvh) - max(var(--tauri-top, env(safe-area-inset-top, 0px)), 0.75rem) - 0.5rem)",
           paddingBottom: "0px",
         }}
       >
         <div className={HEADER_WRAP_CLASS}>
-          <div className={GRAB_HANDLE_CLASS} />
+          <DrawerHandle className={GRAB_HANDLE_CLASS} />
           <DrawerHeader className={HEADER_ROW_CLASS}>
             <HeaderText
               title={

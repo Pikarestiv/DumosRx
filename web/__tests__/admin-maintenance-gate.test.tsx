@@ -39,6 +39,7 @@ vi.mock("@/lib/api/admin-hooks-maintenance", () => ({
   useSyncRolesMutation: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
   useAdminBackupStatus: () => ({ data: undefined, isLoading: false, isError: false }),
   useRunBackupMutation: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
+  useUpdateBackupScheduleMutation: () => ({ mutate: vi.fn(), isPending: false, data: undefined }),
 }));
 
 const { default: MaintenancePage } = await import("@/app/admin/maintenance/page");

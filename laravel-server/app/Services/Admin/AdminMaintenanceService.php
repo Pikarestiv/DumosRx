@@ -195,12 +195,20 @@ class AdminMaintenanceService
             try {
                 $disk = $backups->disk();
                 $files = $disk->allFiles('daily');
-                rsort($files);
-                foreach (array_slice($files, 0, 5) as $key) {
-                    $recentBackups[] = [
+                $entries = [];
+                foreach ($files as $key) {
+                    $entries[] = [
                         'key' => $key,
                         'bytes' => $disk->size($key),
-                        'last_modified' => \Carbon\Carbon::createFromTimestamp($disk->lastModified($key))->toIso8601String(),
+                        'modified_ts' => $disk->lastModified($key),
+                    ];
+                }
+                usort($entries, fn (array $a, array $b) => $b['modified_ts'] <=> $a['modified_ts']);
+                foreach (array_slice($entries, 0, 5) as $entry) {
+                    $recentBackups[] = [
+                        'key' => $entry['key'],
+                        'bytes' => $entry['bytes'],
+                        'last_modified' => \Carbon\Carbon::createFromTimestamp($entry['modified_ts'])->toIso8601String(),
                     ];
                 }
             } catch (\Throwable $e) {
@@ -208,15 +216,40 @@ class AdminMaintenanceService
             }
         }
 
+        $scheduleSettings = $backups->scheduleSettings();
+
         return [
             'configured' => $configured,
             'bucket_configured' => $bucketConfigured,
             'public_key_configured' => $publicKeyConfigured,
             'disk' => (string) config('database_backup.disk'),
-            'schedule' => 'Daily at 23:00 Africa/Lagos',
+            'schedule' => $backups->scheduleSummary(),
+            'schedule_enabled' => $scheduleSettings['enabled'],
+            'schedule_frequency' => $scheduleSettings['frequency'],
             'last_run' => $backups->lastRun(),
             'recent_backups' => $recentBackups,
             'list_error' => $listError,
+        ];
+    }
+
+    public function updateBackupSchedule(bool $enabled, string $frequency, ?string $actorId = null): array
+    {
+        $backups = app(\App\Services\Backup\DatabaseBackupService::class);
+        $updated = $backups->updateScheduleSettings($enabled, $frequency);
+
+        \App\Models\ActivityLog::create([
+            'user_id' => $actorId,
+            'action' => 'maintenance_backup_schedule_updated',
+            'table_name' => 'system',
+            'record_id' => \App\Services\Backup\DatabaseBackupService::SCHEDULE_CONFIG_KEY,
+            'changes' => $updated,
+        ]);
+
+        return [
+            'ok' => true,
+            'schedule_enabled' => $updated['enabled'],
+            'schedule_frequency' => $updated['frequency'],
+            'status_after' => $this->backupStatus(),
         ];
     }
 

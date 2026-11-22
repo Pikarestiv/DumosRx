@@ -311,15 +311,26 @@ export interface AdminBackupLastRun {
   error: string | null;
 }
 
+export type AdminBackupFrequency = "daily" | "weekly" | "monthly";
+
 export interface AdminBackupStatus {
   configured: boolean;
   bucket_configured: boolean;
   public_key_configured: boolean;
   disk: string;
   schedule: string;
+  schedule_enabled?: boolean;
+  schedule_frequency?: AdminBackupFrequency;
   last_run?: AdminBackupLastRun | null;
   recent_backups: AdminBackupEntry[];
   list_error: string | null;
+}
+
+export interface AdminBackupScheduleResult {
+  ok: boolean;
+  schedule_enabled: boolean;
+  schedule_frequency: AdminBackupFrequency;
+  status_after?: AdminBackupStatus;
 }
 
 export interface AdminBackupRunResult {

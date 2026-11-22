@@ -133,4 +133,51 @@ class AdminMaintenanceBackupTest extends TestCase
             ->assertJsonPath('last_run.trigger', 'scheduled');
         $this->assertStringContainsString('refusing to upload', (string) $failedResponse->json('last_run.error'));
     }
+
+    public function test_super_admin_can_toggle_manual_mode_and_frequency_without_blocking_manual_runs(): void
+    {
+        $keypair = sodium_crypto_box_keypair();
+        $publicKey = sodium_crypto_box_publickey($keypair);
+        Storage::fake('r2_backups');
+
+        config([
+            'database_backup.bucket' => 'dumosrx-db-backups',
+            'database_backup.public_key' => base64_encode($publicKey),
+            'database_backup.min_bytes' => 16,
+        ]);
+
+        $actor = $this->superAdmin();
+
+        $update = $this->actingAs($actor)
+            ->putJson('/api/v1/admin/maintenance/backup/schedule', [
+                'enabled' => false,
+                'frequency' => 'weekly',
+            ]);
+
+        $update->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('schedule_enabled', false)
+            ->assertJsonPath('schedule_frequency', 'weekly')
+            ->assertJsonPath('status_after.schedule_enabled', false);
+
+        $this->artisan('backups:database')->assertSuccessful();
+        $this->assertSame([], Storage::disk('r2_backups')->allFiles('daily'));
+
+        $manual = $this->actingAs($actor)
+            ->postJson('/api/v1/admin/maintenance/backup/run');
+
+        $manual->assertOk()->assertJsonPath('ok', true);
+        $this->assertCount(1, Storage::disk('r2_backups')->allFiles('daily'));
+    }
+
+    public function test_invalid_backup_frequency_is_rejected(): void
+    {
+        $response = $this->actingAs($this->superAdmin())
+            ->putJson('/api/v1/admin/maintenance/backup/schedule', [
+                'enabled' => true,
+                'frequency' => 'hourly',
+            ]);
+
+        $response->assertStatus(422);
+    }
 }

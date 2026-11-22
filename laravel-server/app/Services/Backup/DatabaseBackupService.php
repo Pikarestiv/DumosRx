@@ -13,6 +13,15 @@ class DatabaseBackupService
 {
     public const LAST_RUN_CONFIG_KEY = 'database_backup_last_run';
 
+    public const SCHEDULE_CONFIG_KEY = 'database_backup_schedule';
+
+    public const DAILY_RETENTION_DAYS = 7;
+
+    public const MONTHLY_RETENTION_MONTHS = 6;
+
+    /** @var array<int, string> */
+    public const FREQUENCIES = ['daily', 'weekly', 'monthly'];
+
     public function __construct(
         private readonly DatabaseDumper $dumper,
         private readonly BackupEncryptor $encryptor,
@@ -61,7 +70,75 @@ class DatabaseBackupService
         return is_array($value) ? $value : null;
     }
 
-    /** @return array{key: string, bytes: int, monthly_key: string|null} */
+    /** @return array{enabled: bool, frequency: string} */
+    public function scheduleSettings(): array
+    {
+        $defaults = ['enabled' => true, 'frequency' => 'daily'];
+        if (! Schema::hasTable('system_configs')) {
+            return $defaults;
+        }
+
+        $value = SystemConfig::getVal(self::SCHEDULE_CONFIG_KEY);
+        if (! is_array($value)) {
+            return $defaults;
+        }
+
+        $frequency = in_array($value['frequency'] ?? null, self::FREQUENCIES, true)
+            ? (string) $value['frequency']
+            : 'daily';
+
+        return [
+            'enabled' => (bool) ($value['enabled'] ?? true),
+            'frequency' => $frequency,
+        ];
+    }
+
+    /** @return array{enabled: bool, frequency: string} */
+    public function updateScheduleSettings(bool $enabled, string $frequency): array
+    {
+        $normalized = in_array($frequency, self::FREQUENCIES, true) ? $frequency : 'daily';
+        $payload = ['enabled' => $enabled, 'frequency' => $normalized];
+
+        if (Schema::hasTable('system_configs')) {
+            SystemConfig::setVal(
+                self::SCHEDULE_CONFIG_KEY,
+                $payload,
+                'Automatic database backup schedule (enabled toggle and frequency).',
+            );
+        }
+
+        return $payload;
+    }
+
+    public function shouldRunScheduled(CarbonInterface $at): bool
+    {
+        $settings = $this->scheduleSettings();
+        if (! $settings['enabled']) {
+            return false;
+        }
+
+        return match ($settings['frequency']) {
+            'weekly' => $at->isSunday(),
+            'monthly' => $at->day === 1,
+            default => true,
+        };
+    }
+
+    public function scheduleSummary(): string
+    {
+        $settings = $this->scheduleSettings();
+        if (! $settings['enabled']) {
+            return 'Manual only (scheduled backups paused)';
+        }
+
+        return match ($settings['frequency']) {
+            'weekly' => 'Weekly (Sundays) at 23:00 Africa/Lagos',
+            'monthly' => 'Monthly (1st) at 23:00 Africa/Lagos',
+            default => 'Daily at 23:00 Africa/Lagos',
+        };
+    }
+
+    /** @return array{key: string, bytes: int, monthly_key: string|null, pruned: array{daily_deleted: int, monthly_deleted: int}} */
     public function run(CarbonInterface $at): array
     {
         $publicKey = (string) base64_decode((string) config('database_backup.public_key'), true);
@@ -76,20 +153,58 @@ class DatabaseBackupService
             $this->dumper->dumpTo($plain);
             $this->encryptor->encryptFile($plain, $encrypted, $publicKey);
 
-            $key = 'daily/'.$at->format('Y/m/Ymd-His').'.sql.gz.enc';
+            $stamp = $at->format('d-m-Y_H-i');
+            $key = 'daily/'.$at->format('Y/m/')."backup-{$stamp}.sql.gz.enc";
             $bytes = (int) filesize($encrypted);
             $this->upload($key, $encrypted, $bytes);
 
-            $monthlyKey = $at->day === 1 ? 'monthly/'.$at->format('Y-m').'.sql.gz.enc' : null;
+            $monthlyKey = $at->day === 1 ? "monthly/monthly-{$stamp}.sql.gz.enc" : null;
             if ($monthlyKey !== null) {
                 $this->upload($monthlyKey, $encrypted, $bytes);
             }
 
-            return ['key' => $key, 'bytes' => $bytes, 'monthly_key' => $monthlyKey];
+            $pruned = $this->prune($at);
+
+            return ['key' => $key, 'bytes' => $bytes, 'monthly_key' => $monthlyKey, 'pruned' => $pruned];
         } finally {
             @unlink($plain);
             @unlink($encrypted);
         }
+    }
+
+    /** @return array{daily_deleted: int, monthly_deleted: int} */
+    public function prune(CarbonInterface $at): array
+    {
+        return [
+            'daily_deleted' => $this->prunePrefix(
+                'daily',
+                $at->copy()->subDays(self::DAILY_RETENTION_DAYS)->getTimestamp(),
+            ),
+            'monthly_deleted' => $this->prunePrefix(
+                'monthly',
+                $at->copy()->subMonthsNoOverflow(self::MONTHLY_RETENTION_MONTHS)->getTimestamp(),
+            ),
+        ];
+    }
+
+    private function prunePrefix(string $prefix, int $cutoffTimestamp): int
+    {
+        $disk = $this->disk();
+        $files = $disk->allFiles($prefix);
+        if (count($files) <= 1) {
+            return 0;
+        }
+
+        usort($files, fn (string $a, string $b) => $disk->lastModified($b) <=> $disk->lastModified($a));
+
+        $deleted = 0;
+        foreach (array_slice($files, 1) as $file) {
+            if ($disk->lastModified($file) <= $cutoffTimestamp && $disk->delete($file)) {
+                $deleted++;
+            }
+        }
+
+        return $deleted;
     }
 
     private function upload(string $key, string $path, int $bytes): void

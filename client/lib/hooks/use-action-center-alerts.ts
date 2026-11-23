@@ -224,6 +224,7 @@ export function useActionCenterAlerts(
           : undefined;
         items.push({
           id: "oversold",
+          actionRoute: "/inventory/catalog?status=out_of_stock",
           title: `${oversoldCount} ${pluralize(oversoldCount, "Item")} ${allowSellAtZero ? "Oversold" : "Sold Out"}`,
           description:
             oversoldCount === 1 && formattedProduct
@@ -232,7 +233,6 @@ export function useActionCenterAlerts(
           icon: AlertOctagon,
           priority: "critical",
           actionLabel: "Reconcile Now",
-          actionRoute: "/inventory/catalog?status=out_of_stock",
         });
       }
 

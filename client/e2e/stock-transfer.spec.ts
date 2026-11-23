@@ -27,8 +27,12 @@ test.describe('Stock transfer entry point and multi-store lifecycle', () => {
     const SQL = await initSqlJs();
     const db = new SQL.Database(new Uint8Array(rawBinary));
 
+    const userRow = db.exec("SELECT id FROM users LIMIT 1");
+    const ownerUserId = (userRow[0]?.values[0]?.[0] as string) || null;
+
     db.run(
-      "INSERT INTO stores (id, name, store_slug, subscription_tier, is_initialized, _synced, _deleted) VALUES ('store-branch-2', 'Branch Two', 'branch-two', 'pro', 1, 1, 0)",
+      "INSERT INTO stores (id, name, store_slug, user_id, subscription_tier, is_initialized, _synced, _deleted) VALUES ('store-branch-2', 'Branch Two', 'branch-two', ?, 'pro', 1, 1, 0)",
+      [ownerUserId],
     );
     db.run("UPDATE stores SET subscription_tier = 'pro'");
 

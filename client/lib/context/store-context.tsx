@@ -60,22 +60,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     useStockAdjustmentDraftStore.getState().setActiveStoreId(targetId);
   }, [targetId, isAuthHydrated]);
 
+  const ownerId = !user?.store_id ? user?.id : undefined;
+
   const { data: storeProfile, isLoading: isStoreProfileLoading, refetch } = useQuery({
-    ...queryKeys.stores.profile(targetId),
+    ...queryKeys.stores.profile(targetId, ownerId),
     enabled: isAuthHydrated,
     queryFn: async () => {
       if (targetId) {
-        const profile = await getStoreById(targetId);
+        const profile = await getStoreById(targetId, ownerId);
         if (profile) return profile;
 
         // The active/fixed store no longer exists locally, most likely pruned by the sync-engine's reconciliation step because the server no longer re…
         // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-context-store-context-tsx-L203
         if (!user?.store_id) {
-          return getFirstStore();
+          return getFirstStore(ownerId);
         }
         return null;
       }
-      return getFirstStore();
+      return getFirstStore(ownerId);
     }
   });
 
@@ -101,10 +103,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const { data: allStores } = useQuery({
-    ...queryKeys.stores.all(user?.store_id),
+    ...queryKeys.stores.all(user?.store_id, ownerId),
     queryFn: async () => {
       if (user && !user.store_id) {
-        const stores = await getAllStores();
+        const stores = await getAllStores(user.id);
         return stores || [];
       }
       return [];

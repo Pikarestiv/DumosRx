@@ -206,7 +206,7 @@ export function DashboardSidebar({
           )}
           style={{
             top: "var(--tauri-top, env(safe-area-inset-top, 0px))",
-            height: "calc(100vh - var(--tauri-top, env(safe-area-inset-top, 0px)))",
+            bottom: "var(--tauri-bottom, env(safe-area-inset-bottom, 0px))",
           }}
         >
           {/* Logo header */}

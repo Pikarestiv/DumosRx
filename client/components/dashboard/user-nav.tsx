@@ -246,7 +246,12 @@ export function UserNav({
   const renderMobileDrawer = () => (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <NavTrigger initials={initials} />
+        <NavTrigger
+          initials={initials}
+          user={user}
+          showDetails={showDetails}
+          className={cn(showDetails ? "w-full" : "")}
+        />
       </DrawerTrigger>
 
       <DrawerContent

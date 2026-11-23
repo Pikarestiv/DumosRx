@@ -200,10 +200,10 @@ export const queryKeys = {
     status: () => resource(["licenseStatus"] as const, ["stores"]),
   },
   stores: {
-    profile: (targetId?: string | null) =>
-      resource(["storeProfile", targetId] as const, ["stores"]),
-    all: (userStoreId?: string) =>
-      resource(["allStores", userStoreId] as const, ["stores"]),
+    profile: (targetId?: string | null, ownerId?: string) =>
+      resource(["storeProfile", targetId, ownerId] as const, ["stores"]),
+    all: (userStoreId?: string, ownerId?: string) =>
+      resource(["allStores", userStoreId, ownerId] as const, ["stores"]),
   },
   broadcasts: {
     // Remote API data, not a local table.

@@ -274,7 +274,7 @@ describe("useActionCenterAlerts", () => {
     );
   });
 
-  it("pluralizes the inventory counts and marks oversold stock critical", async () => {
+  it("pluralizes the inventory counts and marks oversold/sold-out stock critical", async () => {
     const result = await alerts({
       expiring: 1,
       lowStock: 2,
@@ -286,15 +286,17 @@ describe("useActionCenterAlerts", () => {
     expect(byId["low-stock"].title).toBe("2 Items Low Stock");
     expect(byId["missing-expiry"].title).toBe("1 Batch Missing Expiry");
     expect(byId["missing-expiry"].actionRoute).toBe("/inventory/catalog?status=missing_expiry");
-    expect(byId["oversold"].title).toBe("3 Items Oversold");
+    expect(byId["oversold"].title).toBe("3 Items Sold Out");
     expect(byId["oversold"].priority).toBe("critical");
     expect(byId["low-stock"].priority).toBe("warning");
   });
 
-  it("names the product on the oversold card when exactly one is oversold", async () => {
+  it("uses 'Oversold' when sell-at-zero is enabled and capitalizes the product name", async () => {
+    state.storeProfile = { ...state.storeProfile, allow_sale_without_stock: 1 };
     const result = await alerts({ oversold: 1, oversoldProduct: "ampoul vellmax 20w" });
     const card = result.current.find((a) => a.id === "oversold");
-    expect(card?.description).toBe("ampoul vellmax 20w — stock floored at zero.");
+    expect(card?.title).toBe("1 Item Oversold");
+    expect(card?.description).toBe("Ampoul Vellmax 20w — stock floored at zero.");
   });
 
   it("keeps the generic oversold description for several products, or no name", async () => {

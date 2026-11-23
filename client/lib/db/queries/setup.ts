@@ -45,17 +45,38 @@ export async function getTotalRecordCount() {
   return res[0]?.total || 0;
 }
 
-export async function getStoreById(id: string) {
-  const stores = await query<StoreProfile>("SELECT * FROM stores WHERE id = ? AND (_deleted = 0 OR _deleted IS NULL)", [id]);
+export async function getStoreById(id: string, ownerId?: string) {
+  const stores = ownerId
+    ? await query<StoreProfile>(
+        "SELECT * FROM stores WHERE id = ? AND user_id = ? AND (_deleted = 0 OR _deleted IS NULL)",
+        [id, ownerId],
+      )
+    : await query<StoreProfile>(
+        "SELECT * FROM stores WHERE id = ? AND (_deleted = 0 OR _deleted IS NULL)",
+        [id],
+      );
   return stores[0] || null;
 }
 
-export async function getFirstStore() {
-  const stores = await query<StoreProfile>("SELECT * FROM stores WHERE (_deleted = 0 OR _deleted IS NULL) LIMIT 1");
+export async function getFirstStore(ownerId?: string) {
+  const stores = ownerId
+    ? await query<StoreProfile>(
+        "SELECT * FROM stores WHERE user_id = ? AND (_deleted = 0 OR _deleted IS NULL) LIMIT 1",
+        [ownerId],
+      )
+    : await query<StoreProfile>(
+        "SELECT * FROM stores WHERE (_deleted = 0 OR _deleted IS NULL) LIMIT 1",
+      );
   return stores[0] || null;
 }
 
-export async function getAllStores() {
+export async function getAllStores(ownerId?: string) {
+  if (ownerId) {
+    return query<StoreProfile>(
+      "SELECT * FROM stores WHERE user_id = ? AND (_deleted = 0 OR _deleted IS NULL)",
+      [ownerId],
+    );
+  }
   return query<StoreProfile>("SELECT * FROM stores WHERE (_deleted = 0 OR _deleted IS NULL)");
 }
 

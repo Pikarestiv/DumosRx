@@ -225,7 +225,6 @@ export function DashboardOverview() {
         open={selectedActivity?.type === "sale"}
         onOpenChange={(open) => !open && setSelectedActivity(null)}
         currencyCode={storeProfile?.currency}
-        viewHref={POS_RECENT_SALES_ROUTE}
       />
       <ExpenseDetailsDialog
         expense={

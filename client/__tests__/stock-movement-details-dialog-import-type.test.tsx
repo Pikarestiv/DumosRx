@@ -62,9 +62,12 @@ describe("StockMovementDetailsDialog A-124 import type", () => {
     expect(await screen.findByText("adjustment")).toBeTruthy();
   });
 
-  it("shows the product name with the store's caps setting", async () => {
+  it("shows the product name on its own full-width row with the store's caps setting", async () => {
     renderDialog(baseMovement);
     const name = await screen.findByText("Paracetamol 500mg");
+    const badge = await screen.findByText("Bulk Import");
     expect(name.className).toContain("uppercase");
+    expect(name.className).toContain("truncate");
+    expect(name.parentElement?.contains(badge)).toBe(false);
   });
 });

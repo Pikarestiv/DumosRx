@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ActivityLogDetailPanel } from "@/components/activity-log/activity-log-detail-panel";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 
@@ -7,6 +7,10 @@ const granted = new Set<string>();
 
 vi.mock("@/lib/hooks/use-permissions", () => ({
   useHasPermission: (key: string) => granted.has(key),
+}));
+
+vi.mock("@/lib/context/store-context", () => ({
+  useStore: () => ({ storeProfile: { uppercase_display_enabled: 0 } }),
 }));
 
 describe("ActivityLogDetailPanel cost field visibility", () => {
@@ -164,5 +168,69 @@ describe("ActivityLogDetailPanel cost field visibility", () => {
     expect(screen.queryByText("Cost Price Override")).toBeNull();
     expect(screen.getByText("Points Cost")).toBeTruthy();
     expect(screen.getByText("B-9")).toBeTruthy();
+  });
+
+  it("formats table labels, hides client_id, and serializes object values cleanly", () => {
+    render(
+      <ActivityLogDetailPanel
+        entry={{
+          ...baseEntry,
+          table_name: "stock_batches",
+          details: JSON.stringify({
+            client_id: "client-uuid-1",
+            batch_number: "B-900",
+            metadata: { source: "import", count: 3 },
+          }),
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Stock Batch")).toBeTruthy();
+    expect(screen.queryByText("Client Id")).toBeNull();
+    expect(screen.getByText('{"source":"import","count":3}')).toBeTruthy();
+  });
+
+  it("expands related actions inline as an accordion, shows timestamps, formats ISO dates, and shows product name", () => {
+    const related: AuditLogRow[] = [
+      {
+        id: "rel-1",
+        action: "INSERT",
+        table_name: "stock_movements",
+        record_id: "mv-1",
+        user_name: "John Doe",
+        created_at: "2026-11-21T07:37:43.409Z",
+        product_name: "paracetamol 500mg",
+        details: JSON.stringify({
+          movement_type: "sale",
+          quantity: -2,
+          product_id: "prod-1",
+          movement_date: "2026-11-21T07:37:43.409Z",
+          reason: "POS Sale #101",
+        }),
+      },
+    ];
+
+    render(
+      <ActivityLogDetailPanel
+        entry={baseEntry}
+        relatedEntries={related}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: /Stock sale \(-2\): Paracetamol 500mg/i });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(trigger.textContent).toMatch(/21\/11\/2026 \d{2}:\d{2}/);
+    expect(screen.queryByText("POS Sale #101")).toBeNull();
+
+    fireEvent.click(trigger);
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("POS Sale #101")).toBeTruthy();
+    const productEl = screen.getByText("paracetamol 500mg");
+    expect(productEl.className).toContain("capitalize");
+    expect(screen.queryByText("2026-11-21T07:37:43.409Z")).toBeNull();
+    expect(screen.getByText("1/1 viewed")).toBeTruthy();
   });
 });

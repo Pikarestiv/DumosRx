@@ -185,6 +185,34 @@ export async function insert(
   return id;
 }
 
+const AUDIT_IDENTITY_KEYS = [
+  "name",
+  "title",
+  "batch_number",
+  "order_number",
+  "transaction_number",
+  "prescription_number",
+  "return_number",
+  "category",
+  "username",
+  "first_name",
+  "last_name",
+  "product_id",
+  "key",
+  "account_name",
+] as const;
+
+function pickAuditIdentity(row?: Record<string, unknown>): Record<string, unknown> {
+  if (!row) return {};
+  const picked: Record<string, unknown> = {};
+  for (const key of AUDIT_IDENTITY_KEYS) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== "") {
+      picked[key] = row[key];
+    }
+  }
+  return picked;
+}
+
 export async function update(
   table: string,
   id: string,
@@ -199,11 +227,12 @@ export async function update(
 
   // _version is deliberately NOT incremented here.
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L235
-  const current = await query<{ _version: number }>(
-    `SELECT _version FROM ${table} WHERE id = ?`,
+  const current = await query<Record<string, unknown>>(
+    `SELECT * FROM ${table} WHERE id = ?`,
     [id],
   );
-  const version = current[0]?._version || 0;
+  const existingRow = current[0];
+  const version = (existingRow?._version as number) || 0;
 
   const record = withNormalizedName(table, {
     ...data,
@@ -234,7 +263,14 @@ export async function update(
     // See insert()'s matching exclusion above - "feedback" is background crash/error telemetry, not a user action.
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-db-base-helpers-ts-L295
     if (table !== "feedback" && !options?.skipAudit) {
-      await logAction(options?.action || "UPDATE", table, id, { ...record, ...options?.auditDetails }, options?.storeId, options?.correlationId);
+      await logAction(
+        options?.action || "UPDATE",
+        table,
+        id,
+        { ...pickAuditIdentity(existingRow), ...record, ...options?.auditDetails },
+        options?.storeId,
+        options?.correlationId,
+      );
     }
   };
 
@@ -282,12 +318,18 @@ export async function softDelete(table: string, id: string, options?: { storeId?
     ? { id, store_id: ownership.activeStoreId }
     : { id };
 
+  const existing = !options?.skipAudit
+    ? await query<Record<string, unknown>>(`SELECT * FROM ${table} WHERE id = ?`, [id])
+    : [];
+
   // See insert()'s comment above: same atomicity requirement.
   const writeSoftDelete = async () => {
     await execute(updateQuery, params);
 
     await addToSyncQueue(table, id, "DELETE", deletePayload);
-    if (!options?.skipAudit) await logAction("DELETE", table, id, { id }, options?.storeId, options?.correlationId);
+    if (!options?.skipAudit) {
+      await logAction("DELETE", table, id, existing[0] || { id }, options?.storeId, options?.correlationId);
+    }
 
     if (voidedMovement) {
       await syncBatchQuantityForMovement(

@@ -96,6 +96,9 @@ export function ActivityLogPage() {
             "action",
             "table_name",
             "user_name",
+            "product_name",
+            "details",
+            "record_id",
           ])
         : { results: [] as AuditLogRow[], isFuzzyFallback: false },
     [isSearching, searchData, search],

@@ -79,6 +79,27 @@ class PullRowMapper
             }
         }
 
+        if ($table === 'audit_logs') {
+            $props = is_array($array['properties'] ?? null) ? $array['properties'] : [];
+            $array['table_name'] = $array['table_name'] ?? ($props['table_name'] ?? null);
+            $array['record_id'] = $array['record_id'] ?? ($props['record_id'] ?? null);
+            $rawDetails = $array['details'] ?? ($props['details'] ?? null);
+
+            if ($rawDetails === null) {
+                $fallback = array_diff_key($props, array_flip(['client_id', 'table_name', 'record_id', 'details']));
+                if (! empty($array['description'])) {
+                    $fallback['description'] = $array['description'];
+                }
+                if ($fallback !== []) {
+                    $rawDetails = json_encode($fallback);
+                }
+            } elseif (is_array($rawDetails)) {
+                $rawDetails = json_encode($rawDetails);
+            }
+
+            $array['details'] = $rawDetails;
+        }
+
         return $array;
     }
 }

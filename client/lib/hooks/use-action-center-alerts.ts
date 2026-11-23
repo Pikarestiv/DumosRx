@@ -22,6 +22,7 @@ import {
   PackageCheck,
 } from "lucide-react";
 import { pluralize } from "@/lib/utils";
+import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { queryKeys } from "@/lib/query-keys";
 import { usePayablesDue } from "@/lib/hooks/use-payables-due";
 import { buildPayableAlerts } from "@/lib/hooks/payable-alerts";
@@ -150,7 +151,13 @@ export function useActionCenterAlerts(
       }
 
       if (storeProfile) {
-        const fieldsToCheck: (keyof StoreProfile)[] = ["name", "address", "phone", "email", "logo_url"];
+        const fieldsToCheck: (keyof StoreProfile)[] = [
+          "name",
+          "address",
+          "phone",
+          "email",
+          "logo_url",
+        ];
         if (storeProfile.store_type === "pharmacy") {
           fieldsToCheck.push("pcn_license");
         }
@@ -211,17 +218,21 @@ export function useActionCenterAlerts(
       }
 
       if (oversoldCount > 0) {
+        const allowSellAtZero = !!storeProfile?.allow_sale_without_stock;
+        const formattedProduct = oversoldProduct
+          ? capitalizeWords(oversoldProduct)
+          : undefined;
         items.push({
           id: "oversold",
-          title: `${oversoldCount} ${pluralize(oversoldCount, "Item")} Oversold`,
+          actionRoute: "/inventory/catalog?status=out_of_stock",
+          title: `${oversoldCount} ${pluralize(oversoldCount, "Item")} ${allowSellAtZero ? "Oversold" : "Sold Out"}`,
           description:
-            oversoldCount === 1 && oversoldProduct
-              ? `${oversoldProduct} — stock floored at zero.`
+            oversoldCount === 1 && formattedProduct
+              ? `${formattedProduct} — stock floored at zero.`
               : "Stock floored at zero — reconcile now.",
           icon: AlertOctagon,
           priority: "critical",
           actionLabel: "Reconcile Now",
-          actionRoute: "/inventory/catalog?status=out_of_stock",
         });
       }
 

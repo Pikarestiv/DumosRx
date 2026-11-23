@@ -107,9 +107,11 @@ function ActionCenterCard({ alert }: { alert: AlertItem }) {
             <h4 className="font-bold text-[13px] sm:text-sm text-foreground line-clamp-2 sm:line-clamp-1 leading-tight">
               {alert.title}
             </h4>
-            <p className="hidden sm:block text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
-              {alert.description}
-            </p>
+            <div className="hidden sm:block mt-0.5">
+              <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-snug" title={alert.description}>
+                {alert.description}
+              </p>
+            </div>
           </div>
         </div>
       </div>

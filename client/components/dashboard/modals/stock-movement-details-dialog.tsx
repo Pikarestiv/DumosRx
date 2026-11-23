@@ -19,6 +19,7 @@ import {
   resolveMovementDisplayType,
 } from "@/components/stock-batch/stock-movement-utils";
 import { DetailRow } from "./detail-row";
+import { ProductName } from "@/components/ui/product-name";
 import { useUppercaseDisplayClass } from "@/lib/hooks/use-uppercase-display";
 import type { StockMovementHistoryRow } from "@/lib/types/stock-movement";
 
@@ -50,6 +51,9 @@ export function StockMovementDetailsDialog({
   const date = rawDate ? toUtcInstant(rawDate) : rawDate;
   const isPositive = movement.quantity > 0;
   const displayType = resolveMovementDisplayType(movement);
+  const fullProductName = productInfo
+    ? `${productInfo.name}${productInfo.dosage_form ? ` (${productInfo.dosage_form})` : ""}`
+    : null;
 
   return (
     <ResponsiveModal
@@ -75,38 +79,46 @@ export function StockMovementDetailsDialog({
       }
     >
       <div className="px-5 py-[18px]">
-        <div className="flex items-start gap-3 mb-4">
-          <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getTypeIconBg(displayType)}`}
-          >
-            {getTypeIcon(displayType)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className={`text-[15px] font-semibold truncate ${capsClass}`}>
-              {productInfo
-                ? `${productInfo.name}${productInfo.dosage_form ? ` (${productInfo.dosage_form})` : ""}`
-                : productInfoQuery.isError
-                  ? "Failed to load product"
-                  : "Loading..."}
-            </div>
-            {date && (
-              <div className="text-[12px] text-muted-foreground/70">
-                {formatMovementDate(date)}, {formatMovementTime(date)}
+        <div className="space-y-2.5 mb-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${getTypeIconBg(displayType)}`}
+              >
+                {getTypeIcon(displayType)}
               </div>
-            )}
-          </div>
-          <div className="text-right shrink-0">
-            <span
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block ${getTypeColor(displayType)}`}
-            >
-              {getTypeLabel(displayType)}
-            </span>
+              <div className="min-w-0">
+                <span
+                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-md capitalize inline-block ${getTypeColor(displayType)}`}
+                >
+                  {getTypeLabel(displayType)}
+                </span>
+                {date && (
+                  <div className="text-[12px] text-muted-foreground/70 mt-0.5">
+                    {formatMovementDate(date)}, {formatMovementTime(date)}
+                  </div>
+                )}
+              </div>
+            </div>
             <div
-              className={`text-[18px] font-semibold mt-1 ${isPositive ? "text-emerald-700" : "text-destructive"}`}
+              className={`text-[18px] font-semibold shrink-0 ${isPositive ? "text-emerald-700" : "text-destructive"}`}
             >
               {isPositive ? "+" : "-"}
               {Math.abs(movement.quantity)}
             </div>
+          </div>
+
+          <div className="w-full min-w-0">
+            {fullProductName ? (
+              <ProductName
+                name={fullProductName}
+                className="text-[15px] font-semibold"
+              />
+            ) : (
+              <div className={`text-[15px] font-semibold truncate w-full ${capsClass}`}>
+                {productInfoQuery.isError ? "Failed to load product" : "Loading..."}
+              </div>
+            )}
           </div>
         </div>
 

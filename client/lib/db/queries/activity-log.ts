@@ -95,7 +95,53 @@ export async function getActivityLog(
     [...params, pageSize, offset],
   );
 
-  return { rows: rows || [], total };
+  const enrichedRows = await enrichAuditRowsWithProductNames(rows || []);
+  return { rows: enrichedRows, total };
+}
+
+function extractProductId(row: AuditLogRow): string | null {
+  if (row.table_name === "products" && row.record_id) {
+    return row.record_id;
+  }
+  if (!row.details) return null;
+  try {
+    const parsed = JSON.parse(row.details) as Record<string, unknown>;
+    if (typeof parsed?.product_name === "string" && parsed.product_name) return null;
+    if (typeof parsed?.product_id === "string" && parsed.product_id) {
+      return parsed.product_id;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function enrichAuditRowsWithProductNames(rows: AuditLogRow[]): Promise<AuditLogRow[]> {
+  if (rows.length === 0) return rows;
+  const rowProductIds = rows.map(extractProductId);
+  const uniqueIds = Array.from(new Set(rowProductIds.filter((id): id is string => !!id)));
+  if (uniqueIds.length === 0) return rows;
+
+  const productNameById = new Map<string, string>();
+  const CHUNK_SIZE = 400;
+  for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+    const chunk = uniqueIds.slice(i, i + CHUNK_SIZE);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const products = await query<{ id: string; name: string }>(
+      `SELECT id, name FROM products WHERE id IN (${placeholders})`,
+      chunk,
+    );
+    for (const p of products) {
+      if (p.name) productNameById.set(p.id, p.name);
+    }
+  }
+
+  return rows.map((row, index) => {
+    const pid = rowProductIds[index];
+    if (!pid) return row;
+    const productName = productNameById.get(pid);
+    return productName ? { ...row, product_name: productName } : row;
+  });
 }
 
 export async function getDistinctActivityActions(tableName?: string) {

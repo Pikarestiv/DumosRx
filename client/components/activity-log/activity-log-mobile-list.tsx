@@ -19,7 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { describeActivity } from "./describe-activity";
+import { describeActivity, formatTableLabel } from "./describe-activity";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import { groupByCorrelation } from "./activity-log-grouping";
 
@@ -165,8 +165,8 @@ export function ActivityLogMobileCard({
           {row.table_name && (
             <>
               <span>&middot;</span>
-              <span className="text-muted-foreground/70 truncate capitalize">
-                {row.table_name.replace(/_/g, " ")}
+              <span className="text-muted-foreground/70 truncate">
+                {formatTableLabel(row.table_name)}
               </span>
             </>
           )}

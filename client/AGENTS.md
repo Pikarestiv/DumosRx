@@ -3230,6 +3230,12 @@ column also carries the SKU).
 - A column holding a name is `minmax(<floor>px, 1fr)` so it absorbs spare
   width on a wide screen rather than clamping at a fixed width (see the
   per-row-grid rule below).
+- **Prioritize product names across the app**: product names can be quite
+  long, so in cards, dialogs, and detail headers give `<ProductName>` a full
+  row / full available width rather than sharing a horizontal row with badges
+  or status pills (e.g. `StockMovementDetailsDialog` places the movement badge
+  and quantity on the top row and `<ProductName>` on its own full-width row
+  below it so the badge never cuts off the name).
 - Mounting it brings `useStore()` with it, so a spec that mounts such a
   component in isolation has to mock `@/lib/context/store-context`; five
   procurement specs needed that when this landed.

@@ -14,4 +14,5 @@ export interface AuditLogRow {
   // Rationale: docs/CLIENT_LIB_COMMENTS.md#types-audit-log-ts-L13
   occurrence_count?: number | null;
   last_occurred_at?: string | null;
+  product_name?: string | null;
 }

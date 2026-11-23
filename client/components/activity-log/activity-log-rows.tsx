@@ -5,7 +5,11 @@ import { format } from "date-fns";
 import { History } from "lucide-react";
 import { SortableHeaderCell } from "@/components/ui/sortable-header-cell";
 import { EmptyState } from "@/components/ui/empty-state";
-import { describeActivity } from "./describe-activity";
+import {
+  describeActivity,
+  formatTableLabel,
+  summarizeActivityDetails,
+} from "./describe-activity";
 import type { AuditLogRow } from "@/lib/types/audit-log";
 import type { ActivityLogSortKey } from "@/lib/db/queries/activity-log";
 import { groupByCorrelation } from "./activity-log-grouping";
@@ -103,26 +107,31 @@ export function ActivityLogDesktopTable({
               }}
               className={`grid ${GRID_COLS} items-center hover:bg-accent/30 cursor-pointer text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset`}
             >
-              <div role="cell" className="px-4 py-2.5">
-                <div className="font-semibold text-foreground flex items-center gap-1.5">
-                  {describeActivity(row)}
+              <div role="cell" className="px-4 py-2.5 min-w-0">
+                <div className="font-semibold text-foreground flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{describeActivity(row)}</span>
                   {group.length > 1 && (
-                    <span className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5">
+                    <span className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 shrink-0">
                       +{group.length - 1} more
                     </span>
                   )}
                   {!!row.occurrence_count && row.occurrence_count > 1 && (
                     <span
-                      className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5"
+                      className="text-[10px] font-semibold text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 shrink-0"
                       title={`Repeated ${row.occurrence_count} times`}
                     >
                       ×{row.occurrence_count}
                     </span>
                   )}
                 </div>
-                {row.table_name && (
-                  <div className="text-[11px] text-muted-foreground/70">
-                    {row.table_name}
+                {(row.table_name || summarizeActivityDetails(row)) && (
+                  <div className="text-[11px] text-muted-foreground/70 truncate">
+                    {[
+                      row.table_name ? formatTableLabel(row.table_name) : null,
+                      summarizeActivityDetails(row),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
                 )}
               </div>

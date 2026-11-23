@@ -2711,4 +2711,56 @@ class SyncEndpointTest extends TestCase
         $this->assertEquals('4500.00', $movement->unit_cost);
         $this->assertEquals('Damage — Customer return discarded: Broken', $movement->reason);
     }
+
+    public function test_pull_sync_unpacks_audit_log_table_name_record_id_and_details()
+    {
+        $auditId = (string) \Illuminate\Support\Str::uuid();
+        $productId = (string) \Illuminate\Support\Str::uuid();
+        $detailsJson = json_encode(['name' => 'Amoxicillin 500mg', 'selling_price' => 1200]);
+
+        $push = $this->actingAs($this->user)->postJson('/api/v1/app/sync/push', [
+            'changes' => [
+                [
+                    'table_name' => 'audit_logs',
+                    'operation' => 'INSERT',
+                    'record_id' => $auditId,
+                    'payload' => [
+                        'id' => $auditId,
+                        'user_id' => $this->user->id,
+                        'store_id' => $this->store->id,
+                        'action' => 'UPDATE',
+                        'table_name' => 'products',
+                        'record_id' => $productId,
+                        'details' => $detailsJson,
+                        'created_at' => now()->toIso8601String(),
+                    ],
+                ],
+            ],
+        ]);
+        $push->assertStatus(200)->assertJsonCount(0, 'failed');
+
+        \App\Models\ActivityLog::create([
+            'user_id' => $this->user->id,
+            'store_id' => $this->store->id,
+            'action' => 'TILL_RELINK_CODE_ISSUED',
+            'description' => 'Issued till re-link code for Front Till',
+            'properties' => ['device_id' => 'DRX-123'],
+        ]);
+
+        $pull = $this->actingAs($this->user)->postJson('/api/v1/app/sync/pull', []);
+        $pull->assertStatus(200);
+
+        $pulledLogs = collect($pull->json('changes.audit_logs'));
+        $clientRow = $pulledLogs->firstWhere('record_id', $productId);
+        $this->assertNotNull($clientRow);
+        $this->assertSame('products', $clientRow['table_name']);
+        $this->assertSame($productId, $clientRow['record_id']);
+        $this->assertSame($detailsJson, $clientRow['details']);
+
+        $serverRow = $pulledLogs->firstWhere('action', 'TILL_RELINK_CODE_ISSUED');
+        $this->assertNotNull($serverRow);
+        $decoded = json_decode($serverRow['details'], true);
+        $this->assertSame('Issued till re-link code for Front Till', $decoded['description']);
+        $this->assertSame('DRX-123', $decoded['device_id']);
+    }
 }

@@ -1,3 +1,12 @@
+### A-430 — a storefront rebuild on the dev API rebuilt the production site, never dev.dumosrx.com
+- **Issue:** none filed (found from GitHub Actions runs; no GitHub issue exists).
+- **Fixed:** 2026-11-24, server and workflows, TDD for the server.
+- **Was:** `StorefrontRebuildDispatcher` always sent `storefront-changed`, which only `deploy-web.yml` listens for. So the dev API's scheduled, admin and owner rebuilds built `main` against the production API and redeployed dumosrx.com, while `deploy-dev.yml` ran only on pushes to `dev`: dev storefront pages such as `/s/koscent` never appeared until the next dev deploy, and every dev rebuild cost a production deploy.
+- **Now:** the event comes from `STOREFRONT_REBUILD_EVENT` (`dumos.github.storefront_event`, default and blank fallback `storefront-changed`). `deploy-dev.yml` listens for `storefront-changed-dev` and on that event runs only its `deploy-web` job: it checks out `dev`, builds and deploys dev.dumosrx.com as before, and confirms to the dev API with the `DEV_STOREFRONT_REBUILD_TOKEN` secret. The web job's concurrency group no longer contains `github.ref`, since a dispatch run's ref is `main`. Details in `laravel-server/AGENTS.md` (storefront rebuild pipeline).
+- **Needs ops:** set `STOREFRONT_REBUILD_EVENT=storefront-changed-dev` in the dev API's `.env`; add a `DEV_STOREFRONT_REBUILD_TOKEN` repository secret equal to the dev API's `STOREFRONT_REBUILD_TOKEN` (both optional; without them dev stays on clear-on-dispatch); merge the workflow change to `main`, because GitHub reads `repository_dispatch` triggers from the default branch.
+- **Coverage:** `laravel-server/tests/Feature/StorefrontRebuildDispatcherEventTest.php`. The workflow was checked with `actionlint`, not run.
+- **Compat:** production sends the same event as before with no `.env` change. Until the dev `.env` is updated, dev keeps the old behaviour (rebuilding production).
+
 ### A-429 — Pro owners never saw their storefront settings, although the server served Pro storefronts
 - **Issue:** none filed (found while splitting the storefront into Pro and Enterprise; no GitHub issue exists).
 - **Fixed:** 2026-11-24, client, web and server, TDD.

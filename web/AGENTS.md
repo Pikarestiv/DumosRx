@@ -1768,7 +1768,8 @@ per-finding status). The storefront contract as it now stands:
   `// Cache for 60 seconds` comment actively misleading (`SF-P3-1`). A
   storefront is stale until the next **full site rebuild**, which the API
   triggers via `storefront_dirty_at` → `RebuildStorefrontIfDirty` →
-  `repository_dispatch` → `deploy-web.yml` (~15 minutes at best). What does
+  `repository_dispatch` → `deploy-web.yml` (`deploy-dev.yml`'s web job on dev,
+  via `storefront-changed-dev`) (~15 minutes at best). What does
   and doesn't dirty a storefront is documented in
   `laravel-server/AGENTS.md`.
 - **Build-time fetch failures are fatal, not degraded.** `getStorefrontSlugs()`

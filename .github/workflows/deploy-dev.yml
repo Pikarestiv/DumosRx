@@ -5,23 +5,26 @@ on:
     branches:
       - dev
   workflow_dispatch:
+  # Fired by the dev API's storefront rebuild (STOREFRONT_REBUILD_EVENT). Runs
+  # only deploy-web; GitHub reads this trigger from main, not dev.
+  repository_dispatch:
+    types: [storefront-changed-dev]
 
 jobs:
   checks:
+    if: github.event_name != 'repository_dispatch'
     uses: ./.github/workflows/checks.yml
 
-  # Each job below gets its own concurrency group (not one workflow-wide
-  # group) since they deploy independent targets (dev.dumosrx.com,
-  # app.dev.dumosrx.com, api.dev.dumosrx.com) and shouldn't needlessly
-  # queue behind each other - but two overlapping runs of the SAME job
-  # (a quick second push, or workflow_dispatch racing a push-triggered
-  # run) would otherwise race that job's own FTP-Deploy-Action state file.
+  # One concurrency group per deploy target; see laravel-server/AGENTS.md (storefront rebuild pipeline).
   deploy-web:
     name: Build & Deploy Frontend (Dev)
     needs: [checks, deploy-backend]
+    if: >-
+      !cancelled() && (github.event_name == 'repository_dispatch'
+      || (needs.checks.result == 'success' && needs.deploy-backend.result == 'success'))
     runs-on: ubuntu-latest
     concurrency:
-      group: deploy-dev-web-${{ github.ref }}
+      group: deploy-dev-web
       cancel-in-progress: false
     permissions:
       contents: read
@@ -32,6 +35,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          ref: ${{ github.event_name == 'repository_dispatch' && 'dev' || '' }}
 
       - name: Setup Node.js
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
@@ -73,9 +78,19 @@ jobs:
             **/_none/**
             **/_none
 
+      - name: Confirm storefront rebuild to the API
+        if: success() && github.event_name == 'repository_dispatch'
+        continue-on-error: true
+        run: |
+          curl --fail --silent --show-error --max-time 30 \
+            -X POST "https://api.dev.dumosrx.com/api/v1/internal/storefront/rebuild-complete" \
+            -H "Accept: application/json" \
+            -H "X-Storefront-Rebuild-Token: ${{ secrets.DEV_STOREFRONT_REBUILD_TOKEN }}"
+
   deploy-client:
     name: Build & Deploy Client App (Dev)
     needs: checks
+    if: github.event_name != 'repository_dispatch'
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-dev-client-${{ github.ref }}
@@ -125,6 +140,7 @@ jobs:
   deploy-backend:
     name: Build & Deploy Backend (Dev)
     needs: checks
+    if: github.event_name != 'repository_dispatch'
     runs-on: ubuntu-latest
     concurrency:
       group: deploy-dev-backend-${{ github.ref }}

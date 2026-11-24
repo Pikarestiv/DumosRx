@@ -28,7 +28,7 @@ class StorefrontRebuildController extends Controller
     #[OA\Post(
         path: '/internal/storefront/rebuild-complete',
         summary: 'Confirm that a dispatched storefront rebuild has been deployed',
-        description: 'Called by .github/workflows/deploy-web.yml after a successful FTP sync. Clears storefront_dirty_at for every store that was already dirty when the rebuild was dispatched; stores dirtied *during* the build stay dirty so the next scheduled run picks them up. Authenticated by the X-Storefront-Rebuild-Token header (STOREFRONT_REBUILD_TOKEN).',
+        description: 'Called by .github/workflows/deploy-web.yml (production) or deploy-dev.yml (dev, storefront-changed-dev runs) after a successful FTP sync. Clears storefront_dirty_at for every store that was already dirty when the rebuild was dispatched; stores dirtied *during* the build stay dirty so the next scheduled run picks them up. Authenticated by the X-Storefront-Rebuild-Token header (STOREFRONT_REBUILD_TOKEN).',
         tags: ['Storefront'],
         responses: [
             new OA\Response(response: 200, description: 'Flags cleared', content: new OA\JsonContent(properties: [

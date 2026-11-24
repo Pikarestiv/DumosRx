@@ -5,15 +5,11 @@ namespace App\Services\Storefront;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-/**
- * The one place that asks GitHub for a storefront rebuild
- * (.github/workflows/deploy-web.yml listens for the `storefront-changed`
- * repository_dispatch). Used by the scheduled RebuildStorefrontIfDirty command
- * and by the admin's manual "Rebuild storefronts now" button.
- */
 class StorefrontRebuildDispatcher
 {
     public const NOT_CONFIGURED = 'not_configured';
+
+    public const DEFAULT_EVENT = 'storefront-changed';
 
     public function configured(): bool
     {
@@ -39,7 +35,7 @@ class StorefrontRebuildDispatcher
                 ])
                 ->timeout(10)
                 ->post("https://api.github.com/repos/{$repo}/dispatches", [
-                    'event_type' => 'storefront-changed',
+                    'event_type' => config('dumos.github.storefront_event') ?: self::DEFAULT_EVENT,
                 ]);
         } catch (\Throwable $e) {
             Log::error('Storefront rebuild dispatch threw: '.$e->getMessage());

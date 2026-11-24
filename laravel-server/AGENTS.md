@@ -218,7 +218,8 @@ without updating that.
   (`mon..sun`, each null or `{open, close}` as `HH:MM`, open before close), null
   clears one, and stamps `style_dirty_at` only when something changed.
   **`POST /admin/storefront/rebuild`** (`rebuild`, `role:super_admin`) sends the
-  `storefront-changed` dispatch through `StorefrontRebuildDispatcher`, the one
+  environment's rebuild dispatch (`STOREFRONT_REBUILD_EVENT`, see the pipeline
+  section below) through `StorefrontRebuildDispatcher`, the one
   class that talks to GitHub (`GITHUB_TOKEN`/`GITHUB_REPO`; the scheduled
   command uses it too): 202 on acceptance, 502 when GitHub refuses, 503 when
   the server has no credentials. With `STOREFRONT_REBUILD_TOKEN` set it records
@@ -1717,8 +1718,57 @@ extending or relying on any of this):
   all.** While a rebuild is outstanding and unconfirmed the command refuses to
   dispatch another until
   `dumos.storefront.rebuild_confirmation_timeout` (default 45 min) has passed.
+- **One event per environment (2026-11-24, A-430).** `StorefrontRebuildDispatcher`
+  is the only class that calls GitHub's `repository_dispatch` API; it is used
+  by the scheduled `RebuildStorefrontIfDirty` command, the admin's
+  "Rebuild storefronts now" button and the owner's publish button. The
+  `event_type` it sends is `config('dumos.github.storefront_event')`, fed by
+  `STOREFRONT_REBUILD_EVENT`, defaulting (also when blank) to
+  `storefront-changed`:
+  - `storefront-changed` wakes `deploy-web.yml`, which builds `main` against
+    `api.dumosrx.com` and deploys **dumosrx.com**. Production's `.env` needs
+    nothing new.
+  - `storefront-changed-dev` wakes `deploy-dev.yml`, which runs **only** its
+    `deploy-web` job (no `checks`, no backend, no client app) and deploys
+    **dev.dumosrx.com** built from `dev` against `api.dev.dumosrx.com`, then
+    confirms to `https://api.dev.dumosrx.com/api/v1/internal/storefront/rebuild-complete`.
+    **The dev server's `.env` has to have `STOREFRONT_REBUILD_EVENT=storefront-changed-dev`
+    set by hand** (deploys exclude `.env`). Without it every dev rebuild
+    redeploys the production site from `main` and dev storefront pages (for
+    example a store created only on dev) never appear until the next push to `dev`.
+  - The dev callback presents the **`DEV_STOREFRONT_REBUILD_TOKEN`** repository
+    secret, which must equal the dev API's `STOREFRONT_REBUILD_TOKEN`. It is a
+    separate secret from production's `STOREFRONT_REBUILD_TOKEN` so the dev
+    server never holds the production callback secret. The step mirrors
+    `deploy-web.yml`'s (`if: success()`, `continue-on-error`, `curl --fail`)
+    and additionally runs only on `repository_dispatch`, so a push to `dev`
+    behaves exactly as before. Unset on either side, the dev API stays on
+    clear-on-dispatch, as described above.
+  - **GitHub gotcha:** a `repository_dispatch` run always uses the workflow
+    file from the **default branch (`main`)**, and its `github.ref` is
+    `refs/heads/main`, so `actions/checkout` would build `main`. The dev
+    `deploy-web` job therefore checks out `ref: dev` for that event (empty,
+    i.e. the pushed commit, otherwise). The new trigger does nothing until this
+    `deploy-dev.yml` change has been merged to `main`.
+  - **`needs` with skipped jobs:** `deploy-web` keeps `needs: [checks, deploy-backend]`
+    and has `if: !cancelled() && (repository_dispatch || both needs succeeded)`.
+    Without an explicit `if`, a skipped dependency skips its dependents, so the
+    dispatch would run nothing. On push the condition is the same "both
+    succeeded" as the implicit default.
+  - **Concurrency:** each dev deploy job has its own group, because the three
+    targets (dev.dumosrx.com, app.dev.dumosrx.com, api.dev.dumosrx.com) are
+    independent, but two runs of the *same* job would race that job's
+    FTP-Deploy-Action state file. The web group is the constant
+    `deploy-dev-web`, not `deploy-dev-web-${{ github.ref }}`: a dispatch run's
+    ref is `main` while a push's is `dev`, so a ref-keyed group would let the
+    two upload to dev.dumosrx.com at once. With `cancel-in-progress: false`
+    GitHub keeps one running and one pending job and drops an older pending
+    one. Any surviving run builds the `dev` head, so the content still ships,
+    but a dropped dispatch sends no confirmation and the API re-dispatches
+    after `STOREFRONT_REBUILD_TIMEOUT_MINUTES`.
 - **Coverage:** `tests/Feature/StorefrontRebuildPipelineTest.php` (15 tests,
-  `Http::fake()`) is the file to extend for anything in this area.
+  `Http::fake()`) is the file to extend for anything in this area;
+  `tests/Feature/StorefrontRebuildDispatcherEventTest.php` pins the event type.
 
 Note also that the storefront's online-payment flow (`initializeCheckout`/
 `StorefrontPaymentIntent`) was wired up end-to-end 2026-09-26 (SF-P1-2) via

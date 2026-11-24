@@ -4936,21 +4936,31 @@ behaviour without it, so no caller had to change at once.
   (`components/settings/store/storefront-appearance.tsx`), shown once the store
   has a slug and a super admin has allowed it for the store (the GET answers
   `{allowed: false}` otherwise, and a failed load behaves the same: a note to
-  contact the account manager, never an error): a style (Workshop, Clinic or Studio, defaulting to Clinic for a
+  contact the account manager, never an error): a style (the six presets, those
+  outside the plan's `available_themes` disabled with an Enterprise badge,
+  defaulting to Clinic for a
   pharmacy and Workshop otherwise while the store is still on a classic theme),
   an accent colour with a contrast warning, tagline, WhatsApp number, pickup
   minutes, opening hours by day, and the default language plus a "let customers
   switch language" box. It is **online-only**, not synced: `GET/PUT
   /app/storefront-settings` through `StorefrontApiClient`
   (`lib/api/client-storefront.ts`) and `useStorefrontSettings`, with an
-  offline message and retry when the load fails. The plan gate is
-  `useFeatureGate().canCustomizeTheme` (`custom_branding`), enforced again by
-  the server's `subscription:custom_branding` on the PUT; a locked plan sees the
-  upgrade message and disabled fields. `handleSaveProfile` no longer pushes `store_slug` or `online_store_enabled`
+  offline message and retry when the load fails. Since 2026-11-24 the gate is
+  the server's: `allowed` is true only with the plan's `owner_self_edit_look`
+  (Enterprise) and the super admin's switch; a Pro owner gets `{allowed: false,
+  entitlements}` and sees `StorefrontPlanFeatures` (what Pro includes, each
+  Enterprise-only feature with an Enterprise badge, an upgrade prompt) instead of
+  the form. Inside the form the accent field and the language switch lock with a
+  badge when the entitlements withhold them, and the save then omits `accent` and
+  sends `enabled_locales: [locale]`. A `checkout_warning` from the server shows
+  as an alert above either view. The form is split into
+  `storefront-style-picker.tsx`, `storefront-accent-field.tsx`,
+  `storefront-language-fields.tsx`, `storefront-plan-features.tsx` and
+  `storefront-preset-options.ts`. `handleSaveProfile` no longer pushes `store_slug` or `online_store_enabled`
   (a stale local copy would have overwritten a super admin's change through the
   sync path; older till bundles still can, a known gap). `theme` is sent only if the owner actually clicked a style, so saving a detail
   never silently replaces an existing classic theme. The server accepts only the store owner
-  (a staff login gets 403 with an explanation) and only the three presets.
+  (a staff login gets 403 with an explanation) and only the plan's presets.
   `lib/utils/storefront-accent.ts` mirrors `web/lib/storefront-accent.ts` (the
   two apps share no code). It has its own Save; a change reaches customers after the next automatic
   storefront rebuild, about 15 minutes.
@@ -7512,6 +7522,40 @@ Changing `show_online`, `selling_price`, `name` or `is_active` server-side
 dirties the owning store's storefront and schedules a full static rebuild
 (~15 minutes at best) — see `laravel-server/AGENTS.md`. The UI copy says as
 much, so don't promise instant updates anywhere.
+
+## Storefront plan entitlements in the till (2026-11-24)
+
+- **Source.** `useFeatureGate().storefrontEntitlements`, from the computed
+  `storefront_entitlements` map the server adds to the cached `subscription_plans`
+  config, keyed by the store's tier (`resolveStorefrontEntitlements()`,
+  `lib/utils/storefront-entitlements.ts`). No `store_url` means
+  `LOCKED_STOREFRONT`; a server older than the map means the old unrestricted
+  storefront, which is what that server enforces. The server is the authority
+  for everything (laravel-server/AGENTS.md, "Storefront plan entitlements"); the
+  till only locks, hides and explains.
+- **`canUseEcommerce` reads `store_url`** (with `ecommerce` as an alt key for an
+  old saved config). Bundles before this change read `ecommerce` first with an
+  Enterprise-only default, so a Pro owner on an old bundle still sees the
+  upgrade message on the Show Online switch until the till updates (A-429).
+- **Online Storefront card.** Free/Starter (no `storefront_enabled`) see an
+  upgrade prompt instead of the address. An `on_demand` plan (Enterprise) gets
+  `StorefrontRebuildButton` ("Publish changes now", `POST /app/storefront/rebuild`,
+  online only, server rate-limited).
+- **Payment Methods.** `OnlinePaymentsSection` (Paystack onboarding) renders only
+  with `checkout_paystack`; otherwise a note with an Enterprise badge.
+- **Listing cap.** `useOnlineListingCap()` counts this store's listed products
+  locally (`countListedProducts()`, `queryKeys.products.onlineListedCount`) and
+  applies only with a `max_online_products` and `online_store_enabled = 1`. The
+  add/edit product dialog refuses to turn Show Online on for a product not
+  already listed once the count reaches the cap (toast with
+  `overCapMessage()`), and a new product starts unlisted at the cap. Bulk
+  "Show online" publishes at most the remaining slots
+  (`setProductsShowOnline(..., maxToList)`). `OnlineListingCapBanner` on the
+  Products page shows when the cap is reached or exceeded. The server enforces
+  the same cap on push and versions the row back if a device gets past this.
+- Coverage: `storefront-entitlements.test.ts`, `online-listing-count.test.ts`,
+  `add-product-listing-cap.test.tsx`, `online-listing-cap-banner.test.tsx`,
+  `storefront-plan-gates.test.tsx`, `storefront-appearance.test.tsx`.
 
 ## Online Payments settings panel (`components/settings/store/online-payments-section.tsx`)
 

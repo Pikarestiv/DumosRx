@@ -176,6 +176,14 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 ### 🌐 Online Storefront
 
+**Pro and Enterprise Storefronts (2026-11-24):** An online store is part of the Pro and Enterprise plans; Free and Starter see an upgrade prompt in Settings > Store. A plan alone does not publish a store: the account manager still switches it on.
+- **Pro:** up to 300 products online per store (only products marked Show Online count; the till inventory is never capped), the Workshop, Clinic and Market styles (a super admin can change which styles Pro gets), every classic colour theme, payment by transfer or mobile money and pay on delivery, the "Powered by" badge, one language, and the look set by the account manager. The home page (featured products, style, colours, services, languages) is rebuilt every night at 03:00 Lagos time.
+- **Enterprise:** unlimited products, every style including new ones, the owner's own accent colour, card payments online (Paystack), services listed, a customer language switch, no "Powered by" badge, the owner changing the look themselves, and a "Publish changes now" button.
+- **Both:** the Shop page, cart prices, stock and checkout are always live, so a price or stock change is current at checkout even before the nightly rebuild. One rebuild publishes every store, so an Enterprise publish also ships any pending Pro changes early.
+- **Changing plan never rewrites settings:** a downgrade only changes what the storefront shows; an upgrade brings back the saved style, colour, services and languages. If online card payment was a store's only way to be paid, the till warns the owner to add transfer instructions or pay on delivery.
+- **The 300-product cap:** the till blocks switching on a 301st product (and new products start unlisted at the cap); swapping one off frees a slot. When the cap first applies to a store listing more (the store is switched on, or moves down to Pro), DumosRx keeps the 300 best sellers of the last 90 days listed, unlists the rest once, and sends the owner a notification. Nothing is relisted automatically after an upgrade.
+- Guide: `dumosrx.com/guides/storefront-plans`.
+
 **Products Show Online By Default:** New products are listed on your online store automatically, whether you add them one by one or import them. Untick "Show Online" on any product, or use the bulk toggle, to hide it. Products you already had are listed too once DumosRx runs the one-time update on your account (prescription-controlled items are left unlisted).
 
 **Product Photos Online:** A product's photo appears on its card in your online store, after the store's next automatic refresh.
@@ -188,7 +196,7 @@ Your Cloud Dashboard is your management hub. Log in from any web browser to get 
 
 **Featured Products Are Your Best Sellers, Refreshed Nightly:** The featured products on your storefront home page are the products you have sold most over the last 90 days, counting both how many units you sold and how much money they brought in, equally. Every sale counts, whether rung up at the till or an online order you fulfilled (credit sales included; fully refunded or failed sales are not). Products you have in stock come first, and a best seller that has run out drops behind them rather than disappearing. A store with no sales yet shows its products in name order. Every night at 11pm (Lagos time) DumosRx checks whether your top eight changed and, only if it did, refreshes your storefront. Your Shop page keeps listing everything in name order. Hidden and prescription-controlled products are never featured.
 
-**Storefront Themes:** Each storefront has a colour theme (Default, Forest, Navy, Rose, Amber, Slate, Violet). Only a DumosRx super admin can change it, from the store's detail page in the admin panel; it goes live with the next storefront rebuild. Store owners have no theme control yet.
+**Storefront Themes:** Each storefront has a colour theme (Default, Forest, Navy, Rose, Amber, Slate, Violet) or one of the styles (Workshop, Clinic, Studio, Market, Boutique, Grove). A super admin can set either from the store's detail page in the admin panel; an Enterprise owner whose account manager has switched owner styling on can pick a style themselves in Settings. A Pro storefront on a style outside its plan is shown the first style its plan allows until it upgrades. Changes go live with the next storefront rebuild.
 
 **About, Locations & FAQ pages:** `/s/[slug]/about`, `/locations` and `/faq` still exist so old links and the sitemap keep working, and render the same sections as the home page.
 

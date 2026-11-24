@@ -291,7 +291,9 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 - **Footer** (`storefront-footer.tsx`): deliberately quiet, white with a top
   border: logo, "© year name", address and hours, and "Powered by
   {WEB_APP_HOST}" (the host of `WEB_APP_URL` without `www.`) linking
-  `WEB_APP_URL`. No links to storefront routes, no about text, no social links
+  `WEB_APP_URL`, hidden only when the payload's `show_powered_by` is `false`
+  (Enterprise's `remove_powered_by_badge`; a payload without the field keeps
+  the badge). No links to storefront routes, no about text, no social links
   (`storefronts.social_links` is not exposed by `GET /storefront/{slug}`).
 - **Languages (English and French, 2026-11-14).** Everything the storefront
   itself says comes from `lib/storefront-messages-en.ts` and
@@ -2219,6 +2221,34 @@ the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
 `fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
 contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
 update the `localFont` call; do not reintroduce `next/font/google`.
+
+## Storefront plans in web (Pro/Enterprise split, 2026-11-24)
+
+The server applies the owner's plan to every storefront payload
+(laravel-server/AGENTS.md, "Storefront plan entitlements"), so the public pages
+need no plan logic of their own: `theme`, `accent`, `show_services`,
+`enabled_locales`, `online_payment_available` and `show_powered_by` already
+arrive as the plan allows. Checkout offers Paystack only when the live
+`/products` call reports `online_payment_available` (`availablePaymentMethods()`),
+which is false on Pro.
+
+- **Plan editor.** `plan-tier-card.tsx` binds "Online Storefront" to `store_url`,
+  the single storefront key; `ecommerce` is no longer shown or edited but stays
+  in stored data (`TierFeatures.ecommerce?`) for old till bundles. The pricing
+  copy (`subscription-plans.ts`, `pricing-section.tsx`) reads `store_url` and
+  describes the Pro and Enterprise storefronts.
+- **Pro presets.** `StorefrontProPresetsCard` (Platform Settings > Billing, under
+  the plan config; super admin only, as the whole settings page is) lists every
+  preset with a checkbox and how many Pro storefronts use it
+  (`GET /admin/storefront/pro-presets`). Saving a list that removes a preset with
+  a count above 0 first fetches a fresh `?proposed=` preview and, only if it
+  still moves stores, asks in a `ConfirmDialog` how many will switch and to
+  which style; the save proceeds on confirm. The server recomputes the count
+  itself and logs it, so the dialog is a courtesy, not the control. web has no
+  `AlertDialog` primitive; `ConfirmDialog` is its custom modal.
+- **Guide:** `lib/guides/storefront-guides.ts`, slug `storefront-plans`.
+- Coverage: `admin-storefront-pro-presets.test.tsx`, `storefront-footer-badge.test.tsx`,
+  `storefront-themes.test.ts` (server `CLASSIC_IDS` + `PRESET_IDS` pinned to the web lists).
 
 ## Storefront tile icons (2026-11-16)
 

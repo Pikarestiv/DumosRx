@@ -226,15 +226,17 @@ without updating that.
   `/internal/storefront/rebuild-complete` callback, which now also clears
   `style_dirty_at` up to the dispatch time; without one it clears them at once.
   **Owner control (2026-11-14): `GET/PUT /app/storefront-settings`**
-  (`Api\App\StorefrontSettingsController`, inside the `subscription` group; the
-  PUT also needs `subscription:custom_branding`). **Off per store by default:**
+  (`Api\App\StorefrontSettingsController`, inside the `subscription` group; since
+  2026-11-24 the PUT needs the `owner_self_edit_look` storefront entitlement,
+  Enterprise only, instead of `subscription:custom_branding`; see "Storefront
+  plan entitlements"). **Off per store by default:**
   `storefronts.owner_style_enabled` is switched on by a super admin (admin settings
   endpoint, Storefront tab checkbox) because every owner save queues a full
   automatic rebuild. While off, GET answers `{allowed: false}` and PUT 403s with
   a message to contact the account manager; an owner can never set the flag.
   Owner only: a user with a
   `store_id` (staff) gets 403. It serves the owner's first slugged store, accepts
-  `theme` only from `StorefrontThemes::OWNER_IDS` (the three presets) plus every
+  `theme` only from the plan's `allowed_presets` (every preset on Enterprise) plus every
   field above and `locale` / `enabled_locales` (`StorefrontLocales::IDS`, pinned
   by the web), and, unlike the admin endpoints, **does** queue the debounced
   automatic rebuild (`Product::markStorefrontsDirty`) because an owner has no
@@ -1829,9 +1831,10 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
   with the map stored in `SystemConfig` under `storefront_featured_snapshot`,
   and calls `Product::markStorefrontsDirty()` only for stores whose hash
   changed; then it overwrites the map (unpublished stores drop out of it).
-  The existing 15-minute `storefront:rebuild-if-dirty` does the rest, so a
-  night with any number of changed stores still costs at most **one** deploy
-  run, and a quiet night costs none. Design notes:
+  `storefront:rebuild-if-dirty` does the rest (the 15-minute run for an
+  Enterprise store, the 03:00 daily run for Pro), so a night with any number
+  of changed stores still costs at most one deploy per run, and a quiet night
+  costs none. Design notes:
   - **Why `SystemConfig`, not a column:** `stores` is mirrored by `client/`
     and an extra column means a client schema change (root §5); `storefronts`
     is per owner, not per branch. `storefront_rebuild_requested_at` lives
@@ -1848,6 +1851,122 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
     built before were name-ordered).
   - Coverage: `tests/Feature/StorefrontBestSellerRankingTest.php` and
     `tests/Feature/StorefrontRefreshFeaturedCommandTest.php`.
+
+## Storefront plan entitlements (Pro/Enterprise split, 2026-11-24)
+
+What a storefront may do is decided by the owner's **effective plan**
+(`SubscriptionService::resolveEffectivePlan()`, so grace and lapse count) looked
+up in **`config/storefront_entitlements.php`**, through
+`App\Services\Storefront\StorefrontEntitlements` (`forOwner()`, `forStore()`,
+`forPlan()`). An unknown plan name resolves like `free`. Everything is enforced
+on the server; the till and web only lock, hide and explain.
+
+| Flag | Free/Starter | Pro | Enterprise | Enforced by |
+|---|---|---|---|---|
+| `storefront_enabled` | no | yes | yes | `StorefrontController::publishedBranch()`, slugs, services, order tracking (also ANDed with the plan editor's `store_url`) |
+| `allowed_presets` | none | admin list, default workshop/clinic/market | every `StorefrontThemes::PRESET_IDS` entry, always | read-time theme fallback; owner `PUT /app/storefront-settings` validation |
+| classic accent themes | n/a | all | all | never gated, on any plan, including future ones |
+| `custom_accent_colour` | no | no | yes | public payload `accent` is `null` without it |
+| `max_online_products` | n/a | 300 | unlimited (`null`) | sync push, admin switch-on, plan watcher (below) |
+| `checkout_transfer_mobile_money`, `checkout_pay_on_delivery` | no | yes | yes | `checkoutRefusal()` on `POST /storefront/{slug}/checkout` |
+| `checkout_paystack` | no | no | yes | 422 at both checkout endpoints, 403 on `POST /stores/{id}/payment-account`, `online_payment_available` false |
+| `checkout_whatsapp`, `checkout_flutterwave` | no | whatsapp only | yes | **flags only**: neither is a checkout method today, so nothing reads them |
+| `remove_powered_by_badge` | no | no | yes | public payload `show_powered_by` |
+| `services_on_storefront` | no | no | yes | payload `show_services`; `GET /storefront/{slug}/services` returns `[]` |
+| `visitor_language_switch` | no | no | yes | payload `enabled_locales` is `[locale]` without it |
+| `owner_self_edit_look` | no | no | yes | `PUT /app/storefront-settings` 403 `UPGRADE_REQUIRED` (replaces the old `subscription:custom_branding` route middleware); the super-admin `owner_style_enabled` switch is still required as well |
+| `rebuild_mode` | scheduled | scheduled | on_demand | `storefront:rebuild-if-dirty`; owner `POST /app/storefront/rebuild` (403 unless `on_demand`, super admins always allowed, `throttle:storefront-owner-rebuild` 3/hour) |
+| `custom_domain` | no | no | yes | flag only, nothing reads it yet |
+
+- **A plan alone never publishes a store.** `stores.online_store_enabled` (the
+  admin switch) is still required, unchanged.
+- **Read time, never write time.** `StorefrontPresenter::profile()` applies the
+  plan to the public `show` payload; nothing a downgrade does touches the saved
+  `storefronts` row, so an upgrade restores the saved preset, accent, services
+  and languages exactly. `checkoutWarning()` tells the owner (on
+  `GET /app/storefront-settings`, field `checkout_warning`) when a store that
+  had a Paystack subaccount lost card payments and has neither payment
+  instructions nor pay on delivery.
+- **The Pro preset list** is SystemConfig `storefront.pro_allowed_presets`,
+  edited only through `GET/PUT /admin/storefront/pro-presets`
+  (`AdminStorefrontPresetService`, super admin; the generic system-config PUT
+  refuses the key with 422 so the log cannot be bypassed). A missing, empty or
+  wholly-unknown saved list falls back to the config default; it is never "no
+  presets". Order is always `PRESET_IDS` order, so "the first allowed preset"
+  (the fallback for a Pro store on a removed preset) is deterministic. A save
+  recomputes, server-side, which Pro storefronts' effective theme changes,
+  marks them dirty and writes `STOREFRONT_PRO_PRESETS_CHANGED` with
+  `properties.old/new/stores_affected`. A newly added preset is Enterprise-only
+  until an admin ticks it.
+- **The client reads the same table** from a computed, never-stored
+  `storefront_entitlements` map that `GET /system-configs/subscription_plans`
+  adds (and the PUT strips), keyed by plan, with `storefront_enabled` ANDed
+  with each tier's `store_url`. `GET /app/storefront-settings` also carries the
+  caller's own `entitlements` (grace-aware). Both are additive (§11).
+- **`store_url` is the single plan-editor key.** `ecommerce` stays in stored
+  data and in the seed (database/seeders/data/subscription_plans.json, a mirror
+  of production with a placeholder bank account number) only because old till
+  bundles read it; retire it once every active device runs a build that reads
+  `store_url` (A-429).
+- **Rebuilds.** `storefront:rebuild-if-dirty` (every 15 minutes) first runs
+  `StorefrontPlanWatcher::reconcile()`, then dispatches only if a dirty store's
+  owner is `on_demand`. `--include-scheduled` (scheduled daily at
+  `storefront_entitlements.scheduled_rebuild`, 03:00 Africa/Lagos) dispatches
+  for any dirty store. The command still sends at most one dispatch per run,
+  however many stores went dirty, which is the original debounce: a full static
+  rebuild plus FTP deploy is too expensive to fire per change. **One build
+  publishes every store**, so any Enterprise, owner or admin rebuild ships
+  pending Pro changes early. The admin `POST /admin/storefront/rebuild` is
+  unchanged. Free/Starter dirtiness (an unpublish, a lapse) also waits for the
+  daily run; an admin who needs a page gone sooner clicks the admin rebuild.
+- **For sales:** the home page's product grid, theme, accent, services and
+  languages are baked at build time (Pro: up to the next 03:00). The Shop page,
+  cart repricing and checkout always call the API, so prices and stock are
+  live on every plan.
+- **`storefronts.applied_plan`** (server only; `storefronts` is not mirrored by
+  the client) is the plan last applied. The watcher compares it with the
+  effective plan each run; on a change it records the new plan, dirties the
+  owner's publishing stores and runs the listing trim. `NULL` (every row at
+  release) means "before plans mattered": it is recorded and trimmed if over
+  the cap, but not dirtied, because the release's own deploy rebuilds every
+  page. That is why the migration has no backfill (and so no `NOW()`, §7).
+
+### Online listing cap
+
+- **What counts:** products with `store_id` = the store, `show_online = true`,
+  not soft-deleted. POS inventory, hidden products and other branches never
+  count. The cap applies only while the store's `online_store_enabled` is on
+  and its plan has a `max_online_products`. Store-less legacy products are not
+  capped.
+- **Sync push** (`StorefrontListingCap::withholdsListing()`, called in
+  `SyncController::push()` just before `save()` on INSERT and UPDATE): a
+  create with `show_online` on, or an off-to-on change, at or past the cap is
+  saved with `show_online = false`, then `stampWithheld()` bumps `_version`,
+  `updated_at` and `_synced_at` past the version the push reports, so the till
+  pulls the corrected value back. An already-listed product is never touched.
+  Turning one off frees a slot. There are no REST product write endpoints, so
+  the 422 message (`StorefrontListingCap::OVER_CAP_MESSAGE`) is used only by
+  the till.
+- **The one-off trim** (`StorefrontListingTrimmer::trimToCap()`) runs when the
+  cap starts applying: the admin switches a store on
+  (`AdminStoreStorefrontService::setEnabled()`, off to on only) or the watcher
+  sees a plan change. If more than the cap are listed it keeps the most
+  popular and sets `show_online = false` on the rest with a version bump.
+  Popularity is units sold in the last 90 days (`sale_items.quantity` on
+  `sales` of that store, both rows not soft-deleted, which excludes voided
+  sales, and `payment_status` not failed/refunded), then the most recent sale
+  ever, then name, then id. It notifies the owner through `notifications`
+  (`/alerts`). It is idempotent: a store already within the cap is left
+  alone, and nothing runs again until the next switch. There is no automatic
+  relisting on upgrade.
+
+Coverage: `StorefrontEntitlementsTest`, `StorefrontPlanEffectiveSettingsTest`,
+`StorefrontOwnerSettingsTest`, `Admin/AdminStorefrontProPresetsTest`,
+`StorefrontOnlineListingCapTest`, `StorefrontListingTrimTest`,
+`StorefrontPlanRebuildScheduleTest`, `StorefrontOwnerRebuildTest`,
+`SystemConfigSeederPlansTest`. Storefront tests about isolation or payments
+rather than plans use `Tests\Concerns\BuildsStorefrontPlans::grantEveryStorefrontEntitlementToEveryPlan()`
+so a planless owner keeps a full storefront.
 
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
 
@@ -3823,7 +3942,12 @@ lives in `config/backups.php` rather than in the controller:
 
 `Api/Public/StorefrontController` is the only unauthenticated tenant-data
 surface in the app. It is kept strictly below 350 lines by delegating to
-specialized storefront services:
+specialized storefront services (every action resolves its branch through one
+private `publishedBranch()`, which also resolves the plan's entitlements):
+- **`StorefrontPresenter`**: the public payload with the plan applied at read
+  time (`profile()`, `branchPayload()`, `branchSummaries()`,
+  `onlinePaymentAvailable()`, `checkoutWarning()`); see "Storefront plan
+  entitlements".
 - **`StorefrontCatalogService`**: encapsulates product querying (`storeProducts`),
   excluding controlled substances, sorting in-stock first (`scopeInStockFirstAt`),
   landing page product slicing, paginated catalog searching with category counts,

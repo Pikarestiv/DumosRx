@@ -1,3 +1,12 @@
+### A-429 — Pro owners never saw their storefront settings, although the server served Pro storefronts
+- **Issue:** none filed (found while splitting the storefront into Pro and Enterprise; no GitHub issue exists).
+- **Fixed:** 2026-11-24, client, web and server, TDD.
+- **Was:** the till's `canUseEcommerce` read the plan editor's `ecommerce` key first, with an Enterprise-only default, while the server gated storefronts on `store_url`. Production has `store_url` on Pro and `ecommerce` only on Enterprise, so a Pro store's storefront was served but its owner saw the upgrade message on the Show Online switch, and the admin plan editor offered an `ecommerce` switch that gated nothing on the server.
+- **Now:** `store_url` is the single key. `use-feature-gate.ts` reads `store_url` (falling back to `ecommerce` only for an old saved config without it), the plan editor shows "Online Storefront" bound to `store_url`, and what each plan's storefront may do comes from `config/storefront_entitlements.php` (laravel-server/AGENTS.md, "Storefront plan entitlements").
+- **Coverage:** `client/__tests__/storefront-entitlements.test.ts`, `laravel-server/tests/Feature/SystemConfigSeederPlansTest.php`.
+- **Also fixed:** the engineering note "Owner storefront styling can show an unlocked form on a plan the server refuses" (2026-11-14): the till's look form no longer reads `canCustomizeTheme`; it renders only when the server answers `allowed: true`, which now needs the `owner_self_edit_look` entitlement, so a Pro owner sees the locked plan panel instead of a form that 403s (`client/__tests__/storefront-appearance.test.tsx`).
+- **Compat:** `ecommerce` stays in stored plan data and in the Enterprise seed, because till bundles older than this change still read it. It can be deleted once every active device reports a build that reads `store_url`. A Pro owner on such an old bundle keeps seeing the upgrade message on the Show Online switch until the till updates; the server-side behaviour is right either way.
+
 ### A-426 — the settings Categories list gave unmatched categories an arbitrary icon
 - **Issue:** #398
 - **Fixed:** 2026-11-20, client only.

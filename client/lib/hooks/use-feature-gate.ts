@@ -4,6 +4,7 @@ import { useStore } from "@/lib/context/store-context";
 import { useSystemConfigStore } from "@/lib/store/system-config-store";
 import { toast } from "sonner";
 import { isMobileDevice } from "@/lib/utils";
+import { resolveStorefrontEntitlements } from "@/lib/utils/storefront-entitlements";
 
 export type SubscriptionTier = "free" | "starter" | "local" | "pro" | "enterprise";
 
@@ -139,6 +140,7 @@ export function useFeatureGate() {
   };
 
   const maxStores = getLimit('stores', isEnterprise ? 20 : isPro ? 3 : 1);
+  const canUseEcommerce = getFeature('store_url', 'ecommerce', isPro || isEnterprise);
 
   return {
     withRestriction,
@@ -160,9 +162,9 @@ export function useFeatureGate() {
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L156
     canManageMultiStore: hasMultiStoreAccess(maxStores),
 
-    // Advanced E-commerce — Enterprise-only:
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L164
-    canUseEcommerce: getFeature('ecommerce', 'store_url', isEnterprise),
+    canUseEcommerce,
+    storefrontEntitlements: resolveStorefrontEntitlements(subscriptionPlans, planKey, canUseEcommerce),
 
     // Core POS/checkout access.
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L169

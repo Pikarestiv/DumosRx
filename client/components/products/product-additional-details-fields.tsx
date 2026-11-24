@@ -200,7 +200,7 @@ export function ProductAdditionalDetailsFields({
             checked={formData.showOnline}
             onCheckedChange={(checked) => {
               if (checked && !canUseEcommerce) {
-                toast.error(getUpgradeMessage('ecommerce', "Upgrade to a premium plan to sell this product on your online store."));
+                toast.error(getUpgradeMessage('store_url', "Upgrade to a premium plan to sell this product on your online store."));
                 return;
               }
               onInputChange("showOnline", checked);

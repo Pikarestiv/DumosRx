@@ -18,6 +18,7 @@ export const queryKeys = {
     withDetails: () =>
       resource(["productsWithDetails"] as const, ["products", "categories", "stock_batches"]),
     detail: (id: string) => resource(["products", "detail", id] as const, ["products"]),
+    onlineListedCount: () => resource(["products", "onlineListedCount"] as const, ["products"]),
     basicInfo: (id: string | null) =>
       resource(["products", "basicInfo", id] as const, ["products"]),
     history: (id: string, viewerId?: string) =>

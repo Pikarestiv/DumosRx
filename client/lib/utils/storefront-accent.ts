@@ -15,6 +15,9 @@ export const PRESET_DEFAULTS = {
   workshop: { ink: "#141412", accent: "#F2B705" },
   clinic: { ink: "#0E2A25", accent: "#0F6B58" },
   studio: { ink: "#33232A", accent: "#7A4252" },
+  market: { ink: "#0B1F3A", accent: "#1D4ED8" },
+  boutique: { ink: "#2A1520", accent: "#B4235A" },
+  grove: { ink: "#16241A", accent: "#2F7D3A" },
 } as const;
 
 const HEX_COLOUR = /^#[0-9a-f]{6}$/i;

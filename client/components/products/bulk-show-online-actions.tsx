@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useBulkShowOnlineMutation } from "@/lib/hooks/use-bulk-show-online-mutation";
+import { useOnlineListingCap } from "@/lib/hooks/use-online-listing-cap";
+import { overCapMessage } from "@/lib/utils/storefront-entitlements";
 
 interface BulkShowOnlineActionsProps {
   onUpdated: () => void;
@@ -35,6 +37,7 @@ export function useBulkShowOnlineActions({
 }: BulkShowOnlineActionsProps): { menuItems: ReactNode; overlays: ReactNode } {
   const [pendingShowOnline, setPendingShowOnline] = useState<boolean | null>(null);
   const mutation = useBulkShowOnlineMutation();
+  const listingCap = useOnlineListingCap();
   const isFiltered = filteredProductIds !== undefined;
   const scopeLabel = isFiltered
     ? `the ${filteredProductIds.length} product${filteredProductIds.length === 1 ? "" : "s"} currently shown`
@@ -44,9 +47,14 @@ export function useBulkShowOnlineActions({
     const showOnline = pendingShowOnline;
     setPendingShowOnline(null);
     if (showOnline === null) return;
+    const maxToList = showOnline && listingCap.applies ? (listingCap.remaining ?? 0) : undefined;
+    if (maxToList === 0) {
+      toast.error(overCapMessage(listingCap.cap ?? 0));
+      return;
+    }
 
     mutation.mutate(
-      { showOnline, productIds: filteredProductIds },
+      { showOnline, productIds: filteredProductIds, maxToList },
       {
         onSuccess: (changed) => {
           toast.success(

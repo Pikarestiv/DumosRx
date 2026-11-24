@@ -9289,9 +9289,17 @@ the limit doesn't already say.
 
 `client/lib/hooks/use-feature-gate.ts:160`
 
-Advanced E-commerce — Enterprise-only: a real per-tenant storefront
-needs its own domain + SSL, which the current shared-hosting setup
-(no wildcard SSL) can't provision cheaply below Enterprise pricing.
+The online storefront. `store_url` is the single plan-editor key (Pro and
+Enterprise in production); `ecommerce` is read only as a fallback for an old
+saved config that lacks `store_url`. What the storefront may do on each plan
+(presets, cap, Paystack, nightly vs on-demand rebuilds) is
+`storefrontEntitlements`, read from the computed `storefront_entitlements` map
+the server adds to `subscription_plans` (`lib/utils/storefront-entitlements.ts`);
+a server older than that map falls back to the old unrestricted storefront,
+which is what that server enforces. See laravel-server/AGENTS.md, "Storefront
+plan entitlements". (Until 2026-11-24 this read `ecommerce` first with an
+Enterprise-only default, so Pro owners never saw storefront settings although
+the server served Pro storefronts.)
 
 ### line-hooks-use-feature-gate-ts-L169
 

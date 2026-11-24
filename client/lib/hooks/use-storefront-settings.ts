@@ -26,3 +26,7 @@ export function useUpdateStorefrontSettings() {
     },
   });
 }
+
+export function useRebuildStorefront() {
+  return useMutation({ mutationFn: () => apiClient.rebuildStorefront() });
+}

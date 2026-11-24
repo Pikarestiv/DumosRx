@@ -10,6 +10,10 @@ export class StorefrontApiClient extends BaseApiClient {
     return this.request<StorefrontSettingsResponse>("/app/storefront-settings");
   }
 
+  async rebuildStorefront() {
+    return this.request<{ message: string }>("/app/storefront/rebuild", { method: "POST" });
+  }
+
   async updateStorefrontSettings(payload: StorefrontSettingsUpdate) {
     return this.request<StorefrontSettings>("/app/storefront-settings", {
       method: "PUT",

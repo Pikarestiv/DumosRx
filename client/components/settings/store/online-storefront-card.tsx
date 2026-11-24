@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/card";
 import { STOREFRONT_BASE_URL } from "@/lib/constants";
 import { useHasPermission } from "@/lib/hooks/use-permissions";
+import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { storefrontUrl } from "@/lib/utils/storefront-url";
 import { StorefrontAppearance } from "./storefront-appearance";
+import { StorefrontRebuildButton } from "./storefront-rebuild-button";
 
 interface OnlineStorefrontCardProps {
   localStoreSlug?: string;
@@ -22,12 +24,15 @@ interface OnlineStorefrontCardProps {
 const CONTACT_TO_SET_UP =
   "Contact your account manager and they will set it up for you.";
 const CONTACT_TO_SWITCH_ON = "Contact your account manager to switch it on.";
+const UPGRADE_FOR_STOREFRONT =
+  "An online store is part of the Pro and Enterprise plans. Upgrade your plan to put your products online.";
 
 export function OnlineStorefrontCard({
   localStoreSlug,
   onlineStoreEnabled = false,
 }: OnlineStorefrontCardProps) {
   const canManageOnlineStore = useHasPermission("manage_online_store");
+  const { storefrontEntitlements } = useFeatureGate();
   const [copied, setCopied] = useState(false);
 
   if (!canManageOnlineStore) return null;
@@ -53,7 +58,9 @@ export function OnlineStorefrontCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!url ? (
+        {!storefrontEntitlements.storefront_enabled ? (
+          <p className="text-sm">{UPGRADE_FOR_STOREFRONT}</p>
+        ) : !url ? (
           <p className="text-sm">
             Your online store isn&apos;t set up yet. {CONTACT_TO_SET_UP}
           </p>
@@ -101,7 +108,8 @@ export function OnlineStorefrontCard({
               </div>
             </div>
             {live ? (
-              <div className="border-t pt-4">
+              <div className="space-y-4 border-t pt-4">
+                {storefrontEntitlements.rebuild_mode === "on_demand" ? <StorefrontRebuildButton /> : null}
                 <StorefrontAppearance />
               </div>
             ) : (

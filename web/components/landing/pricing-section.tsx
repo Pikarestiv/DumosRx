@@ -107,7 +107,7 @@ export function PricingSection() {
         !config?.tiers?.free?.features?.mobile_app
           ? "No Mobile Companion app"
           : "",
-        !config?.tiers?.free?.features?.ecommerce
+        !config?.tiers?.free?.features?.store_url
           ? "No custom store page / e-commerce"
           : "",
         !config?.tiers?.free?.features?.custom_branding
@@ -139,8 +139,8 @@ export function PricingSection() {
         !config?.tiers?.starter?.features?.mobile_app
           ? "No Mobile Companion app"
           : "",
-        !config?.tiers?.starter?.features?.ecommerce
-          ? "No E-commerce Store URL"
+        !config?.tiers?.starter?.features?.store_url
+          ? "No Online Storefront"
           : "",
         !config?.tiers?.starter?.features?.smart_pos
           ? "No Smart POS suggestions"
@@ -166,8 +166,8 @@ export function PricingSection() {
         config?.tiers?.pro?.features?.smart_pos
           ? "Smart POS Suggestions & Receipts"
           : "",
-        config?.tiers?.pro?.features?.ecommerce
-          ? "E-commerce Online Store URL"
+        config?.tiers?.pro?.features?.store_url
+          ? "Online Storefront (up to 300 products, updated nightly)"
           : "",
       ].filter(Boolean),
       exclusions: [
@@ -195,8 +195,8 @@ export function PricingSection() {
         config?.tiers?.enterprise?.features?.custom_branding
           ? "White-labeling & Custom Branding"
           : "",
-        config?.tiers?.enterprise?.features?.ecommerce
-          ? "E-commerce Online Store URL"
+        config?.tiers?.enterprise?.features?.store_url
+          ? "Full Online Storefront with card payments and instant publishing"
           : "",
         "Priority Email Notifications",
         "24/7 Priority Dedicated Support",

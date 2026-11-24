@@ -6,7 +6,10 @@ export interface TierFeatures {
    * made it read as permanently false. */
   web_dashboard: boolean;
   mobile_app: boolean;
-  ecommerce: boolean;
+  /** The online storefront: the single plan-editor key. */
+  store_url: boolean;
+  /** Read only by till bundles older than the store_url merge; never edited, kept in stored data until every active device reads store_url. */
+  ecommerce?: boolean;
   smart_pos: boolean;
   custom_branding: boolean;
   remove_branding: boolean;

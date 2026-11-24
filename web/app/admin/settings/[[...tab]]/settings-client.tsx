@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SubscriptionConfigTab } from "@/components/admin/views/subscription-config-tab";
+import { StorefrontProPresetsCard } from "@/components/admin/views/storefront-pro-presets-card";
 import { SuggestionsConfigTab } from "@/components/admin/views/suggestions-config-tab";
 import { IntegrationsTab } from "@/components/admin/views/integrations-tab";
 import { SecurityConfigTab } from "@/components/admin/views/security-config-tab";
@@ -75,7 +76,10 @@ export default function PlatformSettingsPage() {
         </TabsList>
 
         <TabsContent value="billing" className="focus-visible:outline-none focus-visible:ring-0">
-          <SubscriptionConfigTab />
+          <div className="space-y-6">
+            <SubscriptionConfigTab />
+            <StorefrontProPresetsCard />
+          </div>
         </TabsContent>
 
         <TabsContent value="suggestions" className="focus-visible:outline-none focus-visible:ring-0">

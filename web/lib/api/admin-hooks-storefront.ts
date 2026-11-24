@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { webApiClient } from "./client";
 
 export const useSetStoreStorefrontThemeMutation = () => {
@@ -51,6 +51,40 @@ export const useRebuildStorefrontsMutation = () => {
     mutationFn: () => webApiClient.request<{ message: string }>("admin/storefront/rebuild", { method: "POST" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["admin-store-detail"] });
+    },
+  });
+};
+
+export interface StorefrontProPresets {
+  presets: string[];
+  allowed: string[];
+  default: string[];
+  affected: Record<string, number>;
+  switching?: { count: number; to: string | null };
+}
+
+const PRO_PRESETS_KEY = ["admin-storefront-pro-presets"];
+
+export const useStorefrontProPresets = () =>
+  useQuery({
+    queryKey: PRO_PRESETS_KEY,
+    queryFn: () => webApiClient.request<StorefrontProPresets>("admin/storefront/pro-presets"),
+  });
+
+export const previewStorefrontProPresets = (proposed: string[]) =>
+  webApiClient.request<StorefrontProPresets>(`admin/storefront/pro-presets?proposed=${encodeURIComponent(proposed.join(","))}`);
+
+export const useUpdateStorefrontProPresetsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (presets: string[]) =>
+      webApiClient.request<{ allowed: string[]; stores_switched: number }>("admin/storefront/pro-presets", {
+        method: "PUT",
+        body: { presets },
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PRO_PRESETS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["system-config", "subscription_plans"] });
     },
   });
 };

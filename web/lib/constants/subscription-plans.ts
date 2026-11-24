@@ -65,7 +65,7 @@ export const getSubscriptionPlans = (
       ].filter(Boolean),
       missing: [
         !config?.tiers?.starter?.features?.mobile_app ? "No Mobile App Companion" : "",
-        !config?.tiers?.starter?.features?.ecommerce ? "No E-commerce Store URL" : "",
+        !config?.tiers?.starter?.features?.store_url ? "No Online Storefront" : "",
         !config?.tiers?.starter?.features?.smart_pos ? "No Smart POS Suggestions" : "",
       ].filter(Boolean),
       numericPrice: isYearly 
@@ -88,7 +88,7 @@ export const getSubscriptionPlans = (
         "Automatic Sync (Every 15-30 Mins)",
         "Daily Auto Backups & Full Web Analytics",
         config?.tiers?.pro?.features?.smart_pos ? "Smart POS Suggestions & Custom Receipts" : "",
-        config?.tiers?.pro?.features?.ecommerce ? "Custom Store E-commerce URL" : "",
+        config?.tiers?.pro?.features?.store_url ? "Online Storefront: up to 300 products, pay by transfer or on delivery, updated nightly" : "",
       ].filter(Boolean),
       missing: [
          !config?.tiers?.pro?.features?.custom_branding ? "No Custom Branding" : ""
@@ -113,6 +113,7 @@ export const getSubscriptionPlans = (
         "Real-time Instant Cloud Sync & Backups",
         "Multi-Store HQ Analytics Dashboard",
         config?.tiers?.enterprise?.features?.custom_branding ? "Custom Branding & White-Labeling" : "",
+        config?.tiers?.enterprise?.features?.store_url ? "Full Online Storefront: unlimited products, card payments, every style, instant publishing" : "",
         "Priority SMS/Email Stock & Expiry Alerts",
       ].filter(Boolean),
       missing: [],

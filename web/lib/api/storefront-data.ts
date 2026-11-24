@@ -45,6 +45,8 @@ export interface StorefrontProfile {
   delivery_note?: string | null;
   pay_on_delivery?: boolean;
   show_services?: boolean;
+  /** False when the owner's plan removes the badge; absent before the plan split, read as true. */
+  show_powered_by?: boolean;
   opening_hours?: Record<string, { open: string; close: string } | null> | null;
   logo_url?: string | null;
   banner_url?: string | null;

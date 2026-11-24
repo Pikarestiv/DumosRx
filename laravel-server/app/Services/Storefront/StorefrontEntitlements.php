@@ -33,6 +33,22 @@ class StorefrontEntitlements
     }
 
     /**
+     * Every plan's entitlements as the client sees them beside the plan editor's features.
+     *
+     * @param  array<string, mixed>  $subscriptionPlans
+     * @return array<string, array<string, mixed>>
+     */
+    public function forEveryPlan(array $subscriptionPlans): array
+    {
+        return collect(self::PLANS)->mapWithKeys(function (string $plan) use ($subscriptionPlans) {
+            $entitlements = $this->forPlan($plan);
+            $entitlements['storefront_enabled'] = $entitlements['storefront_enabled'] && ! empty($subscriptionPlans['tiers'][$plan]['features']['store_url']);
+
+            return [$plan => $entitlements];
+        })->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function forOwner(User $user): array

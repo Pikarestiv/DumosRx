@@ -121,6 +121,7 @@ class SyncController extends Controller
         $hasSyncedAtCache = [];
         $restamper = new \App\Services\Sync\PushedRowRestamper;
         $storelessProducts = new \App\Services\Sync\StorelessProductAttributor;
+        $listingCap = app(\App\Services\Storefront\StorefrontListingCap::class);
         $conflicts = app(PushConflictResolver::class);
         $rowWriter = app(PushRowWriter::class);
         $normalizer = app(PushPayloadNormalizer::class);
@@ -316,7 +317,11 @@ class SyncController extends Controller
                                 $model->setAttribute('quantity', 0);
                             }
 
+                            $listingWithheld = $listingCap->withholdsListing($change['table_name'], $model);
                             $model->save();
+                            if ($listingWithheld) {
+                                $listingCap->stampWithheld($model);
+                            }
                             $restamper->remember($model);
                             $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId);
 
@@ -493,7 +498,11 @@ class SyncController extends Controller
 
                             $rowWriter->applyNotNullColumnDefaults($request, $change['table_name'], $model);
 
+                            $listingWithheld = $listingCap->withholdsListing($change['table_name'], $model);
                             $model->save();
+                            if ($listingWithheld) {
+                                $listingCap->stampWithheld($model);
+                            }
                             $restamper->remember($model);
                             $storelessProducts->afterWrite($change['table_name'], $model, $clientNamedStoreId);
 

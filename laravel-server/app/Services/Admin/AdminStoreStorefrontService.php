@@ -8,6 +8,7 @@ use App\Models\Store;
 use App\Models\Storefront;
 use App\Services\Storefront\StorefrontBranchSlugs;
 use App\Services\Storefront\StorefrontCatalogService;
+use App\Services\Storefront\StorefrontListingTrimmer;
 use App\Services\Storefront\StorefrontStyleService;
 use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +33,7 @@ class AdminStoreStorefrontService
         private StorefrontCatalogService $catalogService,
         private StorefrontStyleService $styleService,
         private StorefrontBranchSlugs $branchSlugs,
+        private StorefrontListingTrimmer $trimmer,
     ) {}
 
     /**
@@ -94,6 +96,7 @@ class AdminStoreStorefrontService
     {
         return DB::transaction(function () use ($id, $enabled, $requestedSlug) {
             $store = Store::findOrFail($id);
+            $wasEnabled = (bool) $store->online_store_enabled;
             $slugChangedFrom = null;
 
             if ($requestedSlug !== null) {
@@ -112,6 +115,10 @@ class AdminStoreStorefrontService
 
             if ($enabled) {
                 $this->branchSlugs->ensure($store);
+            }
+
+            if ($enabled && ! $wasEnabled) {
+                $this->trimmer->trimToCap($store);
             }
 
             ActivityLog::create([

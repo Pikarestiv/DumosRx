@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
  * @property string|null $locale
  * @property array<int, string>|null $enabled_locales
  * @property string|null $logo_url
+ * @property string|null $applied_plan
  */
 class Storefront extends Model
 {
@@ -50,6 +51,7 @@ class Storefront extends Model
         'social_links',
         'is_active',
         'style_dirty_at',
+        'applied_plan',
     ];
 
     protected $casts = [

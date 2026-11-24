@@ -42,7 +42,8 @@ class PublicSurfaceHardeningTest extends TestCase
         $response = $this->getJson('/api/v1/system-configs/subscription_plans');
 
         $response->assertStatus(200);
-        $this->assertSame(['tiers' => ['free' => ['active' => true]]], $response->json('data'));
+        $this->assertSame(['free' => ['active' => true]], $response->json('data.tiers'));
+        $this->assertFalse($response->json('data.storefront_entitlements.free.storefront_enabled'));
     }
 
     public function test_a_non_public_config_key_is_not_readable_without_auth()

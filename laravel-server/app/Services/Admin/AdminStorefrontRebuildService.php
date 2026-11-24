@@ -19,7 +19,7 @@ class AdminStorefrontRebuildService
     /**
      * @return string|null null when the rebuild was dispatched, otherwise why not
      */
-    public function rebuildNow(): ?string
+    public function rebuildNow(string $description = 'Requested a rebuild of every storefront from the admin panel'): ?string
     {
         $requestedAt = now();
         $failure = $this->dispatcher->dispatch();
@@ -41,7 +41,7 @@ class AdminStorefrontRebuildService
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action' => 'STOREFRONT_REBUILD_REQUESTED',
-            'description' => 'Requested a rebuild of every storefront from the admin panel',
+            'description' => $description,
         ]);
 
         return null;

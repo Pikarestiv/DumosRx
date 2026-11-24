@@ -7,6 +7,7 @@ use App\Models\Storefront;
 use App\Models\Subscription;
 use App\Models\SystemConfig;
 use App\Models\User;
+use App\Support\StorefrontThemes;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -32,6 +33,7 @@ class StorefrontOwnerSettingsTest extends TestCase
         SystemConfig::setVal('subscription_plans', [
             'tiers' => [
                 'free' => ['features' => ['custom_branding' => false, 'store_url' => true]],
+                'pro' => ['features' => ['store_url' => true]],
                 'enterprise' => ['features' => ['custom_branding' => true, 'store_url' => true]],
             ],
         ]);
@@ -83,7 +85,9 @@ class StorefrontOwnerSettingsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('allowed', true)
             ->assertJsonPath('theme', 'emerald')
-            ->assertJsonPath('available_themes', ['workshop', 'clinic', 'studio'])
+            ->assertJsonPath('available_themes', StorefrontThemes::PRESET_IDS)
+            ->assertJsonPath('entitlements.owner_self_edit_look', true)
+            ->assertJsonPath('checkout_warning', null)
             ->assertJsonPath('locale', 'en')
             ->assertJsonPath('enabled_locales', ['en'])
             ->assertJsonPath('available_locales', ['en', 'fr'])
@@ -132,6 +136,8 @@ class StorefrontOwnerSettingsTest extends TestCase
         foreach (['navy', 'emerald', 'neon', ''] as $theme) {
             $this->actingAs($this->owner)->putJson(self::URL, ['theme' => $theme])->assertStatus(422)->assertJsonValidationErrors('theme');
         }
+
+        $this->actingAs($this->owner)->putJson(self::URL, ['theme' => 'market'])->assertOk()->assertJsonPath('theme', 'market');
     }
 
     public function test_malformed_values_are_refused_and_nothing_is_written(): void
@@ -150,14 +156,42 @@ class StorefrontOwnerSettingsTest extends TestCase
         $this->assertNull($this->storefront($this->owner)?->tagline);
     }
 
-    public function test_the_plan_must_include_custom_branding_to_save_but_not_to_read(): void
+    public function test_only_a_plan_with_owner_self_edit_may_save_and_every_plan_reads_its_entitlements(): void
     {
-        [$freeOwner] = $this->makeOwner('free-shop', 'free');
+        foreach (['free', 'pro'] as $plan) {
+            [$owner] = $this->makeOwner("{$plan}-shop", $plan);
 
-        $this->actingAs($freeOwner)->getJson(self::URL)->assertOk();
-        $this->actingAs($freeOwner)->putJson(self::URL, ['tagline' => 'Nope'])->assertForbidden()->assertJsonPath('code', 'UPGRADE_REQUIRED');
+            $this->actingAs($owner)->getJson(self::URL)->assertOk()
+                ->assertJsonPath('allowed', false)
+                ->assertJsonPath('entitlements.owner_self_edit_look', false);
+            $this->actingAs($owner)->putJson(self::URL, ['tagline' => 'Nope'])->assertForbidden()->assertJsonPath('code', 'UPGRADE_REQUIRED');
 
-        $this->assertNull($this->storefront($freeOwner)?->tagline);
+            $this->assertNull($this->storefront($owner)?->tagline);
+        }
+    }
+
+    public function test_pro_reads_its_plan_limits_and_the_presets_an_admin_allowed(): void
+    {
+        [$owner] = $this->makeOwner('pro-limits', 'pro');
+
+        $this->actingAs($owner)->getJson(self::URL)->assertOk()
+            ->assertJsonPath('entitlements.storefront_enabled', true)
+            ->assertJsonPath('entitlements.max_online_products', 300)
+            ->assertJsonPath('entitlements.allowed_presets', ['workshop', 'clinic', 'market'])
+            ->assertJsonPath('entitlements.rebuild_mode', 'scheduled');
+    }
+
+    public function test_a_downgraded_store_left_with_only_online_payment_is_warned(): void
+    {
+        [$owner, $store] = $this->makeOwner('card-only', 'pro');
+        $store->update(['paystack_subaccount_code' => 'ACCT_card_only']);
+        $this->storefront($owner)->update(['payment_instructions' => null, 'pay_on_delivery' => false, 'delivery_available' => true]);
+
+        $this->actingAs($owner)->getJson(self::URL)->assertOk()
+            ->assertJsonPath('checkout_warning', fn ($warning) => is_string($warning) && str_contains($warning, 'transfer'));
+
+        $this->storefront($owner)->update(['payment_instructions' => 'MoMo 677 000 000']);
+        $this->actingAs($owner)->getJson(self::URL)->assertJsonPath('checkout_warning', null);
     }
 
     public function test_staff_cannot_change_the_storefront_look(): void
@@ -167,7 +201,7 @@ class StorefrontOwnerSettingsTest extends TestCase
             'password' => bcrypt('password'), 'role' => 'cashier', 'store_id' => $this->store->id,
         ]);
 
-        $this->actingAs($staff)->getJson(self::URL)->assertOk()->assertExactJson(['allowed' => false]);
+        $this->actingAs($staff)->getJson(self::URL)->assertOk()->assertJsonPath('allowed', false)->assertJsonMissingPath('theme');
         $this->actingAs($staff)->putJson(self::URL, ['tagline' => 'Nope'])->assertForbidden();
 
         $this->assertNull($this->storefront($this->owner)?->tagline);
@@ -215,7 +249,7 @@ class StorefrontOwnerSettingsTest extends TestCase
         Storefront::create(['user_id' => $locked->id, 'slug' => 'locked-shop', 'name' => 'Locked', 'tagline' => 'Admin set']);
         Store::query()->update(['storefront_dirty_at' => null]);
 
-        $this->actingAs($locked)->getJson(self::URL)->assertOk()->assertExactJson(['allowed' => false]);
+        $this->actingAs($locked)->getJson(self::URL)->assertOk()->assertJsonPath('allowed', false)->assertJsonMissingPath('tagline');
         $this->actingAs($locked)->putJson(self::URL, ['tagline' => 'Mine'])
             ->assertForbidden()->assertJsonPath('message', fn ($m) => str_contains($m, 'account manager'));
 
@@ -227,7 +261,7 @@ class StorefrontOwnerSettingsTest extends TestCase
     {
         [$fresh] = $this->makeOwner('fresh-shop', 'enterprise', allowed: false);
 
-        $this->actingAs($fresh)->getJson(self::URL)->assertOk()->assertExactJson(['allowed' => false]);
+        $this->actingAs($fresh)->getJson(self::URL)->assertOk()->assertJsonPath('allowed', false)->assertJsonMissingPath('tagline');
         $this->actingAs($fresh)->putJson(self::URL, ['tagline' => 'Hi'])->assertForbidden();
         $this->assertNull($this->storefront($fresh));
     }

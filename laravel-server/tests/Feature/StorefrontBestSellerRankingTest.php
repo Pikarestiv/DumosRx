@@ -17,6 +17,7 @@ use Tests\TestCase;
 class StorefrontBestSellerRankingTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     private User $owner;
 
@@ -25,6 +26,7 @@ class StorefrontBestSellerRankingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         SystemConfig::setVal('subscription_plans', [
             'tiers' => ['free' => ['features' => ['store_url' => true]]],

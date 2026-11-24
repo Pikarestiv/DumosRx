@@ -10,8 +10,9 @@ final class StorefrontThemes
 {
     public const DEFAULT = 'emerald';
 
-    public const IDS = ['emerald', 'forest', 'navy', 'rose', 'amber', 'slate', 'violet', 'workshop', 'clinic', 'studio', 'market', 'boutique', 'grove'];
+    public const CLASSIC_IDS = ['emerald', 'forest', 'navy', 'rose', 'amber', 'slate', 'violet'];
 
-    /** The presets a store owner may pick; the classic accent themes stay admin-only. */
-    public const OWNER_IDS = ['workshop', 'clinic', 'studio'];
+    public const PRESET_IDS = ['workshop', 'clinic', 'studio', 'market', 'boutique', 'grove'];
+
+    public const IDS = [...self::CLASSIC_IDS, ...self::PRESET_IDS];
 }

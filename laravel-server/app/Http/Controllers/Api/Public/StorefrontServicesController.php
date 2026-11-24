@@ -5,11 +5,17 @@ namespace App\Http\Controllers\Api\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Services\Storefront\StorefrontCatalogService;
+use App\Services\Storefront\StorefrontEntitlements;
+use App\Services\Storefront\StorefrontPresenter;
 use Illuminate\Http\JsonResponse;
 
 class StorefrontServicesController extends Controller
 {
-    public function __construct(private readonly StorefrontCatalogService $catalogService) {}
+    public function __construct(
+        private readonly StorefrontCatalogService $catalogService,
+        private readonly StorefrontEntitlements $entitlements,
+        private readonly StorefrontPresenter $presenter,
+    ) {}
 
     public function index(string $store_slug): JsonResponse
     {
@@ -20,7 +26,7 @@ class StorefrontServicesController extends Controller
             return response()->json(['error' => 'Store unavailable'], 404);
         }
 
-        if (! $storefront->show_services) {
+        if (! $this->presenter->showsServices($storefront, $this->entitlements->forStore($branch))) {
             return response()->json(['data' => []]);
         }
 

@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\Storefront;
 use App\Models\User;
-use App\Services\SubscriptionService;
 use App\Support\StorefrontThemes;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,22 +33,13 @@ class StorefrontCatalogService
     public const NOT_SOLD_PAYMENT_STATUSES = ['failed', 'refunded'];
 
     public function __construct(
-        private readonly SubscriptionService $subscriptionService,
+        private readonly StorefrontEntitlements $entitlements,
         private readonly StorefrontBranchSlugs $branchSlugs,
     ) {}
 
     public function storefrontEnabled(Store $store): bool
     {
-        if (! $store->online_store_enabled) {
-            return false;
-        }
-
-        $owner = User::find($store->user_id);
-        if (! $owner) {
-            return false;
-        }
-
-        return $this->subscriptionService->hasFeature($owner, 'store_url');
+        return $store->online_store_enabled && $this->entitlements->forStore($store)['storefront_enabled'];
     }
 
     public function storeCurrency(Store $store): string
@@ -202,45 +192,6 @@ class StorefrontCatalogService
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    /**
-     * @param  Collection<int, Store>  $branches
-     * @return array<int, array<string, mixed>>
-     */
-    public function branchSummaries(Storefront $storefront, Collection $branches, bool $detailed = true): array
-    {
-        $slugs = $this->branchSlugs->forBranches($branches);
-
-        return $branches->map(fn (Store $b) => [
-            'id' => $b->id,
-            'name' => $b->name,
-            'slug' => $slugs[$b->id],
-            'location' => $b->location,
-            ...($detailed ? ['address' => $b->address, 'phone' => $b->phone] : []),
-            'is_primary' => $b->id === $storefront->primary_store_id,
-        ])->values()->all();
-    }
-
-    public function branchPayload(Store $branch, string $currency): array
-    {
-        return [
-            'id' => $branch->id,
-            'name' => $branch->name,
-            'store_slug' => $branch->store_slug,
-            'branch_slug' => $this->branchSlugs->ensure($branch),
-            'location' => $branch->location,
-            'address' => $branch->address,
-            'phone' => $branch->phone,
-            'email' => $branch->email,
-            'store_type' => $branch->store_type ?? 'pharmacy',
-            'currency' => $currency,
-            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
-            'timezone' => $branch->timezone,
-        ];
-    }
-
-    /**
      * @return array<int, string>|null null when the request named no ids at all
      */
     public function parseRequestedIds(mixed $raw): ?array
@@ -325,7 +276,7 @@ class StorefrontCatalogService
 
         $validUserIds = User::whereIn('id', $candidateStores->pluck('user_id')->unique())
             ->get()
-            ->filter(fn (User $user) => $this->subscriptionService->hasFeature($user, 'store_url'))
+            ->filter(fn (User $user) => $this->entitlements->forOwner($user)['storefront_enabled'])
             ->pluck('id')
             ->flip();
 

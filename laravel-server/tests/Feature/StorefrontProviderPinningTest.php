@@ -21,6 +21,7 @@ use Tests\TestCase;
 class StorefrontProviderPinningTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     protected User $owner;
 
@@ -31,6 +32,7 @@ class StorefrontProviderPinningTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         config([
             'payment.paystack.secret_key' => 'sk_test_fake',

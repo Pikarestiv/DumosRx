@@ -17,6 +17,7 @@ use Tests\TestCase;
 class StoreSuspensionEnforcementTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     protected User $superAdmin;
 
@@ -27,6 +28,7 @@ class StoreSuspensionEnforcementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         SystemConfig::setVal('subscription_plans', [
             'tiers' => [

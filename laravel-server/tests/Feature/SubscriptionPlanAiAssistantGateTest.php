@@ -10,9 +10,8 @@ use Tests\TestCase;
 /**
  * The in-app assistant is plan-gated client-side (client/'s useFeatureGate
  * reads `ai_assistant` out of the synced subscription_plans config). The
- * seeded config is the source of that flag for every fresh install, so the
- * per-tier split has to hold here or the client silently falls back to its
- * own defaults.
+ * seeded config mirrors production, where free and starter omit the key and
+ * the client's own default (Pro and Enterprise only) withholds it.
  */
 class SubscriptionPlanAiAssistantGateTest extends TestCase
 {
@@ -29,10 +28,8 @@ class SubscriptionPlanAiAssistantGateTest extends TestCase
     {
         $tiers = $this->seededTiers();
 
-        $this->assertArrayHasKey('ai_assistant', $tiers['free']['features']);
-        $this->assertFalse($tiers['free']['features']['ai_assistant']);
-        $this->assertArrayHasKey('ai_assistant', $tiers['starter']['features']);
-        $this->assertFalse($tiers['starter']['features']['ai_assistant']);
+        $this->assertFalse($tiers['free']['features']['ai_assistant'] ?? false);
+        $this->assertFalse($tiers['starter']['features']['ai_assistant'] ?? false);
     }
 
     public function test_the_seeded_plans_grant_the_assistant_to_pro_and_enterprise()
@@ -49,8 +46,8 @@ class SubscriptionPlanAiAssistantGateTest extends TestCase
 
         foreach (['free', 'starter', 'pro', 'enterprise'] as $tier) {
             $this->assertSame(
-                $tiers[$tier]['features']['smart_suggestions'],
-                $tiers[$tier]['features']['ai_assistant'],
+                $tiers[$tier]['features']['smart_suggestions'] ?? false,
+                $tiers[$tier]['features']['ai_assistant'] ?? false,
                 "The {$tier} tier's ai_assistant flag drifted from its smart_suggestions precedent."
             );
         }

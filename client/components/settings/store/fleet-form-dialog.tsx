@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import { useSaveFleetStoreMutation } from "@/lib/hooks/use-fleet-mutations";
 import type { FleetStore } from "@/lib/types/store";
-import { STORE_TYPES } from "@/lib/constants/store-types";
+import { STORE_TYPES, normalizeStoreType } from "@/lib/constants/store-types";
 
 interface FleetFormDialogProps {
   isOpen: boolean;
@@ -151,7 +151,7 @@ export function FleetFormDialog({
         <div className="space-y-2">
           <Label htmlFor="store_type">Store Type</Label>
           <Select
-            value={formData.store_type}
+            value={normalizeStoreType(formData.store_type)}
             onValueChange={(val) => setFormData({ ...formData, store_type: val })}
           >
             <SelectTrigger id="store_type">

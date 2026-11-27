@@ -41,7 +41,11 @@ describe("store type list", () => {
     expect(normalizeStoreType(value)).toBe(value);
   });
 
-  it.each([null, undefined, "", "store", "florist", "retail", "__proto__"])("reads %j as general", (value) => {
+  it.each([null, undefined, ""])("reads an empty %j as the legacy pharmacy default", (value) => {
+    expect(normalizeStoreType(value)).toBe("pharmacy");
+  });
+
+  it.each(["store", "florist", "retail", "__proto__"])("reads %j as general", (value) => {
     expect(normalizeStoreType(value)).toBe("general");
   });
 

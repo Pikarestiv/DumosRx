@@ -98,7 +98,7 @@ export function QuickSetupWizard() {
       onOpenChange={setOpen}
       title={<>Welcome to {APP_NAME}</>}
       description={<>Let&apos;s customize the platform for your business.</>}
-      className="sm:max-w-[500px] border-accent/20 dark:border-white/20"
+      className="sm:max-w-[560px] max-h-[90vh] overflow-hidden flex flex-col border-accent/20 dark:border-white/20"
       footer={
         <DialogFooter className="flex sm:justify-between items-center">
           <div className="flex gap-1">
@@ -132,22 +132,22 @@ export function QuickSetupWizard() {
         </DialogFooter>
       }
     >
-      <div className="py-6">
+      <div className="py-6 min-h-0 overflow-y-auto">
         {step === 1 && (
           <div className="space-y-4">
             <Label className="text-center block mb-4">
               Choose your business type
             </Label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {STORE_TYPES.map((type) => (
                 <Card
                   key={type.value}
-                  className={`cursor-pointer transition-all border-2 ${storeType === type.value ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
+                  className={`cursor-pointer transition-all border-2 py-0 ${storeType === type.value ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
                   onClick={() => setStoreType(type.value)}
                 >
-                  <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                    <type.icon className="h-8 w-8 text-primary" />
-                    <span className="font-semibold">{type.label}</span>
+                  <CardContent className="p-3 flex flex-col items-center text-center gap-1.5">
+                    <type.icon className="h-6 w-6 text-primary" />
+                    <span className="text-sm font-semibold leading-tight">{type.label}</span>
                   </CardContent>
                 </Card>
               ))}

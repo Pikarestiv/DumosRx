@@ -3336,11 +3336,28 @@ e2e/                       Playwright end-to-end specs
   dialog. It is a copy of `web/lib/constants/store-types.ts` (separate package,
   no shared code) and `__tests__/store-types.test.tsx` pins it to
   `laravel-server/app/Support/StoreTypes.php::IDS`. `storeType` from
-  `useStore()` is always `normalizeStoreType(storeProfile.store_type)`: a null,
-  unknown, the schema default `'store'` or the legacy `'retail'` (written by the
-  old wizard; the server still accepts it) all read as `general`, so check
+  `useStore()` is always `normalizeStoreType(storeProfile.store_type)`. An
+  empty value (null, `''`, or no profile loaded yet) reads as `pharmacy`, the
+  legacy default the context has always used, so a pharmacy whose local row
+  lost its type keeps its prescriptions nav and NAFDAC fields and nothing
+  flashes the general UI while the profile loads. A non-empty unknown value,
+  the schema default `'store'` and the legacy `'retail'` (written by the old
+  wizard; the server still accepts it) read as `general`. This client rule
+  deliberately differs from the server and storefront, where null reads as
+  `general` (`App\Support\StoreTypes`); the empty-means-pharmacy shim can go
+  once every local `stores` row carries a non-empty `store_type`. Check
   `storeType`, not the raw column, and only `=== "pharmacy"` unlocks pharmacy
-  features. `lib/context/store-terminology.ts` relabels generic concepts per
+  features. The fleet dialog shows a stored `'retail'` as General Store but
+  saves `'retail'` back unless the owner picks another type.
+- **Store type pickers lay out for 12 long labels**: card pickers are
+  `grid-cols-2` on phones and three or four columns from `sm`/`md`, labels are
+  `text-sm leading-tight` and wrap (never `truncate`), and a picker inside a
+  `ResponsiveModal` sets `max-h-[90vh] overflow-hidden flex flex-col` on the
+  modal and `min-h-0 overflow-y-auto` on its body so the footer buttons stay
+  pinned. On desktop the setup wizard's dialog ran off the bottom of an 800px
+  screen before this. `e2e/store-type-pickers-layout.spec.ts` checks all four
+  pickers at 375, 768 and 1280px (run with `STORE_TYPE_SHOTS_DIR=<dir>` to
+  save screenshots). `lib/context/store-terminology.ts` relabels generic concepts per
   vertical (e.g. "Product" → "Item", "NAFDAC Number" → "Registration No.") for
   pharmacy, grocery and supermarket; every other type uses the general words.
   Pharmacy is still the default for a brand-new store; most domain-specific fields (NAFDAC number, controlled

@@ -34,5 +34,6 @@ export type StoreType = (typeof STORE_TYPES)[number]["value"];
 const KNOWN = new Set<string>(STORE_TYPES.map((type) => type.value));
 
 export function normalizeStoreType(value?: string | null): StoreType {
-  return value && KNOWN.has(value) ? (value as StoreType) : "general";
+  if (!value) return "pharmacy";
+  return KNOWN.has(value) ? (value as StoreType) : "general";
 }

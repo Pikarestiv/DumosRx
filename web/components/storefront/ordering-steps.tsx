@@ -2,9 +2,16 @@
 
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { DISPLAY_FONT } from "@/lib/storefront-styles";
+import { paymentStepBody, type PaymentWays } from "@/lib/storefront-payment-ways";
 
-export function OrderingSteps({ isPharmacy, hasServices = false }: { isPharmacy: boolean; hasServices?: boolean }) {
-  const { t } = useStorefrontI18n();
+interface OrderingStepsProps {
+  isPharmacy: boolean;
+  hasServices?: boolean;
+  paymentWays?: PaymentWays;
+}
+
+export function OrderingSteps({ isPharmacy, hasServices = false, paymentWays }: OrderingStepsProps) {
+  const { t, locale } = useStorefrontI18n();
   const kind = isPharmacy ? "pharmacy" : "retail";
   const steps = hasServices
     ? [
@@ -14,7 +21,7 @@ export function OrderingSteps({ isPharmacy, hasServices = false }: { isPharmacy:
       ]
     : [
         { title: t("steps.choose.title"), body: t(`steps.choose.body.${kind}`) },
-        { title: t("steps.pay.title"), body: t("steps.pay.body") },
+        { title: t("steps.pay.title"), body: paymentWays ? paymentStepBody(locale, paymentWays) : t("steps.pay.body") },
         { title: t("steps.collect.title"), body: t(`steps.collect.body.${kind}`) },
       ];
 

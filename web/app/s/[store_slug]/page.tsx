@@ -5,6 +5,7 @@ import { FeaturedProducts } from "@/components/storefront/featured-products";
 import { StorefrontServices } from "@/components/storefront/storefront-services";
 import { StoreClosedNotice } from "@/components/storefront/store-closed-notice";
 import { OrderingSteps } from "@/components/storefront/ordering-steps";
+import { paymentWaysOf } from "@/lib/storefront-payment-ways";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { StorefrontHero } from "@/components/storefront/storefront-hero";
@@ -82,7 +83,11 @@ export default async function StorefrontPage({
           catalogHref={catalogHref}
         />
         {storefront?.show_services ? <StorefrontServices storeSlug={store_slug} currency={store.currency} whatsapp={whatsapp} /> : null}
-        <OrderingSteps isPharmacy={isPharmacyStore(store)} hasServices={Boolean(storefront?.show_services)} />
+        <OrderingSteps
+          isPharmacy={isPharmacyStore(store)}
+          hasServices={Boolean(storefront?.show_services)}
+          paymentWays={paymentWaysOf(storefront, store)}
+        />
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

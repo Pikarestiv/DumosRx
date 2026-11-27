@@ -3,15 +3,22 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import initSqlJs, { type Database } from "sql.js";
 
-const { plan } = vi.hoisted(() => ({ plan: { cap: 2 as number | null, online: 1 } }));
+const { plan, getSettings } = vi.hoisted(() => ({
+  plan: { cap: 2 as number | null, online: 1, tier: "pro", optInRequired: false },
+  getSettings: vi.fn(),
+}));
 
 vi.mock("idb-keyval", () => ({ get: vi.fn(() => Promise.resolve(undefined)), set: vi.fn(() => Promise.resolve(undefined)) }));
 vi.mock("@/lib/context/store-context", () => ({
   useStore: () => ({ storeProfile: { online_store_enabled: plan.online } }),
 }));
 vi.mock("@/lib/hooks/use-feature-gate", () => ({
-  useFeatureGate: () => ({ storefrontEntitlements: { storefront_enabled: true, max_online_products: plan.cap } }),
+  useFeatureGate: () => ({
+    currentTier: plan.tier,
+    storefrontEntitlements: { storefront_enabled: true, max_online_products: plan.cap, owner_opt_in_required: plan.optInRequired },
+  }),
 }));
+vi.mock("@/lib/api/client", () => ({ apiClient: { getStorefrontSettings: getSettings } }));
 
 import { OnlineListingCapBanner } from "@/components/products/online-listing-cap-banner";
 
@@ -33,6 +40,9 @@ describe("OnlineListingCapBanner", () => {
   beforeEach(() => {
     plan.cap = 2;
     plan.online = 1;
+    plan.tier = "pro";
+    plan.optInRequired = false;
+    getSettings.mockReset();
     db.run("DELETE FROM products");
   });
 
@@ -76,5 +86,32 @@ describe("OnlineListingCapBanner", () => {
 
     await waitFor(() => expect(container.textContent).toBe(""));
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("names the Starter plan and points it at Pro once the owner has opted in", async () => {
+    Object.assign(plan, { tier: "starter", optInRequired: true });
+    getSettings.mockResolvedValue({ allowed: false, opt_in_required: true, opted_in: true });
+    listed(3);
+    renderBanner();
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(/your Starter plan shows up to 2.*upgrade to Pro/);
+  });
+
+  it("does not cap a Starter store whose owner has not opted in", async () => {
+    Object.assign(plan, { tier: "starter", optInRequired: true });
+    getSettings.mockResolvedValue({ allowed: false, opt_in_required: true, opted_in: false });
+    listed(3);
+    const { container } = renderBanner();
+
+    await waitFor(() => expect(getSettings).toHaveBeenCalled());
+    await waitFor(() => expect(container.textContent).toBe(""));
+  });
+
+  it("never asks the server for the opt-in on a plan that needs none", async () => {
+    listed(3);
+    renderBanner();
+
+    await screen.findByRole("alert");
+    expect(getSettings).not.toHaveBeenCalled();
   });
 });

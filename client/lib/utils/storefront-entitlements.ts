@@ -45,6 +45,7 @@ export function resolveStorefrontEntitlements(
 }
 
 export interface ListingCapState {
+  tier?: string;
   applies: boolean;
   cap: number | null;
   listed: number;
@@ -67,5 +68,11 @@ export function refusesNewListing(
   return state.applies && state.atCap && turningOn && !alreadyListed;
 }
 
-export const overCapMessage = (cap: number): string =>
-  `Your Pro plan lists up to ${cap} products online. Turn another product off or upgrade to Enterprise.`;
+export function capPlanNames(tier = "pro"): { plan: string; upgradeTo: string } {
+  return tier === "starter" || tier === "local" ? { plan: "Starter", upgradeTo: "Pro" } : { plan: "Pro", upgradeTo: "Enterprise" };
+}
+
+export function overCapMessage(cap: number, tier?: string): string {
+  const { plan, upgradeTo } = capPlanNames(tier);
+  return `Your ${plan} plan lists up to ${cap} products online. Turn another product off or upgrade to ${upgradeTo}.`;
+}

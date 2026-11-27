@@ -21,11 +21,15 @@ export interface StorefrontEntitlements {
   owner_self_edit_look: boolean;
   rebuild_mode: "scheduled" | "on_demand";
   custom_domain: boolean;
+  /** Only in the plan map from GET /system-configs/subscription_plans; absent from older servers. */
+  owner_opt_in_required?: boolean;
 }
 
 interface StorefrontPlanDetails {
   entitlements?: StorefrontEntitlements;
   checkout_warning?: string | null;
+  opt_in_required?: boolean;
+  opted_in?: boolean;
 }
 
 export interface StorefrontSettings extends StorefrontPlanDetails {

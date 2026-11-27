@@ -64,5 +64,7 @@ describe("listing cap", () => {
 
   it("names the cap in the message the owner sees", () => {
     expect(overCapMessage(300)).toBe("Your Pro plan lists up to 300 products online. Turn another product off or upgrade to Enterprise.");
+    expect(overCapMessage(50, "starter")).toBe("Your Starter plan lists up to 50 products online. Turn another product off or upgrade to Pro.");
+    expect(overCapMessage(50, "local")).toMatch(/Starter plan.*upgrade to Pro/);
   });
 });

@@ -49,7 +49,7 @@ export function useBulkShowOnlineActions({
     if (showOnline === null) return;
     const maxToList = showOnline && listingCap.applies ? (listingCap.remaining ?? 0) : undefined;
     if (maxToList === 0) {
-      toast.error(overCapMessage(listingCap.cap ?? 0));
+      toast.error(overCapMessage(listingCap.cap ?? 0, listingCap.tier));
       return;
     }
 

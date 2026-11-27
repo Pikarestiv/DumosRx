@@ -1,5 +1,6 @@
 import { BaseApiClient } from "./base-client";
 import type {
+  StorefrontEntitlements,
   StorefrontSettings,
   StorefrontSettingsResponse,
   StorefrontSettingsUpdate,
@@ -12,6 +13,10 @@ export class StorefrontApiClient extends BaseApiClient {
 
   async rebuildStorefront() {
     return this.request<{ message: string }>("/app/storefront/rebuild", { method: "POST" });
+  }
+
+  async optInStorefront() {
+    return this.request<{ opted_in: true; entitlements: StorefrontEntitlements }>("/app/storefront/opt-in", { method: "POST" });
   }
 
   async updateStorefrontSettings(payload: StorefrontSettingsUpdate) {

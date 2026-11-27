@@ -15,6 +15,7 @@ import { useFeatureGate } from "@/lib/hooks/use-feature-gate";
 import { storefrontUrl } from "@/lib/utils/storefront-url";
 import { StorefrontAppearance } from "./storefront-appearance";
 import { StorefrontRebuildButton } from "./storefront-rebuild-button";
+import { StorefrontOptInGate } from "./storefront-opt-in";
 
 interface OnlineStorefrontCardProps {
   localStoreSlug?: string;
@@ -26,13 +27,15 @@ const CONTACT_TO_SET_UP =
 const CONTACT_TO_SWITCH_ON = "Contact your account manager to switch it on.";
 const UPGRADE_FOR_STOREFRONT =
   "An online store is part of the Pro and Enterprise plans. Upgrade your plan to put your products online.";
+const UPGRADE_FOR_STOREFRONT_FROM_STARTER =
+  "An online store is part of the Starter, Pro and Enterprise plans. Upgrade your plan to put your products online.";
 
 export function OnlineStorefrontCard({
   localStoreSlug,
   onlineStoreEnabled = false,
 }: OnlineStorefrontCardProps) {
   const canManageOnlineStore = useHasPermission("manage_online_store");
-  const { storefrontEntitlements } = useFeatureGate();
+  const { storefrontEntitlements, starterHasStorefront } = useFeatureGate();
   const [copied, setCopied] = useState(false);
 
   if (!canManageOnlineStore) return null;
@@ -49,6 +52,62 @@ export function OnlineStorefrontCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const addressPanel = (
+    <>
+      <p className="text-sm">
+        {live
+          ? "Your online store is available at:"
+          : "Your online store address is reserved, but it isn't switched on yet:"}
+      </p>
+      <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
+        <span className="break-all text-sm font-medium">{url}</span>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            type="button"
+            aria-label="Copy storefront link"
+            onClick={handleCopy}
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </Button>
+          {live ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              asChild
+            >
+              <a
+                href={url ?? undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open your online store"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      {live ? (
+        <div className="space-y-4 border-t pt-4">
+          {storefrontEntitlements.rebuild_mode === "on_demand" ? <StorefrontRebuildButton /> : null}
+          <StorefrontAppearance />
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {CONTACT_TO_SWITCH_ON}
+        </p>
+      )}
+    </>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -59,65 +118,15 @@ export function OnlineStorefrontCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {!storefrontEntitlements.storefront_enabled ? (
-          <p className="text-sm">{UPGRADE_FOR_STOREFRONT}</p>
+          <p className="text-sm">{starterHasStorefront ? UPGRADE_FOR_STOREFRONT_FROM_STARTER : UPGRADE_FOR_STOREFRONT}</p>
         ) : !url ? (
           <p className="text-sm">
             Your online store isn&apos;t set up yet. {CONTACT_TO_SET_UP}
           </p>
+        ) : storefrontEntitlements.owner_opt_in_required ? (
+          <StorefrontOptInGate entitlements={storefrontEntitlements}>{addressPanel}</StorefrontOptInGate>
         ) : (
-          <>
-            <p className="text-sm">
-              {live
-                ? "Your online store is available at:"
-                : "Your online store address is reserved, but it isn't switched on yet:"}
-            </p>
-            <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
-              <span className="break-all text-sm font-medium">{url}</span>
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  type="button"
-                  aria-label="Copy storefront link"
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-                {live ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    asChild
-                  >
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Open your online store"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-            {live ? (
-              <div className="space-y-4 border-t pt-4">
-                {storefrontEntitlements.rebuild_mode === "on_demand" ? <StorefrontRebuildButton /> : null}
-                <StorefrontAppearance />
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                {CONTACT_TO_SWITCH_ON}
-              </p>
-            )}
-          </>
+          addressPanel
         )}
       </CardContent>
     </Card>

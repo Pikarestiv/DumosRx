@@ -165,6 +165,7 @@ export function useFeatureGate() {
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L164
     canUseEcommerce,
     storefrontEntitlements: resolveStorefrontEntitlements(subscriptionPlans, planKey, canUseEcommerce),
+    starterHasStorefront: Boolean(subscriptionPlans?.storefront_entitlements?.starter?.storefront_enabled),
 
     // Core POS/checkout access.
     // Rationale: docs/CLIENT_LIB_COMMENTS.md#line-hooks-use-feature-gate-ts-L169

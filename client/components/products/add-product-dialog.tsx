@@ -174,7 +174,7 @@ export function AddProductDialog({
 
   const handleInputChange = (field: keyof Product, value: string | number | boolean | null) => {
     if (field === "showOnline" && refusesNewListing(listingCap, { turningOn: value === true, alreadyListed })) {
-      toast.error(overCapMessage(listingCap.cap ?? 0));
+      toast.error(overCapMessage(listingCap.cap ?? 0, listingCap.tier));
       return;
     }
     setFormData((prev) => ({ ...prev, [field]: value }));

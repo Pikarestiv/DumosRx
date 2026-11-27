@@ -1,9 +1,11 @@
-export type StoreType = "pharmacy" | "grocery" | "supermarket" | "retail";
+import type { StoreType } from "@/lib/constants/store-types";
+
+export type { StoreType };
 
 export interface StoreProfile {
   id: string;
   name: string;
-  store_type: StoreType;
+  store_type: string | null;
   is_initialized: number;
   currency: string;
   vat_percentage: number;

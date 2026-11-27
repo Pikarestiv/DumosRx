@@ -203,10 +203,10 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     (`StorefrontHero`), **Products** (`FeaturedProducts`, a client component:
     category chips filter the show endpoint's `products` in the
     page into a two-row grid ending in a "+ N more" tile, see below, with "All · N" and "View all N products" → `/catalog`), **Services** when switched on, "How ordering
-    works" (`OrderingSteps`, three numbered steps, wording from
-    `storefrontCopy(store).orderingSteps`) and a quiet footer. The hero H1 is
+    works" (`OrderingSteps`, three numbered steps, worded by
+    its `isPharmacy` prop, so only a pharmacy mentions prescriptions) and a quiet footer. The hero H1 is
     the owner's `storefront.tagline`, else `storefront.headline`, else
-    `copy.heroTagline` for the store type. The hero's layout follows the
+    `storefrontTaglineKey(store)` for the store type. The hero's layout follows the
     preset (`band` shows the `StoreInfoPanel` at lg+, `tint` and `centered`
     do not); status ("Open · closes at 6:00 pm") comes from
     `storefront.opening_hours` and is computed **in the browser**
@@ -513,16 +513,29 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `NEXT_PUBLIC_STOREFRONT_SANDBOX`, because the shop refetches its products at
   runtime and would otherwise call a real API; `demoCatalog()` answers search and
   category filters from the demo products. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and
-  `STOREFRONT_DEMO_STORE_TYPE=<type>` (e.g. `retail`) previews the non-pharmacy copy, and
+  `STOREFRONT_DEMO_STORE_TYPE=<type>` (default `pharmacy`; e.g. `beauty`, `hardware`, `retail`) previews that type's copy, and
   `STOREFRONT_DEMO_ACCENT=#RRGGBB` previews an accent override.
 - **Store-type copy** (`lib/storefront-copy.ts`). `GET /storefront/{slug}`
   returns `store.store_type` (the selected branch's, since 2026-11-14). Every
   piece of storefront copy that differs by store type (FAQ, About, Locations
   subtitle, footer fallback, the order tracker's labels) comes from
-  `storefrontCopy(store)`; do not hardcode pharmacy wording in a component.
-  A missing type means an older API, and is treated as `pharmacy`, so a
-  pharmacy's copy is unchanged; every other type gets neutral retail copy
-  with no prescription Q&A and no dispensary/medication wording.
+  `storefrontCopy(store)` and the hero's default tagline from
+  `storefrontTaglineKey(store)`; do not hardcode pharmacy wording in a component.
+  `pharmacy` gets the pharmacy copy, `beauty` and `hardware` get their own
+  FAQ/About wording and tagline (`tagline.beauty`, `tagline.hardware`), and every
+  other type, including a missing, null or unknown one, gets the neutral retail
+  copy with no prescription Q&A and no dispensary/medication wording. Since
+  2026-11-27 a missing type is no longer read as `pharmacy`: the server has sent
+  `store_type` on every storefront payload since the field existed and now
+  normalizes unknown values to `general` (`App\Support\StoreTypes`), so the
+  only way to get no type is a fixture. `isPharmacyStore()` is true only for
+  an explicit `pharmacy`.
+- **Store type list** (`lib/constants/store-types.ts`). `STORE_TYPES` feeds the
+  register form's select and its zod enum, and the storefront header's type
+  label (`type.<value>` in both message files, plus the legacy `type.retail`).
+  It is a deliberate copy of `client/lib/constants/store-types.ts`, because the
+  two packages share no code; `__tests__/store-types.test.tsx` pins it to
+  `laravel-server/app/Support/StoreTypes.php::IDS`. Add a type in all three.
 - **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`
   (logo + store name, linking home, the nav and the cart) and

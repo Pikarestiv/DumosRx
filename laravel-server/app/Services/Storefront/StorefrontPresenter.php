@@ -5,6 +5,7 @@ namespace App\Services\Storefront;
 use App\Models\Store;
 use App\Models\Storefront;
 use App\Support\StorefrontLocales;
+use App\Support\StoreTypes;
 use Illuminate\Support\Collection;
 
 /** The public storefront payload, with the owner's plan applied at read time (laravel-server/AGENTS.md, "Storefront plan entitlements"). */
@@ -92,7 +93,7 @@ class StorefrontPresenter
             'address' => $branch->address,
             'phone' => $branch->phone,
             'email' => $branch->email,
-            'store_type' => $branch->store_type ?? 'pharmacy',
+            'store_type' => StoreTypes::normalize($branch->store_type),
             'currency' => $currency,
             'online_payment_available' => $this->onlinePaymentAvailable($branch, $entitlements),
             'timezone' => $branch->timezone,

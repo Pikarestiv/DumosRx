@@ -886,7 +886,7 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 
 ### Audit item sync writes in bulk (2026-11-16)
 
-`AuditSessionService::syncBatchItems` upserts items in chunks of 200 on the unique
+`AuditSessionService::syncBatchItems` (via `AuditSessionItemWriter::upsertSyncedItems`) upserts items in chunks of 200 on the unique
 `(audit_session_id, product_id)` key instead of one `updateOrCreate` per item. The till
 used to re-send every counted item on each debounced sync, so a large audit made each
 request run thousands of queries inside one transaction; overlapping requests then hit
@@ -939,6 +939,24 @@ Checkout and checkout/initialize use `resolveBranch(..., requireExplicitMatch: t
 `GET /storefront-slugs` adds `branches: {<brand slug>: [<branch slug>, ...]}` for storefronts
 with two or more live branches; the web build makes branch pages from it. The primary branch
 is the brand's front door, so it has a slug but its canonical URL is the brand root.
+
+### Store types (`stores.store_type`, expanded 2026-11-27)
+
+`App\Support\StoreTypes::IDS` is the one list of store types, in display order:
+`pharmacy, supermarket, grocery, general, beauty, hardware, fashion, electronics,
+auto_parts, stationery, agro, other`. `StoreTypes::rule()` validates register
+(`RegistersAccounts`) and `POST/PUT /stores` (`Web\StoreController`); anything else is
+still a 422, as before. `LEGACY_IDS = ['retail']` stays accepted because older desktop
+bundles wrote it from the setup wizard; drop it once no `stores` row holds `retail` and
+every active bundle is on the 2026-11-27 release or later. `StoreTypes::normalize()` is
+how a reader gets a type: an unknown value (sync pushes `stores` rows unvalidated, and the
+client's local schema defaults to `'store'`) reads as `general`. The public storefront
+payload (`StorefrontPresenter::branchPayload`, moved out of `StorefrontCatalogService` by the storefront plan split) and the first-sync admin alert use it;
+admin and dashboard endpoints return the raw stored value on purpose. Creating a store
+without a type still defaults to `pharmacy` (column default and the `?? 'pharmacy'` on
+create), because old clients omit it and every existing store was made that way.
+`client/lib/constants/store-types.ts` and `web/lib/constants/store-types.ts` copy `IDS`;
+a test in each package reads this file and fails if the lists drift.
 
 ### Till token rotation grace (2026-11-16)
 
@@ -1019,6 +1037,20 @@ Multi-device cycle count coordination backed by the cloud:
 - **Completion Lifecycle & Sync Hook:** Submission occurs locally first on the counting till via `submitStockAudit()`. The client then calls `complete` which transitions the cloud session to `completion_pending_sync` with `submitted_stock_audit_id`. When the sync engine receives and saves the corresponding `StockAudit` row, `StockAudit::booted()` calls `AuditSessionService::confirmSyncCompletion($stockAudit->id)`, atomically moving the session to `completed`.
 - **Completion is replay-safe and cannot stick (2026-11-13, A-376):** a repeat `complete` naming the same `submitted_stock_audit_id` returns 200 (and settles the session if the audit has since synced) instead of 409; a different id still conflicts. `getActiveSession()` and `startSession()` first settle `completion_pending_sync` sessions whose stock audit exists or whose `last_synced_at` is older than `PENDING_SYNC_GRACE_HOURS` (24), so one that never confirms stops blocking new sessions. `getActiveSession()` returns `items: []` for a session that is not `in_progress`, which also stops pre-2026-11-13 clients merging an already-submitted count. No route, field or response shape changed. Tests: `tests/Feature/AuditSessionCompletionRecoveryTest.php`.
 - **Purged User Row Sweeping:** `audit_sessions.active_user_id` has `nullOnDelete()` foreign key semantics and is registered in `PurgedUserRowSweeper::POINTER_COLUMNS` for complete schema safety when users or stores are purged.
+- **Every lease-fenced write locks the session first (2026-11-27, A-431, A-432):** `heartbeat()`, `syncBatchItems()` and `completeSession()` lock the session row at the top of their transaction and check status and lease on that locked row (`assertLeaseHeld()`), never the route-bound copy, and retry the transaction 3 times on a deadlock. Item rows are built and upserted, in `product_id` order, by `AuditSessionItemWriter` (`app/Services/Audit/AuditSessionItemWriter.php`), which also owns the `baseline_quantity` column check.
+
+## Lock the parent before writing its children
+
+Any transaction that inserts or updates child rows and then updates their parent must
+`lockForUpdate()` the parent row **first**. In InnoDB each child write takes a shared
+foreign-key lock on the parent; two overlapping transactions both hold it, both then ask
+for the exclusive lock the parent `UPDATE` needs, and one dies with `1213` deadlock. Locking
+the parent first makes them queue instead. Write the children in a deterministic key order
+(sort by the unique key), and check any state the write depends on (status, lease, version)
+on the locked row, not on a model read before the transaction. Precedents: stock batches
+before movements (A-217/A-287), audit sessions before items (A-431). SQLite ignores
+`FOR UPDATE`, so tests can only pin that the locking read precedes the child write in the
+query log; the real proof is the deadlock not recurring in Sentry.
 
 ## Sync engine (server side)
 
@@ -1914,7 +1946,7 @@ on the server; the till and web only lock, hide and explain.
 | Flag | Free | Starter (2026-11-27) | Pro | Enterprise | Enforced by |
 |---|---|---|---|---|---|
 | `storefront_enabled` | no | yes, **only after the owner opts in** | yes | yes | `StorefrontController::publishedBranch()`, slugs, services, order tracking (also ANDed with the plan editor's `store_url`) |
-| `allowed_presets` | none | `store_type_default`: one preset, `clinic` for a pharmacy (or an empty type), `workshop` otherwise | admin list, default workshop/clinic/market | every `StorefrontThemes::PRESET_IDS` entry, always | read-time theme fallback; owner `PUT /app/storefront-settings` validation |
+| `allowed_presets` | none | `store_type_default`: one preset, `clinic` for a pharmacy, `workshop` for any other (or unknown) type | admin list, default workshop/clinic/market | every `StorefrontThemes::PRESET_IDS` entry, always | read-time theme fallback; owner `PUT /app/storefront-settings` validation |
 | classic accent themes | n/a | all | all | all | never gated, on any plan, including future ones |
 | `custom_accent_colour` | no | no | no | yes | public payload `accent` is `null` without it |
 | `max_online_products` | n/a | 50 | 300 | unlimited (`null`) | sync push, admin switch-on, owner opt-in, plan watcher (below) |
@@ -2046,11 +2078,12 @@ config list rather than by plan name in code:
     server enforces.
 - **One preset (`allowed_presets: 'store_type_default'`).**
   `StorefrontThemes::defaultPresetFor()` mirrors web's
-  `resolveStorefrontPreset()` and the till's `presetFor()`: an empty
-  `store_type` counts as a pharmacy (as `branchPayload()` does). `forStore()`
-  passes the branch's type; `forOwner()` without one reads the storefront's
-  primary store. The plan map has no store, so its Starter entry shows the
-  pharmacy default; the per-owner `entitlements` from
+  `resolveStorefrontPreset()` over the payload's `StoreTypes::normalize()`d
+  type, and the till's `presetFor()`: only `pharmacy` gets `clinic`; an empty
+  or unknown type reads as `general`, so `workshop`. `forStore()` passes the
+  branch's type; `forOwner()` without one reads the storefront's primary
+  store. The plan map has no store, so its Starter entry shows `workshop`;
+  the per-owner `entitlements` from
   `GET /app/storefront-settings` is the real one. Classic colour themes stay
   ungated (the web already lays a classic theme out as the store type's
   default preset). A saved preset outside the plan is shown as the one preset

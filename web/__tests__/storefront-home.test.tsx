@@ -19,7 +19,7 @@ const productList = (count: number) =>
   Array.from({ length: count }, (_, i) => ({ id: `p${i}`, name: `Product ${i}`, selling_price: 100 + i }));
 
 const storefrontData = (overrides: Partial<StorefrontData> = {}): StorefrontData => ({
-  store: { id: "s1", name: "Grace Pharmacy", phone: "0801", email: "hi@grace.test", currency: "NGN" },
+  store: { id: "s1", name: "Grace Pharmacy", phone: "0801", email: "hi@grace.test", currency: "NGN", store_type: "pharmacy" },
   storefront: { id: "f1", slug: "grace", name: "Grace Pharmacy", headline: "Care you can trust", theme: "navy" },
   branches: [{ id: "s1", name: "Grace Pharmacy", is_primary: true }],
   products: productList(20),
@@ -233,6 +233,22 @@ describe("storefront home page", () => {
 
     await renderHome(storefrontData({ storefront: { id: "f1", slug: "grace", name: "Grace" } }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Medicines, wellness and everyday essentials.");
+  });
+
+  it.each([
+    ["beauty", "Skincare, makeup and beauty essentials."],
+    ["hardware", "Tools, building materials and hardware, ready for pickup."],
+    ["fashion", "Everything you need, ready for pickup."],
+    [undefined, "Everything you need, ready for pickup."],
+  ])("defaults a %s store's hero to its own tagline", async (storeType, tagline) => {
+    await renderHome(
+      storefrontData({
+        store: { id: "s1", name: "Grace", currency: "NGN", store_type: storeType },
+        storefront: { id: "f1", slug: "grace", name: "Grace" },
+      }),
+    );
+
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(tagline);
   });
 
   it("no longer carries the generic template sections", async () => {

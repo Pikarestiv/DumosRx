@@ -2,13 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const STORE_TYPES = [
-  { value: "pharmacy", label: "Pharmacy" },
-  { value: "supermarket", label: "Supermarket" },
-  { value: "grocery", label: "Grocery" },
-  { value: "general", label: "General Store" },
-];
+import { STORE_TYPES } from "@/lib/constants/store-types";
 
 interface RegisterAccountFieldsProps {
   storeType: string;

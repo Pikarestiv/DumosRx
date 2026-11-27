@@ -24,7 +24,8 @@ import {
   setStoredActiveStoreId,
 } from "@/lib/storage-keys";
 import { terminology } from "@/lib/context/store-terminology";
-import type { StoreContextType, StoreProfile, StoreType } from "@/lib/context/store-types";
+import { normalizeStoreType } from "@/lib/constants/store-types";
+import type { StoreContextType, StoreProfile } from "@/lib/context/store-types";
 import { useStoreBackgroundSync } from "@/lib/context/use-store-background-sync";
 
 export type { StoreType, StoreProfile } from "@/lib/context/store-types";
@@ -161,7 +162,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       import("@/lib/db/sync-engine").then(({ sync }) => sync()).catch(() => {});
     }
   }, []);
-  const storeType = storeProfile?.store_type || "pharmacy";
+  const storeType = normalizeStoreType(storeProfile?.store_type);
   const theme = storeProfile?.theme || "default";
   const isInitialized = storeProfile?.is_initialized === 1;
   const vatPercentage = storeProfile?.vat_percentage ?? 0;
@@ -207,8 +208,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback(
     (key: string): string => {
-      const type = storeType as StoreType;
-      return terminology[type]?.[key] || terminology["retail"][key] || key;
+      return terminology(storeType)[key] || key;
     },
     [storeType],
   );

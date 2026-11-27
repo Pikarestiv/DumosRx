@@ -31,6 +31,7 @@ trait BuildsStorefrontPlans
         foreach (['free', 'starter', 'pro'] as $plan) {
             config(["storefront_entitlements.plans.{$plan}" => $enterprise]);
         }
+        config(['storefront_entitlements.owner_opt_in_plans' => []]);
     }
 
     protected function subscribe(User $owner, string $plan, ?\DateTimeInterface $endsAt = null): Subscription

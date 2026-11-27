@@ -34,7 +34,7 @@ const DEMO_PRODUCTS: StorefrontProduct[] = DEMO_PRODUCT_NAMES.map((name, index) 
 
 const WEEKDAY_HOURS = { open: "08:00", close: "18:00" };
 
-const DEMO_STORE_TYPE = process.env.STOREFRONT_DEMO_STORE_TYPE;
+const DEMO_STORE_TYPE = process.env.STOREFRONT_DEMO_STORE_TYPE ?? "pharmacy";
 const DEMO_KIND = isPharmacyStore({ store_type: DEMO_STORE_TYPE }) ? "Pharmacy" : "Store";
 const DEMO_NAME = `Demo ${DEMO_KIND}`;
 

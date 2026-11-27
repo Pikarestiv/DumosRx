@@ -16,9 +16,9 @@ final class StorefrontThemes
 
     public const IDS = [...self::CLASSIC_IDS, ...self::PRESET_IDS];
 
-    /** Mirrors web resolveStorefrontPreset() and the till's presetFor(): an empty type is a pharmacy. */
+    /** Mirrors web resolveStorefrontPreset() over the normalised payload type, and the till's presetFor(). */
     public static function defaultPresetFor(?string $storeType): string
     {
-        return ($storeType ?: 'pharmacy') === 'pharmacy' ? 'clinic' : 'workshop';
+        return StoreTypes::normalize($storeType) === 'pharmacy' ? 'clinic' : 'workshop';
     }
 }

@@ -6,13 +6,14 @@ import * as z from "zod";
 import { toast } from "sonner";
 import { webApiClient } from "@/lib/api/client";
 import { getAppURL } from "@/lib/constants";
+import { STORE_TYPE_VALUES } from "@/lib/constants/store-types";
 
 export const registerSchema = z
   .object({
     store_name: z
       .string()
       .min(2, { message: "Store name must be at least 2 characters" }),
-    store_type: z.enum(["pharmacy", "supermarket", "grocery", "general"]),
+    store_type: z.enum(STORE_TYPE_VALUES),
     first_name: z
       .string()
       .min(2, { message: "First name must be at least 2 characters" }),

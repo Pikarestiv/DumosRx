@@ -53,7 +53,7 @@ function deny(...denied: string[]) {
 }
 
 const storeProfileProps = {
-  storeType: "retail" as const,
+  storeType: "general" as const,
   localPcn: "",
   setLocalPcn: vi.fn(),
   loyaltyProgramEnabled: false,

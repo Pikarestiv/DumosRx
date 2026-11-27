@@ -108,14 +108,15 @@ class StorefrontStarterTierTest extends TestCase
         }
     }
 
-    public function test_the_one_starter_preset_follows_the_store_type_with_an_empty_type_counting_as_a_pharmacy(): void
+    public function test_the_one_starter_preset_follows_the_store_type_the_storefront_payload_reports(): void
     {
         $service = app(StorefrontEntitlements::class);
 
         $this->assertSame(['clinic'], $service->forPlan('starter', 'pharmacy')['allowed_presets']);
-        $this->assertSame(['clinic'], $service->forPlan('starter', null)['allowed_presets']);
-        $this->assertSame(['clinic'], $service->forPlan('starter', '')['allowed_presets']);
         $this->assertSame(['workshop'], $service->forPlan('starter', 'hardware')['allowed_presets']);
+        foreach ([null, '', 'store'] as $unknown) {
+            $this->assertSame(['workshop'], $service->forPlan('starter', $unknown)['allowed_presets'], var_export($unknown, true));
+        }
 
         $this->store->update(['store_type' => 'supermarket']);
         $this->assertSame(['workshop'], $service->forStore($this->store->refresh())['allowed_presets']);

@@ -15,6 +15,14 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "header.fallbackName": "Boutique",
   "footer.fallbackName": "Cette boutique",
   "type.retail": "Commerce",
+  "type.beauty": "Beauté & Cosmétiques",
+  "type.hardware": "Quincaillerie & Matériaux",
+  "type.fashion": "Mode & Vêtements",
+  "type.electronics": "Électronique & Téléphones",
+  "type.auto_parts": "Pièces auto",
+  "type.stationery": "Papeterie & Librairie",
+  "type.agro": "Agro & Fournitures agricoles",
+  "type.other": "Boutique",
 
   "hero.browse": "Voir les articles",
   "hero.whatsapp": "Écrire sur WhatsApp",
@@ -22,6 +30,8 @@ export const FR_MESSAGES: Record<MessageKey, string> = {
   "hero.aria": "Bienvenue",
   "tagline.pharmacy": "Médicaments, bien-être et produits du quotidien.",
   "tagline.retail": "Tout ce qu'il vous faut, prêt au retrait.",
+  "tagline.beauty": "Soins, maquillage et essentiels beauté.",
+  "tagline.hardware": "Outils, matériaux de construction et quincaillerie, prêts au retrait.",
 
   "info.aria": "Informations sur la boutique",
   "info.heading": "La boutique",

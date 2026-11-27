@@ -65,7 +65,6 @@ export default async function StorefrontPage({
       <StorefrontHero
         variant={preset.hero}
         tagline={tagline}
-        isPharmacy={isPharmacyStore(store)}
         store={store}
         storefront={storefront}
         catalogHref={catalogHref}

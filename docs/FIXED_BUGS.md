@@ -1,3 +1,9 @@
+### A-433 — a stray `AdminStoreDetailService.php-E` sed backup was tracked in git
+- **Fixed:** 2026-11-27, repo hygiene only.
+- **Was:** `laravel-server/app/Services/Admin/AdminStoreDetailService.php-E`, a BSD `sed -i -E` backup committed by `4265874d`, an older copy of the service that nothing loaded but grep kept hitting.
+- **Now:** deleted. A sweep of tracked files ending in `-E`, `.orig`, `.bak`, `.rej` or `~` found one more, `client/src-tauri/vendor/tauri-plugin-sql/Cargo.toml.orig`, which is kept: it is the original manifest `cargo package` ships inside a vendored crate, not an editor backup.
+- **Coverage:** none needed (no code path).
+
 ### A-432 — an audit session heartbeat or complete checked the lease on an unlocked copy, so a takeover in between could be overwritten
 - **Fixed:** 2026-11-27, server only, TDD. Found while fixing A-431.
 - **Was:** `AuditSessionService::heartbeat()` and `completeSession()` validated status and `till_id`/`lease_version` on the route-bound model, then ran an unconditional `update()`. A takeover committing between the controller's read and that update let the superseded till extend the lease, or complete the session the new holder was counting.

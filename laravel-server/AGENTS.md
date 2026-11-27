@@ -1950,7 +1950,7 @@ on the server; the till and web only lock, hide and explain.
 | classic accent themes | n/a | all | all | all | never gated, on any plan, including future ones |
 | `custom_accent_colour` | no | no | no | yes | public payload `accent` is `null` without it |
 | `max_online_products` | n/a | 50 | 300 | unlimited (`null`) | sync push, admin switch-on, owner opt-in, plan watcher (below) |
-| `checkout_pay_on_delivery` | no | yes | yes | yes | `checkoutRefusal()` on `POST /storefront/{slug}/checkout` |
+| `checkout_pay_on_delivery` | no | yes | yes | yes | `checkoutRefusal()` on `POST /storefront/{slug}/checkout`; refusal messages list only the plan's remaining ways to pay (Pro's wording is unchanged, Starter's says "when you collect your order or on delivery") |
 | `checkout_transfer_mobile_money` | no | no | yes | yes | `checkoutRefusal()`; payload `payment_instructions` is `null` without it, so web offers no transfer |
 | `checkout_paystack` | no | no | no | yes | 422 at both checkout endpoints, 403 on `POST /stores/{id}/payment-account`, `online_payment_available` false |
 | `checkout_whatsapp` | no | yes | yes | yes | payload `whatsapp` is `null` without it (no plan with a storefront lacks it today) |
@@ -2060,7 +2060,25 @@ config list rather than by plan name in code:
   watcher then stamps `owner_opted_in_at` on that transition so it sticks).
   This is the §11 guard: a Starter store whose `online_store_enabled` is already
   1 (an old till could set it) stays dark, untrimmed and unchanged until the
-  owner opts in. `NULL` everywhere at release is the "not opted in" value, so
+  owner opts in **or a super admin switches it on**.
+  - **An admin enable is an opt-in (2026-11-27).** `AdminStoreStorefrontService::setEnabled()`
+    calls `StorefrontOptInService::optIn($owner, 'admin')` when the request
+    switches the store on (`enabled: true` with no `store_slug`, or any enable
+    of a store that was off) and the owner's plan is in `owner_opt_in_plans`. It
+    stamps `owner_opted_in_at`, sets `storefronts.opted_in_by = 'admin'`, logs
+    `STOREFRONT_ADMIN_OPTED_IN` against the admin, trims and dirties, exactly
+    like the owner's button (`opted_in_by = 'owner'`, `STOREFRONT_OWNER_OPTED_IN`).
+    Only the action counts: a flag already sitting at 1 in the database, or an
+    address change on a store that is already on, does not, so no existing
+    Starter store goes live on deploy. Re-sending `enabled: true` for a dormant
+    store that is already on does count (the admin card's "Put it live for the
+    owner" button). Off then on again keeps the first stamp and logs once. Pro
+    and Enterprise never record an opt-in. The watcher's carry-over on a
+    downgrade writes `opted_in_by = 'plan_change'`. `opted_in_by` is a new
+    nullable column in the same unreleased migration as `owner_opted_in_at`.
+  - **Admin store detail** (`GET /admin/stores/{id}`, `storefront`) adds
+    `opt_in_required`, `opted_in_at` (ISO), `opted_in_by` and `storefront_live`
+    (switched on and the plan's storefront applies). Additive. `NULL` everywhere at release is the "not opted in" value, so
   the migration has no backfill and the shim never needs retiring.
   - `POST /app/storefront/opt-in` (`StorefrontOptInController`,
     `StorefrontOptInService`): owner only (staff 403), the plan must offer a

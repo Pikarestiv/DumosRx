@@ -2270,10 +2270,33 @@ which is false on Pro.
   Pro's 300, is copy: keep it in step with `config/storefront_entitlements.php`.
   `StorefrontProPresetsCard` says Starter always uses its store type's default
   style; its counts stay Pro-only.
+- **Plan card numbers come from the plan map.** `starterStorefrontLine()` and
+  `upToProducts()` (`lib/constants/subscription-plans.ts`) read
+  `storefront_entitlements[plan].max_online_products` from the same
+  `GET /system-configs/subscription_plans` the pricing cards already fetch at
+  runtime, so the numbers follow `config/storefront_entitlements.php`. With no
+  map (an older server) the line leaves the number out rather than guess.
+- **"How ordering works" names the store's real ways to pay.**
+  `paymentWaysOf(storefront, store)` and `paymentStepBody()`
+  (`lib/storefront-payment-ways.ts`) build the pay step from the payload:
+  pickup always, pay on delivery when the store delivers with it, transfer when
+  `payment_instructions` is sent (the server withholds it on Starter), online
+  when `online_payment_available`. Keys `steps.pay.body.ways`,
+  `steps.pay.way.*` and `steps.pay.or` in both message files. The services
+  variant and the payments FAQ keep their hedged generic wording (services are
+  Enterprise-only, which has every method). The page `meta.description` still
+  says "Pay online, by transfer, or in store" on every plan; left as is.
+- **Admin store detail: Starter opt-in.** `StorefrontOptInStatus`
+  (`components/admin/stores/details/storefront-opt-in-status.tsx`, in the
+  Online Storefront card) shows, only on an opt-in plan, who opted in (owner,
+  admin, or kept from an earlier plan) and when as `dd/MM/yyyy HH:mm`, or "not
+  live yet" with a "Put it live for the owner" button for a store that is
+  switched on but dormant.
 - **Guides:** `lib/guides/storefront-guides.ts`, slugs `storefront-plans` and
   `starter-online-storefront`.
 - Coverage: `admin-storefront-pro-presets.test.tsx`, `storefront-footer-badge.test.tsx`,
   `subscription-plans-starter-storefront.test.ts`, `guides.test.ts`,
+  `storefront-payment-ways.test.ts`, `admin-storefront-opt-in-status.test.tsx`,
   `storefront-themes.test.ts` (server `CLASSIC_IDS` + `PRESET_IDS` pinned to the web lists).
 
 ## Storefront tile icons (2026-11-16)

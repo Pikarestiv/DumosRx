@@ -479,11 +479,6 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 4 — security hygiene, UX papercuts, cosmetic
 
-#### A-433. `laravel-server/` — a stray `AdminStoreDetailService.php-E` is tracked in git
-- **Found:** 2026-11-27, adding the Starter storefront tier (present on `dev` too).
-- **What's wrong:** `app/Services/Admin/AdminStoreDetailService.php-E` is a BSD `sed -i -E` backup committed by `4265874d`. It is an older copy of the service; nothing loads it (not a `.php` file), but grep hits it and it will drift.
-- **Fix:** `git rm` it.
-
 #### A-393. `client/` — a product price edit is logged with the new price only
 - **Issue:** #367
 - **Found:** 2026-11-17, auditing service activity logging for the storefront booking work.

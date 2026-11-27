@@ -32,8 +32,8 @@ export const STOREFRONT_GUIDES: GuideItem[] = [
       "Starter gives your shop a simple public online store at dumosrx.com/s/your-store: up to 50 products you choose, orders by WhatsApp or the cart, pickup in store or pay on delivery, and the style made for your type of store.",
     steps: [
       "Make sure your store has an online address. If Settings > Store > Online Storefront says it isn't set up yet, contact your account manager and they will reserve one for you.",
-      "Open Settings > Store > Online Storefront and tap Turn on my online store. Nothing goes online until you do this.",
-      "Ask your account manager to switch your store on if the card says it isn't switched on yet. Your store page appears after the next nightly update at 03:00 Lagos time.",
+      "Open Settings > Store > Online Storefront and tap Turn on my online store, or ask your account manager to switch it on for you. Nothing goes online until one of you does.",
+      "If the card says your store isn't switched on yet, ask your account manager to switch it on. Your store page appears after the next nightly update at 03:00 Lagos time.",
       "Choose your products with the Show Online switch on each product, or the bulk Show or hide in online store action on the Products page. Starter lists up to 50 products per store; turn one off to free a slot for another.",
       "Add your WhatsApp number and switch on pay on delivery if you deliver, through your account manager. Customers can order on WhatsApp or check out in the cart and pay when they collect or when you deliver. Online card payment and bank transfer at checkout are part of the Pro and Enterprise plans.",
     ],

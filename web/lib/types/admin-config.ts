@@ -49,6 +49,8 @@ export interface TierConfig {
 }
 
 export interface SubscriptionConfig {
+  /** Computed by the server on read and stripped on save; absent from servers older than the storefront plan split. */
+  storefront_entitlements?: Record<string, { max_online_products: number | null } | undefined>;
   trial_days: number;
   trial_plan: string;
   grace_period_days: number;

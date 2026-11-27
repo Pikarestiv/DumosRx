@@ -10,13 +10,14 @@ return new class extends Migration
     {
         Schema::table('storefronts', function (Blueprint $table) {
             $table->timestamp('owner_opted_in_at')->nullable()->after('applied_plan');
+            $table->string('opted_in_by', 16)->nullable()->after('owner_opted_in_at');
         });
     }
 
     public function down(): void
     {
         Schema::table('storefronts', function (Blueprint $table) {
-            $table->dropColumn('owner_opted_in_at');
+            $table->dropColumn(['owner_opted_in_at', 'opted_in_by']);
         });
     }
 };

@@ -159,10 +159,31 @@ class StorefrontEntitlements
     public function checkoutRefusal(array $entitlements, string $paymentMethod, string $fulfilment): ?string
     {
         return match (true) {
-            $paymentMethod === 'paystack' && ! $entitlements['checkout_paystack'] => 'This store does not take online card payments. Pay by transfer or when you collect your order.',
-            $paymentMethod === 'transfer' && ! $entitlements['checkout_transfer_mobile_money'] => 'This store does not take transfers. Pay when you collect your order.',
-            $paymentMethod === 'in_store' && $fulfilment === 'delivery' && ! $entitlements['checkout_pay_on_delivery'] => 'This store does not accept payment on delivery. Pay by transfer or online.',
+            $paymentMethod === 'paystack' && ! $entitlements['checkout_paystack'] => 'This store does not take online card payments. '.$this->otherWaysToPay($entitlements),
+            $paymentMethod === 'transfer' && ! $entitlements['checkout_transfer_mobile_money'] => 'This store does not take transfers. '.$this->otherWaysToPay($entitlements),
+            $paymentMethod === 'in_store' && $fulfilment === 'delivery' && ! $entitlements['checkout_pay_on_delivery'] => 'This store does not accept payment on delivery. '.$this->upfrontWaysToPay($entitlements),
             default => null,
+        };
+    }
+
+    /** @param  array<string, mixed>  $entitlements */
+    private function otherWaysToPay(array $entitlements): string
+    {
+        return match (true) {
+            (bool) $entitlements['checkout_transfer_mobile_money'] => 'Pay by transfer or when you collect your order.',
+            (bool) $entitlements['checkout_pay_on_delivery'] => 'Pay when you collect your order or on delivery.',
+            default => 'Pay when you collect your order.',
+        };
+    }
+
+    /** @param  array<string, mixed>  $entitlements */
+    private function upfrontWaysToPay(array $entitlements): string
+    {
+        return match (true) {
+            $entitlements['checkout_transfer_mobile_money'] && $entitlements['checkout_paystack'] => 'Pay by transfer or online.',
+            (bool) $entitlements['checkout_transfer_mobile_money'] => 'Pay by transfer.',
+            (bool) $entitlements['checkout_paystack'] => 'Pay online.',
+            default => 'Choose pickup and pay when you collect your order.',
         };
     }
 

@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Store;
 use App\Models\Storefront;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /** An owner switching on a plan's opt-in storefront (Starter); see laravel-server/AGENTS.md, "Starter storefront". */
@@ -18,19 +19,24 @@ class StorefrontOptInService
         private readonly StorefrontListingTrimmer $trimmer,
     ) {}
 
-    public function optIn(User $owner): Storefront
+    public const BY_OWNER = 'owner';
+
+    public const BY_ADMIN = 'admin';
+
+    public function optIn(User $owner, string $by = self::BY_OWNER): Storefront
     {
-        return DB::transaction(function () use ($owner) {
+        return DB::transaction(function () use ($owner, $by) {
             $storefront = $this->storefrontOf($owner);
             if ($storefront->owner_opted_in_at !== null) {
                 return $storefront;
             }
 
-            Storefront::whereKey($storefront->id)->toBase()->update(['owner_opted_in_at' => now()]);
+            Storefront::whereKey($storefront->id)->toBase()->update(['owner_opted_in_at' => now(), 'opted_in_by' => $by]);
             ActivityLog::create([
-                'user_id' => $owner->id,
-                'action' => 'STOREFRONT_OWNER_OPTED_IN',
-                'description' => "Switched on the online storefront for store: {$storefront->name} ({$storefront->primary_store_id})",
+                'user_id' => $by === self::BY_ADMIN ? (Auth::id() ?? $owner->id) : $owner->id,
+                'action' => $by === self::BY_ADMIN ? 'STOREFRONT_ADMIN_OPTED_IN' : 'STOREFRONT_OWNER_OPTED_IN',
+                'description' => ($by === self::BY_ADMIN ? 'Switched on the online storefront for the owner' : 'Switched on the online storefront')
+                    ." for store: {$storefront->name} ({$storefront->primary_store_id})",
             ]);
             Store::where('user_id', $owner->id)->where('online_store_enabled', true)->get()
                 ->each(fn (Store $store) => $this->trimmer->trimToCap($store));

@@ -31,7 +31,7 @@ class StorefrontPlanWatcher
 
             $carriesOver = $storefront->owner_opted_in_at === null && $this->entitlements->requiresOwnerOptIn($plan)
                 && $this->entitlements->carriesStorefrontOver($storefront->applied_plan);
-            Storefront::whereKey($storefront->id)->toBase()->update(['applied_plan' => $plan, ...($carriesOver ? ['owner_opted_in_at' => now()] : [])]);
+            Storefront::whereKey($storefront->id)->toBase()->update(['applied_plan' => $plan, ...($carriesOver ? ['owner_opted_in_at' => now(), 'opted_in_by' => 'plan_change'] : [])]);
             Store::where('user_id', $storefront->user_id)->where('online_store_enabled', true)->get()
                 ->each(function (Store $store) {
                     $this->trimmer->trimToCap($store);

@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
  * @property string|null $logo_url
  * @property string|null $applied_plan
  * @property \Illuminate\Support\Carbon|null $owner_opted_in_at
+ * @property string|null $opted_in_by owner, admin or plan_change
  */
 class Storefront extends Model
 {

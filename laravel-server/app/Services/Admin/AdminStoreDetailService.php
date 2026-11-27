@@ -9,6 +9,7 @@ use App\Models\Storefront;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Admin\Concerns\ResolvesDeviceLabels;
+use App\Services\Storefront\StorefrontEntitlements;
 use App\Support\StorefrontLocales;
 use App\Support\StorefrontThemes;
 
@@ -34,6 +35,7 @@ class AdminStoreDetailService
         private AdminStoreService $adminStoreService,
         private AdminStoreMetricsService $metricsService,
         private AdminStoreOperationalMetricsService $operationalMetricsService,
+        private StorefrontEntitlements $entitlements,
     ) {}
 
     public function getStoreDetail(string $storeId, bool $includeRevenue = false): ?array
@@ -89,6 +91,7 @@ class AdminStoreDetailService
             ],
             'storefront' => [
                 'online_store_enabled' => (bool) $store->online_store_enabled,
+                ...$this->optInState($store, $storefront),
                 'store_slug' => $store->store_slug,
                 'brand_slug' => $storefront?->slug,
                 'branch_slug' => app(\App\Services\Storefront\StorefrontBranchSlugs::class)->existing($store),
@@ -218,5 +221,20 @@ class AdminStoreDetailService
                 'actor' => $log->user ? trim("{$log->user->first_name} {$log->user->last_name}") : null,
                 'at' => $log->created_at?->diffForHumans(),
             ]);
+    }
+
+    /**
+     * @return array{opt_in_required: bool, opted_in_at: string|null, opted_in_by: string|null, storefront_live: bool}
+     */
+    private function optInState(Store $store, ?Storefront $storefront): array
+    {
+        $owner = User::find($store->user_id);
+
+        return [
+            'opt_in_required' => $owner !== null && $this->entitlements->requiresOwnerOptIn($this->entitlements->effectivePlan($owner)),
+            'opted_in_at' => $storefront?->owner_opted_in_at?->toIso8601String(),
+            'opted_in_by' => $storefront?->opted_in_by,
+            'storefront_live' => (bool) $store->online_store_enabled && $this->entitlements->forStore($store)['storefront_enabled'],
+        ];
     }
 }

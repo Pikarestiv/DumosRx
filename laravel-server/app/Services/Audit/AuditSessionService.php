@@ -194,19 +194,21 @@ class AuditSessionService
 
     public function syncBatchItems(AuditSession $session, string $tillId, int $leaseVersion, array $items): AuditSession
     {
-        if ($session->status !== AuditSession::STATUS_IN_PROGRESS) {
-            throw new AuditSessionConflictException('Cannot sync items to an inactive audit session.', $session);
-        }
+        return DB::transaction(function () use ($session, $tillId, $leaseVersion, $items) {
+            $session = AuditSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
 
-        if ($session->active_till_id !== $tillId || $session->lease_version !== $leaseVersion) {
-            throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $session);
-        }
+            if ($session->status !== AuditSession::STATUS_IN_PROGRESS) {
+                throw new AuditSessionConflictException('Cannot sync items to an inactive audit session.', $session);
+            }
 
-        return DB::transaction(function () use ($session, $items) {
+            if ($session->active_till_id !== $tillId || $session->lease_version !== $leaseVersion) {
+                throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $session);
+            }
+
             $now = now();
             $withBaseline = [];
             $withoutBaseline = [];
-            foreach (collect($items)->keyBy('product_id') as $item) {
+            foreach (collect($items)->keyBy('product_id')->sortKeys(SORT_STRING) as $item) {
                 $row = [
                     'id' => (string) Str::uuid(),
                     'audit_session_id' => $session->id,
@@ -250,7 +252,7 @@ class AuditSessionService
             ]);
 
             return $session;
-        });
+        }, 3);
     }
 
     public function takeoverSession(

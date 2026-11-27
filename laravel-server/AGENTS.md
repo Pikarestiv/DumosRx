@@ -1016,6 +1016,20 @@ Multi-device cycle count coordination backed by the cloud:
 - **Completion Lifecycle & Sync Hook:** Submission occurs locally first on the counting till via `submitStockAudit()`. The client then calls `complete` which transitions the cloud session to `completion_pending_sync` with `submitted_stock_audit_id`. When the sync engine receives and saves the corresponding `StockAudit` row, `StockAudit::booted()` calls `AuditSessionService::confirmSyncCompletion($stockAudit->id)`, atomically moving the session to `completed`.
 - **Completion is replay-safe and cannot stick (2026-11-13, A-376):** a repeat `complete` naming the same `submitted_stock_audit_id` returns 200 (and settles the session if the audit has since synced) instead of 409; a different id still conflicts. `getActiveSession()` and `startSession()` first settle `completion_pending_sync` sessions whose stock audit exists or whose `last_synced_at` is older than `PENDING_SYNC_GRACE_HOURS` (24), so one that never confirms stops blocking new sessions. `getActiveSession()` returns `items: []` for a session that is not `in_progress`, which also stops pre-2026-11-13 clients merging an already-submitted count. No route, field or response shape changed. Tests: `tests/Feature/AuditSessionCompletionRecoveryTest.php`.
 - **Purged User Row Sweeping:** `audit_sessions.active_user_id` has `nullOnDelete()` foreign key semantics and is registered in `PurgedUserRowSweeper::POINTER_COLUMNS` for complete schema safety when users or stores are purged.
+- **Item sync locks the session first (2026-11-27, A-431):** `syncBatchItems()` locks the session row at the top of its transaction, checks status and lease on that locked row (never the route-bound copy), upserts items in `product_id` order, and retries the transaction 3 times on a deadlock. `heartbeat()` and `completeSession()` still check an unlocked copy (A-432).
+
+## Lock the parent before writing its children
+
+Any transaction that inserts or updates child rows and then updates their parent must
+`lockForUpdate()` the parent row **first**. In InnoDB each child write takes a shared
+foreign-key lock on the parent; two overlapping transactions both hold it, both then ask
+for the exclusive lock the parent `UPDATE` needs, and one dies with `1213` deadlock. Locking
+the parent first makes them queue instead. Write the children in a deterministic key order
+(sort by the unique key), and check any state the write depends on (status, lease, version)
+on the locked row, not on a model read before the transaction. Precedents: stock batches
+before movements (A-217/A-287), audit sessions before items (A-431). SQLite ignores
+`FOR UPDATE`, so tests can only pin that the locking read precedes the child write in the
+query log; the real proof is the deadlock not recurring in Sentry.
 
 ## Sync engine (server side)
 

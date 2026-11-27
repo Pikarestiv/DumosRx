@@ -209,12 +209,6 @@ suggested tackle order rather than a strict ranking.
 
 ### Tier 3 — sync reliability, observability, latent hazards
 
-#### A-432. `laravel-server/` — an audit session heartbeat or complete checks the lease on an unlocked copy, so a takeover in between can be overwritten
-
-- **Found:** 2026-11-27, fixing A-431.
-- **What's wrong:** `AuditSessionService::heartbeat()` and `completeSession()` validate status and `till_id`/`lease_version` on the route-bound model, then run an unconditional `update()`. A takeover committing between the controller's read and that update lets the superseded till extend the lease or complete the session the new holder is counting. Neither writes child rows, so neither can deadlock the A-431 way.
-- **Fix:** the A-384/A-431 pattern: wrap each in `DB::transaction`, `lockForUpdate()` the row, and run the checks (and `completeSession()`'s replay check) on the locked row.
-
 #### A-392. both — rows the cloud hard-deleted before A-281 stay on devices, so some "device holds more than the cloud" deltas never clear
 
 - **Found:** 2026-11-17, reading the Device Table Agreement panel for two of Cynthia's stores. **Inferred from the code and docs only; production was not queried.**

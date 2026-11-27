@@ -883,7 +883,7 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 
 ### Audit item sync writes in bulk (2026-11-16)
 
-`AuditSessionService::syncBatchItems` upserts items in chunks of 200 on the unique
+`AuditSessionService::syncBatchItems` (via `AuditSessionItemWriter::upsertSyncedItems`) upserts items in chunks of 200 on the unique
 `(audit_session_id, product_id)` key instead of one `updateOrCreate` per item. The till
 used to re-send every counted item on each debounced sync, so a large audit made each
 request run thousands of queries inside one transaction; overlapping requests then hit
@@ -1016,7 +1016,7 @@ Multi-device cycle count coordination backed by the cloud:
 - **Completion Lifecycle & Sync Hook:** Submission occurs locally first on the counting till via `submitStockAudit()`. The client then calls `complete` which transitions the cloud session to `completion_pending_sync` with `submitted_stock_audit_id`. When the sync engine receives and saves the corresponding `StockAudit` row, `StockAudit::booted()` calls `AuditSessionService::confirmSyncCompletion($stockAudit->id)`, atomically moving the session to `completed`.
 - **Completion is replay-safe and cannot stick (2026-11-13, A-376):** a repeat `complete` naming the same `submitted_stock_audit_id` returns 200 (and settles the session if the audit has since synced) instead of 409; a different id still conflicts. `getActiveSession()` and `startSession()` first settle `completion_pending_sync` sessions whose stock audit exists or whose `last_synced_at` is older than `PENDING_SYNC_GRACE_HOURS` (24), so one that never confirms stops blocking new sessions. `getActiveSession()` returns `items: []` for a session that is not `in_progress`, which also stops pre-2026-11-13 clients merging an already-submitted count. No route, field or response shape changed. Tests: `tests/Feature/AuditSessionCompletionRecoveryTest.php`.
 - **Purged User Row Sweeping:** `audit_sessions.active_user_id` has `nullOnDelete()` foreign key semantics and is registered in `PurgedUserRowSweeper::POINTER_COLUMNS` for complete schema safety when users or stores are purged.
-- **Item sync locks the session first (2026-11-27, A-431):** `syncBatchItems()` locks the session row at the top of its transaction, checks status and lease on that locked row (never the route-bound copy), upserts items in `product_id` order, and retries the transaction 3 times on a deadlock. `heartbeat()` and `completeSession()` still check an unlocked copy (A-432).
+- **Every lease-fenced write locks the session first (2026-11-27, A-431, A-432):** `heartbeat()`, `syncBatchItems()` and `completeSession()` lock the session row at the top of their transaction and check status and lease on that locked row (`assertLeaseHeld()`), never the route-bound copy, and retry the transaction 3 times on a deadlock. Item rows are built and upserted, in `product_id` order, by `AuditSessionItemWriter` (`app/Services/Audit/AuditSessionItemWriter.php`), which also owns the `baseline_quantity` column check.
 
 ## Lock the parent before writing its children
 

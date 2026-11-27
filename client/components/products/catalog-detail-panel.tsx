@@ -51,7 +51,7 @@ export function CatalogDetailPanel({
   highlightBatchId,
 }: CatalogDetailPanelProps) {
   const router = useRouter();
-  const { storeProfile } = useStore();
+  const { storeProfile, storeType } = useStore();
   const { canManageStockBatch } = useAuth();
   const canPrintLabels = useHasPermission("print_product_labels");
   const canDeleteProducts = useHasPermission("delete_products");
@@ -258,7 +258,7 @@ export function CatalogDetailPanel({
             <ProductBatchHistory
               batches={batches}
               loadingBatches={loadingBatches}
-              storeType={storeProfile?.store_type || "pharmacy"}
+              storeType={storeType}
               canSeeQuantities={canSeeQuantities}
               canViewCost={canViewCost}
               formatPrice={formatPrice}

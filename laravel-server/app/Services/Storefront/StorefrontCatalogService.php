@@ -9,6 +9,7 @@ use App\Models\Storefront;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use App\Support\StorefrontThemes;
+use App\Support\StoreTypes;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -233,7 +234,7 @@ class StorefrontCatalogService
             'address' => $branch->address,
             'phone' => $branch->phone,
             'email' => $branch->email,
-            'store_type' => $branch->store_type ?? 'pharmacy',
+            'store_type' => StoreTypes::normalize($branch->store_type),
             'currency' => $currency,
             'online_payment_available' => (bool) $branch->paystack_subaccount_code,
             'timezone' => $branch->timezone,

@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { useStore, StoreType } from "@/lib/context/store-context";
+import { useStore } from "@/lib/context/store-context";
+import { STORE_TYPES, normalizeStoreType, type StoreType } from "@/lib/constants/store-types";
 import { useAuth } from "@/lib/context/auth-context";
-import { ShoppingBasket, Pill, Store, Check, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { APP_NAME } from "@/lib/constants";
 
@@ -39,7 +40,7 @@ export function QuickSetupWizard() {
   const [prefilledFrom, setPrefilledFrom] = useState<typeof storeProfile>(null);
   if (storeProfile && storeProfile !== prefilledFrom) {
     setPrefilledFrom(storeProfile);
-    if (storeProfile.store_type) setStoreType(storeProfile.store_type);
+    if (storeProfile.store_type) setStoreType(normalizeStoreType(storeProfile.store_type));
     if (storeProfile.name) setStoreName(storeProfile.name);
     if (storeProfile.location) setLocation(storeProfile.location);
     if (storeProfile.address) setAddress(storeProfile.address);
@@ -137,46 +138,19 @@ export function QuickSetupWizard() {
             <Label className="text-center block mb-4">
               Choose your business type
             </Label>
-            <div className="grid grid-cols-2 gap-4">
-              <Card
-                className={`cursor-pointer transition-all border-2 ${storeType === "pharmacy" ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
-                onClick={() => setStoreType("pharmacy")}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <Pill className="h-8 w-8 text-primary" />
-                  <span className="font-semibold">Pharmacy</span>
-                </CardContent>
-              </Card>
-
-              <Card
-                className={`cursor-pointer transition-all border-2 ${storeType === "grocery" ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
-                onClick={() => setStoreType("grocery")}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <ShoppingBasket className="h-8 w-8 text-primary" />
-                  <span className="font-semibold">Grocery / Retail</span>
-                </CardContent>
-              </Card>
-
-              <Card
-                className={`cursor-pointer transition-all border-2 ${storeType === "supermarket" ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
-                onClick={() => setStoreType("supermarket")}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <Store className="h-8 w-8 text-primary" />
-                  <span className="font-semibold">Supermarket</span>
-                </CardContent>
-              </Card>
-
-              <Card
-                className={`cursor-pointer transition-all border-2 ${storeType === "retail" ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
-                onClick={() => setStoreType("retail")}
-              >
-                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <Check className="h-8 w-8 text-primary" />
-                  <span className="font-semibold">General Retail</span>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {STORE_TYPES.map((type) => (
+                <Card
+                  key={type.value}
+                  className={`cursor-pointer transition-all border-2 ${storeType === type.value ? "border-primary bg-primary/5" : "hover:border-primary/50"}`}
+                  onClick={() => setStoreType(type.value)}
+                >
+                  <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                    <type.icon className="h-8 w-8 text-primary" />
+                    <span className="font-semibold">{type.label}</span>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
         )}

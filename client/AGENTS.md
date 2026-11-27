@@ -3330,11 +3330,20 @@ e2e/                       Playwright end-to-end specs
 
 ## Domain model essentials
 
-- **Multi-vertical**: `StoreType = "pharmacy" | "grocery" | "supermarket" |
-  "retail"`. `lib/context/store-context.tsx` has a `terminology` table that
-  relabels generic concepts per vertical (e.g. "Product" → "Item",
-  "NAFDAC Number" → "Registration No."). Pharmacy is the primary/default
-  vertical; most domain-specific fields (NAFDAC number, controlled
+- **Multi-vertical**: `lib/constants/store-types.ts` is the one list of store
+  types (`STORE_TYPES`: value, label, icon) and feeds every picker: the setup
+  wizard, Settings' Business Vertical card, the register step and the fleet
+  dialog. It is a copy of `web/lib/constants/store-types.ts` (separate package,
+  no shared code) and `__tests__/store-types.test.tsx` pins it to
+  `laravel-server/app/Support/StoreTypes.php::IDS`. `storeType` from
+  `useStore()` is always `normalizeStoreType(storeProfile.store_type)`: a null,
+  unknown, the schema default `'store'` or the legacy `'retail'` (written by the
+  old wizard; the server still accepts it) all read as `general`, so check
+  `storeType`, not the raw column, and only `=== "pharmacy"` unlocks pharmacy
+  features. `lib/context/store-terminology.ts` relabels generic concepts per
+  vertical (e.g. "Product" → "Item", "NAFDAC Number" → "Registration No.") for
+  pharmacy, grocery and supermarket; every other type uses the general words.
+  Pharmacy is still the default for a brand-new store; most domain-specific fields (NAFDAC number, controlled
   substance flag, prescription requirement) are pharmacy terms reused
   generically elsewhere.
 - **Multi-store**: one account can have several stores; `StoreProvider`

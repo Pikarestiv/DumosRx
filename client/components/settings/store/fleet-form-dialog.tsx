@@ -16,8 +16,7 @@ import { toast } from "sonner";
 import { useStore } from "@/lib/context/store-context";
 import { useSaveFleetStoreMutation } from "@/lib/hooks/use-fleet-mutations";
 import type { FleetStore } from "@/lib/types/store";
-
-const STORE_TYPES = ["pharmacy", "supermarket", "grocery", "general", "retail"] as const;
+import { STORE_TYPES } from "@/lib/constants/store-types";
 
 interface FleetFormDialogProps {
   isOpen: boolean;
@@ -160,8 +159,8 @@ export function FleetFormDialog({
             </SelectTrigger>
             <SelectContent>
               {STORE_TYPES.map((type) => (
-                <SelectItem key={type} value={type} className="capitalize">
-                  {type}
+                <SelectItem key={type.value} value={type.value}>
+                  {type.label}
                 </SelectItem>
               ))}
             </SelectContent>

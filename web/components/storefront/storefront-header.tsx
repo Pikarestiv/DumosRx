@@ -10,7 +10,9 @@ import { StorefrontCart } from "@/components/storefront/storefront-cart";
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import { StorefrontUtilityBar } from "@/components/storefront/storefront-utility-bar";
 import type { StorefrontBranch, StorefrontProfile, StorefrontStore } from "@/lib/api/storefront-data";
+import { STORE_TYPE_VALUES } from "@/lib/constants/store-types";
 import { storeNameTextClass } from "@/lib/storefront-display";
+import type { MessageKey } from "@/lib/storefront-messages-en";
 import { DISPLAY_FONT, FOCUS_RING } from "@/lib/storefront-styles";
 
 interface StorefrontHeaderProps {
@@ -21,13 +23,9 @@ interface StorefrontHeaderProps {
   selectedBranchId?: string;
 }
 
-const TYPE_KEYS = new Map<string, "type.pharmacy" | "type.retail" | "type.supermarket" | "type.grocery" | "type.general">([
-  ["pharmacy", "type.pharmacy"],
-  ["retail", "type.retail"],
-  ["supermarket", "type.supermarket"],
-  ["grocery", "type.grocery"],
-  ["general", "type.general"],
-]);
+const TYPE_KEYS = new Map<string, MessageKey>(
+  [...STORE_TYPE_VALUES, "retail"].map((type) => [type, `type.${type}` as MessageKey]),
+);
 
 export function StorefrontHeader({ storeSlug, store, storefront, branches, selectedBranchId }: StorefrontHeaderProps) {
   const { t } = useStorefrontI18n();

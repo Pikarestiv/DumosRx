@@ -2043,14 +2043,17 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   - offline, a read-only tab or impersonation proceeds with a notice that
     counts are measured against the till's last sync;
   - any other failure while online, or no answer within
-    `PRE_COUNT_PULL_DEADLINE_MS` (25s), blocks with Retry and a "Count
-    anyway" that goes through `ConfirmDialog`. A read-only viewer of another
-    till's cloud session gets Retry only.
+    `PRE_COUNT_PULL_DEADLINE_MS` (60s), blocks with Retry and a "Count
+    anyway" that goes through `ConfirmDialog`, and auto-recovers once a
+    subsequent sync completes (`APP_EVENTS.syncCompleted` / `readSyncOutcome`).
+    A read-only viewer of another till's cloud session gets Retry only.
   A sync already in flight answers `SYNC_IN_PROGRESS_ERROR`; the hook polls
-  `isSyncing()` (capped at 8s, like `auth-login.ts`) and pulls once more, at
-  most three attempts, never alongside it. The pull starts a microtask after
-  the effect and every run carries its own cancel flag, so StrictMode's double
-  effect pulls once and closing the screen stops the outcome being applied.
+  `isSyncing()` (capped at `PRE_COUNT_PULL_DEADLINE_MS`, 60s) and pulls once
+  more, at most three attempts, never alongside it. The pull starts a
+  microtask after the effect, every run carries its own cancel flag
+  (including on timeout and unmount), so StrictMode's double effect pulls
+  once and closing the screen or timing out stops the outcome or extra sync
+  being applied.
   A resumed draft with counted rows is never rebuilt
   (`shouldRebuildAuditSheet`), so its baselines stay. Offline counting still
   works: never turn the offline case into a block.
@@ -3327,11 +3330,37 @@ e2e/                       Playwright end-to-end specs
 
 ## Domain model essentials
 
-- **Multi-vertical**: `StoreType = "pharmacy" | "grocery" | "supermarket" |
-  "retail"`. `lib/context/store-context.tsx` has a `terminology` table that
-  relabels generic concepts per vertical (e.g. "Product" → "Item",
-  "NAFDAC Number" → "Registration No."). Pharmacy is the primary/default
-  vertical; most domain-specific fields (NAFDAC number, controlled
+- **Multi-vertical**: `lib/constants/store-types.ts` is the one list of store
+  types (`STORE_TYPES`: value, label, icon) and feeds every picker: the setup
+  wizard, Settings' Business Vertical card, the register step and the fleet
+  dialog. It is a copy of `web/lib/constants/store-types.ts` (separate package,
+  no shared code) and `__tests__/store-types.test.tsx` pins it to
+  `laravel-server/app/Support/StoreTypes.php::IDS`. `storeType` from
+  `useStore()` is always `normalizeStoreType(storeProfile.store_type)`. An
+  empty value (null, `''`, or no profile loaded yet) reads as `pharmacy`, the
+  legacy default the context has always used, so a pharmacy whose local row
+  lost its type keeps its prescriptions nav and NAFDAC fields and nothing
+  flashes the general UI while the profile loads. A non-empty unknown value,
+  the schema default `'store'` and the legacy `'retail'` (written by the old
+  wizard; the server still accepts it) read as `general`. This client rule
+  deliberately differs from the server and storefront, where null reads as
+  `general` (`App\Support\StoreTypes`); the empty-means-pharmacy shim can go
+  once every local `stores` row carries a non-empty `store_type`. Check
+  `storeType`, not the raw column, and only `=== "pharmacy"` unlocks pharmacy
+  features. The fleet dialog shows a stored `'retail'` as General Store but
+  saves `'retail'` back unless the owner picks another type.
+- **Store type pickers lay out for 12 long labels**: card pickers are
+  `grid-cols-2` on phones and three or four columns from `sm`/`md`, labels are
+  `text-sm leading-tight` and wrap (never `truncate`), and a picker inside a
+  `ResponsiveModal` sets `max-h-[90vh] overflow-hidden flex flex-col` on the
+  modal and `min-h-0 overflow-y-auto` on its body so the footer buttons stay
+  pinned. On desktop the setup wizard's dialog ran off the bottom of an 800px
+  screen before this. `e2e/store-type-pickers-layout.spec.ts` checks all four
+  pickers at 375, 768 and 1280px (run with `STORE_TYPE_SHOTS_DIR=<dir>` to
+  save screenshots). `lib/context/store-terminology.ts` relabels generic concepts per
+  vertical (e.g. "Product" → "Item", "NAFDAC Number" → "Registration No.") for
+  pharmacy, grocery and supermarket; every other type uses the general words.
+  Pharmacy is still the default for a brand-new store; most domain-specific fields (NAFDAC number, controlled
   substance flag, prescription requirement) are pharmacy terms reused
   generically elsewhere.
 - **Multi-store**: one account can have several stores; `StoreProvider`
@@ -4936,21 +4965,31 @@ behaviour without it, so no caller had to change at once.
   (`components/settings/store/storefront-appearance.tsx`), shown once the store
   has a slug and a super admin has allowed it for the store (the GET answers
   `{allowed: false}` otherwise, and a failed load behaves the same: a note to
-  contact the account manager, never an error): a style (Workshop, Clinic or Studio, defaulting to Clinic for a
+  contact the account manager, never an error): a style (the six presets, those
+  outside the plan's `available_themes` disabled with an Enterprise badge,
+  defaulting to Clinic for a
   pharmacy and Workshop otherwise while the store is still on a classic theme),
   an accent colour with a contrast warning, tagline, WhatsApp number, pickup
   minutes, opening hours by day, and the default language plus a "let customers
   switch language" box. It is **online-only**, not synced: `GET/PUT
   /app/storefront-settings` through `StorefrontApiClient`
   (`lib/api/client-storefront.ts`) and `useStorefrontSettings`, with an
-  offline message and retry when the load fails. The plan gate is
-  `useFeatureGate().canCustomizeTheme` (`custom_branding`), enforced again by
-  the server's `subscription:custom_branding` on the PUT; a locked plan sees the
-  upgrade message and disabled fields. `handleSaveProfile` no longer pushes `store_slug` or `online_store_enabled`
+  offline message and retry when the load fails. Since 2026-11-24 the gate is
+  the server's: `allowed` is true only with the plan's `owner_self_edit_look`
+  (Enterprise) and the super admin's switch; a Pro owner gets `{allowed: false,
+  entitlements}` and sees `StorefrontPlanFeatures` (what Pro includes, each
+  Enterprise-only feature with an Enterprise badge, an upgrade prompt) instead of
+  the form. Inside the form the accent field and the language switch lock with a
+  badge when the entitlements withhold them, and the save then omits `accent` and
+  sends `enabled_locales: [locale]`. A `checkout_warning` from the server shows
+  as an alert above either view. The form is split into
+  `storefront-style-picker.tsx`, `storefront-accent-field.tsx`,
+  `storefront-language-fields.tsx`, `storefront-plan-features.tsx` and
+  `storefront-preset-options.ts`. `handleSaveProfile` no longer pushes `store_slug` or `online_store_enabled`
   (a stale local copy would have overwritten a super admin's change through the
   sync path; older till bundles still can, a known gap). `theme` is sent only if the owner actually clicked a style, so saving a detail
   never silently replaces an existing classic theme. The server accepts only the store owner
-  (a staff login gets 403 with an explanation) and only the three presets.
+  (a staff login gets 403 with an explanation) and only the plan's presets.
   `lib/utils/storefront-accent.ts` mirrors `web/lib/storefront-accent.ts` (the
   two apps share no code). It has its own Save; a change reaches customers after the next automatic
   storefront rebuild, about 15 minutes.
@@ -7513,6 +7552,63 @@ dirties the owning store's storefront and schedules a full static rebuild
 (~15 minutes at best) — see `laravel-server/AGENTS.md`. The UI copy says as
 much, so don't promise instant updates anywhere.
 
+## Storefront plan entitlements in the till (2026-11-24)
+
+- **Source.** `useFeatureGate().storefrontEntitlements`, from the computed
+  `storefront_entitlements` map the server adds to the cached `subscription_plans`
+  config, keyed by the store's tier (`resolveStorefrontEntitlements()`,
+  `lib/utils/storefront-entitlements.ts`). No `store_url` means
+  `LOCKED_STOREFRONT`; a server older than the map means the old unrestricted
+  storefront, which is what that server enforces. The server is the authority
+  for everything (laravel-server/AGENTS.md, "Storefront plan entitlements"); the
+  till only locks, hides and explains.
+- **`canUseEcommerce` reads `store_url`** (with `ecommerce` as an alt key for an
+  old saved config). Bundles before this change read `ecommerce` first with an
+  Enterprise-only default, so a Pro owner on an old bundle still sees the
+  upgrade message on the Show Online switch until the till updates (A-429).
+- **Online Storefront card.** A plan without `storefront_enabled` sees an
+  upgrade prompt instead of the address (naming Starter too once the plan map
+  gives Starter a storefront, `useFeatureGate().starterHasStorefront`). An
+  `on_demand` plan (Enterprise) gets `StorefrontRebuildButton` ("Publish
+  changes now", `POST /app/storefront/rebuild`, online only, server
+  rate-limited).
+- **Starter opt-in (2026-11-27).** When the plan map marks the plan
+  `owner_opt_in_required`, the address panel is wrapped in
+  `StorefrontOptInGate` (`storefront-opt-in.tsx`), the only place the card
+  reads `useStorefrontSettings`, so Pro/Enterprise make no extra request. While
+  the settings say `opt_in_required && !opted_in` it shows what Starter
+  includes and "Turn on my online store" (`useOptInStorefront`, `POST
+  /app/storefront/opt-in`, then invalidates the settings query); a refusal
+  toasts the server's message. A failed load falls through to the address
+  panel, which the server's own gate makes harmless.
+- **Plan features panel.** `StorefrontPlanFeatures` badges each locked feature
+  with the lowest plan that has it, from the plan map's `pro` entry
+  (`PlanBadge`, `EnterpriseBadge` is the Enterprise wrapper): Starter sees
+  "More styles", "Up to 300 products online" and transfer payments as Pro, the
+  rest as Enterprise. Without a map entry for Pro (old server) every lock reads
+  Enterprise, which is the Pro view unchanged.
+- **Payment Methods.** `OnlinePaymentsSection` (Paystack onboarding) renders only
+  with `checkout_paystack`; otherwise a note with an Enterprise badge.
+- **Listing cap.** `useOnlineListingCap()` counts this store's listed products
+  locally (`countListedProducts()`, `queryKeys.products.onlineListedCount`) and
+  applies only with a `max_online_products` and `online_store_enabled = 1`. The
+  add/edit product dialog refuses to turn Show Online on for a product not
+  already listed once the count reaches the cap (toast with
+  `overCapMessage()`), and a new product starts unlisted at the cap. Bulk
+  "Show online" publishes at most the remaining slots
+  (`setProductsShowOnline(..., maxToList)`). `OnlineListingCapBanner` on the
+  Products page shows when the cap is reached or exceeded. The server enforces
+  the same cap on push and versions the row back if a device gets past this.
+  For an `owner_opt_in_required` plan the cap applies only once the settings
+  say `opted_in` (one `GET /app/storefront-settings`, only on that plan), as
+  the server does. Messages name the plan and the next one up
+  (`capPlanNames()`: Starter to Pro, Pro to Enterprise; `tier` on the cap
+  state).
+- Coverage: `storefront-entitlements.test.ts`, `online-listing-count.test.ts`,
+  `add-product-listing-cap.test.tsx`, `online-listing-cap-banner.test.tsx`,
+  `storefront-plan-gates.test.tsx`, `storefront-appearance.test.tsx`,
+  `storefront-starter-plan.test.tsx`.
+
 ## Online Payments settings panel (`components/settings/store/online-payments-section.tsx`)
 
 Lets a store owner connect a Paystack subaccount so the storefront's `paystack`
@@ -8352,5 +8448,5 @@ Design, env vars and failure modes: `docs/PRODUCT_IMAGES_DESIGN.md`; server rule
 
 - **`BrandLogo` theme tinting (`components/ui/brand-logo.tsx`)**: Renders `/logo.png` and `/logo-icon.png` (transparent backgrounds) with CSS `mask-image` + `bg-primary` instead of `--logo-filter` `hue-rotate()`, avoiding purple hue drift against bluish `--primary` themes on auth/lock screens and sidebars.
 - **Viewport lock & bottom sheets (`dashboard-layout.tsx`, `use-keyboard-viewport.ts`, `drawer.tsx`, `responsive-detail-panel.tsx`, `catalog-detail-panel.tsx`)**: `DashboardLayout` stays pinned with `fixed inset-0 overflow-hidden` and resets `window.scrollTo(0, 0)` on route changes and keyboard close; `Drawer` sets `shouldScaleBackground = false` by default and uses `bg-muted-foreground/30` for visible drag handles; `ResponsiveDetailPanel` gives mobile `DrawerContent` an explicit `h-[88dvh]` so `CatalogDetailPanel` tabs scroll cleanly to safe-area padding.
-- **Mobile navigation, flow layouts & haptics**: `PrescriptionList` switches to flow cards below `1024px` (listed in `responsive-table-breakpoint-convention.test.ts`) and `PrescriptionManagement` portals `NewPrescription` to `document.body`; `ReportCenter` hides its duplicate title and outer wrapper `Card` below `lg`; `HeaderStoreSwitcher` opens a `Drawer` bottom sheet below `768px`; `NeedsAttention` (including "View batch") and `FastMovers` pass `onSelectProduct` into `StockOverview` to open `CatalogDetailPanel`; `triggerHapticFeedback()` (`lib/utils/haptics.ts`) falls back synchronously to a hidden `<input type="checkbox" switch>` label click on Apple touch devices lacking `navigator.vibrate`.
+- **Mobile navigation, flow layouts & haptics**: `PrescriptionList` switches to flow cards below `1024px` (listed in `responsive-table-breakpoint-convention.test.ts`) and `PrescriptionManagement` portals `NewPrescription` to `document.body` at `z-[60]` (above `z-50` shell nav, so `PopoverContent` and `SelectContent` use `z-[70]` to stay clickable above it); `ReportCenter` hides its duplicate title and outer wrapper `Card` below `lg`; `HeaderStoreSwitcher` opens a `Drawer` bottom sheet below `768px`; `NeedsAttention` (including "View batch") and `FastMovers` pass `onSelectProduct` into `StockOverview` to open `CatalogDetailPanel`; `triggerHapticFeedback()` (`lib/utils/haptics.ts`) falls back synchronously to a hidden `<input type="checkbox" switch>` label click on Apple touch devices lacking `navigator.vibrate`.
 

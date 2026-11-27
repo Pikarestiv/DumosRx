@@ -5,6 +5,7 @@ import { FeaturedProducts } from "@/components/storefront/featured-products";
 import { StorefrontServices } from "@/components/storefront/storefront-services";
 import { StoreClosedNotice } from "@/components/storefront/store-closed-notice";
 import { OrderingSteps } from "@/components/storefront/ordering-steps";
+import { paymentWaysOf } from "@/lib/storefront-payment-ways";
 import { StorefrontFooter } from "@/components/storefront/storefront-footer";
 import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { StorefrontHero } from "@/components/storefront/storefront-hero";
@@ -31,7 +32,7 @@ export async function generateMetadata({
 }: StorefrontProps): Promise<Metadata> {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
-  return buildStorefrontMetadata(store_slug, data?.store, resolveLocale(data?.storefront?.locale));
+  return buildStorefrontMetadata(store_slug, data?.store, resolveLocale(data?.storefront?.locale), data?.storefront);
 }
 
 export default async function StorefrontPage({
@@ -65,7 +66,6 @@ export default async function StorefrontPage({
       <StorefrontHero
         variant={preset.hero}
         tagline={tagline}
-        isPharmacy={isPharmacyStore(store)}
         store={store}
         storefront={storefront}
         catalogHref={catalogHref}
@@ -83,7 +83,11 @@ export default async function StorefrontPage({
           catalogHref={catalogHref}
         />
         {storefront?.show_services ? <StorefrontServices storeSlug={store_slug} currency={store.currency} whatsapp={whatsapp} /> : null}
-        <OrderingSteps isPharmacy={isPharmacyStore(store)} hasServices={Boolean(storefront?.show_services)} />
+        <OrderingSteps
+          isPharmacy={isPharmacyStore(store)}
+          hasServices={Boolean(storefront?.show_services)}
+          paymentWays={paymentWaysOf(storefront, store)}
+        />
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

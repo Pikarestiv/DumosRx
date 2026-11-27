@@ -4,47 +4,45 @@ namespace App\Console\Commands;
 
 use App\Models\Storefront;
 use App\Models\SystemConfig;
+use App\Models\User;
+use App\Services\Storefront\StorefrontEntitlements;
+use App\Services\Storefront\StorefrontPlanWatcher;
 use App\Services\Storefront\StorefrontRebuildDispatcher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Debounced trigger for the storefront static-export rebuild
- * (.github/workflows/deploy-web.yml): runs every 15 minutes (see
- * routes/console.php), and only fires GitHub's repository_dispatch API when at
- * least one store is dirty (Store::boot()/Product::booted() stamp
- * storefront_dirty_at). Firing one dispatch per scheduled run rather than per
- * change means a store toggling on/off/on three times in two minutes triggers
- * one rebuild ~15 minutes later, not three - a full static rebuild + FTP
- * deploy is expensive enough that per-toggle dispatch isn't worth the
- * near-instant freshness.
- *
- * Clearing the flags is described in laravel-server/AGENTS.md: with a
- * confirmation token configured the workflow calls back on success and the
- * flags survive a failed build; without one it falls back to the older
- * clear-on-dispatch behaviour.
- */
+/** The debounced storefront rebuild trigger; see laravel-server/AGENTS.md, "Model boot() hooks" and "Storefront plan entitlements". */
 class RebuildStorefrontIfDirty extends Command
 {
     public const REQUESTED_AT_KEY = 'storefront_rebuild_requested_at';
 
-    protected $signature = 'storefront:rebuild-if-dirty';
+    protected $signature = 'storefront:rebuild-if-dirty {--include-scheduled : Also rebuild for stores whose plan only rebuilds on the daily schedule}';
 
     protected $description = 'Trigger a storefront rebuild via GitHub Actions if any store\'s published storefront data changed since the last check.';
 
-    public function handle(StorefrontRebuildDispatcher $dispatcher)
+    public function handle(StorefrontRebuildDispatcher $dispatcher, StorefrontPlanWatcher $watcher, StorefrontEntitlements $entitlements)
     {
-        $dirtyStoreIds = DB::table('stores')
-            ->whereNotNull('storefront_dirty_at')
-            ->pluck('id');
+        $watcher->reconcile();
 
-        if ($dirtyStoreIds->isEmpty()) {
+        $dirtyStores = DB::table('stores')
+            ->whereNotNull('storefront_dirty_at')
+            ->get(['id', 'user_id']);
+
+        if ($dirtyStores->isEmpty()) {
             $this->info('No dirty stores - nothing to rebuild.');
 
             return;
         }
 
+        if (! $this->option('include-scheduled') && ! $this->anyRebuildsOnDemand($dirtyStores, $entitlements)) {
+            $this->info('Only stores on a daily-rebuild plan are dirty - leaving them for the scheduled run.');
+
+            return;
+        }
+
+        $dirtyStoreIds = $dirtyStores->pluck('id');
         $awaitsConfirmation = (bool) config('dumos.storefront.rebuild_token');
 
         if ($awaitsConfirmation && ($pendingSince = $this->pendingRebuildRequestedAt())) {
@@ -86,6 +84,15 @@ class RebuildStorefrontIfDirty extends Command
         Storefront::clearStyleDirty($requestedAt);
 
         $this->info('Storefront rebuild dispatched for '.$dirtyStoreIds->count().' dirty store(s).');
+    }
+
+    /**
+     * @param  Collection<int, \stdClass>  $dirtyStores
+     */
+    private function anyRebuildsOnDemand(Collection $dirtyStores, StorefrontEntitlements $entitlements): bool
+    {
+        return User::whereIn('id', $dirtyStores->pluck('user_id')->filter()->unique())->get()
+            ->contains(fn (User $owner) => $entitlements->forOwner($owner)['rebuild_mode'] === 'on_demand');
     }
 
     /**

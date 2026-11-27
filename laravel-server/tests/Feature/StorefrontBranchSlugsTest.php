@@ -14,6 +14,7 @@ use Tests\TestCase;
 class StorefrontBranchSlugsTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     private User $owner;
 
@@ -22,6 +23,7 @@ class StorefrontBranchSlugsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         SystemConfig::setVal('subscription_plans', ['tiers' => ['free' => ['features' => ['store_url' => true]]]]);
         $this->owner = User::create([

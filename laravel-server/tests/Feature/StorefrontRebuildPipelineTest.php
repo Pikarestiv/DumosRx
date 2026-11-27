@@ -24,6 +24,7 @@ use Tests\TestCase;
 class StorefrontRebuildPipelineTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     protected User $owner;
 
@@ -32,6 +33,7 @@ class StorefrontRebuildPipelineTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         config([
             'dumos.github.token' => 'gh-test-token',

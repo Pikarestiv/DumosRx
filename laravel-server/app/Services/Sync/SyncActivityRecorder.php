@@ -3,6 +3,7 @@
 namespace App\Services\Sync;
 
 use App\Models\Store;
+use App\Support\StoreTypes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -144,7 +145,7 @@ class SyncActivityRecorder
                     'A user has just successfully completed their first local sync with the DumosRx Cloud.',
                     "Store: {$store->name}",
                     "Store ID: {$store->id}",
-                    'Store Type: '.($store->store_type ?: 'pharmacy'),
+                    'Store Type: '.StoreTypes::normalize($store->store_type),
                     'Currency: '.($store->currency ?: 'NGN'),
                     $store->location ? "Location: {$store->location}" : null,
                     "User: {$user->first_name} {$user->last_name} ({$user->email})",

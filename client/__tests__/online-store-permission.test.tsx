@@ -39,6 +39,7 @@ vi.mock("@/lib/hooks/use-feature-gate", () => ({
   useFeatureGate: () => ({
     withRestriction: <T extends (...args: never[]) => unknown>(fn: T) => fn,
     getUpgradeMessage: (_f: string, fallback?: string) => fallback ?? "",
+    storefrontEntitlements: { storefront_enabled: true, checkout_paystack: true, rebuild_mode: "scheduled" },
   }),
 }));
 
@@ -52,7 +53,7 @@ function deny(...denied: string[]) {
 }
 
 const storeProfileProps = {
-  storeType: "retail" as const,
+  storeType: "general" as const,
   localPcn: "",
   setLocalPcn: vi.fn(),
   loyaltyProgramEnabled: false,

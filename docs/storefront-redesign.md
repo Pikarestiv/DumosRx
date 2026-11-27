@@ -14,7 +14,8 @@
   the item.
 - **Rebuilds are manual.** Saving a theme marks the store "Pending rebuild" but
   does not dispatch; a super-admin "Rebuild storefronts now" button fires the
-  existing `storefront-changed` dispatch via Laravel.
+  environment's rebuild dispatch via Laravel (`storefront-changed` in production,
+  `storefront-changed-dev` on dev; see `laravel-server/AGENTS.md`).
 - **i18n (§7) is built** (2026-11-14): English and French for the home, shop, cart,
   header, footer and checkout, per-store default and enabled languages, a switch
   in the utility bar, `Intl` money and locale-aware hours. Not translated: the

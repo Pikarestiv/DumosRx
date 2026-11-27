@@ -23,6 +23,7 @@ use Tests\TestCase;
 class StorefrontPaystackLifecycleTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     protected User $owner;
 
@@ -33,6 +34,7 @@ class StorefrontPaystackLifecycleTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         config(['payment.paystack.secret_key' => 'sk_test_fake']);
 

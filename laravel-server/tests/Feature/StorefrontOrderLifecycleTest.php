@@ -23,6 +23,7 @@ use Tests\TestCase;
 class StorefrontOrderLifecycleTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     protected User $owner;
 
@@ -33,6 +34,7 @@ class StorefrontOrderLifecycleTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         SystemConfig::setVal('subscription_plans', ['tiers' => ['free' => ['features' => ['store_url' => true]]]]);
         config(['dumos.storefront.unpaid_hold_minutes' => ['transfer' => 30, 'in_store' => 1440]]);

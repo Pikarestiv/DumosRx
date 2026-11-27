@@ -6,8 +6,12 @@ use App\Exceptions\StoreActionBlockedException;
 use App\Models\ActivityLog;
 use App\Models\Store;
 use App\Models\Storefront;
+use App\Models\User;
 use App\Services\Storefront\StorefrontBranchSlugs;
 use App\Services\Storefront\StorefrontCatalogService;
+use App\Services\Storefront\StorefrontEntitlements;
+use App\Services\Storefront\StorefrontListingTrimmer;
+use App\Services\Storefront\StorefrontOptInService;
 use App\Services\Storefront\StorefrontStyleService;
 use App\Support\SyncRowStamp;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +36,9 @@ class AdminStoreStorefrontService
         private StorefrontCatalogService $catalogService,
         private StorefrontStyleService $styleService,
         private StorefrontBranchSlugs $branchSlugs,
+        private StorefrontListingTrimmer $trimmer,
+        private StorefrontEntitlements $entitlements,
+        private StorefrontOptInService $optIns,
     ) {}
 
     /**
@@ -94,6 +101,7 @@ class AdminStoreStorefrontService
     {
         return DB::transaction(function () use ($id, $enabled, $requestedSlug) {
             $store = Store::findOrFail($id);
+            $wasEnabled = (bool) $store->online_store_enabled;
             $slugChangedFrom = null;
 
             if ($requestedSlug !== null) {
@@ -114,6 +122,14 @@ class AdminStoreStorefrontService
                 $this->branchSlugs->ensure($store);
             }
 
+            if ($enabled && ($requestedSlug === null || ! $wasEnabled)) {
+                $this->optInForOwner($store);
+            }
+
+            if ($enabled && ! $wasEnabled) {
+                $this->trimmer->trimToCap($store);
+            }
+
             ActivityLog::create([
                 'user_id' => Auth::id(),
                 'action' => $enabled ? 'STOREFRONT_PUBLISHED' : 'STOREFRONT_UNPUBLISHED',
@@ -126,6 +142,15 @@ class AdminStoreStorefrontService
 
             return $store->refresh();
         });
+    }
+
+    /** Switching on (not an address edit of a store already on) is the opt-in a Starter store waits for; see laravel-server/AGENTS.md. */
+    private function optInForOwner(Store $store): void
+    {
+        $owner = User::find($store->user_id);
+        if ($owner && $this->entitlements->requiresOwnerOptIn($this->entitlements->effectivePlan($owner))) {
+            $this->optIns->optIn($owner, StorefrontOptInService::BY_ADMIN);
+        }
     }
 
     private function isBranchOfAddressedStorefront(Store $store): bool

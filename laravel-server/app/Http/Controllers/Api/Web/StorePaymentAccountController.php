@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Controller;
 use App\Models\SystemConfig;
 use App\Services\Payment\PaystackSubaccountService;
+use App\Services\Storefront\StorefrontEntitlements;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
@@ -106,15 +107,24 @@ class StorePaymentAccountController extends Controller
                 new OA\Property(property: 'message', type: 'string'),
             ])),
             new OA\Response(response: 401, ref: '#/components/responses/Unauthorized'),
+            new OA\Response(response: 403, description: "The owner's plan does not include online card payments (storefront entitlement checkout_paystack); code UPGRADE_REQUIRED"),
             new OA\Response(response: 404, ref: '#/components/responses/NotFound'),
             new OA\Response(response: 409, description: 'This store already has a payment account connected'),
             new OA\Response(response: 422, ref: '#/components/responses/ValidationError', description: 'Paystack rejected the account details, or confirmed_unverifiable was sent for a verifiable country'),
             new OA\Response(response: 500, description: 'The subaccount was created at Paystack but could not be linked to the store row. Admins are alerted for manual reconciliation; the caller must NOT retry, as that would create a second subaccount.'),
         ],
     )]
-    public function createPaymentAccount(Request $request, $id, PaystackSubaccountService $paystack)
+    public function createPaymentAccount(Request $request, $id, PaystackSubaccountService $paystack, StorefrontEntitlements $entitlements)
     {
         $store = $request->user()->stores()->findOrFail($id);
+
+        if (! $entitlements->forStore($store)['checkout_paystack']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Online card payments on your storefront are part of the Enterprise plan.',
+                'code' => 'UPGRADE_REQUIRED',
+            ], 403);
+        }
 
         if ($store->paystack_subaccount_code) {
             return response()->json(['message' => 'This store already has a payment account connected.'], 409);

@@ -1,10 +1,38 @@
-export type StorefrontPresetId = "workshop" | "clinic" | "studio";
+export type StorefrontPresetId = "workshop" | "clinic" | "studio" | "market" | "boutique" | "grove";
 export type StorefrontLocaleId = "en" | "fr";
 export type StorefrontWeekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 export type StorefrontOpeningHours = Partial<Record<StorefrontWeekday, { open: string; close: string } | null>>;
 
-export interface StorefrontSettings {
+/** What a plan's storefront may do: config/storefront_entitlements.php on the server. */
+export interface StorefrontEntitlements {
+  storefront_enabled: boolean;
+  allowed_presets: StorefrontPresetId[];
+  custom_accent_colour: boolean;
+  max_online_products: number | null;
+  checkout_whatsapp: boolean;
+  checkout_transfer_mobile_money: boolean;
+  checkout_pay_on_delivery: boolean;
+  checkout_paystack: boolean;
+  checkout_flutterwave: boolean;
+  remove_powered_by_badge: boolean;
+  services_on_storefront: boolean;
+  visitor_language_switch: boolean;
+  owner_self_edit_look: boolean;
+  rebuild_mode: "scheduled" | "on_demand";
+  custom_domain: boolean;
+  /** Only in the plan map from GET /system-configs/subscription_plans; absent from older servers. */
+  owner_opt_in_required?: boolean;
+}
+
+interface StorefrontPlanDetails {
+  entitlements?: StorefrontEntitlements;
+  checkout_warning?: string | null;
+  opt_in_required?: boolean;
+  opted_in?: boolean;
+}
+
+export interface StorefrontSettings extends StorefrontPlanDetails {
   allowed: true;
   theme: string;
   available_themes: StorefrontPresetId[];
@@ -19,7 +47,7 @@ export interface StorefrontSettings {
   store_type: string | null;
 }
 
-export type StorefrontSettingsResponse = StorefrontSettings | { allowed: false };
+export type StorefrontSettingsResponse = StorefrontSettings | ({ allowed: false } & StorefrontPlanDetails);
 
 export type StorefrontSettingsUpdate = Partial<
   Pick<StorefrontSettings, "accent" | "tagline" | "whatsapp" | "pickup_minutes" | "opening_hours" | "locale" | "enabled_locales">

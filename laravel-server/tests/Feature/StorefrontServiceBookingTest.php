@@ -20,6 +20,7 @@ use Tests\TestCase;
 class StorefrontServiceBookingTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     private User $owner;
 
@@ -34,6 +35,7 @@ class StorefrontServiceBookingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         SystemConfig::setVal('subscription_plans', ['tiers' => ['free' => ['features' => ['store_url' => true]]]]);
         $this->owner = User::create([

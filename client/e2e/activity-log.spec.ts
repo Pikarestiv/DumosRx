@@ -28,8 +28,8 @@ test.describe('Activity Log', () => {
     await expect(page.locator('main').getByText('Activity Log', { exact: true })).toBeVisible();
 
     const firstRow = page.locator('[role="row"]').nth(1); // nth(0) is the header row
-    await expect(firstRow).toContainText('Created a expense');
-    await expect(firstRow).toContainText('expenses');
+    await expect(firstRow).toContainText('Created expense');
+    await expect(firstRow).toContainText('Expense');
 
     // Open the detail panel and confirm the actor and the exact expense
     // details (Description/Amount) are the ones this test just created —

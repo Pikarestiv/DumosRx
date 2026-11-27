@@ -27,7 +27,7 @@ export async function generateMetadata({
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
   const locale = resolveLocale(data?.storefront?.locale);
-  const base = buildStorefrontMetadata(store_slug, data?.store, locale);
+  const base = buildStorefrontMetadata(store_slug, data?.store, locale, data?.storefront);
   const shop = translate(locale, "shop.title");
   return {
     ...base,

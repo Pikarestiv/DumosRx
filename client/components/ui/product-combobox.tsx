@@ -51,6 +51,7 @@ export interface ComboboxProductItem {
 }
 
 interface ProductComboboxProps {
+  id?: string;
   value: string;
   onChange: (product: SelectedProduct) => void;
   onClear?: () => void;
@@ -66,6 +67,7 @@ interface ProductComboboxProps {
 }
 
 export function ProductCombobox({
+  id,
   value,
   onChange,
   onClear,
@@ -183,6 +185,7 @@ export function ProductCombobox({
           <Search className="hidden sm:block absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         )}
         <Input
+          id={id}
           ref={inputRef}
           role="combobox"
           aria-expanded={open}

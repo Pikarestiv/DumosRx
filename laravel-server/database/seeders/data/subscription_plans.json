@@ -1,0 +1,144 @@
+{
+  "trial_days": 14,
+  "trial_plan": "pro",
+  "grace_period_days": 3,
+  "enable_paystack": true,
+  "enable_flutterwave": true,
+  "enable_manual_payment": true,
+  "manual_payment_bank": "Moniepoint",
+  "manual_payment_account_number": "SET-IN-ADMIN-PANEL",
+  "manual_payment_account_name": "Dumos Technologies",
+  "tiers": {
+    "free": {
+      "price_monthly": 0,
+      "price_yearly": 0,
+      "active": true,
+      "limits": {
+        "stores": 1,
+        "staff": 1,
+        "inventories": -1,
+        "sync_interval": 0
+      },
+      "features": {
+        "basic_inventory": true,
+        "cloud_sync": false,
+        "web_dashboard": false,
+        "mobile_access": false,
+        "prescriptions": false,
+        "procurement": false,
+        "expenses": false,
+        "theme_customizer": false,
+        "dark_mode": false,
+        "store_url": false,
+        "auto_lock": false,
+        "audit_mode": false,
+        "smart_suggestions": false,
+        "daily_summary_email": false,
+        "multi_store": false
+      }
+    },
+    "starter": {
+      "price_monthly": 3000,
+      "price_yearly": 30000,
+      "active": true,
+      "limits": {
+        "stores": 1,
+        "staff": 3,
+        "inventories": -1,
+        "sync_interval": 180
+      },
+      "features": {
+        "basic_inventory": true,
+        "cloud_sync": true,
+        "web_dashboard": true,
+        "mobile_access": false,
+        "prescriptions": true,
+        "procurement": true,
+        "expenses": true,
+        "theme_customizer": true,
+        "dark_mode": true,
+        "store_url": false,
+        "auto_lock": true,
+        "audit_mode": true,
+        "smart_suggestions": false,
+        "daily_summary_email": false,
+        "multi_store": false,
+        "proforma_quotes": true
+      }
+    },
+    "pro": {
+      "price_monthly": 8000,
+      "price_yearly": 80000,
+      "active": true,
+      "limits": {
+        "stores": 3,
+        "staff": 10,
+        "inventories": -1,
+        "sync_interval": 30
+      },
+      "features": {
+        "basic_inventory": true,
+        "cloud_sync": true,
+        "web_dashboard": true,
+        "mobile_access": true,
+        "prescriptions": true,
+        "procurement": true,
+        "expenses": true,
+        "theme_customizer": true,
+        "dark_mode": true,
+        "store_url": true,
+        "auto_lock": true,
+        "audit_mode": true,
+        "smart_suggestions": true,
+        "daily_summary_email": true,
+        "multi_store": false,
+        "daily_close_report": true,
+        "advanced_reports": true,
+        "proforma_quotes": true,
+        "loyalty_program": true,
+        "ai_assistant": true
+      }
+    },
+    "enterprise": {
+      "price_monthly": 15000,
+      "price_yearly": 150000,
+      "active": true,
+      "limits": {
+        "stores": -1,
+        "staff": -1,
+        "inventories": -1,
+        "sync_interval": 0
+      },
+      "features": {
+        "basic_inventory": true,
+        "cloud_sync": true,
+        "web_dashboard": true,
+        "mobile_access": true,
+        "prescriptions": true,
+        "procurement": true,
+        "expenses": true,
+        "theme_customizer": true,
+        "dark_mode": true,
+        "store_url": true,
+        "auto_lock": true,
+        "audit_mode": true,
+        "smart_suggestions": true,
+        "multi_store": true,
+        "custom_branding": true,
+        "data_export": true,
+        "daily_summary_email": true,
+        "proforma_quotes": true,
+        "reseller_commission": true,
+        "advanced_reports": true,
+        "daily_close_report": true,
+        "loyalty_program": true,
+        "barcode_generation": true,
+        "ai_assistant": true,
+        "ecommerce": true,
+        "smart_pos": true,
+        "remove_branding": true,
+        "mobile_app": true
+      }
+    }
+  }
+}

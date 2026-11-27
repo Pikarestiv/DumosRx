@@ -7,20 +7,15 @@ use App\Models\AuditSession;
 use App\Models\AuditSessionItem;
 use App\Models\StockAudit;
 use App\Models\Store;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class AuditSessionService
 {
     public const LEASE_DURATION_SECONDS = 300;
 
-    private const ITEM_UPSERT_CHUNK = 200;
-
-    private ?bool $baselineColumn = null;
-
     public const PENDING_SYNC_GRACE_HOURS = 24;
+
+    public function __construct(private AuditSessionItemWriter $items) {}
 
     public function startSession(
         string $storeId,
@@ -89,39 +84,11 @@ class AuditSessionService
             ]);
 
             if (! empty($items)) {
-                $itemRecords = [];
-                foreach ($items as $item) {
-                    $itemRecords[] = [
-                        'id' => (string) Str::uuid(),
-                        'audit_session_id' => $session->id,
-                        'product_id' => $item['product_id'],
-                        'system_quantity' => $item['system_quantity'] ?? 0,
-                        ...($this->hasBaselineColumn() ? ['baseline_quantity' => $item['baseline_quantity'] ?? null] : []),
-                        'counted_quantity' => $item['counted_quantity'] ?? null,
-                        'cost_price' => $item['cost_price'] ?? null,
-                        'counted_cost_price' => $item['counted_cost_price'] ?? null,
-                        'selling_price' => $item['selling_price'] ?? null,
-                        'counted_selling_price' => $item['counted_selling_price'] ?? null,
-                        'counted' => (bool) ($item['counted'] ?? false),
-                        'notes' => $item['notes'] ?? null,
-                        'counted_at' => isset($item['counted_at']) ? Carbon::parse($item['counted_at']) : null,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
-                }
-
-                foreach (array_chunk($itemRecords, 200) as $chunk) {
-                    AuditSessionItem::insert($chunk);
-                }
+                $this->items->insertStartingItems($session, $items, $now);
             }
 
             return $session->load('items');
         });
-    }
-
-    private function hasBaselineColumn(): bool
-    {
-        return $this->baselineColumn ??= Schema::hasColumn('audit_session_items', 'baseline_quantity');
     }
 
     public function getActiveSession(string $storeId, bool $includeItems = false): ?AuditSession
@@ -174,83 +141,55 @@ class AuditSessionService
             && $session->submitted_stock_audit_id === $submittedAuditId;
     }
 
+    private function lockSession(AuditSession $session): AuditSession
+    {
+        return AuditSession::whereKey($session->id)->lockForUpdate()->firstOrFail();
+    }
+
+    private function assertLeaseHeld(AuditSession $locked, string $tillId, int $leaseVersion, string $inactiveMessage): void
+    {
+        if ($locked->status !== AuditSession::STATUS_IN_PROGRESS) {
+            throw new AuditSessionConflictException($inactiveMessage, $locked);
+        }
+
+        if ($locked->active_till_id !== $tillId || $locked->lease_version !== $leaseVersion) {
+            throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $locked);
+        }
+    }
+
     public function heartbeat(AuditSession $session, string $tillId, int $leaseVersion, ?string $userId = null): AuditSession
     {
-        if ($session->status !== AuditSession::STATUS_IN_PROGRESS) {
-            throw new AuditSessionConflictException('Cannot heartbeat an inactive audit session.', $session);
-        }
+        return DB::transaction(function () use ($session, $tillId, $leaseVersion, $userId) {
+            $locked = $this->lockSession($session);
+            $this->assertLeaseHeld($locked, $tillId, $leaseVersion, 'Cannot heartbeat an inactive audit session.');
 
-        if ($session->active_till_id !== $tillId || $session->lease_version !== $leaseVersion) {
-            throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $session);
-        }
+            $locked->update([
+                'lease_expires_at' => now()->addSeconds(self::LEASE_DURATION_SECONDS),
+                'active_user_id' => $userId ?? $locked->active_user_id,
+            ]);
 
-        $session->update([
-            'lease_expires_at' => now()->addSeconds(self::LEASE_DURATION_SECONDS),
-            'active_user_id' => $userId ?? $session->active_user_id,
-        ]);
-
-        return $session;
+            return $locked;
+        }, 3);
     }
 
     public function syncBatchItems(AuditSession $session, string $tillId, int $leaseVersion, array $items): AuditSession
     {
-        if ($session->status !== AuditSession::STATUS_IN_PROGRESS) {
-            throw new AuditSessionConflictException('Cannot sync items to an inactive audit session.', $session);
-        }
+        return DB::transaction(function () use ($session, $tillId, $leaseVersion, $items) {
+            $locked = $this->lockSession($session);
+            $this->assertLeaseHeld($locked, $tillId, $leaseVersion, 'Cannot sync items to an inactive audit session.');
 
-        if ($session->active_till_id !== $tillId || $session->lease_version !== $leaseVersion) {
-            throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $session);
-        }
-
-        return DB::transaction(function () use ($session, $items) {
             $now = now();
-            $withBaseline = [];
-            $withoutBaseline = [];
-            foreach (collect($items)->keyBy('product_id') as $item) {
-                $row = [
-                    'id' => (string) Str::uuid(),
-                    'audit_session_id' => $session->id,
-                    'product_id' => $item['product_id'],
-                    'system_quantity' => $item['system_quantity'] ?? 0,
-                    'counted_quantity' => $item['counted_quantity'] ?? null,
-                    'cost_price' => $item['cost_price'] ?? null,
-                    'counted_cost_price' => $item['counted_cost_price'] ?? null,
-                    'selling_price' => $item['selling_price'] ?? null,
-                    'counted_selling_price' => $item['counted_selling_price'] ?? null,
-                    'counted' => (bool) ($item['counted'] ?? false),
-                    'notes' => $item['notes'] ?? null,
-                    'counted_at' => isset($item['counted_at']) ? Carbon::parse($item['counted_at'])->utc()->toDateTimeString() : null,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
+            $this->items->upsertSyncedItems($locked, $items, $now);
 
-                if (isset($item['baseline_quantity']) && $this->hasBaselineColumn()) {
-                    $withBaseline[] = $row + ['baseline_quantity' => $item['baseline_quantity']];
-                } else {
-                    $withoutBaseline[] = $row;
-                }
-            }
-
-            $columns = ['system_quantity', 'counted_quantity', 'cost_price', 'counted_cost_price', 'selling_price', 'counted_selling_price', 'counted', 'notes', 'counted_at', 'updated_at'];
-            foreach (array_chunk($withBaseline, self::ITEM_UPSERT_CHUNK) as $chunk) {
-                AuditSessionItem::upsert($chunk, ['audit_session_id', 'product_id'], [...$columns, 'baseline_quantity']);
-            }
-            foreach (array_chunk($withoutBaseline, self::ITEM_UPSERT_CHUNK) as $chunk) {
-                AuditSessionItem::upsert($chunk, ['audit_session_id', 'product_id'], $columns);
-            }
-
-            $totalCount = AuditSessionItem::where('audit_session_id', $session->id)->count();
-            $countedCount = AuditSessionItem::where('audit_session_id', $session->id)->where('counted', true)->count();
-
-            $session->update([
-                'total_items_count' => $totalCount,
-                'counted_items_count' => $countedCount,
+            $locked->update([
+                'total_items_count' => AuditSessionItem::where('audit_session_id', $locked->id)->count(),
+                'counted_items_count' => AuditSessionItem::where('audit_session_id', $locked->id)->where('counted', true)->count(),
                 'lease_expires_at' => $now->copy()->addSeconds(self::LEASE_DURATION_SECONDS),
                 'last_synced_at' => $now,
             ]);
 
-            return $session;
-        });
+            return $locked;
+        }, 3);
     }
 
     public function takeoverSession(
@@ -292,33 +231,31 @@ class AuditSessionService
         int $leaseVersion,
         ?string $submittedAuditId = null
     ): AuditSession {
-        if ($this->isCompletionReplay($session, $submittedAuditId)) {
-            $this->settlePendingSessions($session->store_id);
+        return DB::transaction(function () use ($session, $tillId, $leaseVersion, $submittedAuditId) {
+            $locked = $this->lockSession($session);
 
-            return $session->refresh();
-        }
+            if ($this->isCompletionReplay($locked, $submittedAuditId)) {
+                $this->settlePendingSessions($locked->store_id);
 
-        if ($session->status !== AuditSession::STATUS_IN_PROGRESS) {
-            throw new AuditSessionConflictException('Cannot complete an audit session that is not in progress.', $session);
-        }
+                return $locked->refresh();
+            }
 
-        if ($session->active_till_id !== $tillId || $session->lease_version !== $leaseVersion) {
-            throw new AuditSessionConflictException('Lease has been superseded or expired on this device.', $session);
-        }
+            $this->assertLeaseHeld($locked, $tillId, $leaseVersion, 'Cannot complete an audit session that is not in progress.');
 
-        $isAlreadySynced = $submittedAuditId && StockAudit::where('id', $submittedAuditId)->exists();
-        $targetStatus = (! $submittedAuditId || $isAlreadySynced)
-            ? AuditSession::STATUS_COMPLETED
-            : AuditSession::STATUS_COMPLETION_PENDING_SYNC;
+            $isAlreadySynced = $submittedAuditId && StockAudit::where('id', $submittedAuditId)->exists();
+            $targetStatus = (! $submittedAuditId || $isAlreadySynced)
+                ? AuditSession::STATUS_COMPLETED
+                : AuditSession::STATUS_COMPLETION_PENDING_SYNC;
 
-        $session->update([
-            'status' => $targetStatus,
-            'submitted_stock_audit_id' => $submittedAuditId,
-            'completed_at' => $targetStatus === AuditSession::STATUS_COMPLETED ? now() : null,
-            'last_synced_at' => now(),
-        ]);
+            $locked->update([
+                'status' => $targetStatus,
+                'submitted_stock_audit_id' => $submittedAuditId,
+                'completed_at' => $targetStatus === AuditSession::STATUS_COMPLETED ? now() : null,
+                'last_synced_at' => now(),
+            ]);
 
-        return $session;
+            return $locked;
+        }, 3);
     }
 
     public function abandonSession(

@@ -6,6 +6,8 @@ import { SYNC_DISABLED_IMPERSONATION_MESSAGE } from "@/lib/utils/impersonation";
 import { isExpectedPlanRestriction } from "@/lib/utils/error-logger";
 import { getAuthToken } from "@/lib/storage-keys";
 import { queryKeys } from "@/lib/query-keys";
+import { readSyncOutcome } from "@/lib/db/sync-engine/sync-outcome";
+import { APP_EVENTS, onAppEvent } from "@/lib/events";
 
 export type PreAuditSyncState = "syncing" | "ready" | "stale" | "failed";
 
@@ -23,9 +25,10 @@ interface PreAuditOutcome {
   notice: string | null;
 }
 
-export const PRE_COUNT_PULL_DEADLINE_MS = 25_000;
-const IN_FLIGHT_WAIT_CAP_MS = 8_000;
+export const PRE_COUNT_PULL_DEADLINE_MS = 60_000;
+const IN_FLIGHT_WAIT_CAP_MS = PRE_COUNT_PULL_DEADLINE_MS;
 const IN_FLIGHT_POLL_MS = 250;
+const RECOVERY_POLL_MS = 2_000;
 const MAX_ATTEMPTS = 3;
 const NO_PULL_POSSIBLE = new Set([READ_ONLY_TAB_MESSAGE, SYNC_DISABLED_IMPERSONATION_MESSAGE]);
 const PUSH_FAILED_NOTICE =
@@ -75,10 +78,16 @@ export async function pullBeforeCount(isCancelled: () => boolean = () => false):
   return outcome("failed", result.error ?? "Sync failed");
 }
 
-export function withDeadline(pull: Promise<PreAuditOutcome | null>): Promise<PreAuditOutcome | null> {
+export function withDeadline(
+  pull: Promise<PreAuditOutcome | null>,
+  onTimeout?: () => void,
+): Promise<PreAuditOutcome | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expiry = new Promise<PreAuditOutcome>((resolve) => {
-    timer = setTimeout(() => resolve(outcome("failed", DEADLINE_ERROR)), PRE_COUNT_PULL_DEADLINE_MS);
+    timer = setTimeout(() => {
+      onTimeout?.();
+      resolve(outcome("failed", DEADLINE_ERROR));
+    }, PRE_COUNT_PULL_DEADLINE_MS);
   });
   return Promise.race([pull, expiry]).finally(() => clearTimeout(timer));
 }
@@ -97,23 +106,59 @@ export function usePreAuditSync(): PreAuditSync {
   const run = useCallback(() => {
     const generation = ++generationRef.current;
     let stopped = false;
-    const isCancelled = () => stopped || generation !== generationRef.current;
-    void withDeadline(pullBeforeCount(isCancelled)).then(async (result) => {
-      if (!result || isCancelled()) return;
+    let timedOut = false;
+    const isEffectCancelled = () => stopped || generation !== generationRef.current;
+    const isPullCancelled = () => isEffectCancelled() || timedOut;
+    void withDeadline(pullBeforeCount(isPullCancelled), () => {
+      timedOut = true;
+    }).then(async (result) => {
+      if (!result || isEffectCancelled()) return;
       if (result.state === "ready") {
         await queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey });
       }
-      if (isCancelled()) return;
+      if (isEffectCancelled()) return;
       setError(result.error);
       setNotice(result.notice);
       setState(result.state);
     });
     return () => {
       stopped = true;
+      generationRef.current++;
     };
   }, [queryClient]);
 
   useEffect(() => run(), [run]);
+
+  useEffect(() => {
+    if (state !== "failed") return;
+    const failedSince = Date.now();
+    let recovered = false;
+
+    const tryRecover = () => {
+      if (recovered) return;
+      const syncOutcome = readSyncOutcome();
+      if (!syncOutcome || Date.parse(syncOutcome.at) < failedSince) return;
+      const pullCompleted = syncOutcome.success || syncOutcome.reason === "batches_failed";
+      if (!pullCompleted) return;
+      recovered = true;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.withDetails().queryKey }).then(() => {
+        setError(null);
+        setNotice(syncOutcome.reason === "batches_failed" ? PUSH_FAILED_NOTICE : null);
+        setState("ready");
+      });
+    };
+
+    const unsubscribe = onAppEvent(APP_EVENTS.syncCompleted, () => {
+      queueMicrotask(tryRecover);
+    });
+    const timer = setInterval(tryRecover, RECOVERY_POLL_MS);
+
+    return () => {
+      recovered = true;
+      unsubscribe();
+      clearInterval(timer);
+    };
+  }, [state, queryClient]);
 
   return {
     state,

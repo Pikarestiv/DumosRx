@@ -60,6 +60,7 @@ export function DataSettingsAutoSync({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={isEditing ? "Cancel editing background automation" : "Edit background automation"}
           onClick={() => setIsEditing(!isEditing)}
         >
           {isEditing ? (

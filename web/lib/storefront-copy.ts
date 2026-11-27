@@ -1,4 +1,7 @@
 import type { StorefrontStore } from "@/lib/api/storefront-data";
+import { DEFAULT_STOREFRONT_LOCALE } from "@/lib/storefront-i18n";
+import type { MessageKey } from "@/lib/storefront-messages-en";
+import { paymentFaqAnswer, type PaymentWays } from "@/lib/storefront-payment-ways";
 
 export interface StorefrontFaq {
   q: string;
@@ -100,10 +103,80 @@ const RETAIL_COPY: StorefrontCopy = {
   trackerItemsHeading: "Products Ordered",
 };
 
-export function isPharmacyStore(store?: Pick<StorefrontStore, "store_type"> | null): boolean {
-  return (store?.store_type ?? "pharmacy") === "pharmacy";
+const RETURNS_FAQ = RETAIL_COPY.faqs[3];
+
+const BEAUTY_COPY: StorefrontCopy = {
+  ...RETAIL_COPY,
+  faqSubtitle: "Everything you need to know about ordering, pickup, product care, and returns.",
+  faqs: [
+    RETAIL_COPY.faqs[0],
+    {
+      q: "Are your beauty products genuine?",
+      a: "Every product is sourced from the brand or its approved distributors. Check the packaging and batch details when you collect, and ask the store if anything looks wrong.",
+    },
+    {
+      q: "Can you help me choose the right shade or product?",
+      a: "Yes. Message the store with your skin type or the look you want and the team will suggest products before you order.",
+    },
+    PAYMENTS_FAQ,
+    BRANCHES_FAQ,
+    {
+      q: "Can I return an opened product?",
+      a: "For hygiene reasons opened skincare and makeup usually cannot be returned. Returns of unopened items follow the store's own policy, so contact the store with your order details first.",
+    },
+  ],
+  aboutSubtitle: "Genuine skincare, makeup and beauty essentials, with friendly advice.",
+  aboutBody: (name) =>
+    `${name} brings genuine skincare, makeup and beauty products to our community. Browse the range online and order for pickup or delivery.`,
+};
+
+const HARDWARE_COPY: StorefrontCopy = {
+  ...RETAIL_COPY,
+  faqSubtitle: "Everything you need to know about ordering, bulk quantities, pickup, and returns.",
+  faqs: [
+    RETAIL_COPY.faqs[0],
+    {
+      q: "Can I order in bulk for a building project?",
+      a: "Yes. Add the quantities you need, or message the store with your list for a quote. Large orders may need extra time to prepare or arrange transport.",
+    },
+    {
+      q: "Can I buy by length, weight or other measurements?",
+      a: "Items are sold in the unit shown on each product, such as metres, bags or pieces. If you need a different cut or size, contact the store before ordering.",
+    },
+    PAYMENTS_FAQ,
+    BRANCHES_FAQ,
+    RETURNS_FAQ,
+  ],
+  aboutSubtitle: "Tools, building materials and hardware for every job.",
+  aboutBody: (name) =>
+    `${name} supplies tools, building materials and hardware to builders, trades and homeowners in our community. Browse the range online and order for pickup or delivery.`,
+};
+
+const COPY_BY_TYPE = new Map<string, StorefrontCopy>([
+  ["pharmacy", PHARMACY_COPY],
+  ["beauty", BEAUTY_COPY],
+  ["hardware", HARDWARE_COPY],
+]);
+
+const TAGLINE_BY_TYPE = new Map<string, MessageKey>([
+  ["pharmacy", "tagline.pharmacy"],
+  ["beauty", "tagline.beauty"],
+  ["hardware", "tagline.hardware"],
+]);
+
+type StoreTypeHolder = Pick<StorefrontStore, "store_type"> | null | undefined;
+
+export function isPharmacyStore(store?: StoreTypeHolder): boolean {
+  return store?.store_type === "pharmacy";
 }
 
-export function storefrontCopy(store?: Pick<StorefrontStore, "store_type"> | null): StorefrontCopy {
-  return isPharmacyStore(store) ? PHARMACY_COPY : RETAIL_COPY;
+export function storefrontCopy(store?: StoreTypeHolder, paymentWays?: PaymentWays): StorefrontCopy {
+  const copy = COPY_BY_TYPE.get(store?.store_type ?? "") ?? RETAIL_COPY;
+  if (!paymentWays) return copy;
+  const answer = paymentFaqAnswer(DEFAULT_STOREFRONT_LOCALE, paymentWays);
+  return { ...copy, faqs: copy.faqs.map((faq) => (faq === PAYMENTS_FAQ ? { ...faq, a: answer } : faq)) };
+}
+
+export function storefrontTaglineKey(store?: StoreTypeHolder): MessageKey {
+  return TAGLINE_BY_TYPE.get(store?.store_type ?? "") ?? "tagline.retail";
 }

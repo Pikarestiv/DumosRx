@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ProductDatabaseFilters } from "./product-database-filters";
 import { ProductActionsMenu } from "./product-actions-menu";
+import { OnlineListingCapBanner } from "./online-listing-cap-banner";
 import { AddProductDialog } from "./add-product-dialog";
 import { useAddProduct } from "./use-add-product";
 import { useQuery } from "@tanstack/react-query";
@@ -199,6 +200,7 @@ export function ProductDatabase() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 h-full gap-4">
+      <OnlineListingCapBanner />
       <div className="flex flex-col min-h-0 gap-3 lg:gap-0 h-full flex-1">
         {/* Rationale: docs/CLIENT_COMMENTS.md#block-components-products-product-database-tsx-memo-and-layout */}
         {!isDesktop && (

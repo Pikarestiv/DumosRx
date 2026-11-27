@@ -85,7 +85,7 @@ action on the catalog toolbar).
    `storefront_dirty_at` **only** when `online_store_enabled` or `store_slug` changed
    (`app/Models/Store.php:144-150`). `RebuildStorefrontIfDirty` runs every 15 minutes
    (`routes/console.php:12`), and if any store is dirty fires one GitHub
-   `repository_dispatch` (`storefront-changed`) that triggers `deploy-web.yml` → full
+   `repository_dispatch` (`storefront-changed`; `storefront-changed-dev` on dev since A-430) that triggers `deploy-web.yml` → full
    `npm run build` → FTP sync of `web/out/`. Nothing else in the system ever marks the
    storefront dirty.
 3. **Ordering is server-priced.** The browser posts only `{product_id, quantity}` +

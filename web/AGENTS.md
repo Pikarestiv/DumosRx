@@ -203,10 +203,10 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
     (`StorefrontHero`), **Products** (`FeaturedProducts`, a client component:
     category chips filter the show endpoint's `products` in the
     page into a two-row grid ending in a "+ N more" tile, see below, with "All · N" and "View all N products" → `/catalog`), **Services** when switched on, "How ordering
-    works" (`OrderingSteps`, three numbered steps, wording from
-    `storefrontCopy(store).orderingSteps`) and a quiet footer. The hero H1 is
+    works" (`OrderingSteps`, three numbered steps, worded by
+    its `isPharmacy` prop, so only a pharmacy mentions prescriptions) and a quiet footer. The hero H1 is
     the owner's `storefront.tagline`, else `storefront.headline`, else
-    `copy.heroTagline` for the store type. The hero's layout follows the
+    `storefrontTaglineKey(store)` for the store type. The hero's layout follows the
     preset (`band` shows the `StoreInfoPanel` at lg+, `tint` and `centered`
     do not); status ("Open · closes at 6:00 pm") comes from
     `storefront.opening_hours` and is computed **in the browser**
@@ -291,7 +291,9 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
 - **Footer** (`storefront-footer.tsx`): deliberately quiet, white with a top
   border: logo, "© year name", address and hours, and "Powered by
   {WEB_APP_HOST}" (the host of `WEB_APP_URL` without `www.`) linking
-  `WEB_APP_URL`. No links to storefront routes, no about text, no social links
+  `WEB_APP_URL`, hidden only when the payload's `show_powered_by` is `false`
+  (Enterprise's `remove_powered_by_badge`; a payload without the field keeps
+  the badge). No links to storefront routes, no about text, no social links
   (`storefronts.social_links` is not exposed by `GET /storefront/{slug}`).
 - **Languages (English and French, 2026-11-14).** Everything the storefront
   itself says comes from `lib/storefront-messages-en.ts` and
@@ -511,16 +513,29 @@ The product cards and the cart drawer (`components/storefront/product-card.tsx`,
   `NEXT_PUBLIC_STOREFRONT_SANDBOX`, because the shop refetches its products at
   runtime and would otherwise call a real API; `demoCatalog()` answers search and
   category filters from the demo products. `STOREFRONT_DEMO_THEME=<id>` previews the demo store in a theme, and
-  `STOREFRONT_DEMO_STORE_TYPE=<type>` (e.g. `retail`) previews the non-pharmacy copy, and
+  `STOREFRONT_DEMO_STORE_TYPE=<type>` (default `pharmacy`; e.g. `beauty`, `hardware`, `retail`) previews that type's copy, and
   `STOREFRONT_DEMO_ACCENT=#RRGGBB` previews an accent override.
 - **Store-type copy** (`lib/storefront-copy.ts`). `GET /storefront/{slug}`
   returns `store.store_type` (the selected branch's, since 2026-11-14). Every
   piece of storefront copy that differs by store type (FAQ, About, Locations
   subtitle, footer fallback, the order tracker's labels) comes from
-  `storefrontCopy(store)`; do not hardcode pharmacy wording in a component.
-  A missing type means an older API, and is treated as `pharmacy`, so a
-  pharmacy's copy is unchanged; every other type gets neutral retail copy
-  with no prescription Q&A and no dispensary/medication wording.
+  `storefrontCopy(store)` and the hero's default tagline from
+  `storefrontTaglineKey(store)`; do not hardcode pharmacy wording in a component.
+  `pharmacy` gets the pharmacy copy, `beauty` and `hardware` get their own
+  FAQ/About wording and tagline (`tagline.beauty`, `tagline.hardware`), and every
+  other type, including a missing, null or unknown one, gets the neutral retail
+  copy with no prescription Q&A and no dispensary/medication wording. Since
+  2026-11-27 a missing type is no longer read as `pharmacy`: the server has sent
+  `store_type` on every storefront payload since the field existed and now
+  normalizes unknown values to `general` (`App\Support\StoreTypes`), so the
+  only way to get no type is a fixture. `isPharmacyStore()` is true only for
+  an explicit `pharmacy`.
+- **Store type list** (`lib/constants/store-types.ts`). `STORE_TYPES` feeds the
+  register form's select and its zod enum, and the storefront header's type
+  label (`type.<value>` in both message files, plus the legacy `type.retail`).
+  It is a deliberate copy of `client/lib/constants/store-types.ts`, because the
+  two packages share no code; `__tests__/store-types.test.tsx` pins it to
+  `laravel-server/app/Support/StoreTypes.php::IDS`. Add a type in all three.
 - **A storefront never renders the DumosRx marketing footer.** All
   `[store_slug]` routes use `components/storefront/storefront-header.tsx`
   (logo + store name, linking home, the nav and the cart) and
@@ -1766,7 +1781,8 @@ per-finding status). The storefront contract as it now stands:
   `// Cache for 60 seconds` comment actively misleading (`SF-P3-1`). A
   storefront is stale until the next **full site rebuild**, which the API
   triggers via `storefront_dirty_at` → `RebuildStorefrontIfDirty` →
-  `repository_dispatch` → `deploy-web.yml` (~15 minutes at best). What does
+  `repository_dispatch` → `deploy-web.yml` (`deploy-dev.yml`'s web job on dev,
+  via `storefront-changed-dev`) (~15 minutes at best). What does
   and doesn't dirty a storefront is documented in
   `laravel-server/AGENTS.md`.
 - **Build-time fetch failures are fatal, not degraded.** `getStorefrontSlugs()`
@@ -2219,6 +2235,73 @@ the fonts now ship inside the build. Nothing requests `fonts.googleapis.com` or
 `fonts.gstatic.com`, at build time or in the browser (`web/out` and `client/out`
 contain neither host). To change a font, drop a new woff2 into `app/fonts/` and
 update the `localFont` call; do not reintroduce `next/font/google`.
+
+## Storefront plans in web (Pro/Enterprise split, 2026-11-24)
+
+The server applies the owner's plan to every storefront payload
+(laravel-server/AGENTS.md, "Storefront plan entitlements"), so the public pages
+need no plan logic of their own: `theme`, `accent`, `show_services`,
+`enabled_locales`, `online_payment_available` and `show_powered_by` already
+arrive as the plan allows. Checkout offers Paystack only when the live
+`/products` call reports `online_payment_available` (`availablePaymentMethods()`),
+which is false on Pro.
+
+- **Plan editor.** `plan-tier-card.tsx` binds "Online Storefront" to `store_url`,
+  the single storefront key; `ecommerce` is no longer shown or edited but stays
+  in stored data (`TierFeatures.ecommerce?`) for old till bundles. The pricing
+  copy (`subscription-plans.ts`, `pricing-section.tsx`) reads `store_url` and
+  describes the Pro and Enterprise storefronts.
+- **Pro presets.** `StorefrontProPresetsCard` (Platform Settings > Billing, under
+  the plan config; super admin only, as the whole settings page is) lists every
+  preset with a checkbox and how many Pro storefronts use it
+  (`GET /admin/storefront/pro-presets`). Saving a list that removes a preset with
+  a count above 0 first fetches a fresh `?proposed=` preview and, only if it
+  still moves stores, asks in a `ConfirmDialog` how many will switch and to
+  which style; the save proceeds on confirm. The server recomputes the count
+  itself and logs it, so the dialog is a courtesy, not the control. web has no
+  `AlertDialog` primitive; `ConfirmDialog` is its custom modal.
+- **Starter (2026-11-27).** No web plan logic either: the server sends
+  Starter's single preset as `theme`, `show_powered_by: true`,
+  `online_payment_available: false` and `payment_instructions: null`, so
+  `availablePaymentMethods()` offers only pickup and pay on delivery. The plan
+  cards add `STARTER_STOREFRONT_LINE` to Starter only when its `store_url` is
+  on (so nothing changes until a super admin ticks Online Storefront for
+  Starter in the plan editor); prices are untouched. The 50 in that line, like
+  Pro's 300, is copy: keep it in step with `config/storefront_entitlements.php`.
+  `StorefrontProPresetsCard` says Starter always uses its store type's default
+  style; its counts stay Pro-only.
+- **Plan card numbers come from the plan map.** `starterStorefrontLine()` and
+  `upToProducts()` (`lib/constants/subscription-plans.ts`) read
+  `storefront_entitlements[plan].max_online_products` from the same
+  `GET /system-configs/subscription_plans` the pricing cards already fetch at
+  runtime, so the numbers follow `config/storefront_entitlements.php`. With no
+  map (an older server) the line leaves the number out rather than guess.
+- **Payment-aware storefront wording (`storefront-payment-ways.ts`).**
+  `paymentWaysOf(storefront, store)` builds the store's real payment flags
+  (pickup always, pay on delivery when the store delivers with it, transfer
+  when `payment_instructions` is sent — withheld on Starter — and online when
+  `online_payment_available`), and drives all three storefront payment copy
+  surfaces in English and French:
+  - `paymentStepBody()` in `OrderingSteps` ("How ordering works", both the
+    goods variant and the `"services"` variant), using keys
+    `steps.pay.body.ways`, `steps.pay.way.*` and `steps.pay.or`.
+  - `paymentFaqAnswer()` in `storefrontCopy()` / `StoreFaqSection` (`faq.payments.answer`).
+  - `paymentMetaSentence()` in `buildStorefrontMetadata()` (`meta.pay*` inside
+    `meta.description.*`), keeping byte-identical text for a store with online
+    and transfer enabled while omitting them when absent.
+- **Admin store detail: Starter opt-in.** `StorefrontOptInStatus`
+  (`components/admin/stores/details/storefront-opt-in-status.tsx`, in the
+  Online Storefront card) shows, only on an opt-in plan, who opted in (owner,
+  admin, or kept from an earlier plan) and when as `dd/MM/yyyy HH:mm`, or "not
+  live yet" with a "Put it live for the owner" button for a store that is
+  switched on but dormant.
+- **Guides:** `lib/guides/storefront-guides.ts`, slugs `storefront-plans` and
+  `starter-online-storefront`.
+- Coverage: `admin-storefront-pro-presets.test.tsx`, `storefront-footer-badge.test.tsx`,
+  `subscription-plans-starter-storefront.test.ts`, `guides.test.ts`,
+  `storefront-payment-ways.test.ts`, `storefront-metadata-payment.test.ts`,
+  `admin-storefront-opt-in-status.test.tsx`,
+  `storefront-themes.test.ts` (server `CLASSIC_IDS` + `PRESET_IDS` pinned to the web lists).
 
 ## Storefront tile icons (2026-11-16)
 

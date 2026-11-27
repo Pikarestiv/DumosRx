@@ -9,6 +9,7 @@ import { StorefrontHeader } from "@/components/storefront/storefront-header";
 import { getStorefrontData } from "@/lib/api/storefront-data";
 import { getStorefrontSlugs } from "@/lib/api/storefront-slugs";
 import { buildStorefrontMetadata } from "@/lib/storefront-metadata";
+import { paymentWaysOf } from "@/lib/storefront-payment-ways";
 
 interface FaqPageProps {
   params: Promise<{
@@ -25,7 +26,7 @@ export async function generateMetadata({
 }: FaqPageProps): Promise<Metadata> {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
-  const base = buildStorefrontMetadata(store_slug, data?.store);
+  const base = buildStorefrontMetadata(store_slug, data?.store, undefined, data?.storefront);
   return {
     ...base,
     title: data?.store?.name ? `FAQ & Policies | ${data.store.name}` : "FAQ",
@@ -68,7 +69,7 @@ export default async function StorefrontFaqPage({ params }: FaqPageProps) {
           <span className="text-foreground font-medium">FAQ & Policies</span>
         </nav>
 
-        <StoreFaqSection store={store} headingAs="h1" />
+        <StoreFaqSection store={store} headingAs="h1" paymentWays={paymentWaysOf(storefront, store)} />
       </main>
 
       <StorefrontFooter storeSlug={store_slug} store={store} storefront={storefront} />

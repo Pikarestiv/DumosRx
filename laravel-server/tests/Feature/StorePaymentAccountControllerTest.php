@@ -11,6 +11,7 @@ use Tests\TestCase;
 class StorePaymentAccountControllerTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     protected User $owner;
 
@@ -19,6 +20,7 @@ class StorePaymentAccountControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
         config(['payment.paystack.secret_key' => 'sk_test_fake']);
 
         $this->owner = User::create([

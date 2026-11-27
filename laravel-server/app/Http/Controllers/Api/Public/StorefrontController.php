@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StorefrontProductResource;
+use App\Models\Store;
+use App\Models\Storefront;
 use App\Services\Payment\PaymentService;
 use App\Services\Storefront\StorefrontBranchDirectory;
 use App\Services\Storefront\StorefrontCatalogService;
 use App\Services\Storefront\StorefrontCheckoutService;
+use App\Services\Storefront\StorefrontEntitlements;
 use App\Services\Storefront\StorefrontInteractionService;
+use App\Services\Storefront\StorefrontPresenter;
 use App\Support\StorefrontCheckoutRules;
-use App\Support\StorefrontLocales;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
@@ -22,6 +26,8 @@ class StorefrontController extends Controller
         private readonly StorefrontCatalogService $catalogService,
         private readonly StorefrontCheckoutService $checkoutService,
         private readonly StorefrontInteractionService $interactionService,
+        private readonly StorefrontPresenter $presenter,
+        private readonly StorefrontEntitlements $entitlements,
     ) {}
 
     #[OA\Get(
@@ -65,64 +71,22 @@ class StorefrontController extends Controller
     )]
     public function show($store_slug, Request $request)
     {
-        $storefront = $this->catalogService->resolveStorefront($store_slug);
-        if (! $storefront) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+        $resolved = $this->publishedBranch($request, $store_slug);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
         }
+        [$storefront, $branch, $entitlements] = $resolved;
 
-        $branches = $this->catalogService->getStorefrontBranches($storefront);
-        $branch = $this->catalogService->resolveBranch(
-            $storefront,
-            $request->input('branch') ?? $request->input('branch_id'),
-            $store_slug,
-        );
-
-        if (! $branch) {
-            return response()->json(['error' => 'Store unavailable'], 404);
-        }
-
-        if ($branch->isSuspended()) {
-            return response()->json(['error' => 'Store unavailable'], 403);
-        }
-
-        if (! $this->catalogService->storefrontEnabled($branch)) {
-            return response()->json(['error' => 'Store unavailable'], 404);
-        }
-
-        $products = $this->catalogService->getLandingProducts($branch);
-        $currency = $this->catalogService->storeCurrency($branch);
-
-        $branchData = $this->catalogService->branchPayload($branch, $currency);
+        $branchData = $this->presenter->branchPayload($branch, $this->catalogService->storeCurrency($branch), $entitlements);
 
         return response()->json([
-            'storefront' => [
-                'id' => $storefront->id,
-                'slug' => $storefront->slug,
-                'name' => $storefront->name,
-                'headline' => $storefront->headline,
-                'about' => $storefront->about,
-                'theme' => $storefront->theme ?? 'emerald',
-                'locale' => $storefront->locale ?? StorefrontLocales::DEFAULT,
-                'enabled_locales' => $storefront->enabled_locales ?? [$storefront->locale ?? StorefrontLocales::DEFAULT],
-                'accent' => $storefront->accent,
-                'tagline' => $storefront->tagline,
-                'whatsapp' => $storefront->whatsapp,
-                'pickup_minutes' => $storefront->pickup_minutes,
-                'payment_instructions' => $storefront->payment_instructions,
-                'delivery_available' => (bool) $storefront->delivery_available,
-                'delivery_note' => $storefront->delivery_note,
-                'pay_on_delivery' => (bool) $storefront->pay_on_delivery,
-                'show_services' => (bool) $storefront->show_services,
-                'opening_hours' => $storefront->opening_hours,
-                'logo_url' => $storefront->logo_url ?? $branch->logo_url,
-                'banner_url' => $storefront->banner_url,
-            ],
-            'branches' => $this->catalogService->branchSummaries($storefront, $branches),
+            'storefront' => $this->presenter->profile($storefront, $branch, $entitlements),
+            'branches' => $this->presenter->branchSummaries($storefront, $this->catalogService->getStorefrontBranches($storefront)),
             'selected_branch' => $branchData,
             'store' => $branchData,
-            'products' => StorefrontProductResource::collection($products),
+            'products' => StorefrontProductResource::collection($this->catalogService->getLandingProducts($branch)),
             'product_count' => $this->catalogService->storeProducts($branch)->count(),
-            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
+            'online_payment_available' => $branchData['online_payment_available'],
         ]);
     }
 
@@ -146,52 +110,32 @@ class StorefrontController extends Controller
     )]
     public function products($store_slug, Request $request)
     {
-        $storefront = $this->catalogService->resolveStorefront($store_slug);
-        if (! $storefront) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+        $resolved = $this->publishedBranch($request, $store_slug);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
         }
+        [$storefront, $branch, $entitlements] = $resolved;
 
-        $branches = $this->catalogService->getStorefrontBranches($storefront);
-        $branch = $this->catalogService->resolveBranch(
-            $storefront,
-            $request->input('branch') ?? $request->input('branch_id'),
-            $store_slug,
+        $paginated = $this->catalogService->paginateProducts(
+            $branch,
+            $request->input('q'),
+            $request->input('category'),
+            (int) $request->input('per_page', StorefrontCatalogService::PER_PAGE),
+            $this->catalogService->parseRequestedIds($request->input('ids')),
         );
-
-        if (! $branch) {
-            return response()->json(['error' => 'Store unavailable'], 404);
-        }
-
-        if ($branch->isSuspended()) {
-            return response()->json(['error' => 'Store unavailable'], 403);
-        }
-
-        if (! $this->catalogService->storefrontEnabled($branch)) {
-            return response()->json(['error' => 'Store unavailable'], 404);
-        }
-
-        $search = $request->input('q');
-        $category = $request->input('category');
-        $perPage = (int) $request->input('per_page', StorefrontCatalogService::PER_PAGE);
-
-        $ids = $this->catalogService->parseRequestedIds($request->input('ids'));
-
-        $paginated = $this->catalogService->paginateProducts($branch, $search, $category, $perPage, $ids);
-        $categories = $this->catalogService->getStoreCategories($branch);
-        $currency = $this->catalogService->storeCurrency($branch);
 
         $branchData = [
             'id' => $branch->id,
             'name' => $branch->name,
-            'currency' => $currency,
-            'online_payment_available' => (bool) $branch->paystack_subaccount_code,
+            'currency' => $this->catalogService->storeCurrency($branch),
+            'online_payment_available' => $this->presenter->onlinePaymentAvailable($branch, $entitlements),
         ];
 
         return StorefrontProductResource::collection($paginated)->additional([
-            'categories' => $categories,
+            'categories' => $this->catalogService->getStoreCategories($branch),
             'store' => $branchData,
             'selected_branch' => $branchData,
-            'branches' => $this->catalogService->branchSummaries($storefront, $branches, detailed: false),
+            'branches' => $this->presenter->branchSummaries($storefront, $this->catalogService->getStorefrontBranches($storefront), detailed: false),
         ]);
     }
 
@@ -220,28 +164,14 @@ class StorefrontController extends Controller
         $store_slug,
         PaymentService $paymentService,
     ) {
-        $storefront = $this->catalogService->resolveStorefront($store_slug);
-        if (! $storefront) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+        $resolved = $this->publishedBranch($request, $store_slug, explicitBranch: true);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
         }
+        [, $branch, $entitlements] = $resolved;
 
-        $branch = $this->catalogService->resolveBranch(
-            $storefront,
-            $request->input('branch_id') ?? $request->input('branch'),
-            $store_slug,
-            requireExplicitMatch: true,
-        );
-
-        if (! $branch) {
-            return $this->branchNotFound($request);
-        }
-
-        if ($branch->isSuspended()) {
-            return response()->json(['error' => 'Store unavailable'], 403);
-        }
-
-        if (! $this->catalogService->storefrontEnabled($branch)) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+        if ($refusal = $this->entitlements->checkoutRefusal($entitlements, 'paystack', 'pickup')) {
+            return response()->json(['message' => $refusal], 422);
         }
 
         $validated = $request->validate([
@@ -250,11 +180,7 @@ class StorefrontController extends Controller
             ...StorefrontCheckoutRules::itemRules(),
         ]);
 
-        return $this->checkoutService->initializePayment(
-            $branch,
-            $validated,
-            $paymentService,
-        );
+        return $this->checkoutService->initializePayment($branch, $validated, $paymentService);
     }
 
     #[OA\Post(
@@ -287,45 +213,28 @@ class StorefrontController extends Controller
         $store_slug,
         PaymentService $paymentService,
     ) {
-        $storefront = $this->catalogService->resolveStorefront($store_slug);
-        if (! $storefront) {
-            return response()->json(['error' => 'Store unavailable'], 404);
+        $resolved = $this->publishedBranch($request, $store_slug, explicitBranch: true);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
         }
-
-        $branch = $this->catalogService->resolveBranch(
-            $storefront,
-            $request->input('branch_id') ?? $request->input('branch'),
-            $store_slug,
-            requireExplicitMatch: true,
-        );
-
-        if (! $branch) {
-            return $this->branchNotFound($request);
-        }
-
-        if ($branch->isSuspended()) {
-            return response()->json(['error' => 'Store unavailable'], 403);
-        }
-
-        if (! $this->catalogService->storefrontEnabled($branch)) {
-            return response()->json(['error' => 'Store unavailable'], 404);
-        }
+        [$storefront, $branch, $entitlements] = $resolved;
 
         $validated = $request->validate(StorefrontCheckoutRules::rules());
+        $fulfilment = $validated['fulfilment_method'] ?? 'pickup';
 
-        if (($validated['fulfilment_method'] ?? 'pickup') === 'delivery' && ! $storefront->delivery_available) {
+        if ($fulfilment === 'delivery' && ! $storefront->delivery_available) {
             return response()->json(['message' => 'This store does not offer delivery.'], 422);
         }
 
-        if (($validated['fulfilment_method'] ?? 'pickup') === 'delivery' && $validated['payment_method'] === 'in_store' && ! $storefront->pay_on_delivery) {
+        if ($fulfilment === 'delivery' && $validated['payment_method'] === 'in_store' && ! $storefront->pay_on_delivery) {
             return response()->json(['message' => 'This store does not accept payment on delivery. Pay by transfer or online.'], 422);
         }
 
-        return $this->checkoutService->placeOrder(
-            $branch,
-            $validated,
-            $paymentService,
-        );
+        if ($refusal = $this->entitlements->checkoutRefusal($entitlements, $validated['payment_method'], $fulfilment)) {
+            return response()->json(['message' => $refusal], 422);
+        }
+
+        return $this->checkoutService->placeOrder($branch, $validated, $paymentService);
     }
 
     public function trackOrder($store_slug, $identifier)
@@ -338,12 +247,36 @@ class StorefrontController extends Controller
         return $this->interactionService->uploadPrescription($store_slug, $request);
     }
 
-    private function branchNotFound(Request $request): \Illuminate\Http\JsonResponse
+    /**
+     * @return array{0: Storefront, 1: Store, 2: array<string, mixed>}|JsonResponse
+     */
+    private function publishedBranch(Request $request, string $slug, bool $explicitBranch = false): array|JsonResponse
     {
-        $named = $request->input('branch_id') ?? $request->input('branch');
+        $storefront = $this->catalogService->resolveStorefront($slug);
+        if (! $storefront) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
 
-        return $named
-            ? response()->json(['message' => 'That branch is no longer available. Reload the page and choose a branch again.'], 422)
-            : response()->json(['error' => 'Store unavailable'], 404);
+        $named = $explicitBranch
+            ? ($request->input('branch_id') ?? $request->input('branch'))
+            : ($request->input('branch') ?? $request->input('branch_id'));
+        $branch = $this->catalogService->resolveBranch($storefront, $named, $slug, requireExplicitMatch: $explicitBranch);
+
+        if (! $branch) {
+            return $explicitBranch && $named
+                ? response()->json(['message' => 'That branch is no longer available. Reload the page and choose a branch again.'], 422)
+                : response()->json(['error' => 'Store unavailable'], 404);
+        }
+
+        if ($branch->isSuspended()) {
+            return response()->json(['error' => 'Store unavailable'], 403);
+        }
+
+        $entitlements = $this->entitlements->forStore($branch);
+        if (! $branch->online_store_enabled || ! $entitlements['storefront_enabled']) {
+            return response()->json(['error' => 'Store unavailable'], 404);
+        }
+
+        return [$storefront, $branch, $entitlements];
     }
 }

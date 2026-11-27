@@ -18,10 +18,10 @@ test.describe('Prescriptions Module', () => {
     await page.goto('/inventory/catalog');
     await page.getByRole('button', { name: /Add Product/i }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox').first().fill(productName);
-    await page.getByLabel(/Selling Price/i).first().fill('500');
-    await page.getByLabel(/Reorder Level/i).first().fill('5');
-    await page.getByRole('button', { name: /^Add Product$/i }).last().click();
+    await dialog.getByRole('combobox').first().fill(productName);
+    await dialog.getByRole('spinbutton', { name: /Selling Price/i }).fill('500');
+    await dialog.getByRole('spinbutton', { name: /Reorder Level/i }).fill('5');
+    await dialog.getByRole('button', { name: /^Add Product$/i }).click();
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 
     // Give it real stock via a Cycle Count (same mechanics as
@@ -29,19 +29,24 @@ test.describe('Prescriptions Module', () => {
     // grid as ARIA role="row"/"cell" divs, so locate the row via the
     // product-name cell's nearest role="row" ancestor).
     await page.getByRole('button', { name: /Start Audit/i }).click();
-    await expect(page.getByText('Physical inventory')).toBeVisible();
+    const auditPanel = page.locator('div.fixed.inset-0.z-50');
+    await expect(auditPanel.getByText('Physical inventory')).toBeVisible();
 
-    const searchBox = page.getByPlaceholder(/Search by name or SKU/i).first();
+    const searchBox = auditPanel.getByPlaceholder(/Search by name or SKU/i);
     await searchBox.fill(productName);
-    const nameCell = page.getByText(productName, { exact: true }).first();
+    const nameCell = auditPanel.getByText(new RegExp(`^${productName}$`, 'i')).first();
     await expect(nameCell).toBeVisible();
     const row = nameCell.locator('xpath=ancestor::*[@role="row"]').first();
     const countedQtyInput = row.locator('input[type="number"]').first();
     await countedQtyInput.fill('20');
     await countedQtyInput.blur();
 
-    await page.getByRole('button', { name: /Review & submit/i }).click();
-    await page.getByRole('button', { name: /Submit audit/i }).click();
+    await auditPanel.getByRole('button', { name: /Review & submit/i }).click();
+    const staleAck = auditPanel.getByRole('checkbox', { name: /Submit anyway/i });
+    if (await staleAck.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await staleAck.check();
+    }
+    await auditPanel.getByRole('button', { name: /Submit audit/i }).click();
     await expect(page.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: /Close Audit/i }).click();
 
@@ -50,7 +55,7 @@ test.describe('Prescriptions Module', () => {
     // Scoped to <header>: the sidebar nav link is also literally "Prescriptions".
     await expect(page.locator('header').getByText('Prescription Management', { exact: true })).toBeVisible();
 
-    await page.getByRole('button', { name: /Create Prescription/i }).click();
+    await page.getByRole('button', { name: /New Prescription/i }).click();
     await expect(page.getByText('Create New Prescription', { exact: true })).toBeVisible();
 
     const patientName = `Playwright${Date.now()}`;

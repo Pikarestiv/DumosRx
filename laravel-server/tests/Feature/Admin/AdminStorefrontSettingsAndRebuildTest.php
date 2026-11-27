@@ -21,6 +21,7 @@ use Tests\TestCase;
 class AdminStorefrontSettingsAndRebuildTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     protected User $owner;
 
@@ -29,6 +30,7 @@ class AdminStorefrontSettingsAndRebuildTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         $this->seed(RolesAndPermissionsSeeder::class);
         config([

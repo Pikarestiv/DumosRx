@@ -22,25 +22,26 @@ test.describe('POS held transactions', () => {
       await page.goto('/inventory/catalog');
       await page.getByRole('button', { name: /Add Product/i }).click();
       const dialog = page.getByRole('dialog');
-      await dialog.getByRole('textbox').first().fill(name);
-      await page.getByLabel(/Selling Price/i).first().fill(price);
-      await page.getByLabel(/Reorder Level/i).first().fill('5');
-      await page.getByRole('button', { name: /^Add Product$/i }).last().click();
+      await dialog.getByRole('combobox').first().fill(name);
+      await dialog.getByRole('spinbutton', { name: /Selling Price/i }).fill(price);
+      await dialog.getByRole('spinbutton', { name: /Reorder Level/i }).fill('5');
+      await dialog.getByRole('button', { name: /^Add Product$/i }).click();
       await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
     }
 
     await page.getByRole('button', { name: /Start Audit/i }).click();
-    await expect(page.getByText('Physical inventory')).toBeVisible();
+    const auditPanel = page.locator('div.fixed.inset-0.z-50');
+    await expect(auditPanel.getByText('Physical inventory')).toBeVisible();
 
     for (const name of [productA, productB]) {
-      const searchBox = page.getByPlaceholder(/Search by name or SKU/i).first();
+      const searchBox = auditPanel.getByPlaceholder(/Search by name or SKU/i);
       await searchBox.fill(name);
       // audit-ledger-step.tsx renders the count grid as ARIA role="row"/
       // "cell" divs (real <input type="number"> cells, but no real <tr>
       // for the browser to compute a row accessible name from), so locate
       // via the nearest role="row" ancestor of the product-name cell
       // instead of matching the row by name.
-      const nameCell = page.getByText(name, { exact: true }).first();
+      const nameCell = auditPanel.getByText(new RegExp(`^${name}$`, 'i')).first();
       await expect(nameCell).toBeVisible();
       const row = nameCell.locator('xpath=ancestor::*[@role="row"]').first();
       const countedQtyInput = row.locator('input[type="number"]').first();
@@ -49,16 +50,20 @@ test.describe('POS held transactions', () => {
       await searchBox.fill('');
     }
 
-    await page.getByRole('button', { name: /Review & submit/i }).click();
-    await expect(page.getByText(/^2$/).first()).toBeVisible(); // "Adjusted" count tile
-    await page.getByRole('button', { name: /Submit audit/i }).click();
+    await auditPanel.getByRole('button', { name: /Review & submit/i }).click();
+    await expect(auditPanel.getByText(/^2$/).first()).toBeVisible(); // "Adjusted" count tile
+    const staleAck = auditPanel.getByRole('checkbox', { name: /Submit anyway/i });
+    if (await staleAck.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await staleAck.check();
+    }
+    await auditPanel.getByRole('button', { name: /Submit audit/i }).click();
     await expect(page.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
     await page.getByRole('button', { name: /Close Audit/i }).click();
 
     // Build a cart: 2x product A, 1x product B, plus a fixed discount.
     await page.goto('/pos');
     await page.getByPlaceholder(/Search products/i).first().fill(productA);
-    await page.locator(`text="${productA}" >> visible=true`).first().click();
+    await page.getByText(new RegExp(`^${productA}$`, 'i')).locator('visible=true').first().click();
 
     // A second click straight on the product card is unreliable here: adding
     // the first unit reflows the page (a "Goes well with cart" suggestions
@@ -78,7 +83,7 @@ test.describe('POS held transactions', () => {
     await qtyStepper.getByRole('button').last().click();
 
     await page.getByPlaceholder(/Search products/i).first().fill(productB);
-    await page.locator(`text="${productB}" >> visible=true`).first().click();
+    await page.getByText(new RegExp(`^${productB}$`, 'i')).locator('visible=true').first().click();
 
     // "items" here counts distinct line items (2: product A and B), not
     // total unit quantity (3) - confirmed live in Chrome.
@@ -114,11 +119,11 @@ test.describe('POS held transactions', () => {
     // ancestor of it - verified live in Chrome), since the product name
     // text can otherwise still match a leftover product-search result.
     const cartItemList = page.locator('.min-h-\\[120px\\]');
-    await expect(cartItemList.getByText(productA)).toBeVisible();
-    await expect(cartItemList.getByText(productB)).toBeVisible();
+    await expect(cartItemList.getByText(new RegExp(productA, 'i'))).toBeVisible();
+    await expect(cartItemList.getByText(new RegExp(productB, 'i'))).toBeVisible();
     await expect(
-      cartItemList.locator('div', { hasText: productA }).getByText('2', { exact: true }).first(),
-    ).toBeVisible();
+      cartItemList.locator('div', { hasText: new RegExp(productA, 'i') }).getByRole('spinbutton').first(),
+    ).toHaveValue('2');
 
     // The discount survived the round trip and the total matches what it
     // was right before the sale was held.
@@ -128,9 +133,10 @@ test.describe('POS held transactions', () => {
     // Finish the sale so the held row is fully consumed (no leftover state
     // between test runs) and the receipt confirms the same total charged.
     await page.getByRole('button', { name: /Charge/i }).click();
-    await expect(page.getByText('Payment', { exact: true })).toBeVisible();
-    await page.locator('input[type="number"]').first().fill('10000');
-    await page.getByRole('button', { name: /Process Payment/i }).click();
+    const paymentDialog = page.getByRole('dialog');
+    await expect(paymentDialog.getByText('Payment', { exact: true })).toBeVisible();
+    await paymentDialog.locator('input[type="number"]').first().fill('10000');
+    await paymentDialog.getByRole('button', { name: /Process Payment/i }).click();
     await expect(page.getByText(/Payment Successful|Sale Completed|Receipt/i).first()).toBeVisible({
       timeout: 10000,
     });

@@ -218,7 +218,8 @@ without updating that.
   (`mon..sun`, each null or `{open, close}` as `HH:MM`, open before close), null
   clears one, and stamps `style_dirty_at` only when something changed.
   **`POST /admin/storefront/rebuild`** (`rebuild`, `role:super_admin`) sends the
-  `storefront-changed` dispatch through `StorefrontRebuildDispatcher`, the one
+  environment's rebuild dispatch (`STOREFRONT_REBUILD_EVENT`, see the pipeline
+  section below) through `StorefrontRebuildDispatcher`, the one
   class that talks to GitHub (`GITHUB_TOKEN`/`GITHUB_REPO`; the scheduled
   command uses it too): 202 on acceptance, 502 when GitHub refuses, 503 when
   the server has no credentials. With `STOREFRONT_REBUILD_TOKEN` set it records
@@ -226,15 +227,17 @@ without updating that.
   `/internal/storefront/rebuild-complete` callback, which now also clears
   `style_dirty_at` up to the dispatch time; without one it clears them at once.
   **Owner control (2026-11-14): `GET/PUT /app/storefront-settings`**
-  (`Api\App\StorefrontSettingsController`, inside the `subscription` group; the
-  PUT also needs `subscription:custom_branding`). **Off per store by default:**
+  (`Api\App\StorefrontSettingsController`, inside the `subscription` group; since
+  2026-11-24 the PUT needs the `owner_self_edit_look` storefront entitlement,
+  Enterprise only, instead of `subscription:custom_branding`; see "Storefront
+  plan entitlements"). **Off per store by default:**
   `storefronts.owner_style_enabled` is switched on by a super admin (admin settings
   endpoint, Storefront tab checkbox) because every owner save queues a full
   automatic rebuild. While off, GET answers `{allowed: false}` and PUT 403s with
   a message to contact the account manager; an owner can never set the flag.
   Owner only: a user with a
   `store_id` (staff) gets 403. It serves the owner's first slugged store, accepts
-  `theme` only from `StorefrontThemes::OWNER_IDS` (the three presets) plus every
+  `theme` only from the plan's `allowed_presets` (every preset on Enterprise) plus every
   field above and `locale` / `enabled_locales` (`StorefrontLocales::IDS`, pinned
   by the web), and, unlike the admin endpoints, **does** queue the debounced
   automatic rebuild (`Product::markStorefrontsDirty`) because an owner has no
@@ -883,7 +886,7 @@ from the dashboard (`/refresh` renames everything `web`), hence the role rule.
 
 ### Audit item sync writes in bulk (2026-11-16)
 
-`AuditSessionService::syncBatchItems` upserts items in chunks of 200 on the unique
+`AuditSessionService::syncBatchItems` (via `AuditSessionItemWriter::upsertSyncedItems`) upserts items in chunks of 200 on the unique
 `(audit_session_id, product_id)` key instead of one `updateOrCreate` per item. The till
 used to re-send every counted item on each debounced sync, so a large audit made each
 request run thousands of queries inside one transaction; overlapping requests then hit
@@ -936,6 +939,24 @@ Checkout and checkout/initialize use `resolveBranch(..., requireExplicitMatch: t
 `GET /storefront-slugs` adds `branches: {<brand slug>: [<branch slug>, ...]}` for storefronts
 with two or more live branches; the web build makes branch pages from it. The primary branch
 is the brand's front door, so it has a slug but its canonical URL is the brand root.
+
+### Store types (`stores.store_type`, expanded 2026-11-27)
+
+`App\Support\StoreTypes::IDS` is the one list of store types, in display order:
+`pharmacy, supermarket, grocery, general, beauty, hardware, fashion, electronics,
+auto_parts, stationery, agro, other`. `StoreTypes::rule()` validates register
+(`RegistersAccounts`) and `POST/PUT /stores` (`Web\StoreController`); anything else is
+still a 422, as before. `LEGACY_IDS = ['retail']` stays accepted because older desktop
+bundles wrote it from the setup wizard; drop it once no `stores` row holds `retail` and
+every active bundle is on the 2026-11-27 release or later. `StoreTypes::normalize()` is
+how a reader gets a type: an unknown value (sync pushes `stores` rows unvalidated, and the
+client's local schema defaults to `'store'`) reads as `general`. The public storefront
+payload (`StorefrontPresenter::branchPayload`, moved out of `StorefrontCatalogService` by the storefront plan split) and the first-sync admin alert use it;
+admin and dashboard endpoints return the raw stored value on purpose. Creating a store
+without a type still defaults to `pharmacy` (column default and the `?? 'pharmacy'` on
+create), because old clients omit it and every existing store was made that way.
+`client/lib/constants/store-types.ts` and `web/lib/constants/store-types.ts` copy `IDS`;
+a test in each package reads this file and fails if the lists drift.
 
 ### Till token rotation grace (2026-11-16)
 
@@ -1016,6 +1037,20 @@ Multi-device cycle count coordination backed by the cloud:
 - **Completion Lifecycle & Sync Hook:** Submission occurs locally first on the counting till via `submitStockAudit()`. The client then calls `complete` which transitions the cloud session to `completion_pending_sync` with `submitted_stock_audit_id`. When the sync engine receives and saves the corresponding `StockAudit` row, `StockAudit::booted()` calls `AuditSessionService::confirmSyncCompletion($stockAudit->id)`, atomically moving the session to `completed`.
 - **Completion is replay-safe and cannot stick (2026-11-13, A-376):** a repeat `complete` naming the same `submitted_stock_audit_id` returns 200 (and settles the session if the audit has since synced) instead of 409; a different id still conflicts. `getActiveSession()` and `startSession()` first settle `completion_pending_sync` sessions whose stock audit exists or whose `last_synced_at` is older than `PENDING_SYNC_GRACE_HOURS` (24), so one that never confirms stops blocking new sessions. `getActiveSession()` returns `items: []` for a session that is not `in_progress`, which also stops pre-2026-11-13 clients merging an already-submitted count. No route, field or response shape changed. Tests: `tests/Feature/AuditSessionCompletionRecoveryTest.php`.
 - **Purged User Row Sweeping:** `audit_sessions.active_user_id` has `nullOnDelete()` foreign key semantics and is registered in `PurgedUserRowSweeper::POINTER_COLUMNS` for complete schema safety when users or stores are purged.
+- **Every lease-fenced write locks the session first (2026-11-27, A-431, A-432):** `heartbeat()`, `syncBatchItems()` and `completeSession()` lock the session row at the top of their transaction and check status and lease on that locked row (`assertLeaseHeld()`), never the route-bound copy, and retry the transaction 3 times on a deadlock. Item rows are built and upserted, in `product_id` order, by `AuditSessionItemWriter` (`app/Services/Audit/AuditSessionItemWriter.php`), which also owns the `baseline_quantity` column check.
+
+## Lock the parent before writing its children
+
+Any transaction that inserts or updates child rows and then updates their parent must
+`lockForUpdate()` the parent row **first**. In InnoDB each child write takes a shared
+foreign-key lock on the parent; two overlapping transactions both hold it, both then ask
+for the exclusive lock the parent `UPDATE` needs, and one dies with `1213` deadlock. Locking
+the parent first makes them queue instead. Write the children in a deterministic key order
+(sort by the unique key), and check any state the write depends on (status, lease, version)
+on the locked row, not on a model read before the transaction. Precedents: stock batches
+before movements (A-217/A-287), audit sessions before items (A-431). SQLite ignores
+`FOR UPDATE`, so tests can only pin that the locking read precedes the child write in the
+query log; the real proof is the deadlock not recurring in Sentry.
 
 ## Sync engine (server side)
 
@@ -1715,8 +1750,57 @@ extending or relying on any of this):
   all.** While a rebuild is outstanding and unconfirmed the command refuses to
   dispatch another until
   `dumos.storefront.rebuild_confirmation_timeout` (default 45 min) has passed.
+- **One event per environment (2026-11-24, A-430).** `StorefrontRebuildDispatcher`
+  is the only class that calls GitHub's `repository_dispatch` API; it is used
+  by the scheduled `RebuildStorefrontIfDirty` command, the admin's
+  "Rebuild storefronts now" button and the owner's publish button. The
+  `event_type` it sends is `config('dumos.github.storefront_event')`, fed by
+  `STOREFRONT_REBUILD_EVENT`, defaulting (also when blank) to
+  `storefront-changed`:
+  - `storefront-changed` wakes `deploy-web.yml`, which builds `main` against
+    `api.dumosrx.com` and deploys **dumosrx.com**. Production's `.env` needs
+    nothing new.
+  - `storefront-changed-dev` wakes `deploy-dev.yml`, which runs **only** its
+    `deploy-web` job (no `checks`, no backend, no client app) and deploys
+    **dev.dumosrx.com** built from `dev` against `api.dev.dumosrx.com`, then
+    confirms to `https://api.dev.dumosrx.com/api/v1/internal/storefront/rebuild-complete`.
+    **The dev server's `.env` has to have `STOREFRONT_REBUILD_EVENT=storefront-changed-dev`
+    set by hand** (deploys exclude `.env`). Without it every dev rebuild
+    redeploys the production site from `main` and dev storefront pages (for
+    example a store created only on dev) never appear until the next push to `dev`.
+  - The dev callback presents the **`DEV_STOREFRONT_REBUILD_TOKEN`** repository
+    secret, which must equal the dev API's `STOREFRONT_REBUILD_TOKEN`. It is a
+    separate secret from production's `STOREFRONT_REBUILD_TOKEN` so the dev
+    server never holds the production callback secret. The step mirrors
+    `deploy-web.yml`'s (`if: success()`, `continue-on-error`, `curl --fail`)
+    and additionally runs only on `repository_dispatch`, so a push to `dev`
+    behaves exactly as before. Unset on either side, the dev API stays on
+    clear-on-dispatch, as described above.
+  - **GitHub gotcha:** a `repository_dispatch` run always uses the workflow
+    file from the **default branch (`main`)**, and its `github.ref` is
+    `refs/heads/main`, so `actions/checkout` would build `main`. The dev
+    `deploy-web` job therefore checks out `ref: dev` for that event (empty,
+    i.e. the pushed commit, otherwise). The new trigger does nothing until this
+    `deploy-dev.yml` change has been merged to `main`.
+  - **`needs` with skipped jobs:** `deploy-web` keeps `needs: [checks, deploy-backend]`
+    and has `if: !cancelled() && (repository_dispatch || both needs succeeded)`.
+    Without an explicit `if`, a skipped dependency skips its dependents, so the
+    dispatch would run nothing. On push the condition is the same "both
+    succeeded" as the implicit default.
+  - **Concurrency:** each dev deploy job has its own group, because the three
+    targets (dev.dumosrx.com, app.dev.dumosrx.com, api.dev.dumosrx.com) are
+    independent, but two runs of the *same* job would race that job's
+    FTP-Deploy-Action state file. The web group is the constant
+    `deploy-dev-web`, not `deploy-dev-web-${{ github.ref }}`: a dispatch run's
+    ref is `main` while a push's is `dev`, so a ref-keyed group would let the
+    two upload to dev.dumosrx.com at once. With `cancel-in-progress: false`
+    GitHub keeps one running and one pending job and drops an older pending
+    one. Any surviving run builds the `dev` head, so the content still ships,
+    but a dropped dispatch sends no confirmation and the API re-dispatches
+    after `STOREFRONT_REBUILD_TIMEOUT_MINUTES`.
 - **Coverage:** `tests/Feature/StorefrontRebuildPipelineTest.php` (15 tests,
-  `Http::fake()`) is the file to extend for anything in this area.
+  `Http::fake()`) is the file to extend for anything in this area;
+  `tests/Feature/StorefrontRebuildDispatcherEventTest.php` pins the event type.
 
 Note also that the storefront's online-payment flow (`initializeCheckout`/
 `StorefrontPaymentIntent`) was wired up end-to-end 2026-09-26 (SF-P1-2) via
@@ -1829,9 +1913,10 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
   with the map stored in `SystemConfig` under `storefront_featured_snapshot`,
   and calls `Product::markStorefrontsDirty()` only for stores whose hash
   changed; then it overwrites the map (unpublished stores drop out of it).
-  The existing 15-minute `storefront:rebuild-if-dirty` does the rest, so a
-  night with any number of changed stores still costs at most **one** deploy
-  run, and a quiet night costs none. Design notes:
+  `storefront:rebuild-if-dirty` does the rest (the 15-minute run for an
+  Enterprise store, the 03:00 daily run for Pro), so a night with any number
+  of changed stores still costs at most one deploy per run, and a quiet night
+  costs none. Design notes:
   - **Why `SystemConfig`, not a column:** `stores` is mirrored by `client/`
     and an extra column means a client schema change (root §5); `storefronts`
     is per owner, not per branch. `storefront_rebuild_requested_at` lives
@@ -1848,6 +1933,204 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
     built before were name-ordered).
   - Coverage: `tests/Feature/StorefrontBestSellerRankingTest.php` and
     `tests/Feature/StorefrontRefreshFeaturedCommandTest.php`.
+
+## Storefront plan entitlements (Pro/Enterprise split, 2026-11-24; Starter, 2026-11-27)
+
+What a storefront may do is decided by the owner's **effective plan**
+(`SubscriptionService::resolveEffectivePlan()`, so grace and lapse count) looked
+up in **`config/storefront_entitlements.php`**, through
+`App\Services\Storefront\StorefrontEntitlements` (`forOwner()`, `forStore()`,
+`forPlan()`). An unknown plan name resolves like `free`. Everything is enforced
+on the server; the till and web only lock, hide and explain.
+
+| Flag | Free | Starter (2026-11-27) | Pro | Enterprise | Enforced by |
+|---|---|---|---|---|---|
+| `storefront_enabled` | no | yes, **only after the owner opts in** | yes | yes | `StorefrontController::publishedBranch()`, slugs, services, order tracking (also ANDed with the plan editor's `store_url`) |
+| `allowed_presets` | none | `store_type_default`: one preset, `clinic` for a pharmacy, `workshop` for any other (or unknown) type | admin list, default workshop/clinic/market | every `StorefrontThemes::PRESET_IDS` entry, always | read-time theme fallback; owner `PUT /app/storefront-settings` validation |
+| classic accent themes | n/a | all | all | all | never gated, on any plan, including future ones |
+| `custom_accent_colour` | no | no | no | yes | public payload `accent` is `null` without it |
+| `max_online_products` | n/a | 50 | 300 | unlimited (`null`) | sync push, admin switch-on, owner opt-in, plan watcher (below) |
+| `checkout_pay_on_delivery` | no | yes | yes | yes | `checkoutRefusal()` on `POST /storefront/{slug}/checkout`; refusal messages list only the plan's remaining ways to pay (Pro's wording is unchanged, Starter's says "when you collect your order or on delivery") |
+| `checkout_transfer_mobile_money` | no | no | yes | yes | `checkoutRefusal()`; payload `payment_instructions` is `null` without it, so web offers no transfer |
+| `checkout_paystack` | no | no | no | yes | 422 at both checkout endpoints, 403 on `POST /stores/{id}/payment-account`, `online_payment_available` false |
+| `checkout_whatsapp` | no | yes | yes | yes | payload `whatsapp` is `null` without it (no plan with a storefront lacks it today) |
+| `checkout_flutterwave` | no | no | no | yes | **flag only**: not a checkout method today, so nothing reads it |
+| `remove_powered_by_badge` | no | no | no | yes | public payload `show_powered_by` |
+| `services_on_storefront` | no | no | no | yes | payload `show_services`; `GET /storefront/{slug}/services` returns `[]` |
+| `visitor_language_switch` | no | no | no | yes | payload `enabled_locales` is `[locale]` without it |
+| `owner_self_edit_look` | no | no | no | yes | `PUT /app/storefront-settings` 403 `UPGRADE_REQUIRED` (replaces the old `subscription:custom_branding` route middleware); the super-admin `owner_style_enabled` switch is still required as well |
+| `rebuild_mode` | scheduled | scheduled | scheduled | on_demand | `storefront:rebuild-if-dirty`; owner `POST /app/storefront/rebuild` (403 unless `on_demand`, super admins always allowed, `throttle:storefront-owner-rebuild` 3/hour) |
+| `custom_domain` | no | no | no | yes | flag only, nothing reads it yet |
+
+- **A plan alone never publishes a store.** `stores.online_store_enabled` (the
+  admin switch) is still required, unchanged.
+- **Read time, never write time.** `StorefrontPresenter::profile()` applies the
+  plan to the public `show` payload; nothing a downgrade does touches the saved
+  `storefronts` row, so an upgrade restores the saved preset, accent, services
+  and languages exactly. `checkoutWarning()` tells the owner (on
+  `GET /app/storefront-settings`, field `checkout_warning`) when a store that
+  had a Paystack subaccount lost card payments and has neither payment
+  instructions nor pay on delivery.
+- **The Pro preset list** is SystemConfig `storefront.pro_allowed_presets`,
+  edited only through `GET/PUT /admin/storefront/pro-presets`
+  (`AdminStorefrontPresetService`, super admin; the generic system-config PUT
+  refuses the key with 422 so the log cannot be bypassed). A missing, empty or
+  wholly-unknown saved list falls back to the config default; it is never "no
+  presets". Order is always `PRESET_IDS` order, so "the first allowed preset"
+  (the fallback for a Pro store on a removed preset) is deterministic. A save
+  recomputes, server-side, which Pro storefronts' effective theme changes,
+  marks them dirty and writes `STOREFRONT_PRO_PRESETS_CHANGED` with
+  `properties.old/new/stores_affected`. A newly added preset is Enterprise-only
+  until an admin ticks it.
+- **The client reads the same table** from a computed, never-stored
+  `storefront_entitlements` map that `GET /system-configs/subscription_plans`
+  adds (and the PUT strips), keyed by plan, with `storefront_enabled` ANDed
+  with each tier's `store_url`. `GET /app/storefront-settings` also carries the
+  caller's own `entitlements` (grace-aware). Both are additive (§11).
+- **`store_url` is the single plan-editor key.** `ecommerce` stays in stored
+  data and in the seed (database/seeders/data/subscription_plans.json, a mirror
+  of production with a placeholder bank account number) only because old till
+  bundles read it; retire it once every active device runs a build that reads
+  `store_url` (A-429).
+- **Rebuilds.** `storefront:rebuild-if-dirty` (every 15 minutes) first runs
+  `StorefrontPlanWatcher::reconcile()`, then dispatches only if a dirty store's
+  owner is `on_demand`. `--include-scheduled` (scheduled daily at
+  `storefront_entitlements.scheduled_rebuild`, 03:00 Africa/Lagos) dispatches
+  for any dirty store. The command still sends at most one dispatch per run,
+  however many stores went dirty, which is the original debounce: a full static
+  rebuild plus FTP deploy is too expensive to fire per change. **One build
+  publishes every store**, so any Enterprise, owner or admin rebuild ships
+  pending Pro changes early. The admin `POST /admin/storefront/rebuild` is
+  unchanged. Free/Starter dirtiness (an unpublish, a lapse) also waits for the
+  daily run; an admin who needs a page gone sooner clicks the admin rebuild.
+- **For sales:** the home page's product grid, theme, accent, services and
+  languages are baked at build time (Pro: up to the next 03:00). The Shop page,
+  cart repricing and checkout always call the API, so prices and stock are
+  live on every plan.
+- **`storefronts.applied_plan`** (server only; `storefronts` is not mirrored by
+  the client) is the plan last applied. The watcher compares it with the
+  effective plan each run; on a change it records the new plan, dirties the
+  owner's publishing stores and runs the listing trim. `NULL` (every row at
+  release) means "before plans mattered": it is recorded and trimmed if over
+  the cap, but not dirtied, because the release's own deploy rebuilds every
+  page. That is why the migration has no backfill (and so no `NOW()`, §7).
+
+### Online listing cap
+
+- **What counts:** products with `store_id` = the store, `show_online = true`,
+  not soft-deleted. POS inventory, hidden products and other branches never
+  count. The cap applies only while the store's `online_store_enabled` is on
+  and its plan has a `max_online_products`. Store-less legacy products are not
+  capped.
+- **Sync push** (`StorefrontListingCap::withholdsListing()`, called in
+  `SyncController::push()` just before `save()` on INSERT and UPDATE): a
+  create with `show_online` on, or an off-to-on change, at or past the cap is
+  saved with `show_online = false`, then `stampWithheld()` bumps `_version`,
+  `updated_at` and `_synced_at` past the version the push reports, so the till
+  pulls the corrected value back. An already-listed product is never touched.
+  Turning one off frees a slot. There are no REST product write endpoints, so
+  the 422 message (`StorefrontListingCap::OVER_CAP_MESSAGE`) is used only by
+  the till.
+- **The one-off trim** (`StorefrontListingTrimmer::trimToCap()`) runs when the
+  cap starts applying: the admin switches a store on
+  (`AdminStoreStorefrontService::setEnabled()`, off to on only) or the watcher
+  sees a plan change. If more than the cap are listed it keeps the most
+  popular and sets `show_online = false` on the rest with a version bump.
+  Popularity is units sold in the last 90 days (`sale_items.quantity` on
+  `sales` of that store, both rows not soft-deleted, which excludes voided
+  sales, and `payment_status` not failed/refunded), then the most recent sale
+  ever, then name, then id. It notifies the owner through `notifications`
+  (`/alerts`). It is idempotent: a store already within the cap is left
+  alone, and nothing runs again until the next switch. There is no automatic
+  relisting on upgrade, **except for trims made on a plan in
+  `relist_trimmed_on_upgrade_plans` (Starter)**, below.
+
+### Starter storefront (2026-11-27)
+
+Starter's row in `config/storefront_entitlements.php` is plan data like the
+others (cap 50, one preset, WhatsApp/pickup/pay on delivery, the badge, nightly
+rebuilds, no custom domain). Three things are specific to it, each named by a
+config list rather than by plan name in code:
+
+- **Owner opt-in (`owner_opt_in_plans`).** For a plan in this list
+  `StorefrontEntitlements::forOwner()` ANDs `storefront_enabled` with
+  `hasOwnerOptedIn()`: `storefronts.owner_opted_in_at` is set, **or** the
+  storefront's `applied_plan` was a plan with a storefront and no opt-in (a
+  Pro or Enterprise owner moving down to Starter keeps a live store live; the
+  watcher then stamps `owner_opted_in_at` on that transition so it sticks).
+  This is the §11 guard: a Starter store whose `online_store_enabled` is already
+  1 (an old till could set it) stays dark, untrimmed and unchanged until the
+  owner opts in **or a super admin switches it on**.
+  - **An admin enable is an opt-in (2026-11-27).** `AdminStoreStorefrontService::setEnabled()`
+    calls `StorefrontOptInService::optIn($owner, 'admin')` when the request
+    switches the store on (`enabled: true` with no `store_slug`, or any enable
+    of a store that was off) and the owner's plan is in `owner_opt_in_plans`. It
+    stamps `owner_opted_in_at`, sets `storefronts.opted_in_by = 'admin'`, logs
+    `STOREFRONT_ADMIN_OPTED_IN` against the admin, trims and dirties, exactly
+    like the owner's button (`opted_in_by = 'owner'`, `STOREFRONT_OWNER_OPTED_IN`).
+    Only the action counts: a flag already sitting at 1 in the database, or an
+    address change on a store that is already on, does not, so no existing
+    Starter store goes live on deploy. Re-sending `enabled: true` for a dormant
+    store that is already on does count (the admin card's "Put it live for the
+    owner" button). Off then on again keeps the first stamp and logs once. Pro
+    and Enterprise never record an opt-in. The watcher's carry-over on a
+    downgrade writes `opted_in_by = 'plan_change'`. `opted_in_by` is a new
+    nullable column in the same unreleased migration as `owner_opted_in_at`.
+  - **Admin store detail** (`GET /admin/stores/{id}`, `storefront`) adds
+    `opt_in_required`, `opted_in_at` (ISO), `opted_in_by` and `storefront_live`
+    (switched on and the plan's storefront applies). Additive. `NULL` everywhere at release is the "not opted in" value, so
+  the migration has no backfill and the shim never needs retiring.
+  - `POST /app/storefront/opt-in` (`StorefrontOptInController`,
+    `StorefrontOptInService`): owner only (staff 403), the plan must offer a
+    storefront at all (`planOffersStorefront()`, else 403 `UPGRADE_REQUIRED`),
+    and the owner needs a slugged store (422 otherwise; the storefront row is
+    created from it as the admin path does). Idempotent: the first time is
+    kept. It logs `STOREFRONT_OWNER_OPTED_IN`, runs the trim for every
+    switched-on store, and dirties them, so a store the account manager had
+    already switched on appears at the next 03:00 run. Publishing still needs
+    `online_store_enabled`: opting in never switches a store on.
+  - `GET /app/storefront-settings` adds `opt_in_required` and `opted_in`
+    (both forms), and the computed plan map adds `owner_opt_in_required` per
+    plan (map only, not `forOwner()`). All additive; an old till ignores them
+    and sees Starter as having no storefront until opted in, which is what the
+    server enforces.
+- **One preset (`allowed_presets: 'store_type_default'`).**
+  `StorefrontThemes::defaultPresetFor()` mirrors web's
+  `resolveStorefrontPreset()` over the payload's `StoreTypes::normalize()`d
+  type, and the till's `presetFor()`: only `pharmacy` gets `clinic`; an empty
+  or unknown type reads as `general`, so `workshop`. `forStore()` passes the
+  branch's type; `forOwner()` without one reads the storefront's primary
+  store. The plan map has no store, so its Starter entry shows `workshop`;
+  the per-owner `entitlements` from
+  `GET /app/storefront-settings` is the real one. Classic colour themes stay
+  ungated (the web already lays a classic theme out as the store type's
+  default preset). A saved preset outside the plan is shown as the one preset
+  and kept untouched for an upgrade.
+- **Reversible trim (`relist_trimmed_on_upgrade_plans`).** When the trim runs
+  while the owner's plan is in this list, the unlisted product ids go into
+  the server-only `storefront_trimmed_listings` table (`store_id`,
+  `product_id`, `trimmed_at`, unique pair, cascade on hard delete; swept with
+  products by `PurgedUserRowSweeper`). On every plan change the watcher runs
+  `trimToCap()` then `relistTrimmed()`, which, only for a switched-on store
+  whose plan has a storefront, sets `show_online` back on for remembered
+  products still unlisted and not soft-deleted, best sellers first, up to the
+  new plan's free slots, with the usual sync stamp, and notifies the owner.
+  Remembered rows whose product is listed again are deleted; the rest wait
+  for the next plan change. Pro trims are not remembered, so a Pro to
+  Enterprise upgrade still relists nothing, as before.
+- **Not shown by SQLite:** `StorefrontOptInService` takes `lockForUpdate()` on
+  the storefront row so two opt-ins cannot both log; SQLite ignores the lock,
+  so that race is untested. Between a Pro to Starter downgrade and the next
+  15-minute watcher run, up to 300 products can still be listed; the trim
+  catches up on that run.
+
+Coverage: `StorefrontStarterTierTest` (Starter: opt-in, cap, trim and relist, checkout, payload, rebuilds, sync push), `StorefrontEntitlementsTest`, `StorefrontPlanEffectiveSettingsTest`,
+`StorefrontOwnerSettingsTest`, `Admin/AdminStorefrontProPresetsTest`,
+`StorefrontOnlineListingCapTest`, `StorefrontListingTrimTest`,
+`StorefrontPlanRebuildScheduleTest`, `StorefrontOwnerRebuildTest`,
+`SystemConfigSeederPlansTest`. Storefront tests about isolation or payments
+rather than plans use `Tests\Concerns\BuildsStorefrontPlans::grantEveryStorefrontEntitlementToEveryPlan()`
+so a planless owner keeps a full storefront.
 
 ## Sync push refusals are recorded once, from `$failed`, after the outer commit
 
@@ -3823,7 +4106,12 @@ lives in `config/backups.php` rather than in the controller:
 
 `Api/Public/StorefrontController` is the only unauthenticated tenant-data
 surface in the app. It is kept strictly below 350 lines by delegating to
-specialized storefront services:
+specialized storefront services (every action resolves its branch through one
+private `publishedBranch()`, which also resolves the plan's entitlements):
+- **`StorefrontPresenter`**: the public payload with the plan applied at read
+  time (`profile()`, `branchPayload()`, `branchSummaries()`,
+  `onlinePaymentAvailable()`, `checkoutWarning()`); see "Storefront plan
+  entitlements".
 - **`StorefrontCatalogService`**: encapsulates product querying (`storeProducts`),
   excluding controlled substances, sorting in-stock first (`scopeInStockFirstAt`),
   landing page product slicing, paginated catalog searching with category counts,
@@ -4328,6 +4616,18 @@ guard has to inspect the live MySQL schema directly and skip itself
 when that connection isn't reachable — see
 `FeedbackFingerprintColumnWidthTest`, same pattern `SyncPushRowLockTest`
 already uses for `lockForUpdate()` (another behavior SQLite can't exercise).
+
+**The skipped count is a property of the machine, not the code.** Those two
+files hold the suite's only environment-dependent skips: four cases (the row
+lock, the fingerprint width, and the two data-provider widths), all skipped
+when the MySQL named in `.env` refuses the connection and all run when it
+answers. So a run reports `4 skipped` with no local MySQL (a fresh worktree,
+CI, a laptop with MySQL stopped) and `0 skipped` with one. Before 2026-11-27
+it was 5 and 1: `BackfillProductVersionsCommandTest` also had a null-version
+case that skipped on every schema the migrations build, because
+`products._version` is `NOT NULL default 1`, so it never ran anywhere and was
+deleted. A skip count outside 0 or 4 means something else is skipping.
+`CouponUsagesForeignKeyRepairTest` skips off SQLite only, so it always runs here.
 
 `tests/Feature/` covers: tenant isolation (`TenantIsolationTest`), admin
 account-security regressions (`AccountSecurityTest`), the handoff/

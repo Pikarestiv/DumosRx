@@ -1,3 +1,5 @@
+import type { StorefrontEntitlements } from "./storefront-settings";
+
 // A single subscription tier's config:
 // Rationale: docs/CLIENT_LIB_COMMENTS.md#types-subscription-plans-ts-L1
 export interface SubscriptionPlanTier {
@@ -12,6 +14,8 @@ export interface SubscriptionPlanTier {
  * (with a local SQLite cache) and consumed by useFeatureGate(). */
 export interface SubscriptionPlansConfig {
   tiers?: Record<string, SubscriptionPlanTier | undefined>;
+  /** Computed by the server on read, never stored; absent from servers older than the storefront plan split. */
+  storefront_entitlements?: Record<string, StorefrontEntitlements | undefined>;
 }
 
 export interface SubscriptionStatus {

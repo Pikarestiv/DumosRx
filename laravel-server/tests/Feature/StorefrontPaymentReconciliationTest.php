@@ -22,6 +22,7 @@ use Tests\TestCase;
 class StorefrontPaymentReconciliationTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     const PAYSTACK_SECRET = 'sk_test_paystack_secret';
 
@@ -34,6 +35,7 @@ class StorefrontPaymentReconciliationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         config([
             'payment.paystack.secret_key' => self::PAYSTACK_SECRET,

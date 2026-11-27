@@ -26,3 +26,15 @@ export function useUpdateStorefrontSettings() {
     },
   });
 }
+
+export function useOptInStorefront() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.optInStorefront(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.storefrontSettings.show().queryKey }),
+  });
+}
+
+export function useRebuildStorefront() {
+  return useMutation({ mutationFn: () => apiClient.rebuildStorefront() });
+}

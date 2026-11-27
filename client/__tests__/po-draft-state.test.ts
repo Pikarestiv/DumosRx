@@ -8,6 +8,7 @@ import {
   UNDO_LIMIT,
   type PoDraft,
 } from "@/components/procurement/order-screen/po-draft-state";
+import { draftFromOrder } from "@/components/procurement/order-screen/po-draft-snapshot";
 import type { POLineItemDraft } from "@/components/procurement/po-item-ledger-table";
 import type { PurchaseOrder } from "@/lib/db/procurement";
 
@@ -84,14 +85,12 @@ describe("reopening a saved order", () => {
     payment_status: "unpaid", amount_paid: 0, items: [line()], ...fields,
   }) as unknown as PurchaseOrder;
 
-  it("opens a fully paid order with Paid in full on, including an older paid row whose amount was never stored", async () => {
-    const { draftFromOrder } = await import("@/components/procurement/order-screen/po-draft-snapshot");
+  it("opens a fully paid order with Paid in full on, including an older paid row whose amount was never stored", () => {
     expect(draftFromOrder(order({ payment_status: "paid", amount_paid: 200 })).paidInFull).toBe(true);
     expect(draftFromOrder(order({ payment_status: "paid", amount_paid: null })).paidInFull).toBe(true);
   });
 
-  it("opens a part-paid or unpaid order, or one with nothing counted yet, with the toggle off", async () => {
-    const { draftFromOrder } = await import("@/components/procurement/order-screen/po-draft-snapshot");
+  it("opens a part-paid or unpaid order, or one with nothing counted yet, with the toggle off", () => {
     expect(draftFromOrder(order({ payment_status: "partial", amount_paid: 50 })).paidInFull).toBe(false);
     expect(draftFromOrder(order({})).paidInFull).toBe(false);
     expect(draftFromOrder(order({ items: [line({ bulk_quantity: 0, subtotal: 0 })], total_amount: 0 })).paidInFull).toBe(false);

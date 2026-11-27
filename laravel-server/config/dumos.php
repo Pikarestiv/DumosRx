@@ -34,15 +34,19 @@ return [
     |--------------------------------------------------------------------------
     |
     | Personal access token (classic, `repo` scope) used to trigger a
-    | repository_dispatch event on the deploy-web.yml workflow when a
-    | store's storefront goes online/offline or changes its slug. See
-    | App\Console\Commands\RebuildStorefrontIfDirty.
+    | repository_dispatch event when a store's storefront needs rebuilding.
+    | See App\Console\Commands\RebuildStorefrontIfDirty.
+    |
+    | storefront_event picks which site rebuilds: `storefront-changed`
+    | (default) is deploy-web.yml / dumosrx.com, `storefront-changed-dev` is
+    | deploy-dev.yml / dev.dumosrx.com. Set it on the dev API's .env.
     |
     */
     'github' => [
         'token' => env('GITHUB_TOKEN'),
         // "owner/repo" - no default; must be set explicitly in .env.
         'repo' => env('GITHUB_REPO'),
+        'storefront_event' => env('STOREFRONT_REBUILD_EVENT', 'storefront-changed'),
     ],
 
     /*

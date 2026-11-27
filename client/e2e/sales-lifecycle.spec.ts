@@ -21,7 +21,7 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await page.goto('/inventory/catalog');
     await page.getByRole('button', { name: /Add Product/i }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('textbox').first().fill(productName);
+    await dialog.getByRole('combobox').first().fill(productName);
     // Category is a freeform SearchableInput (components/ui/searchable-input.tsx)
     // - typing a value directly commits it, no need to pick an existing
     // suggestion. Its own suggestion popover closes on outside click (not
@@ -32,19 +32,19 @@ test.describe('Sales Lifecycle (realistic data)', () => {
 
     // Selling Price and Reorder Level fields (labeled, not placeholder-matched
     // reliably across breakpoints; locate by nearby label text).
-    await page.getByLabel(/Selling Price/i).first().fill('1500');
-    await page.getByLabel(/Reorder Level/i).first().fill('10');
-    await page.getByRole('button', { name: /^Add Product$/i }).last().click();
+    await dialog.getByRole('spinbutton', { name: /Selling Price/i }).fill('1500');
+    await dialog.getByRole('spinbutton', { name: /Reorder Level/i }).fill('10');
+    await dialog.getByRole('button', { name: /^Add Product$/i }).click();
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 
     // Decoy product, deliberately in a different category ("Vitamins"), so
     // it's excluded once the ledger is filtered to "Antibiotics" below.
     await page.getByRole('button', { name: /Add Product/i }).click();
-    await dialog.getByRole('textbox').first().fill(decoyProductName);
+    await dialog.getByRole('combobox').first().fill(decoyProductName);
     await dialog.getByPlaceholder('Select or type category').fill('Vitamins');
-    await page.getByLabel(/Selling Price/i).first().fill('800');
-    await page.getByLabel(/Reorder Level/i).first().fill('10');
-    await page.getByRole('button', { name: /^Add Product$/i }).last().click();
+    await dialog.getByRole('spinbutton', { name: /Selling Price/i }).fill('800');
+    await dialog.getByRole('spinbutton', { name: /Reorder Level/i }).fill('10');
+    await dialog.getByRole('button', { name: /^Add Product$/i }).click();
     await expect(page.getByText('Add New Product', { exact: true })).not.toBeVisible();
 
     // 2. Stock the real product via a Cycle Count (physical count of 50
@@ -75,8 +75,8 @@ test.describe('Sales Lifecycle (realistic data)', () => {
 
     const categoryFilter = auditPanel.getByRole('button', { name: /^Category:/ });
     await categoryFilter.click();
-    await page.getByRole('menuitemradio', { name: /^Antibiotics \(\d+\)$/ }).click();
-    await expect(categoryFilter).toHaveText(/Antibiotics/);
+    await page.getByRole('menuitemradio', { name: /^Antibiotics \(\d+\)$/i }).click();
+    await expect(categoryFilter).toHaveText(/Antibiotics/i);
 
     // Prove the filter selection actually narrowed the grid, not just that
     // the pill's own label updated: the decoy product (a different,
@@ -99,6 +99,10 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     await auditPanel.getByRole('button', { name: /Review & submit/i }).click();
     await expect(auditPanel.getByText('Review & submit', { exact: true })).toBeVisible();
     await expect(auditPanel.getByText(productName, { exact: false })).toBeVisible();
+    const staleAck = auditPanel.getByRole('checkbox', { name: /Submit anyway/i });
+    if (await staleAck.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await staleAck.check();
+    }
     await auditPanel.getByRole('button', { name: /Submit audit/i }).click();
     await expect(auditPanel.getByText('Audit submitted', { exact: true })).toBeVisible({ timeout: 10000 });
     await auditPanel.getByRole('button', { name: /Close Audit/i }).click();
@@ -106,7 +110,7 @@ test.describe('Sales Lifecycle (realistic data)', () => {
     // 3. Sell it at POS with a discount and a cash payment.
     await page.goto('/pos');
     await page.getByPlaceholder(/Search products/i).first().fill(productName);
-    const productCard = page.locator(`text="${productName}" >> visible=true`).first();
+    const productCard = page.getByText(new RegExp(`^${productName}$`, 'i')).locator('visible=true').first();
     await expect(productCard).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text="Out of stock" >> visible=true')).not.toBeVisible();
     await productCard.click();

@@ -88,10 +88,11 @@ describe("storefront theme registry", () => {
 
   it("offers exactly the theme ids the server accepts", () => {
     const php = repoFile("laravel-server/app/Support/StorefrontThemes.php");
-    const serverList = /public const IDS = \[([^\]]*)\]/.exec(php)?.[1] ?? "";
-    const serverIds = [...serverList.matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
+    const list = (name: string) => [...(new RegExp(`public const ${name} = \\[([^\\]]*)\\]`).exec(php)?.[1] ?? "").matchAll(/'([a-z]+)'/g)].map((m) => m[1]);
+    const serverIds = [...list("CLASSIC_IDS"), ...list("PRESET_IDS")];
 
     expect(serverIds).toEqual(STOREFRONT_THEMES.map((theme) => theme.id));
+    expect(list("PRESET_IDS")).toEqual(STOREFRONT_PRESETS.map((preset) => preset.id));
   });
 
   it.each(STOREFRONT_PRESETS.map((preset) => [preset.id, preset] as const))(

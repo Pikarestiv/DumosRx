@@ -4,6 +4,7 @@ import { INVENTORY_GUIDES } from "./guides/inventory-guides";
 import { PROCUREMENT_GUIDES } from "./guides/procurement-guides";
 import { FINANCE_GUIDES } from "./guides/finance-guides";
 import { OPERATIONS_GUIDES } from "./guides/operations-guides";
+import { STOREFRONT_GUIDES } from "./guides/storefront-guides";
 
 export * from "./guides/types";
 
@@ -13,6 +14,7 @@ export const GUIDES: GuideItem[] = [
   ...PROCUREMENT_GUIDES,
   ...FINANCE_GUIDES,
   ...OPERATIONS_GUIDES,
+  ...STOREFRONT_GUIDES,
 ];
 
 export const GUIDE_CATEGORIES: GuideCategory[] = [

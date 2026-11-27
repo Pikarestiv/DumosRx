@@ -21,6 +21,9 @@ import type { NewProductPayload } from "@/lib/types/product";
 import { capitalizeWords } from "@/lib/hooks/use-uppercase-display";
 import { STORAGE_KEYS } from "@/lib/storage-keys";
 import { useDuplicateProducts } from "@/lib/hooks/use-duplicate-products";
+import { useOnlineListingCap } from "@/lib/hooks/use-online-listing-cap";
+import { overCapMessage, refusesNewListing } from "@/lib/utils/storefront-entitlements";
+import { toast } from "sonner";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -94,6 +97,12 @@ export function AddProductDialog({
     }
   }
 
+  const listingCap = useOnlineListingCap();
+  const alreadyListed = Boolean(editingProduct?.showOnline);
+  if (formData.showOnline && refusesNewListing(listingCap, { turningOn: true, alreadyListed })) {
+    setFormData((prev) => ({ ...prev, showOnline: false }));
+  }
+
   const isPharmacy = storeType === "pharmacy";
   const { sameBarcode } = useDuplicateProducts(formData);
 
@@ -164,6 +173,10 @@ export function AddProductDialog({
   };
 
   const handleInputChange = (field: keyof Product, value: string | number | boolean | null) => {
+    if (field === "showOnline" && refusesNewListing(listingCap, { turningOn: value === true, alreadyListed })) {
+      toast.error(overCapMessage(listingCap.cap ?? 0, listingCap.tier));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 

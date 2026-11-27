@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\SystemConfig;
+use App\Services\Storefront\StorefrontEntitlements;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +25,7 @@ class SystemConfigController extends Controller
     #[OA\Get(
         path: '/system-configs/{key}',
         summary: 'Get a platform configuration value by key',
-        description: 'Public, no auth required, but only for the keys on the public allow-list (subscription_plans, global_suggestions, require_email_verification, smartsupp_key, social_links). Any other key is 404 for everyone except a super_admin bearer token.',
+        description: 'Public, no auth required, but only for the keys on the public allow-list (subscription_plans, global_suggestions, require_email_verification, smartsupp_key, social_links). Any other key is 404 for everyone except a super_admin bearer token. subscription_plans also carries a computed, never-stored `storefront_entitlements` map keyed by plan.',
         tags: ['System Config'],
         parameters: [new OA\Parameter(name: 'key', in: 'path', required: true, schema: new OA\Schema(type: 'string'))],
         responses: [
@@ -53,6 +54,10 @@ class SystemConfigController extends Controller
         }
 
         $value = SystemConfig::getVal($key, null);
+
+        if ($key === 'subscription_plans' && is_array($value)) {
+            $value['storefront_entitlements'] = app(StorefrontEntitlements::class)->forEveryPlan($value);
+        }
 
         return response()->json([
             'success' => true,
@@ -89,6 +94,14 @@ class SystemConfigController extends Controller
         $validated = $request->validate([
             'value' => 'present',
         ]);
+
+        if ($key === config('storefront_entitlements.pro_allowed_presets_key')) {
+            throw ValidationException::withMessages(['value' => 'Change the Pro storefront presets from Storefront presets in the admin panel, so the change is checked and logged.']);
+        }
+
+        if ($key === 'subscription_plans' && is_array($validated['value'])) {
+            unset($validated['value']['storefront_entitlements']);
+        }
 
         // This endpoint stores arbitrary JSON for arbitrary keys, so there is
         // no single schema to validate. `subscription_plans` is the one key

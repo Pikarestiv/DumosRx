@@ -29,9 +29,11 @@ export function StorefrontFooter({ store, storefront }: StorefrontFooterProps) {
           </p>
         </div>
         {details.length > 0 && <p className="opacity-80 md:text-center">{details.join("   ")}</p>}
-        <a href={WEB_APP_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 opacity-80 hover:opacity-100">
-          {t("footer.powered", { host: WEB_APP_HOST })}
-        </a>
+        {storefront?.show_powered_by !== false && (
+          <a href={WEB_APP_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 opacity-80 hover:opacity-100">
+            {t("footer.powered", { host: WEB_APP_HOST })}
+          </a>
+        )}
       </div>
     </footer>
   );

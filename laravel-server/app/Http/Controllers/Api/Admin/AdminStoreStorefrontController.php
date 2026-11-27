@@ -176,7 +176,7 @@ class AdminStoreStorefrontController extends AdminBaseController
     #[OA\Post(
         path: '/admin/storefront/rebuild',
         summary: 'Rebuild every storefront now (super admin only)',
-        description: 'Fires the same `storefront-changed` repository_dispatch the scheduled command sends, without waiting for a store to be dirty, so style changes can be shipped on demand. 202 means GitHub accepted the dispatch, not that the deploy has finished.',
+        description: 'Fires the same repository_dispatch the scheduled command sends (STOREFRONT_REBUILD_EVENT: `storefront-changed` in production, `storefront-changed-dev` on dev), without waiting for a store to be dirty, so style changes can be shipped on demand. 202 means GitHub accepted the dispatch, not that the deploy has finished.',
         tags: ['Admin'],
         security: [['sanctum' => []]],
         responses: [

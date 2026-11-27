@@ -6,7 +6,10 @@ export interface TierFeatures {
    * made it read as permanently false. */
   web_dashboard: boolean;
   mobile_app: boolean;
-  ecommerce: boolean;
+  /** The online storefront: the single plan-editor key. */
+  store_url: boolean;
+  /** Read only by till bundles older than the store_url merge; never edited, kept in stored data until every active device reads store_url. */
+  ecommerce?: boolean;
   smart_pos: boolean;
   custom_branding: boolean;
   remove_branding: boolean;
@@ -46,6 +49,8 @@ export interface TierConfig {
 }
 
 export interface SubscriptionConfig {
+  /** Computed by the server on read and stripped on save; absent from servers older than the storefront plan split. */
+  storefront_entitlements?: Record<string, { max_online_products: number | null } | undefined>;
   trial_days: number;
   trial_plan: string;
   grace_period_days: number;

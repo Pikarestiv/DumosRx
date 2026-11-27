@@ -29,6 +29,7 @@ use Tests\TestCase;
 class StorefrontControllerTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     /**
      * A product that passes checkout()'s is_active/show_online filter, with
@@ -95,6 +96,7 @@ class StorefrontControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         // Only plan-gating behavior is under test in the dedicated
         // test_* methods below; every other test here is about storefront

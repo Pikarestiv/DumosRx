@@ -17,6 +17,17 @@ export interface SubscriptionPlan {
  * `SubscriptionConfig["tiers"]` and the backend's `subscription_plans`
  * config - anything that lets an admin pick a plan should read these rather
  * than accept free text. */
+const onlineCap = (config: Partial<SubscriptionConfig> | undefined, plan: string): number | null =>
+  config?.storefront_entitlements?.[plan]?.max_online_products ?? null;
+
+export const upToProducts = (config: Partial<SubscriptionConfig> | undefined, plan: string): string => {
+  const cap = onlineCap(config, plan);
+  return cap === null ? "" : `up to ${cap} products, `;
+};
+
+export const starterStorefrontLine = (config: Partial<SubscriptionConfig> | undefined): string =>
+  `Online Storefront: ${upToProducts(config, "starter")}WhatsApp orders, pickup or pay on delivery`;
+
 export const PLAN_SLUGS = ["free", "starter", "pro", "enterprise"] as const;
 
 export type PlanSlug = (typeof PLAN_SLUGS)[number];
@@ -62,10 +73,11 @@ export const getSubscriptionPlans = (
         `Up to ${config?.tiers?.starter?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.staff || 3)} Staff Accounts`,
         "Cloud Sync (Every 30 Minutes)",
         "Prescriptions, Procurement & Expenses",
+        config?.tiers?.starter?.features?.store_url ? starterStorefrontLine(config) : "",
       ].filter(Boolean),
       missing: [
         !config?.tiers?.starter?.features?.mobile_app ? "No Mobile App Companion" : "",
-        !config?.tiers?.starter?.features?.ecommerce ? "No E-commerce Store URL" : "",
+        !config?.tiers?.starter?.features?.store_url ? "No Online Storefront" : "",
         !config?.tiers?.starter?.features?.smart_pos ? "No Smart POS Suggestions" : "",
       ].filter(Boolean),
       numericPrice: isYearly 
@@ -88,7 +100,7 @@ export const getSubscriptionPlans = (
         "Automatic Sync (Every 15-30 Mins)",
         "Daily Auto Backups & Full Web Analytics",
         config?.tiers?.pro?.features?.smart_pos ? "Smart POS Suggestions & Custom Receipts" : "",
-        config?.tiers?.pro?.features?.ecommerce ? "Custom Store E-commerce URL" : "",
+        config?.tiers?.pro?.features?.store_url ? `Online Storefront: ${upToProducts(config, "pro")}pay by transfer or on delivery, updated nightly` : "",
       ].filter(Boolean),
       missing: [
          !config?.tiers?.pro?.features?.custom_branding ? "No Custom Branding" : ""
@@ -113,6 +125,7 @@ export const getSubscriptionPlans = (
         "Real-time Instant Cloud Sync & Backups",
         "Multi-Store HQ Analytics Dashboard",
         config?.tiers?.enterprise?.features?.custom_branding ? "Custom Branding & White-Labeling" : "",
+        config?.tiers?.enterprise?.features?.store_url ? "Full Online Storefront: unlimited products, card payments, every style, instant publishing" : "",
         "Priority SMS/Email Stock & Expiry Alerts",
       ].filter(Boolean),
       missing: [],

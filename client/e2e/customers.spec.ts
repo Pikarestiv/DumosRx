@@ -37,10 +37,12 @@ test.describe('Customers Module', () => {
     // insert triggers, so poll the URL first and give the tab re-render a
     // moment to settle before asserting its data-state.
     await expect(page).toHaveURL(/tab=directory/);
-    await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('tab', { name: 'Directory' })).toHaveAttribute('data-state', 'active', { timeout: 20000 });
-    // The customer's name also renders in an off-screen mobile detail sheet
-    // that stays mounted while closed, so match only the visible instance.
+    const detailDialog = page.getByRole('dialog', { name: 'Details' });
+    await expect(detailDialog).toBeVisible();
+    await expect(detailDialog.getByText(`${firstName} Redirect`)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(detailDialog).not.toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Directory' })).toHaveAttribute('data-state', 'active');
     await expect(page.locator(`text="${firstName} Redirect" >> visible=true`).first()).toBeVisible();
   });
 });

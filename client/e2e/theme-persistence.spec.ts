@@ -6,6 +6,7 @@ test('a paid store keeps its dark theme across a reload', async ({ page }) => {
   expect(await queryLocalDb(page, 'SELECT subscription_tier FROM stores')).toEqual([{ subscription_tier: 'pro' }]);
 
   await page.locator('a[href="/settings"]').first().click();
+  await expect(page).toHaveURL(/\/settings/, { timeout: 15000 });
   await expect(page.getByRole('tab', { name: 'General', selected: true })).toBeVisible();
   await page.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);

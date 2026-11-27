@@ -43,6 +43,7 @@ export function ProductBasicInfoFields({
             {t("product")} Name *
           </FieldLabel>
           <ProductCombobox
+            id="name"
             value={formData.name}
             showCreateNewOption={false}
             onChange={(option) => {

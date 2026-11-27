@@ -5,6 +5,7 @@ import { query, transaction, update, getActiveStoreId } from "@/lib/db/local-dat
 export async function setProductsShowOnline(
   showOnline: boolean,
   productIds?: string[],
+  maxToList?: number,
 ): Promise<number> {
   const storeId = getActiveStoreId();
   const params: (string | number)[] = [];
@@ -24,7 +25,8 @@ export async function setProductsShowOnline(
     params.push(...productIds);
   }
 
-  const rows = await query<{ id: string }>(sql, params);
+  const found = await query<{ id: string }>(sql, params);
+  const rows = showOnline && maxToList !== undefined ? found.slice(0, Math.max(0, maxToList)) : found;
   if (rows.length === 0) return 0;
 
   await transaction(async () => {
@@ -34,4 +36,13 @@ export async function setProductsShowOnline(
   });
 
   return rows.length;
+}
+
+export async function countListedProducts(): Promise<number> {
+  const storeId = getActiveStoreId();
+  const rows = await query<{ listed: number }>(
+    `SELECT COUNT(*) AS listed FROM products WHERE _deleted = 0 AND show_online = 1${storeId ? " AND store_id = ?" : ""}`,
+    storeId ? [storeId] : [],
+  );
+  return Number(rows[0]?.listed ?? 0);
 }

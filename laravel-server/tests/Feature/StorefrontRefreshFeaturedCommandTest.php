@@ -19,6 +19,7 @@ use Tests\TestCase;
 class StorefrontRefreshFeaturedCommandTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\BuildsStorefrontPlans;
 
     private User $owner;
 
@@ -29,6 +30,7 @@ class StorefrontRefreshFeaturedCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->grantEveryStorefrontEntitlementToEveryPlan();
 
         config([
             'dumos.github.token' => 'gh-test-token',

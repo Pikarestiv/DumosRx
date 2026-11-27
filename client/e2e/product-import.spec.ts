@@ -8,7 +8,8 @@ test.describe('Product Import dialog', () => {
     await login(page);
     await page.goto('/inventory/catalog');
 
-    await page.getByRole('button', { name: /^Import$/i }).click();
+    await page.getByRole('button', { name: /Product actions/i }).click();
+    await page.getByRole('menuitem', { name: /Import products from a file/i }).click();
     await expect(page.getByText('Import products', { exact: true })).toBeVisible();
 
     const fixturePath = path.join(__dirname, 'fixtures', 'multi-sheet-import.xlsx');
@@ -40,7 +41,8 @@ test.describe('Product Import dialog', () => {
     await login(page);
     await page.goto('/inventory/catalog');
 
-    await page.getByRole('button', { name: /^Import$/i }).click();
+    await page.getByRole('button', { name: /Product actions/i }).click();
+    await page.getByRole('menuitem', { name: /Import products from a file/i }).click();
     const fixturePath = path.join(__dirname, 'fixtures', 'multi-sheet-import.xlsx');
     await page.locator('input[type="file"]').setInputFiles(fixturePath);
 

@@ -112,6 +112,8 @@ test.describe('Settings', () => {
     await page.goto('/settings/data');
     await expect(page.getByText('Data Synchronization', { exact: true })).toBeVisible();
 
+    await page.getByRole('button', { name: /Edit background automation/i }).click();
+
     // Auto-Sync must be on for the Sync Interval select to render at all
     // (data-settings-auto-sync.tsx only shows it when autoSyncEnabled).
     const autoSyncSwitch = page.getByRole('switch');
@@ -132,7 +134,7 @@ test.describe('Settings', () => {
 
     await page.reload();
     await expect(page.getByText('Data Synchronization', { exact: true })).toBeVisible();
-    await expect(page.getByRole('combobox')).toContainText('Every 1 Hour');
+    await expect(page.getByText('Every 1 Hour')).toBeVisible();
   });
 
   test('roles: permission matrix renders with the 5 seeded default groups', async ({ page }) => {

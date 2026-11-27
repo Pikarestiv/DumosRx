@@ -42,16 +42,16 @@ test.describe('Procurement Module', () => {
     // Click the pinned "Create ...
     // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-procurement-spec-ts-L57
     await page
-      .getByText('Create "Paracetamol 500mg (Test)" as new product', { exact: true })
+      .getByText('Create \u201cParacetamol 500mg (Test)\u201d as new product', { exact: true })
       .locator('visible=true')
       .first()
       .click();
 
     // The Quick Add modal should open (Add New Product) with the typed name
-    // pre-filled as the Product Name: first textbox in the dialog.
+    // pre-filled as the Product Name: first combobox in the dialog.
     await expect(page.locator('text="Add New Product" >> visible=true').first()).toBeVisible();
     const addProductDialog = page.getByRole('dialog').filter({ has: page.getByText('Add New Product') });
-    await expect(addProductDialog.getByRole('textbox').first()).toHaveValue('Paracetamol 500mg (Test)');
+    await expect(addProductDialog.getByRole('combobox').first()).toHaveValue('Paracetamol 500mg (Test)');
   });
 
   test('should autosave a walk-in order, receive it from the order screen, and increase product stock', async ({ page }) => {
@@ -90,14 +90,14 @@ test.describe('Procurement Module', () => {
     await page.waitForTimeout(500);
 
     await page
-      .getByText(`Create "${productName}" as new product`, { exact: true })
+      .getByText(`Create \u201c${productName}\u201d as new product`, { exact: true })
       .locator('visible=true')
       .first()
       .click();
 
     const addProductDialog = page.getByRole('dialog').filter({ has: page.getByText('Add New Product') });
     await expect(addProductDialog).toBeVisible();
-    await expect(addProductDialog.getByRole('textbox').first()).toHaveValue(productName);
+    await expect(addProductDialog.getByRole('combobox').first()).toHaveValue(productName);
     await addProductDialog.getByRole('button', { name: /^Add Product$/i }).click();
 
     // A bare quick-add product is missing Selling Price/Reorder Level
@@ -146,7 +146,7 @@ test.describe('Procurement Module', () => {
     await catalogSearch.fill(productName);
     await page.waitForTimeout(500);
 
-    await expect(page.locator(`text="${productName}" >> visible=true`).first()).toBeVisible({
+    await expect(page.getByText(new RegExp(`^${productName}$`, 'i')).locator('visible=true').first()).toBeVisible({
       timeout: 15000,
     });
     await expect(

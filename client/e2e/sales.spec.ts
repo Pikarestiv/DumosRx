@@ -21,7 +21,7 @@ test.describe('Sales Module', () => {
     await page.goto('/inventory/catalog');
     await page.getByRole('button', { name: /Add Product/i }).click();
     const productName = `E2E Cart Test Product ${Date.now()}`;
-    await page.getByRole('dialog').getByRole('textbox').first().fill(productName);
+    await page.getByRole('dialog').getByRole('combobox').first().fill(productName);
     await page.getByRole('button', { name: /^Add Product$/i }).last().click();
 
     // Selling Price / Reorder Level were left blank, so the app warns before
@@ -32,12 +32,13 @@ test.describe('Sales Module', () => {
     await page.goto('/pos');
     await page.getByPlaceholder(/Search products/i).first().fill(productName);
 
-    const productCard = page.locator(`text="${productName}" >> visible=true`).first();
+    const productCard = page.getByRole('button', { name: new RegExp(productName, 'i') }).first();
     await expect(productCard).toBeVisible();
+    await expect(productCard).toBeDisabled();
     await expect(page.locator('text="Out of stock" >> visible=true')).toBeVisible();
 
     // Clicking an out-of-stock product must not add it to the cart.
-    await productCard.click();
+    await productCard.click({ force: true });
     await expect(page.locator('text="Cart is empty" >> visible=true')).toBeVisible();
   });
 });

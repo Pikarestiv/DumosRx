@@ -76,7 +76,7 @@ test.describe('Mobile layout and ergonomics', () => {
 
   test('the catalog shows a long product name in full by wrapping it', async ({ page }) => {
     await page.goto('/inventory/catalog');
-    const name = page.locator('[data-catalog-row-mobile] span').filter({ hasText: new RegExp(LONG_NAME, 'i') }).first();
+    const name = page.locator('[data-catalog-row-mobile]').getByText(new RegExp(LONG_NAME, 'i')).first();
     await expect(name).toBeVisible();
     const clipped = await name.evaluate((el) => el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight + 1);
     expect(clipped).toBe(false);
@@ -107,11 +107,10 @@ test.describe('Mobile layout and ergonomics', () => {
 
   test('the PO item search stays above the keyboard with the vendor card out of the way', async ({ page }) => {
     await page.goto('/procurement/new');
-    await page.getByRole('button', { name: /Continue to Add Items/i }).locator('visible=true').first().click();
     const search = page.getByPlaceholder('Search item by name, SKU or barcode').locator('visible=true').first();
     await expectUsableAboveKeyboard(page, search);
     await search.focus();
     await setKeyboard(page, true);
-    await expect(page.getByText('Immediate Purchase', { exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Edit order details' })).toBeHidden();
   });
 });

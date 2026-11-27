@@ -7,7 +7,8 @@ test.describe('Products Module', () => {
     // Navigate to products via sidebar:
     // Rationale: docs/CLIENT_COMMENTS.md#line-e2e-products-spec-ts-L7
     await page.locator('a[href="/inventory"]').first().click();
-    await expect(page).toHaveURL(/\/inventory\/overview/);
+    await expect(page).toHaveURL(/\/inventory(\/overview)?$/);
+    await expect(page.locator('header').getByText('Inventory Dashboard', { exact: true })).toBeVisible();
     await page.goto('/inventory/catalog');
     await expect(page.locator('header').getByText('Product Catalog', { exact: true })).toBeVisible();
 
@@ -15,14 +16,14 @@ test.describe('Products Module', () => {
     await expect(page.getByRole('button', { name: /Add Product/i })).toBeVisible();
   });
 
-  test('Overview and Ledger tabs also expose the Add Product header action', async ({ page }) => {
+  test('Overview and Movements tabs also expose the Add Product header action', async ({ page }) => {
     await login(page);
     await page.goto('/inventory/overview');
     await expect(page.locator('header').getByText('Inventory Dashboard', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Add Product/i })).toBeVisible();
 
     await page.goto('/inventory/ledger');
-    await expect(page.locator('header').getByText('Stock Ledger', { exact: true })).toBeVisible();
+    await expect(page.locator('header').getByText('Stock Movements', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Add Product/i })).toBeVisible();
   });
 

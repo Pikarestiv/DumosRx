@@ -1,5 +1,7 @@
 import type { StorefrontStore } from "@/lib/api/storefront-data";
+import { DEFAULT_STOREFRONT_LOCALE } from "@/lib/storefront-i18n";
 import type { MessageKey } from "@/lib/storefront-messages-en";
+import { paymentFaqAnswer, type PaymentWays } from "@/lib/storefront-payment-ways";
 
 export interface StorefrontFaq {
   q: string;
@@ -168,8 +170,11 @@ export function isPharmacyStore(store?: StoreTypeHolder): boolean {
   return store?.store_type === "pharmacy";
 }
 
-export function storefrontCopy(store?: StoreTypeHolder): StorefrontCopy {
-  return COPY_BY_TYPE.get(store?.store_type ?? "") ?? RETAIL_COPY;
+export function storefrontCopy(store?: StoreTypeHolder, paymentWays?: PaymentWays): StorefrontCopy {
+  const copy = COPY_BY_TYPE.get(store?.store_type ?? "") ?? RETAIL_COPY;
+  if (!paymentWays) return copy;
+  const answer = paymentFaqAnswer(DEFAULT_STOREFRONT_LOCALE, paymentWays);
+  return { ...copy, faqs: copy.faqs.map((faq) => (faq === PAYMENTS_FAQ ? { ...faq, a: answer } : faq)) };
 }
 
 export function storefrontTaglineKey(store?: StoreTypeHolder): MessageKey {

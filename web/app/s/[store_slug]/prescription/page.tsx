@@ -25,7 +25,7 @@ export async function generateMetadata({
 }: PrescriptionPageProps): Promise<Metadata> {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
-  const base = buildStorefrontMetadata(store_slug, data?.store);
+  const base = buildStorefrontMetadata(store_slug, data?.store, undefined, data?.storefront);
   return {
     ...base,
     title: data?.store?.name

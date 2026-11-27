@@ -3,14 +3,16 @@ import { HelpCircle } from "lucide-react";
 import { StoreSectionHeading } from "@/components/storefront/store-section-heading";
 import type { StorefrontStore } from "@/lib/api/storefront-data";
 import { storefrontCopy } from "@/lib/storefront-copy";
+import type { PaymentWays } from "@/lib/storefront-payment-ways";
 
 interface StoreFaqSectionProps {
   store?: StorefrontStore | null;
   headingAs?: "h1" | "h2";
+  paymentWays: PaymentWays;
 }
 
-export function StoreFaqSection({ store, headingAs }: StoreFaqSectionProps) {
-  const copy = storefrontCopy(store);
+export function StoreFaqSection({ store, headingAs, paymentWays }: StoreFaqSectionProps) {
+  const copy = storefrontCopy(store, paymentWays);
 
   return (
     <section id="faq" aria-label="Frequently asked questions" className="scroll-mt-24 space-y-6">

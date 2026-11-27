@@ -2276,16 +2276,19 @@ which is false on Pro.
   `GET /system-configs/subscription_plans` the pricing cards already fetch at
   runtime, so the numbers follow `config/storefront_entitlements.php`. With no
   map (an older server) the line leaves the number out rather than guess.
-- **"How ordering works" names the store's real ways to pay.**
-  `paymentWaysOf(storefront, store)` and `paymentStepBody()`
-  (`lib/storefront-payment-ways.ts`) build the pay step from the payload:
-  pickup always, pay on delivery when the store delivers with it, transfer when
-  `payment_instructions` is sent (the server withholds it on Starter), online
-  when `online_payment_available`. Keys `steps.pay.body.ways`,
-  `steps.pay.way.*` and `steps.pay.or` in both message files. The services
-  variant and the payments FAQ keep their hedged generic wording (services are
-  Enterprise-only, which has every method). The page `meta.description` still
-  says "Pay online, by transfer, or in store" on every plan; left as is.
+- **Payment-aware storefront wording (`storefront-payment-ways.ts`).**
+  `paymentWaysOf(storefront, store)` builds the store's real payment flags
+  (pickup always, pay on delivery when the store delivers with it, transfer
+  when `payment_instructions` is sent — withheld on Starter — and online when
+  `online_payment_available`), and drives all three storefront payment copy
+  surfaces in English and French:
+  - `paymentStepBody()` in `OrderingSteps` ("How ordering works", both the
+    goods variant and the `"services"` variant), using keys
+    `steps.pay.body.ways`, `steps.pay.way.*` and `steps.pay.or`.
+  - `paymentFaqAnswer()` in `storefrontCopy()` / `StoreFaqSection` (`faq.payments.answer`).
+  - `paymentMetaSentence()` in `buildStorefrontMetadata()` (`meta.pay*` inside
+    `meta.description.*`), keeping byte-identical text for a store with online
+    and transfer enabled while omitting them when absent.
 - **Admin store detail: Starter opt-in.** `StorefrontOptInStatus`
   (`components/admin/stores/details/storefront-opt-in-status.tsx`, in the
   Online Storefront card) shows, only on an opt-in plan, who opted in (owner,
@@ -2296,7 +2299,8 @@ which is false on Pro.
   `starter-online-storefront`.
 - Coverage: `admin-storefront-pro-presets.test.tsx`, `storefront-footer-badge.test.tsx`,
   `subscription-plans-starter-storefront.test.ts`, `guides.test.ts`,
-  `storefront-payment-ways.test.ts`, `admin-storefront-opt-in-status.test.tsx`,
+  `storefront-payment-ways.test.ts`, `storefront-metadata-payment.test.ts`,
+  `admin-storefront-opt-in-status.test.tsx`,
   `storefront-themes.test.ts` (server `CLASSIC_IDS` + `PRESET_IDS` pinned to the web lists).
 
 ## Storefront tile icons (2026-11-16)

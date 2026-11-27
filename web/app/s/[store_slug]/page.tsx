@@ -32,7 +32,7 @@ export async function generateMetadata({
 }: StorefrontProps): Promise<Metadata> {
   const { store_slug } = await params;
   const data = await getStorefrontData(store_slug);
-  return buildStorefrontMetadata(store_slug, data?.store, resolveLocale(data?.storefront?.locale));
+  return buildStorefrontMetadata(store_slug, data?.store, resolveLocale(data?.storefront?.locale), data?.storefront);
 }
 
 export default async function StorefrontPage({

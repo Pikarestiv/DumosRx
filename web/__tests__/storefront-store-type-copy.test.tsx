@@ -13,7 +13,7 @@ function renderStorefrontCopy(store: StorefrontStore) {
     <>
       <StoreAboutSection store={store} />
       <StoreLocationsSection storeSlug="s" store={store} />
-      <StoreFaqSection store={store} />
+      <StoreFaqSection store={store} paymentWays={{ delivery: true, transfer: true, online: true }} />
       <StorefrontFooter storeSlug="s" store={store} />
     </>,
   );

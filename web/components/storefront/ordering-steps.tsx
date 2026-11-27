@@ -7,7 +7,7 @@ import { paymentStepBody, type PaymentWays } from "@/lib/storefront-payment-ways
 interface OrderingStepsProps {
   isPharmacy: boolean;
   hasServices?: boolean;
-  paymentWays?: PaymentWays;
+  paymentWays: PaymentWays;
 }
 
 export function OrderingSteps({ isPharmacy, hasServices = false, paymentWays }: OrderingStepsProps) {
@@ -16,12 +16,12 @@ export function OrderingSteps({ isPharmacy, hasServices = false, paymentWays }: 
   const steps = hasServices
     ? [
         { title: t("steps.choose.title"), body: [t("steps.choose.body.services"), isPharmacy ? t("steps.choose.rxNote") : ""].join(" ").trim() },
-        { title: t("steps.pay.title"), body: t("steps.pay.body.services") },
+        { title: t("steps.pay.title"), body: paymentStepBody(locale, paymentWays, "services") },
         { title: t("steps.collect.title.services"), body: t("steps.collect.body.services") },
       ]
     : [
         { title: t("steps.choose.title"), body: t(`steps.choose.body.${kind}`) },
-        { title: t("steps.pay.title"), body: paymentWays ? paymentStepBody(locale, paymentWays) : t("steps.pay.body") },
+        { title: t("steps.pay.title"), body: paymentStepBody(locale, paymentWays) },
         { title: t("steps.collect.title"), body: t(`steps.collect.body.${kind}`) },
       ];
 

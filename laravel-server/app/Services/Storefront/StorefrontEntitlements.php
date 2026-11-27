@@ -3,6 +3,7 @@
 namespace App\Services\Storefront;
 
 use App\Models\Store;
+use App\Models\Storefront;
 use App\Models\SystemConfig;
 use App\Models\User;
 use App\Services\SubscriptionService;
@@ -18,13 +19,14 @@ class StorefrontEntitlements
     /**
      * @return array<string, mixed>
      */
-    public function forPlan(string $plan): array
+    public function forPlan(string $plan, ?string $storeType = null): array
     {
         $plans = (array) config('storefront_entitlements.plans');
         $entitlements = $plans[$plan] ?? $plans['free'];
 
         $entitlements['allowed_presets'] = match (true) {
             $entitlements['allowed_presets'] === 'all' => StorefrontThemes::PRESET_IDS,
+            $entitlements['allowed_presets'] === 'store_type_default' => [StorefrontThemes::defaultPresetFor($storeType)],
             $plan === 'pro' => $this->proAllowedPresets(),
             default => $this->knownPresets((array) $entitlements['allowed_presets']),
         };
@@ -43,6 +45,7 @@ class StorefrontEntitlements
         return collect(self::PLANS)->mapWithKeys(function (string $plan) use ($subscriptionPlans) {
             $entitlements = $this->forPlan($plan);
             $entitlements['storefront_enabled'] = $entitlements['storefront_enabled'] && ! empty($subscriptionPlans['tiers'][$plan]['features']['store_url']);
+            $entitlements['owner_opt_in_required'] = $this->requiresOwnerOptIn($plan);
 
             return [$plan => $entitlements];
         })->all();
@@ -51,13 +54,63 @@ class StorefrontEntitlements
     /**
      * @return array<string, mixed>
      */
-    public function forOwner(User $user): array
+    public function forOwner(User $user, ?string $storeType = null): array
     {
         $owner = $this->subscriptions->getSubscriptionOwner($user);
-        $entitlements = $this->forPlan($this->subscriptions->resolveEffectivePlan($owner));
-        $entitlements['storefront_enabled'] = $entitlements['storefront_enabled'] && $this->subscriptions->hasFeature($owner, 'store_url');
+        $plan = $this->subscriptions->resolveEffectivePlan($owner);
+        if ($storeType === null && config("storefront_entitlements.plans.{$plan}.allowed_presets") === 'store_type_default') {
+            $storeType = $this->ownerStoreType($owner);
+        }
+
+        $entitlements = $this->forPlan($plan, $storeType);
+        $entitlements['storefront_enabled'] = $entitlements['storefront_enabled']
+            && $this->subscriptions->hasFeature($owner, 'store_url')
+            && (! $this->requiresOwnerOptIn($plan) || $this->hasOwnerOptedIn($owner));
 
         return $entitlements;
+    }
+
+    /** The plan offers a storefront at all, before any owner opt-in. */
+    public function planOffersStorefront(User $user): bool
+    {
+        $owner = $this->subscriptions->getSubscriptionOwner($user);
+
+        return $this->forPlan($this->subscriptions->resolveEffectivePlan($owner))['storefront_enabled']
+            && $this->subscriptions->hasFeature($owner, 'store_url');
+    }
+
+    public function requiresOwnerOptIn(string $plan): bool
+    {
+        return in_array($plan, (array) config('storefront_entitlements.owner_opt_in_plans'), true);
+    }
+
+    public function relistsTrimmedOnUpgrade(string $plan): bool
+    {
+        return in_array($plan, (array) config('storefront_entitlements.relist_trimmed_on_upgrade_plans'), true);
+    }
+
+    /** Opted in by the owner, or carried over from a plan that needed no opt-in (a downgrade keeps a live storefront live). */
+    public function hasOwnerOptedIn(User $user): bool
+    {
+        $storefront = Storefront::where('user_id', $this->subscriptions->getSubscriptionOwner($user)->id)
+            ->first(['owner_opted_in_at', 'applied_plan']);
+
+        return $storefront !== null && ($storefront->owner_opted_in_at !== null || $this->carriesStorefrontOver($storefront->applied_plan));
+    }
+
+    public function carriesStorefrontOver(?string $previousPlan): bool
+    {
+        return $previousPlan !== null && $this->forPlan($previousPlan)['storefront_enabled'] && ! $this->requiresOwnerOptIn($previousPlan);
+    }
+
+    private function ownerStoreType(User $owner): string
+    {
+        $primary = Storefront::where('user_id', $owner->id)->value('primary_store_id');
+
+        return (string) Store::where('user_id', $owner->id)
+            ->when($primary, fn ($query) => $query->whereKey($primary))
+            ->orderBy('created_at')
+            ->value('store_type');
     }
 
     /**
@@ -67,7 +120,7 @@ class StorefrontEntitlements
     {
         $owner = User::find($store->user_id);
 
-        return $owner ? $this->forOwner($owner) : $this->forPlan('free');
+        return $owner ? $this->forOwner($owner, (string) $store->store_type) : $this->forPlan('free');
     }
 
     public function effectivePlan(User $owner): string

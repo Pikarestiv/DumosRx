@@ -372,6 +372,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'show']);
                 Route::put('/storefront-settings', [\App\Http\Controllers\Api\App\StorefrontSettingsController::class, 'update']);
                 Route::post('/storefront/rebuild', [\App\Http\Controllers\Api\App\StorefrontOwnerRebuildController::class, 'store'])->middleware('throttle:storefront-owner-rebuild');
+                Route::post('/storefront/opt-in', [\App\Http\Controllers\Api\App\StorefrontOptInController::class, 'store']);
 
                 // Audit Sessions (Multi-Till Cloud Backing)
                 Route::get('/audit-sessions/active', [\App\Http\Controllers\Api\App\AuditSessionController::class, 'active']);

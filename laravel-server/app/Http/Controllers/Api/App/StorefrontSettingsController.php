@@ -30,7 +30,7 @@ class StorefrontSettingsController extends Controller
         tags: ['Storefront'],
         security: [['sanctum' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'The settings and the presets an owner may choose, or {allowed: false} when the plan lacks owner_self_edit_look or a super admin has not switched owner styling on. Both forms carry the plan\'s storefront `entitlements` and a `checkout_warning` (null, or why customers have no way left to pay but online).'),
+            new OA\Response(response: 200, description: 'The settings and the presets an owner may choose, or {allowed: false} when the plan lacks owner_self_edit_look or a super admin has not switched owner styling on. Both forms carry the plan\'s storefront `entitlements`, a `checkout_warning` (null, or why customers have no way left to pay but online), `opt_in_required` (the plan, Starter, needs the owner to opt in) and `opted_in`.'),
         ],
     )]
     public function show(Request $request): JsonResponse
@@ -41,6 +41,8 @@ class StorefrontSettingsController extends Controller
         $plan = [
             'entitlements' => $entitlements,
             'checkout_warning' => $storefront ? $this->presenter->checkoutWarning($storefront, $entitlements) : null,
+            'opt_in_required' => $this->entitlements->requiresOwnerOptIn($this->entitlements->effectivePlan($user)),
+            'opted_in' => $this->entitlements->hasOwnerOptedIn($user),
         ];
 
         return response()->json($storefront?->owner_style_enabled && $entitlements['owner_self_edit_look']

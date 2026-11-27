@@ -29,9 +29,14 @@ class StorefrontPlanWatcher
                 continue;
             }
 
-            Storefront::whereKey($storefront->id)->toBase()->update(['applied_plan' => $plan]);
+            $carriesOver = $storefront->owner_opted_in_at === null && $this->entitlements->requiresOwnerOptIn($plan)
+                && $this->entitlements->carriesStorefrontOver($storefront->applied_plan);
+            Storefront::whereKey($storefront->id)->toBase()->update(['applied_plan' => $plan, ...($carriesOver ? ['owner_opted_in_at' => now()] : [])]);
             Store::where('user_id', $storefront->user_id)->where('online_store_enabled', true)->get()
-                ->each(fn (Store $store) => $this->trimmer->trimToCap($store));
+                ->each(function (Store $store) {
+                    $this->trimmer->trimToCap($store);
+                    $this->trimmer->relistTrimmed($store);
+                });
 
             if ($storefront->applied_plan !== null) {
                 Product::markStorefrontsDirty([], [$storefront->user_id]);

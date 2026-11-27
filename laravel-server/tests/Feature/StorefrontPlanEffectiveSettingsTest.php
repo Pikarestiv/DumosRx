@@ -164,7 +164,7 @@ class StorefrontPlanEffectiveSettingsTest extends TestCase
         $this->actingAs($this->owner)->postJson($url, [])->assertStatus(422)->assertJsonValidationErrors('account_number');
     }
 
-    public function test_starter_has_no_storefront_at_all(): void
+    public function test_a_starter_that_has_not_opted_in_has_no_storefront_at_all(): void
     {
         $this->onPlan('starter');
 

@@ -21,6 +21,10 @@ $noStorefront = [
 return [
     'pro_allowed_presets_key' => 'storefront.pro_allowed_presets',
 
+    'owner_opt_in_plans' => ['starter'],
+
+    'relist_trimmed_on_upgrade_plans' => ['starter'],
+
     'scheduled_rebuild' => [
         'time' => '03:00',
         'timezone' => 'Africa/Lagos',
@@ -28,7 +32,14 @@ return [
 
     'plans' => [
         'free' => $noStorefront,
-        'starter' => $noStorefront,
+        'starter' => [
+            ...$noStorefront,
+            'storefront_enabled' => true,
+            'allowed_presets' => 'store_type_default',
+            'max_online_products' => 50,
+            'checkout_whatsapp' => true,
+            'checkout_pay_on_delivery' => true,
+        ],
         'pro' => [
             'storefront_enabled' => true,
             'allowed_presets' => ['workshop', 'clinic', 'market'],

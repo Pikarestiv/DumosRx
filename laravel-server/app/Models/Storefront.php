@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
  * @property array<int, string>|null $enabled_locales
  * @property string|null $logo_url
  * @property string|null $applied_plan
+ * @property \Illuminate\Support\Carbon|null $owner_opted_in_at
  */
 class Storefront extends Model
 {
@@ -65,6 +66,7 @@ class Storefront extends Model
         'pay_on_delivery' => 'boolean',
         'show_services' => 'boolean',
         'style_dirty_at' => 'datetime',
+        'owner_opted_in_at' => 'datetime',
     ];
 
     protected static function boot()

@@ -15,4 +15,10 @@ final class StorefrontThemes
     public const PRESET_IDS = ['workshop', 'clinic', 'studio', 'market', 'boutique', 'grove'];
 
     public const IDS = [...self::CLASSIC_IDS, ...self::PRESET_IDS];
+
+    /** Mirrors web resolveStorefrontPreset() and the till's presetFor(): an empty type is a pharmacy. */
+    public static function defaultPresetFor(?string $storeType): string
+    {
+        return ($storeType ?: 'pharmacy') === 'pharmacy' ? 'clinic' : 'workshop';
+    }
 }

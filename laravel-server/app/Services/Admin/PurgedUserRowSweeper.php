@@ -49,6 +49,7 @@ class PurgedUserRowSweeper
             'audit_session_items' => 'product_id',
             'return_items' => 'product_id',
             'prescription_items' => 'product_id',
+            'storefront_trimmed_listings' => 'product_id',
         ],
     ];
 

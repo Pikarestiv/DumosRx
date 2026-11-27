@@ -61,14 +61,22 @@ class StorefrontEntitlementsTest extends TestCase
         }
     }
 
-    public function test_starter_free_and_planless_owners_get_no_storefront(): void
+    public function test_free_and_planless_owners_get_no_storefront(): void
     {
-        foreach (['starter', 'free', null] as $plan) {
+        foreach (['free', null] as $plan) {
             $entitlements = $this->entitlementsOn($plan);
             $this->assertFalse($entitlements['storefront_enabled'], 'plan '.($plan ?? 'none'));
             $this->assertSame([], $entitlements['allowed_presets']);
             $this->assertFalse($entitlements['checkout_paystack']);
         }
+    }
+
+    public function test_a_starter_owner_who_has_not_opted_in_gets_no_storefront(): void
+    {
+        $starter = $this->entitlementsOn('starter');
+
+        $this->assertFalse($starter['storefront_enabled']);
+        $this->assertFalse($starter['checkout_paystack']);
     }
 
     public function test_a_plan_without_store_url_in_the_plan_editor_gets_no_storefront(): void

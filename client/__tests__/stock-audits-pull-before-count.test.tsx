@@ -44,6 +44,9 @@ vi.mock("@/lib/api/client", () => ({ apiClient: { getBaseURL: () => "https://api
 
 import { StockAudits } from "@/components/stock-batch/stock-audits";
 import { useStockAuditDraftStore } from "@/lib/hooks/use-stock-audit-draft";
+import { PRE_COUNT_PULL_DEADLINE_MS } from "@/lib/hooks/use-pre-audit-sync";
+import { recordSyncOutcome } from "@/lib/db/sync-engine/sync-outcome";
+import { APP_EVENTS, emitAppEvent } from "@/lib/events";
 
 const SYNCING_TEXT = "Syncing the latest stock before you count…";
 const countBox = () => screen.queryByRole("checkbox", { name: /Mark Amoxil as counted/ });
@@ -212,12 +215,58 @@ describe("Cycle Count pulls the latest stock before counting starts", () => {
     expect(screen.getByText(SYNCING_TEXT)).toBeTruthy();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(25_000);
+      await vi.advanceTimersByTimeAsync(PRE_COUNT_PULL_DEADLINE_MS);
     });
 
     const alert = screen.getByRole("alert");
     expect(within(alert).getByRole("button", { name: "Retry" })).toBeTruthy();
     expect(within(alert).getByRole("button", { name: "Count anyway" })).toBeTruthy();
+  });
+
+  it("waits past 16s for an in-flight sync to settle instead of failing with Sync already in progress", async () => {
+    vi.useFakeTimers();
+    engineSyncing = true;
+    syncMock
+      .mockResolvedValueOnce({ success: false, pushed: 0, pulled: 0, error: "Sync already in progress" })
+      .mockResolvedValueOnce({ success: true, pushed: 0, pulled: 1 });
+    renderAudit();
+    expect(screen.getByText(SYNCING_TEXT)).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    engineSyncing = false;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(countBox()).not.toBeNull();
+    expect(syncMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("auto-recovers from the timeout screen when the app sync completes afterward", async () => {
+    vi.useFakeTimers();
+    syncMock.mockReturnValue(new Promise(() => {}));
+    renderAudit();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PRE_COUNT_PULL_DEADLINE_MS);
+    });
+    expect(screen.getByRole("alert")).toBeTruthy();
+
+    cloudStock = 7;
+    await act(async () => {
+      recordSyncOutcome({ success: true, pushed: 0, pulled: 4 });
+      emitAppEvent(APP_EVENTS.syncCompleted, { updatedTables: ["stock_batches"] });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(countBox()).not.toBeNull();
+    expect(useStockAuditDraftStore.getState().items.map((i) => i.systemQty)).toEqual([7]);
   });
 
   it("does not show the stale notice for a store whose plan has no cloud sync", async () => {

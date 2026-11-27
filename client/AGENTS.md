@@ -2043,14 +2043,17 @@ sale lands for another −2, and the shelf holding 8 settles at 6.
   - offline, a read-only tab or impersonation proceeds with a notice that
     counts are measured against the till's last sync;
   - any other failure while online, or no answer within
-    `PRE_COUNT_PULL_DEADLINE_MS` (25s), blocks with Retry and a "Count
-    anyway" that goes through `ConfirmDialog`. A read-only viewer of another
-    till's cloud session gets Retry only.
+    `PRE_COUNT_PULL_DEADLINE_MS` (60s), blocks with Retry and a "Count
+    anyway" that goes through `ConfirmDialog`, and auto-recovers once a
+    subsequent sync completes (`APP_EVENTS.syncCompleted` / `readSyncOutcome`).
+    A read-only viewer of another till's cloud session gets Retry only.
   A sync already in flight answers `SYNC_IN_PROGRESS_ERROR`; the hook polls
-  `isSyncing()` (capped at 8s, like `auth-login.ts`) and pulls once more, at
-  most three attempts, never alongside it. The pull starts a microtask after
-  the effect and every run carries its own cancel flag, so StrictMode's double
-  effect pulls once and closing the screen stops the outcome being applied.
+  `isSyncing()` (capped at `PRE_COUNT_PULL_DEADLINE_MS`, 60s) and pulls once
+  more, at most three attempts, never alongside it. The pull starts a
+  microtask after the effect, every run carries its own cancel flag
+  (including on timeout and unmount), so StrictMode's double effect pulls
+  once and closing the screen or timing out stops the outcome or extra sync
+  being applied.
   A resumed draft with counted rows is never rebuilt
   (`shouldRebuildAuditSheet`), so its baselines stay. Offline counting still
   works: never turn the offline case into a block.

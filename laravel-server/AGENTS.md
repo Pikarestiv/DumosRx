@@ -4617,6 +4617,18 @@ when that connection isn't reachable — see
 `FeedbackFingerprintColumnWidthTest`, same pattern `SyncPushRowLockTest`
 already uses for `lockForUpdate()` (another behavior SQLite can't exercise).
 
+**The skipped count is a property of the machine, not the code.** Those two
+files hold the suite's only environment-dependent skips: four cases (the row
+lock, the fingerprint width, and the two data-provider widths), all skipped
+when the MySQL named in `.env` refuses the connection and all run when it
+answers. So a run reports `4 skipped` with no local MySQL (a fresh worktree,
+CI, a laptop with MySQL stopped) and `0 skipped` with one. Before 2026-11-27
+it was 5 and 1: `BackfillProductVersionsCommandTest` also had a null-version
+case that skipped on every schema the migrations build, because
+`products._version` is `NOT NULL default 1`, so it never ran anywhere and was
+deleted. A skip count outside 0 or 4 means something else is skipping.
+`CouponUsagesForeignKeyRepairTest` skips off SQLite only, so it always runs here.
+
 `tests/Feature/` covers: tenant isolation (`TenantIsolationTest`), admin
 account-security regressions (`AccountSecurityTest`), the handoff/
 impersonation flow (`AuthHandoffTest`), sync push/pull (`SyncEndpointTest`),

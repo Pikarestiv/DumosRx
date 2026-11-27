@@ -117,31 +117,4 @@ class BackfillProductVersionsCommandTest extends TestCase
 
         $this->assertSame(7, $this->version($product));
     }
-
-    public function test_a_null_version_becomes_one_rather_than_staying_null(): void
-    {
-        $product = $this->product($this->storeA->id, '2026-10-12 09:00:00');
-
-        if (! $this->nullVersionIsStorable($product)) {
-            $this->markTestSkipped('products._version is NOT NULL on this schema.');
-        }
-
-        $this->artisan('sync:backfill-product-versions', [
-            '--since' => '2026-10-12 00:00:00',
-            '--apply' => true,
-        ])->assertSuccessful();
-
-        $this->assertSame(1, $this->version($product));
-    }
-
-    private function nullVersionIsStorable(Product $product): bool
-    {
-        try {
-            DB::table('products')->where('id', $product->id)->update(['_version' => null]);
-        } catch (\Throwable) {
-            return false;
-        }
-
-        return DB::table('products')->where('id', $product->id)->value('_version') === null;
-    }
 }

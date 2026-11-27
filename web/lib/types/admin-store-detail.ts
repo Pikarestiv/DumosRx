@@ -107,6 +107,10 @@ export interface AdminStoreDetail {
   };
   storefront: {
     online_store_enabled: boolean;
+    opt_in_required?: boolean;
+    opted_in_at?: string | null;
+    opted_in_by?: "owner" | "admin" | "plan_change" | null;
+    storefront_live?: boolean;
     store_slug: string | null;
     pending_rebuild: boolean;
     dirty_since: string | null;

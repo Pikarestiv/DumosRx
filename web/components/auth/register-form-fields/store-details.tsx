@@ -10,6 +10,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { STORE_TYPES } from "@/lib/constants/store-types";
 
 interface StoreDetailsProps {
   form: UseFormReturn<RegisterFormValues>;
@@ -56,18 +57,11 @@ export function StoreDetails({ form, itemVariant }: StoreDetailsProps) {
                   className="flex h-11 w-full rounded-md bg-white/5 border border-white/10 px-3 py-2 text-sm text-white focus:border-primary/50 focus:ring-primary/20 focus:outline-none transition-colors"
                   {...field}
                 >
-                  <option value="pharmacy" className="text-gray-900">
-                    Pharmacy
-                  </option>
-                  <option value="supermarket" className="text-gray-900">
-                    Supermarket
-                  </option>
-                  <option value="grocery" className="text-gray-900">
-                    Grocery
-                  </option>
-                  <option value="general" className="text-gray-900">
-                    General Store
-                  </option>
+                  {STORE_TYPES.map((type) => (
+                    <option key={type.value} value={type.value} className="text-gray-900">
+                      {type.label}
+                    </option>
+                  ))}
                 </select>
               </FormControl>
               <FormMessage className="text-xs text-red-400" />

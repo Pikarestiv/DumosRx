@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\Store;
 use App\Models\User;
 use App\Services\SubscriptionService;
+use App\Support\StoreTypes;
 use App\Support\TokenLifetime;
 use Exception;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ trait RegistersAccounts
                 new OA\Property(property: 'pin', type: 'string', nullable: true, description: '4-digit POS unlock PIN'),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
                 new OA\Property(property: 'store_name', type: 'string', nullable: true, description: 'If set, a Store + trial subscription is created for this user'),
-                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: ['pharmacy', 'supermarket', 'grocery', 'general']),
+                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: StoreTypes::ACCEPTED_IDS),
                 new OA\Property(property: 'phone', type: 'string', nullable: true),
                 new OA\Property(property: 'ref', type: 'string', nullable: true, description: 'Referral code'),
             ],
@@ -67,7 +68,7 @@ trait RegistersAccounts
             'pin' => 'nullable|string|size:4',
             'password' => 'required|string|min:8',
             'store_name' => 'nullable|string|max:255',
-            'store_type' => 'nullable|string|in:pharmacy,supermarket,grocery,general',
+            'store_type' => StoreTypes::rule(),
             'phone' => 'nullable|string|max:20',
             'ref' => 'nullable|string',
             'referrer' => 'nullable|string',

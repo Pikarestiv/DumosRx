@@ -13,6 +13,14 @@ export const EN_MESSAGES = {
   "header.fallbackName": "Store",
   "footer.fallbackName": "This store",
   "type.retail": "Retail store",
+  "type.beauty": "Beauty & Cosmetics",
+  "type.hardware": "Hardware & Building Materials",
+  "type.fashion": "Fashion & Clothing",
+  "type.electronics": "Electronics & Phones",
+  "type.auto_parts": "Auto Parts",
+  "type.stationery": "Stationery & Books",
+  "type.agro": "Agro & Farm Supplies",
+  "type.other": "Shop",
 
   "hero.browse": "Browse products",
   "hero.whatsapp": "Message on WhatsApp",
@@ -20,6 +28,8 @@ export const EN_MESSAGES = {
   "hero.aria": "Welcome",
   "tagline.pharmacy": "Medicines, wellness and everyday essentials.",
   "tagline.retail": "Everything you need, ready for pickup.",
+  "tagline.beauty": "Skincare, makeup and beauty essentials.",
+  "tagline.hardware": "Tools, building materials and hardware, ready for pickup.",
 
   "info.aria": "Store information",
   "info.heading": "The store",

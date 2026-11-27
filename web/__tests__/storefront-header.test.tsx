@@ -67,6 +67,10 @@ describe("StorefrontHeader store name", () => {
     ["grocery", "Grocery"],
     ["general", "General store"],
     ["pharmacy", "Pharmacy"],
+    ["beauty", "Beauty & Cosmetics"],
+    ["hardware", "Hardware & Building Materials"],
+    ["auto_parts", "Auto Parts"],
+    ["other", "Shop"],
   ])("labels a %s store as %s", (type, label) => {
     render(<StorefrontHeader storeSlug="g" store={{ id: "s1", name: "G", store_type: type, location: "Ikeja" }} />);
 

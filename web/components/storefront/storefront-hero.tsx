@@ -6,6 +6,7 @@ import { StoreInfoPanel } from "@/components/storefront/store-info-panel";
 import { StoreOpenStatus } from "@/components/storefront/store-open-status";
 import { useStorefrontI18n } from "@/components/storefront/storefront-i18n-provider";
 import type { StorefrontProfile, StorefrontStore } from "@/lib/api/storefront-data";
+import { storefrontTaglineKey } from "@/lib/storefront-copy";
 import { storeAddressLine } from "@/lib/storefront-display";
 import { summarizeHours } from "@/lib/storefront-hours";
 import type { StorefrontHeroVariant } from "@/lib/storefront-presets";
@@ -15,19 +16,18 @@ import { cn } from "@/lib/utils";
 interface StorefrontHeroProps {
   variant: StorefrontHeroVariant;
   tagline?: string | null;
-  isPharmacy: boolean;
   store: StorefrontStore;
   storefront?: StorefrontProfile | null;
   catalogHref: string;
   whatsappHref: string | null;
 }
 
-export function StorefrontHero({ variant, tagline, isPharmacy, store, storefront, catalogHref, whatsappHref }: StorefrontHeroProps) {
+export function StorefrontHero({ variant, tagline, store, storefront, catalogHref, whatsappHref }: StorefrontHeroProps) {
   const { t, locale } = useStorefrontI18n();
   const centered = variant === "centered";
   const showPanel = variant === "band";
   const summary = [storeAddressLine(store), summarizeHours(storefront?.opening_hours, locale)].filter(Boolean).join("   ");
-  const heading = tagline?.trim() || t(isPharmacy ? "tagline.pharmacy" : "tagline.retail");
+  const heading = tagline?.trim() || t(storefrontTaglineKey(store));
 
   return (
     <section aria-label={t("hero.aria")} className="[background:var(--sf-hero-bg)] [color:var(--sf-hero-fg)]">

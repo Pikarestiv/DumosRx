@@ -136,4 +136,40 @@ describe("StoreContext provider value identity", () => {
     expect(result.current.storeType).toBe("pharmacy");
     expect(typeof result.current.t("product")).toBe("string");
   });
+
+  it("treats the store as a pharmacy before any profile has loaded", () => {
+    const { result } = renderHook(() => useStore(), { wrapper });
+
+    expect(result.current.storeProfile).toBeNull();
+    expect(result.current.storeType).toBe("pharmacy");
+  });
+
+  it.each([
+    ["NULL", "pharmacy"],
+    ["''", "pharmacy"],
+    ["'pharmacy'", "pharmacy"],
+    ["'beauty'", "beauty"],
+    ["'store'", "general"],
+    ["'retail'", "general"],
+    ["'florist'", "general"],
+  ])("reads a stored store_type of %s as %s", async (stored, expected) => {
+    db.run(`INSERT INTO stores (id, name, store_type) VALUES ('store-a', 'Store A', ${stored})`);
+    localStorage.setItem("dumos_active_store_id", "store-a");
+
+    const { result } = renderHook(() => useStore(), { wrapper });
+    await waitFor(() => expect(result.current.storeProfile?.id).toBe("store-a"));
+
+    expect(result.current.storeType).toBe(expected);
+  });
+
+  it("reads a row left on the local schema default as general", async () => {
+    db.run(`INSERT INTO stores (id, name) VALUES ('store-a', 'Store A')`);
+    localStorage.setItem("dumos_active_store_id", "store-a");
+
+    const { result } = renderHook(() => useStore(), { wrapper });
+    await waitFor(() => expect(result.current.storeProfile?.id).toBe("store-a"));
+
+    expect(result.current.storeProfile?.store_type).toBe("store");
+    expect(result.current.storeType).toBe("general");
+  });
 });

@@ -1,4 +1,3 @@
-import { Pill, ShoppingBasket, ShoppingCart, Check } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -6,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { StoreType } from "@/lib/context/store-context";
+import { STORE_TYPES, type StoreType } from "@/lib/constants/store-types";
 
 interface BusinessVerticalCardProps {
   storeType: StoreType;
@@ -27,41 +26,31 @@ export function BusinessVerticalCard({
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { id: "pharmacy", label: "Pharmacy", icon: Pill },
-            { id: "grocery", label: "Grocery", icon: ShoppingBasket },
-            {
-              id: "supermarket",
-              label: "Supermarket",
-              icon: ShoppingCart,
-            },
-            { id: "general", label: "General", icon: Check },
-          ].map((vertical) => (
-            <button
-              key={vertical.id}
-              onClick={() => handleSwitchVertical(vertical.id as StoreType)}
-              className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
-                storeType === vertical.id
-                  ? "border-primary bg-primary"
-                  : "border-muted-foreground/10 hover:border-primary/30 hover:bg-primary/5"
-              }`}
-            >
-              <vertical.icon
-                className={`h-6 w-6 mb-2 ${
-                  storeType === vertical.id
-                    ? "text-primary-foreground"
-                    : "text-primary"
-                }`}
-              />
-              <span
-                className={`text-sm font-medium ${
-                  storeType === vertical.id ? "text-primary-foreground" : ""
+          {STORE_TYPES.map((vertical) => {
+            const active = storeType === vertical.value;
+            return (
+              <button
+                key={vertical.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => handleSwitchVertical(vertical.value)}
+                className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                  active
+                    ? "border-primary bg-primary"
+                    : "border-muted-foreground/10 hover:border-primary/30 hover:bg-primary/5"
                 }`}
               >
-                {vertical.label}
-              </span>
-            </button>
-          ))}
+                <vertical.icon
+                  className={`h-6 w-6 mb-2 ${active ? "text-primary-foreground" : "text-primary"}`}
+                />
+                <span
+                  className={`text-sm font-medium text-center ${active ? "text-primary-foreground" : ""}`}
+                >
+                  {vertical.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </CardContent>
     </Card>

@@ -937,6 +937,24 @@ Checkout and checkout/initialize use `resolveBranch(..., requireExplicitMatch: t
 with two or more live branches; the web build makes branch pages from it. The primary branch
 is the brand's front door, so it has a slug but its canonical URL is the brand root.
 
+### Store types (`stores.store_type`, expanded 2026-11-27)
+
+`App\Support\StoreTypes::IDS` is the one list of store types, in display order:
+`pharmacy, supermarket, grocery, general, beauty, hardware, fashion, electronics,
+auto_parts, stationery, agro, other`. `StoreTypes::rule()` validates register
+(`RegistersAccounts`) and `POST/PUT /stores` (`Web\StoreController`); anything else is
+still a 422, as before. `LEGACY_IDS = ['retail']` stays accepted because older desktop
+bundles wrote it from the setup wizard; drop it once no `stores` row holds `retail` and
+every active bundle is on the 2026-11-27 release or later. `StoreTypes::normalize()` is
+how a reader gets a type: an unknown value (sync pushes `stores` rows unvalidated, and the
+client's local schema defaults to `'store'`) reads as `general`. The public storefront
+payload (`StorefrontCatalogService::branchPayload`) and the first-sync admin alert use it;
+admin and dashboard endpoints return the raw stored value on purpose. Creating a store
+without a type still defaults to `pharmacy` (column default and the `?? 'pharmacy'` on
+create), because old clients omit it and every existing store was made that way.
+`client/lib/constants/store-types.ts` and `web/lib/constants/store-types.ts` copy `IDS`;
+a test in each package reads this file and fails if the lists drift.
+
 ### Till token rotation grace (2026-11-16)
 
 `POST /refresh` no longer deletes the token it was called with. `TillTokenRotator` issues the

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
 use App\Models\User;
+use App\Support\StoreTypes;
 use App\Support\SyncRowStamp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -101,7 +102,7 @@ class StoreController extends Controller
                 new OA\Property(property: 'location', type: 'string', nullable: true),
                 new OA\Property(property: 'address', type: 'string', nullable: true),
                 new OA\Property(property: 'phone', type: 'string', nullable: true),
-                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: ['pharmacy', 'supermarket', 'grocery', 'general', 'retail']),
+                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: StoreTypes::ACCEPTED_IDS),
             ],
         )),
         responses: [
@@ -126,7 +127,7 @@ class StoreController extends Controller
             'location' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'phone' => 'nullable|string',
-            'store_type' => 'nullable|string|in:pharmacy,supermarket,grocery,general,retail',
+            'store_type' => StoreTypes::rule(),
         ]);
 
         $user = $request->user();
@@ -166,7 +167,7 @@ class StoreController extends Controller
                 new OA\Property(property: 'location', type: 'string', nullable: true),
                 new OA\Property(property: 'address', type: 'string', nullable: true),
                 new OA\Property(property: 'phone', type: 'string', nullable: true),
-                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: ['pharmacy', 'supermarket', 'grocery', 'general', 'retail']),
+                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: StoreTypes::ACCEPTED_IDS),
             ],
         )),
         responses: [
@@ -189,7 +190,7 @@ class StoreController extends Controller
                 new OA\Property(property: 'location', type: 'string', nullable: true),
                 new OA\Property(property: 'address', type: 'string', nullable: true),
                 new OA\Property(property: 'phone', type: 'string', nullable: true),
-                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: ['pharmacy', 'supermarket', 'grocery', 'general', 'retail']),
+                new OA\Property(property: 'store_type', type: 'string', nullable: true, enum: StoreTypes::ACCEPTED_IDS),
             ],
         )),
         responses: [
@@ -211,7 +212,7 @@ class StoreController extends Controller
             'location' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'phone' => 'nullable|string',
-            'store_type' => 'nullable|string|in:pharmacy,supermarket,grocery,general,retail',
+            'store_type' => StoreTypes::rule(),
         ]);
 
         $store->update($request->only(['name', 'location', 'address', 'phone', 'store_type']));

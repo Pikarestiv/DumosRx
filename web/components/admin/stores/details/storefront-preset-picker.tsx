@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { StorefrontPresetPreview } from "./storefront-preset-preview";
 import { useSetStoreStorefrontThemeMutation } from "@/lib/api/admin-hooks";
-import { isPharmacyStore } from "@/lib/storefront-copy";
+import { storefrontTaglineKey } from "@/lib/storefront-copy";
 import { resolveLocale, translate } from "@/lib/storefront-i18n";
 import { STOREFRONT_PRESETS } from "@/lib/storefront-presets";
 import { resolveStorefrontPreset, resolveStorefrontTheme } from "@/lib/storefront-themes";
@@ -24,7 +24,7 @@ export function StorefrontPresetPicker({ store, accent, editable }: StorefrontPr
   const effective = resolveStorefrontPreset(storefront.theme, store.store_type);
   const allowed = storefront.available_themes;
   const presets = allowed ? STOREFRONT_PRESETS.filter((preset) => allowed.includes(preset.id)) : STOREFRONT_PRESETS;
-  const tagline = storefront.tagline?.trim() || translate(resolveLocale(storefront.locale), isPharmacyStore({ store_type: store.store_type }) ? "tagline.pharmacy" : "tagline.retail");
+  const tagline = storefront.tagline?.trim() || translate(resolveLocale(storefront.locale), storefrontTaglineKey(store));
 
   const choose = (id: string) =>
     setTheme.mutate(

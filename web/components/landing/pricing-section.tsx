@@ -6,6 +6,7 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSystemConfig } from "@/lib/api/hooks";
+import { STARTER_STOREFRONT_LINE } from "@/lib/constants/subscription-plans";
 import { calculateDiscountPercent } from "@/lib/utils";
 import { HybridOperationsExplainer } from "./hybrid-operations-explainer";
 import { PricingComparisonTable } from "./pricing-comparison-table";
@@ -134,7 +135,8 @@ export function PricingSection() {
           ? "Full Web Dashboard"
           : "Restricted Web Dashboard",
         "Prescriptions & Expenses",
-      ],
+        config?.tiers?.starter?.features?.store_url ? STARTER_STOREFRONT_LINE : "",
+      ].filter(Boolean),
       exclusions: [
         !config?.tiers?.starter?.features?.mobile_app
           ? "No Mobile Companion app"

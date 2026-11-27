@@ -65,7 +65,7 @@ export function StorefrontProPresetsCard() {
           Pro storefront presets
         </CardTitle>
         <CardDescription>
-          The styles a Pro storefront may use. Enterprise always gets every style, including new ones. A Pro storefront on a style you remove keeps its saved choice and is shown the first ticked style until the owner upgrades.
+          The styles a Pro storefront may use. Enterprise always gets every style, including new ones. A Pro storefront on a style you remove keeps its saved choice and is shown the first ticked style until the owner upgrades. Starter storefronts always use their store type's default style (Clinic for a pharmacy, Workshop otherwise), whatever is ticked here.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2">

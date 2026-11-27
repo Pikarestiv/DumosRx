@@ -54,6 +54,7 @@ describe("StorefrontProPresetsCard", () => {
     expect(screen.getByRole("checkbox", { name: /Studio/ }).getAttribute("aria-checked")).toBe("false");
     expect(screen.getAllByRole("checkbox")).toHaveLength(6);
     expect(screen.getByText("2 Pro storefronts")).toBeTruthy();
+    expect(screen.getByText(/Starter storefronts always use their store type's default style \(Clinic for a pharmacy, Workshop otherwise\), whatever is ticked here/)).toBeTruthy();
   });
 
   it("saves an added preset straight away, with no confirmation", async () => {

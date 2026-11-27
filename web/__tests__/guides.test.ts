@@ -3,7 +3,7 @@ import { GUIDES, GUIDE_CATEGORIES, getGuideBySlug } from "../lib/guides-data";
 
 describe("Guides & Video Tutorials Hub", () => {
   it("contains all core feature guides", () => {
-    expect(GUIDES.length).toBe(42);
+    expect(GUIDES.length).toBe(43);
   });
 
   it("has valid categories for all guides", () => {
@@ -35,6 +35,13 @@ describe("Guides & Video Tutorials Hub", () => {
         expect(step.trim().length).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("has a launch guide for the Starter online storefront", () => {
+    const guide = getGuideBySlug("starter-online-storefront");
+    expect(guide?.category).toBe("Online Storefront");
+    expect(guide?.videoPlaceholderText).toBeTruthy();
+    expect(guide?.proTip).toBeTruthy();
   });
 
   it("retrieves guides by slug via getGuideBySlug", () => {

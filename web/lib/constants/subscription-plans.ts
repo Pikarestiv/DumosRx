@@ -17,6 +17,8 @@ export interface SubscriptionPlan {
  * `SubscriptionConfig["tiers"]` and the backend's `subscription_plans`
  * config - anything that lets an admin pick a plan should read these rather
  * than accept free text. */
+export const STARTER_STOREFRONT_LINE = "Online Storefront: up to 50 products, WhatsApp orders, pickup or pay on delivery";
+
 export const PLAN_SLUGS = ["free", "starter", "pro", "enterprise"] as const;
 
 export type PlanSlug = (typeof PLAN_SLUGS)[number];
@@ -62,6 +64,7 @@ export const getSubscriptionPlans = (
         `Up to ${config?.tiers?.starter?.limits?.staff === -1 ? 'Unlimited' : (config?.tiers?.starter?.limits?.staff || 3)} Staff Accounts`,
         "Cloud Sync (Every 30 Minutes)",
         "Prescriptions, Procurement & Expenses",
+        config?.tiers?.starter?.features?.store_url ? STARTER_STOREFRONT_LINE : "",
       ].filter(Boolean),
       missing: [
         !config?.tiers?.starter?.features?.mobile_app ? "No Mobile App Companion" : "",

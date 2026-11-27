@@ -2247,8 +2247,20 @@ which is false on Pro.
   which style; the save proceeds on confirm. The server recomputes the count
   itself and logs it, so the dialog is a courtesy, not the control. web has no
   `AlertDialog` primitive; `ConfirmDialog` is its custom modal.
-- **Guide:** `lib/guides/storefront-guides.ts`, slug `storefront-plans`.
+- **Starter (2026-11-27).** No web plan logic either: the server sends
+  Starter's single preset as `theme`, `show_powered_by: true`,
+  `online_payment_available: false` and `payment_instructions: null`, so
+  `availablePaymentMethods()` offers only pickup and pay on delivery. The plan
+  cards add `STARTER_STOREFRONT_LINE` to Starter only when its `store_url` is
+  on (so nothing changes until a super admin ticks Online Storefront for
+  Starter in the plan editor); prices are untouched. The 50 in that line, like
+  Pro's 300, is copy: keep it in step with `config/storefront_entitlements.php`.
+  `StorefrontProPresetsCard` says Starter always uses its store type's default
+  style; its counts stay Pro-only.
+- **Guides:** `lib/guides/storefront-guides.ts`, slugs `storefront-plans` and
+  `starter-online-storefront`.
 - Coverage: `admin-storefront-pro-presets.test.tsx`, `storefront-footer-badge.test.tsx`,
+  `subscription-plans-starter-storefront.test.ts`, `guides.test.ts`,
   `storefront-themes.test.ts` (server `CLASSIC_IDS` + `PRESET_IDS` pinned to the web lists).
 
 ## Storefront tile icons (2026-11-16)

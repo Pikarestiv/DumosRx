@@ -1902,7 +1902,7 @@ theirs. Coverage: `tests/Feature/BackfillShowOnlineCommandTest.php`.
   - Coverage: `tests/Feature/StorefrontBestSellerRankingTest.php` and
     `tests/Feature/StorefrontRefreshFeaturedCommandTest.php`.
 
-## Storefront plan entitlements (Pro/Enterprise split, 2026-11-24)
+## Storefront plan entitlements (Pro/Enterprise split, 2026-11-24; Starter, 2026-11-27)
 
 What a storefront may do is decided by the owner's **effective plan**
 (`SubscriptionService::resolveEffectivePlan()`, so grace and lapse count) looked
@@ -1911,22 +1911,24 @@ up in **`config/storefront_entitlements.php`**, through
 `forPlan()`). An unknown plan name resolves like `free`. Everything is enforced
 on the server; the till and web only lock, hide and explain.
 
-| Flag | Free/Starter | Pro | Enterprise | Enforced by |
-|---|---|---|---|---|
-| `storefront_enabled` | no | yes | yes | `StorefrontController::publishedBranch()`, slugs, services, order tracking (also ANDed with the plan editor's `store_url`) |
-| `allowed_presets` | none | admin list, default workshop/clinic/market | every `StorefrontThemes::PRESET_IDS` entry, always | read-time theme fallback; owner `PUT /app/storefront-settings` validation |
-| classic accent themes | n/a | all | all | never gated, on any plan, including future ones |
-| `custom_accent_colour` | no | no | yes | public payload `accent` is `null` without it |
-| `max_online_products` | n/a | 300 | unlimited (`null`) | sync push, admin switch-on, plan watcher (below) |
-| `checkout_transfer_mobile_money`, `checkout_pay_on_delivery` | no | yes | yes | `checkoutRefusal()` on `POST /storefront/{slug}/checkout` |
-| `checkout_paystack` | no | no | yes | 422 at both checkout endpoints, 403 on `POST /stores/{id}/payment-account`, `online_payment_available` false |
-| `checkout_whatsapp`, `checkout_flutterwave` | no | whatsapp only | yes | **flags only**: neither is a checkout method today, so nothing reads them |
-| `remove_powered_by_badge` | no | no | yes | public payload `show_powered_by` |
-| `services_on_storefront` | no | no | yes | payload `show_services`; `GET /storefront/{slug}/services` returns `[]` |
-| `visitor_language_switch` | no | no | yes | payload `enabled_locales` is `[locale]` without it |
-| `owner_self_edit_look` | no | no | yes | `PUT /app/storefront-settings` 403 `UPGRADE_REQUIRED` (replaces the old `subscription:custom_branding` route middleware); the super-admin `owner_style_enabled` switch is still required as well |
-| `rebuild_mode` | scheduled | scheduled | on_demand | `storefront:rebuild-if-dirty`; owner `POST /app/storefront/rebuild` (403 unless `on_demand`, super admins always allowed, `throttle:storefront-owner-rebuild` 3/hour) |
-| `custom_domain` | no | no | yes | flag only, nothing reads it yet |
+| Flag | Free | Starter (2026-11-27) | Pro | Enterprise | Enforced by |
+|---|---|---|---|---|---|
+| `storefront_enabled` | no | yes, **only after the owner opts in** | yes | yes | `StorefrontController::publishedBranch()`, slugs, services, order tracking (also ANDed with the plan editor's `store_url`) |
+| `allowed_presets` | none | `store_type_default`: one preset, `clinic` for a pharmacy (or an empty type), `workshop` otherwise | admin list, default workshop/clinic/market | every `StorefrontThemes::PRESET_IDS` entry, always | read-time theme fallback; owner `PUT /app/storefront-settings` validation |
+| classic accent themes | n/a | all | all | all | never gated, on any plan, including future ones |
+| `custom_accent_colour` | no | no | no | yes | public payload `accent` is `null` without it |
+| `max_online_products` | n/a | 50 | 300 | unlimited (`null`) | sync push, admin switch-on, owner opt-in, plan watcher (below) |
+| `checkout_pay_on_delivery` | no | yes | yes | yes | `checkoutRefusal()` on `POST /storefront/{slug}/checkout` |
+| `checkout_transfer_mobile_money` | no | no | yes | yes | `checkoutRefusal()`; payload `payment_instructions` is `null` without it, so web offers no transfer |
+| `checkout_paystack` | no | no | no | yes | 422 at both checkout endpoints, 403 on `POST /stores/{id}/payment-account`, `online_payment_available` false |
+| `checkout_whatsapp` | no | yes | yes | yes | payload `whatsapp` is `null` without it (no plan with a storefront lacks it today) |
+| `checkout_flutterwave` | no | no | no | yes | **flag only**: not a checkout method today, so nothing reads it |
+| `remove_powered_by_badge` | no | no | no | yes | public payload `show_powered_by` |
+| `services_on_storefront` | no | no | no | yes | payload `show_services`; `GET /storefront/{slug}/services` returns `[]` |
+| `visitor_language_switch` | no | no | no | yes | payload `enabled_locales` is `[locale]` without it |
+| `owner_self_edit_look` | no | no | no | yes | `PUT /app/storefront-settings` 403 `UPGRADE_REQUIRED` (replaces the old `subscription:custom_branding` route middleware); the super-admin `owner_style_enabled` switch is still required as well |
+| `rebuild_mode` | scheduled | scheduled | scheduled | on_demand | `storefront:rebuild-if-dirty`; owner `POST /app/storefront/rebuild` (403 unless `on_demand`, super admins always allowed, `throttle:storefront-owner-rebuild` 3/hour) |
+| `custom_domain` | no | no | no | yes | flag only, nothing reads it yet |
 
 - **A plan alone never publishes a store.** `stores.online_store_enabled` (the
   admin switch) is still required, unchanged.
@@ -2008,9 +2010,70 @@ on the server; the till and web only lock, hide and explain.
   ever, then name, then id. It notifies the owner through `notifications`
   (`/alerts`). It is idempotent: a store already within the cap is left
   alone, and nothing runs again until the next switch. There is no automatic
-  relisting on upgrade.
+  relisting on upgrade, **except for trims made on a plan in
+  `relist_trimmed_on_upgrade_plans` (Starter)**, below.
 
-Coverage: `StorefrontEntitlementsTest`, `StorefrontPlanEffectiveSettingsTest`,
+### Starter storefront (2026-11-27)
+
+Starter's row in `config/storefront_entitlements.php` is plan data like the
+others (cap 50, one preset, WhatsApp/pickup/pay on delivery, the badge, nightly
+rebuilds, no custom domain). Three things are specific to it, each named by a
+config list rather than by plan name in code:
+
+- **Owner opt-in (`owner_opt_in_plans`).** For a plan in this list
+  `StorefrontEntitlements::forOwner()` ANDs `storefront_enabled` with
+  `hasOwnerOptedIn()`: `storefronts.owner_opted_in_at` is set, **or** the
+  storefront's `applied_plan` was a plan with a storefront and no opt-in (a
+  Pro or Enterprise owner moving down to Starter keeps a live store live; the
+  watcher then stamps `owner_opted_in_at` on that transition so it sticks).
+  This is the §11 guard: a Starter store whose `online_store_enabled` is already
+  1 (an old till could set it) stays dark, untrimmed and unchanged until the
+  owner opts in. `NULL` everywhere at release is the "not opted in" value, so
+  the migration has no backfill and the shim never needs retiring.
+  - `POST /app/storefront/opt-in` (`StorefrontOptInController`,
+    `StorefrontOptInService`): owner only (staff 403), the plan must offer a
+    storefront at all (`planOffersStorefront()`, else 403 `UPGRADE_REQUIRED`),
+    and the owner needs a slugged store (422 otherwise; the storefront row is
+    created from it as the admin path does). Idempotent: the first time is
+    kept. It logs `STOREFRONT_OWNER_OPTED_IN`, runs the trim for every
+    switched-on store, and dirties them, so a store the account manager had
+    already switched on appears at the next 03:00 run. Publishing still needs
+    `online_store_enabled`: opting in never switches a store on.
+  - `GET /app/storefront-settings` adds `opt_in_required` and `opted_in`
+    (both forms), and the computed plan map adds `owner_opt_in_required` per
+    plan (map only, not `forOwner()`). All additive; an old till ignores them
+    and sees Starter as having no storefront until opted in, which is what the
+    server enforces.
+- **One preset (`allowed_presets: 'store_type_default'`).**
+  `StorefrontThemes::defaultPresetFor()` mirrors web's
+  `resolveStorefrontPreset()` and the till's `presetFor()`: an empty
+  `store_type` counts as a pharmacy (as `branchPayload()` does). `forStore()`
+  passes the branch's type; `forOwner()` without one reads the storefront's
+  primary store. The plan map has no store, so its Starter entry shows the
+  pharmacy default; the per-owner `entitlements` from
+  `GET /app/storefront-settings` is the real one. Classic colour themes stay
+  ungated (the web already lays a classic theme out as the store type's
+  default preset). A saved preset outside the plan is shown as the one preset
+  and kept untouched for an upgrade.
+- **Reversible trim (`relist_trimmed_on_upgrade_plans`).** When the trim runs
+  while the owner's plan is in this list, the unlisted product ids go into
+  the server-only `storefront_trimmed_listings` table (`store_id`,
+  `product_id`, `trimmed_at`, unique pair, cascade on hard delete; swept with
+  products by `PurgedUserRowSweeper`). On every plan change the watcher runs
+  `trimToCap()` then `relistTrimmed()`, which, only for a switched-on store
+  whose plan has a storefront, sets `show_online` back on for remembered
+  products still unlisted and not soft-deleted, best sellers first, up to the
+  new plan's free slots, with the usual sync stamp, and notifies the owner.
+  Remembered rows whose product is listed again are deleted; the rest wait
+  for the next plan change. Pro trims are not remembered, so a Pro to
+  Enterprise upgrade still relists nothing, as before.
+- **Not shown by SQLite:** `StorefrontOptInService` takes `lockForUpdate()` on
+  the storefront row so two opt-ins cannot both log; SQLite ignores the lock,
+  so that race is untested. Between a Pro to Starter downgrade and the next
+  15-minute watcher run, up to 300 products can still be listed; the trim
+  catches up on that run.
+
+Coverage: `StorefrontStarterTierTest` (Starter: opt-in, cap, trim and relist, checkout, payload, rebuilds, sync push), `StorefrontEntitlementsTest`, `StorefrontPlanEffectiveSettingsTest`,
 `StorefrontOwnerSettingsTest`, `Admin/AdminStorefrontProPresetsTest`,
 `StorefrontOnlineListingCapTest`, `StorefrontListingTrimTest`,
 `StorefrontPlanRebuildScheduleTest`, `StorefrontOwnerRebuildTest`,

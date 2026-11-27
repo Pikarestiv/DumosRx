@@ -7537,10 +7537,27 @@ much, so don't promise instant updates anywhere.
   old saved config). Bundles before this change read `ecommerce` first with an
   Enterprise-only default, so a Pro owner on an old bundle still sees the
   upgrade message on the Show Online switch until the till updates (A-429).
-- **Online Storefront card.** Free/Starter (no `storefront_enabled`) see an
-  upgrade prompt instead of the address. An `on_demand` plan (Enterprise) gets
-  `StorefrontRebuildButton` ("Publish changes now", `POST /app/storefront/rebuild`,
-  online only, server rate-limited).
+- **Online Storefront card.** A plan without `storefront_enabled` sees an
+  upgrade prompt instead of the address (naming Starter too once the plan map
+  gives Starter a storefront, `useFeatureGate().starterHasStorefront`). An
+  `on_demand` plan (Enterprise) gets `StorefrontRebuildButton` ("Publish
+  changes now", `POST /app/storefront/rebuild`, online only, server
+  rate-limited).
+- **Starter opt-in (2026-11-27).** When the plan map marks the plan
+  `owner_opt_in_required`, the address panel is wrapped in
+  `StorefrontOptInGate` (`storefront-opt-in.tsx`), the only place the card
+  reads `useStorefrontSettings`, so Pro/Enterprise make no extra request. While
+  the settings say `opt_in_required && !opted_in` it shows what Starter
+  includes and "Turn on my online store" (`useOptInStorefront`, `POST
+  /app/storefront/opt-in`, then invalidates the settings query); a refusal
+  toasts the server's message. A failed load falls through to the address
+  panel, which the server's own gate makes harmless.
+- **Plan features panel.** `StorefrontPlanFeatures` badges each locked feature
+  with the lowest plan that has it, from the plan map's `pro` entry
+  (`PlanBadge`, `EnterpriseBadge` is the Enterprise wrapper): Starter sees
+  "More styles", "Up to 300 products online" and transfer payments as Pro, the
+  rest as Enterprise. Without a map entry for Pro (old server) every lock reads
+  Enterprise, which is the Pro view unchanged.
 - **Payment Methods.** `OnlinePaymentsSection` (Paystack onboarding) renders only
   with `checkout_paystack`; otherwise a note with an Enterprise badge.
 - **Listing cap.** `useOnlineListingCap()` counts this store's listed products
@@ -7553,9 +7570,15 @@ much, so don't promise instant updates anywhere.
   (`setProductsShowOnline(..., maxToList)`). `OnlineListingCapBanner` on the
   Products page shows when the cap is reached or exceeded. The server enforces
   the same cap on push and versions the row back if a device gets past this.
+  For an `owner_opt_in_required` plan the cap applies only once the settings
+  say `opted_in` (one `GET /app/storefront-settings`, only on that plan), as
+  the server does. Messages name the plan and the next one up
+  (`capPlanNames()`: Starter to Pro, Pro to Enterprise; `tier` on the cap
+  state).
 - Coverage: `storefront-entitlements.test.ts`, `online-listing-count.test.ts`,
   `add-product-listing-cap.test.tsx`, `online-listing-cap-banner.test.tsx`,
-  `storefront-plan-gates.test.tsx`, `storefront-appearance.test.tsx`.
+  `storefront-plan-gates.test.tsx`, `storefront-appearance.test.tsx`,
+  `storefront-starter-plan.test.tsx`.
 
 ## Online Payments settings panel (`components/settings/store/online-payments-section.tsx`)
 
